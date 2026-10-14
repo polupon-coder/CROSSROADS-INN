@@ -54,7 +54,7 @@ header { position: relative; text-align: center; padding: 28px 16px 8px; }
 @keyframes balanceo { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
 @media (prefers-reduced-motion: reduce) { .cartel { animation: none; } }
 h1 { margin: 0; }
-.lema { margin: 10px 0 0; color: var(--texto); font-size: 21px; font-style: italic; text-shadow: 0 2px 6px #000; }
+.lema { margin: 10px 0 0; color: var(--oro-claro); font-size: clamp(22px, 3vw, 30px); letter-spacing: .08em; text-shadow: 0 2px 6px #000, 0 0 18px rgba(0,0,0,.8); }
 
 /* Los juegos llegan por los lados hasta el borde exterior de la primera banda de
    hierro del fondo y tapan sus pernos. La madera mide 941 × 1672 y se escala como
@@ -196,7 +196,7 @@ const TEXTOS = {
   es: {
     titulo: "POSADA DEL CRUCE",
     cartel: "img/cartel-es.webp",
-    lema: "Elige tu juego y pulsa para jugar",
+    lema: "La Taberna de los Juegos de Mesa",
     jugar: "Jugar",
     pronto: "Próximamente",
     pie: "Todos se juegan en el navegador, con amigos por internet o contra la máquina. Si un juego tarda en abrir, espera un momento: el servidor se está despertando (hasta un minuto).",
@@ -204,7 +204,7 @@ const TEXTOS = {
   en: {
     titulo: "CROSSROADS INN",
     cartel: "img/cartel-en.webp",
-    lema: "Pick your game and click to play",
+    lema: "The Board Game Tavern",
     jugar: "Play",
     pronto: "Coming soon",
     pie: "All games run in the browser, online with friends or against the computer. If a game is slow to open, give it a moment: the server is waking up (up to a minute).",
