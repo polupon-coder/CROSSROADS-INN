@@ -377,10 +377,16 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .retrato-y-estado .retrato { display: block; }
 .estado-circulo {
   position: absolute; right: -12%; bottom: -16%; width: 46%; aspect-ratio: 1;
-  border-radius: 50%; border: 2px solid #f0d59a;
+  border-radius: 50%; border: 3px solid var(--fondo-rango, #f0d59a);
   background-repeat: no-repeat; background-size: 175% auto; background-position: 50% 62%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, .65);
 }
+/* El borde del círculo, del color de fondo de cada carta de estado. */
+.rango-capitalista { --fondo-rango: #99d79b; }
+.rango-vicepresidente { --fondo-rango: #cad893; }
+.rango-ciudadano { --fondo-rango: #ddb18e; }
+.rango-viceculo { --fondo-rango: #db938d; }
+.rango-culo { --fondo-rango: #d881ba; }
 /* El círculo sobresale de la carta: hueco para que no tape el nombre ni los números. */
 .asiento .retrato-y-estado, .yo .retrato-y-estado { margin: 0 14px 10px 0; }
 /* En ordenador, tu bruja y los botones van a la izquierda de la mano: así las cartas caben en

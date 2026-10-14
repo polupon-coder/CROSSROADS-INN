@@ -166,7 +166,7 @@ function htmlCarta(c, extra = '') {
 }
 const htmlDorso = () => `<span class="dorso${DORSO_CON_IMAGEN ? ' imagen' : ''}"${DORSO_CON_IMAGEN ? ' style="background-image:url(cartas/dorso.webp)"' : ''}></span>`;
 // Carta de estado del rango (publico/estados/): la bruja más o menos contenta.
-const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
+const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase} rango-${rango}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
 const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
 // Retrato del personaje de un jugador y, en su esquina, la brujita de estado en círculo si ya tiene rango.
 const htmlRetrato = (personaje, rango, clase = 'retrato') => {
