@@ -614,3 +614,34 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   #mesa .yo > div { flex: 1; min-width: 0; }
   #mesa .yo .cuenta-hojas { margin-right: 6px; }
 }
+
+/* Franja del color de la bruja que ha jugado, bajo la carta lanzada. */
+.jugada { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.jugada-cartas { display: flex; gap: clamp(6px, 1.4vw, 18px); align-items: flex-end; }
+.franja { display: block; width: 100%; min-width: 90px; height: 10px; border-radius: 999px; background: var(--color-bruja, #4f9a3a); box-shadow: 0 2px 5px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .35); }
+[data-personaje="pelirroja"] { --color-bruja: #c91c04; }
+[data-personaje="rubia"] { --color-bruja: #fee01d; }
+[data-personaje="verde"] { --color-bruja: #068251; }
+[data-personaje="azul"] { --color-bruja: #002853; }
+[data-personaje="blanca"] { --color-bruja: #d52a8f; }
+
+/* Título de la barra, en blanco y sin brillo. */
+.titulo-barra { filter: drop-shadow(0 1px 2px rgba(10, 40, 12, .45)); }
+
+/* Puntos centrados en el hueco que queda a la derecha del retrato y el nombre. */
+.asiento-info { flex: 0 1 auto; }
+.asiento .cuenta-hojas { flex: 1; justify-content: center; margin-left: 0; }
+
+@media (min-width: 641px) {
+  /* Columna de la derecha: Jugar y Pasar arriba, en fila; debajo tu bruja y los rivales. */
+  #mesa .mio-cabeza { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  #mesa .mio-cabeza .acciones { flex-direction: row; justify-content: center; gap: 14px; }
+  #mesa .mio-cabeza .acciones .boton { min-width: 150px; }
+  #mesa .yo > div { flex: 0 1 auto; }
+  #mesa .yo .cuenta-hojas { flex: 1; justify-content: center; margin: 0; }
+  /* Brujas más grandes. */
+  #mesa .asiento .retrato, #mesa .yo .retrato { width: clamp(120px, 11.5vw, 170px); }
+}
+@media (max-width: 640px) {
+  .asiento .cuenta-hojas { flex: none; }
+}

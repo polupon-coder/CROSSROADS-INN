@@ -311,7 +311,10 @@ function pintarMesa() {
   }).join('');
 
   // El claro: la última jugada en grande, y de quién es.
-  $('monton').innerHTML = p.mesa ? p.mesa.cartas.map((c) => htmlCarta(c)).join('') : `<span class="hueco-carta">${t.mesaVacia}</span>`;
+  // Bajo la carta jugada, una franja del color de la bruja que la ha jugado.
+  $('monton').innerHTML = p.mesa
+    ? `<div class="jugada" data-personaje="${v.asientos[p.mesa.jugador].personaje}"><div class="jugada-cartas">${p.mesa.cartas.map((c) => htmlCarta(c)).join('')}</div><span class="franja"></span></div>`
+    : `<span class="hueco-carta">${t.mesaVacia}</span>`;
   $('quien').innerHTML = p.mesa ? `${htmlRetrato(v.asientos[p.mesa.jugador].personaje, null, 'retrato-mini')}<span>${esc(t.jugo(nombreDe(p.mesa.jugador)))}</span>` : '';
 
   // Yo.
