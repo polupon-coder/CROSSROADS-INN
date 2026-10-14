@@ -671,3 +671,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 }
 .idiomas { top: 12px; }
 @media (max-width: 640px) { .idiomas { top: 11px; } }
+
+/* Sin el texto de la ronda en la barra. */
+#ronda { display: none !important; }
