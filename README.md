@@ -16,7 +16,7 @@ del navegador y se cambia con el botón ES | EN.
 ## Añadir o cambiar un juego
 
 Todo está en la lista `JUEGOS` al principio del código de `index.html`:
-nombre, dirección, imagen, jugadores y descripción (en `es` y `en`).
+nombre, dirección, imagen y descripción (en `es` y `en`).
 Si la dirección se deja vacía, la tarjeta sale como «Próximamente».
 
 Las portadas (`img/*.webp`) ya llevan el marco de madera puesto.
