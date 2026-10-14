@@ -7,12 +7,3 @@ services:
     buildCommand: ""
     staticPublishPath: .
 
-  # BOSQUE ENCANTADO: el juego (con servidor) vive en la carpeta bosque-encantado.
-  - type: web
-    name: bosque-encantado
-    runtime: node
-    plan: free
-    rootDir: bosque-encantado
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /healthz
