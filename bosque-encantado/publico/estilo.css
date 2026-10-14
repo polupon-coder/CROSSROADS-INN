@@ -25,9 +25,9 @@ body {
     radial-gradient(ellipse at 50% 30%, rgba(120, 200, 110, .16), transparent 60%),
     radial-gradient(ellipse at 20% 90%, rgba(40, 90, 50, .5), transparent 55%),
     radial-gradient(ellipse at 85% 80%, rgba(30, 70, 45, .5), transparent 50%),
-    /* Las hojas del bosque, oscurecidas para que se lea todo encima. */
-    linear-gradient(rgba(8, 22, 13, .74), rgba(6, 18, 10, .84)),
-    url(fondo.webp) center / cover,
+    /* El bosque, oscurecido para que se lea todo encima. */
+    linear-gradient(rgba(8, 22, 13, .62), rgba(6, 18, 10, .8)),
+    url(fondo-bosque.webp) center / cover,
     var(--fondo);
   background-attachment: fixed;
   color: var(--texto);
@@ -60,7 +60,13 @@ button { font: inherit; }
 .idiomas button[aria-pressed="true"] { background: var(--oro); color: #1b160a; font-weight: 700; }
 
 /* ---------- Inicio ---------- */
-.portada { text-align: center; padding: 48px 0 18px; }
+.portada { text-align: center; padding: 36px 0 10px; }
+/* La portada del juego: el espíritu de hojas. */
+.portada-img {
+  display: block; width: min(560px, 100%); height: auto; aspect-ratio: 16 / 9; margin: 0 auto 18px; object-fit: cover;
+  border-radius: 14px; border: 2px solid var(--oro);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .65), 0 0 40px rgba(200, 240, 160, .18);
+}
 h1 {
   margin: 0; font-weight: 600; letter-spacing: .12em; line-height: 1;
   font-size: clamp(40px, 10vw, 76px);
