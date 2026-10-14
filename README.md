@@ -1,5 +1,7 @@
 # Crossroads Inn · Posada del Cruce
 
+**Dirección del portal: https://crossroads-inn-upa3.onrender.com**
+
 Portal con todos los juegos: cada tarjeta lleva a su juego publicado en Render.
 Es una página estática (sin servidor), en español e inglés: sale en el idioma
 del navegador y se cambia con el botón ES | EN.
