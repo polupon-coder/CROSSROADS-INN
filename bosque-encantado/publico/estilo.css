@@ -1,6 +1,6 @@
 @font-face { font-family: Garamond; src: url(EBGaramond.ttf) format("truetype"); font-display: swap; }
 :root {
-  --fondo: #0c1a12;
+  --fondo: #cfe3c4;
   --musgo: #1d3a26;
   --panel: rgba(10, 24, 16, .82);
   --borde: #3f6a48;
@@ -489,4 +489,22 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 @media (max-width: 640px) {
   .elegir-personaje { gap: 8px; }
   .retrato-boton { width: calc((100% - 2 * 8px) / 3); }
+}
+
+/* Elegir bruja: dos por fila y grandes. */
+.elegir-personaje { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+.retrato-boton { width: 100%; }
+@media (max-width: 640px) { .elegir-personaje { gap: 8px; } .retrato-boton { width: 100%; } }
+.aviso:empty { display: none; }
+
+/* Hojas de fondo, suaves, en todos los paneles (inicio, sala de espera, jugadores, tu zona). */
+.panel, .asiento, .yo {
+  background:
+    linear-gradient(rgba(240, 249, 233, .80), rgba(236, 247, 228, .84)),
+    url(hojas-panel.webp) center / 520px auto repeat;
+}
+.asiento.turno, .yo.turno {
+  background:
+    linear-gradient(rgba(228, 250, 210, .82), rgba(222, 247, 204, .86)),
+    url(hojas-panel.webp) center / 520px auto repeat;
 }

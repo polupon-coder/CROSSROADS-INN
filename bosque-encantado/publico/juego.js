@@ -23,12 +23,12 @@ const TEXTOS = {
     tuNombre: 'Tu nombre', crear: 'Crear partida', o: 'o únete a una', codigo: 'Código de la partida', unirse: 'Unirse',
     reglas: 'Reglas', sala: 'Sala de espera', codigoSala: 'Código:', copiar: 'Copiar enlace para invitar', copiado: 'Enlace copiado',
     tuBruja: 'Elige tu bruja', brujas: { pelirroja: 'Pelirroja', rubia: 'Rubia', verde: 'Verde', azul: 'Azul', blanca: 'Blanca' },
-    anadirMaquina: '+ Jugador máquina', rondas: 'Rondas', sinLimite: 'Sin límite', variante: 'Variante: revolución',
+    anadirMaquina: '+ Jugador máquina',
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'máquina', tu: 'tú', ausente: 'desconectado',
     faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6). Añade máquinas o invita a amigos.`,
-    esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…', listos: '¡Listos! Pulsa Empezar.',
+    esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…',
     menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
-    ronda: (r, t) => (t ? `Ronda ${r} de ${t}` : `Ronda ${r}`), revolucionActiva: '¡Revolución!',
+    ronda: (r) => `Ronda ${r} · a 10 puntos`, revolucionActiva: '¡Revolución!',
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
     tuTurnoAbre: 'Te toca abrir: juega una carta, pareja, trío o cuatro iguales.',
@@ -63,12 +63,12 @@ const TEXTOS = {
     tuNombre: 'Your name', crear: 'Create game', o: 'or join one', codigo: 'Game code', unirse: 'Join',
     reglas: 'Rules', sala: 'Waiting room', codigoSala: 'Code:', copiar: 'Copy invite link', copiado: 'Link copied',
     tuBruja: 'Choose your witch', brujas: { pelirroja: 'Redhead', rubia: 'Blonde', verde: 'Green', azul: 'Blue', blanca: 'White' },
-    anadirMaquina: '+ Computer player', rondas: 'Rounds', sinLimite: 'No limit', variante: 'Variant: revolution',
+    anadirMaquina: '+ Computer player',
     empezar: 'Start', anfitrion: 'host', maquina: 'computer', tu: 'you', ausente: 'disconnected',
     faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6). Add computers or invite friends.`,
-    esperaAnfitrion: 'Waiting for the host to start the game…', listos: 'Ready! Press Start.',
+    esperaAnfitrion: 'Waiting for the host to start the game…',
     menu: 'Menu', puntos: 'Scores', jugar: 'Play', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
-    ronda: (r, t) => (t ? `Round ${r} of ${t}` : `Round ${r}`), revolucionActiva: 'Revolution!',
+    ronda: (r) => `Round ${r} · first to 10 points`, revolucionActiva: 'Revolution!',
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
     tuTurnoAbre: 'Your lead: play a single, pair, three or four of a kind.',
@@ -112,9 +112,9 @@ const REGLAS = {
 <h3>Rangos e intercambio</h3>
 <p>Según el orden en que os quedáis sin cartas: <b>Bruja Suprema, Alta Bruja, (Brujas), Bruja Aprendiz y Bruja Limpiaollas</b>. Al empezar la ronda siguiente, la Limpiaollas da sus 2 cartas más altas a la Suprema y recibe sus 2 más bajas; la Aprendiz da su carta más alta a la Alta Bruja y recibe su más baja. Abre la Bruja Suprema.</p>
 <h3>Puntos</h3>
-<p>Cada jugador gana tantos puntos como jugadores terminan detrás de él. Gana quien más puntos tenga al acabar las rondas; en empate, quien quedó mejor en la última.</p>
-<h3>Variante: revolución</h3>
-<p>Si está activada, jugar cuatro cartas iguales invierte el orden (el 1 pasa a ser la más alta y el 12 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
+<p>En cada ronda, la <b>Bruja Suprema gana 2 puntos</b> y la <b>Alta Bruja 1 punto</b>; las demás, ninguno. La partida acaba al final de la ronda en que alguien llega a <b>10 puntos</b>: gana quien más tenga y, en empate, quien quedó mejor en esa ronda.</p>
+<h3>Revolución</h3>
+<p>Jugar cuatro cartas iguales invierte el orden (el 1 pasa a ser la más alta y el 12 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
   en: `<h2>Rules</h2>
 <p>4 to 6 players, with the forest deck: 48 cards, numbered 1 to 12, four of each. The goal of each round is to <b>run out of cards as soon as possible</b>.</p>
 <h3>Card values</h3>
@@ -126,9 +126,9 @@ const REGLAS = {
 <h3>Ranks and card exchange</h3>
 <p>By the order in which you run out: <b>Supreme Witch, High Witch, (Witches), Apprentice Witch and Pot-Scrubber Witch</b>. At the start of the next round, the Pot-Scrubber gives her 2 highest cards to the Supreme Witch and gets the Supreme's 2 lowest; the Apprentice gives her highest card to the High Witch and gets her lowest. The Supreme Witch leads.</p>
 <h3>Scoring</h3>
-<p>Each player scores one point per player who finished behind them. The highest total after the last round wins; ties go to whoever placed better in the last round.</p>
-<h3>Variant: revolution</h3>
-<p>When enabled, playing four of a kind reverses the order (1 becomes highest, 12 lowest) until the end of the round. Another four of a kind restores it.</p>`,
+<p>Each round, the <b>Supreme Witch scores 2 points</b> and the <b>High Witch 1 point</b>; the rest score nothing. The game ends after the round in which someone reaches <b>10 points</b>: the highest total wins and ties go to whoever placed better in that round.</p>
+<h3>Revolution</h3>
+<p>Playing four of a kind reverses the order (1 becomes highest, 12 lowest) until the end of the round. Another four of a kind restores it.</p>`,
 };
 
 // ---------- Estado ----------
@@ -252,11 +252,9 @@ function pintarEspera() {
       style="background-image:url(personajes/${p}.webp)" aria-label="${t.brujas[p]}" title="${t.brujas[p]}"></button>`).join('');
   $('controles-anfitrion').hidden = !soyAnfitrion;
   $('anadir-maquina').disabled = v.asientos.length >= 6;
-  $('rondas').value = String(v.opciones.rondas);
-  $('revolucion').checked = v.opciones.revolucion;
   const faltan = 4 - v.asientos.length;
   $('empezar').disabled = faltan > 0;
-  $('aviso-espera').textContent = faltan > 0 ? t.faltan(faltan) : soyAnfitrion ? t.listos : t.esperaAnfitrion;
+  $('aviso-espera').textContent = faltan > 0 ? t.faltan(faltan) : soyAnfitrion ? '' : t.esperaAnfitrion;
 }
 
 function estadoJugador(p, i) {
@@ -271,7 +269,7 @@ function pintarMesa() {
   const p = v.partida;
   const n = v.asientos.length;
   const yo = v.yo;
-  $('ronda').textContent = t.ronda(p.ronda, v.opciones.rondas);
+  $('ronda').textContent = t.ronda(p.ronda);
   $('revolucion-activa').hidden = !p.revolucion;
 
   // Rivales, en el orden en que juegan después de ti: retrato, nombre y cuántas cartas les quedan.
@@ -494,9 +492,6 @@ $('copiar').addEventListener('click', () => {
 $('anadir-maquina').addEventListener('click', () => accion('maquina'));
 $('elegir-personaje').addEventListener('click', (e) => { const b = e.target.closest('[data-personaje]'); if (b && !b.disabled) accion('personaje', { personaje: b.dataset.personaje }); });
 $('asientos').addEventListener('click', (e) => { const b = e.target.closest('[data-quitar]'); if (b) accion('quitar', { asiento: Number(b.dataset.quitar) }); });
-const cambiarOpciones = () => accion('opciones', { rondas: Number($('rondas').value), revolucion: $('revolucion').checked });
-$('rondas').addEventListener('change', cambiarOpciones);
-$('revolucion').addEventListener('change', cambiarOpciones);
 $('empezar').addEventListener('click', () => accion('empezar'));
 $('mano').addEventListener('click', (e) => { const b = e.target.closest('[data-carta]'); if (b) elegir(Number(b.dataset.carta)); });
 $('rivales').addEventListener('click', (e) => { const b = e.target.closest('[data-sustituir]'); if (b) accion('sustituir', { asiento: Number(b.dataset.sustituir) }); });
