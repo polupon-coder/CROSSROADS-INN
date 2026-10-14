@@ -543,3 +543,28 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .hojita { width: 22px; }
   .retrato .estado-circulo, .estado-circulo { width: 40%; }
 }
+
+/* ---------- Barra de la mesa: título arriba a la izquierda; menú en esfera junto al idioma ---------- */
+.barra { padding: 4px 116px 6px 2px; min-height: 58px; flex-wrap: nowrap; }
+.titulo-barra { display: block; height: 50px; width: auto; flex: none; filter: drop-shadow(0 0 3px rgba(250, 255, 244, 1)) drop-shadow(0 0 8px rgba(245, 252, 238, .95)) drop-shadow(0 0 14px rgba(245, 252, 238, .7)); }
+#ronda { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* La esfera: una bola de hoja verde con brillo, y las tres líneas encima. */
+.boton.boton-menu {
+  width: 50px; height: 50px; min-width: 0; padding: 0; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #f4ffe6 0 8%, #a9d98a 26%, #5f9e42 62%, #2f6a2a 100%);
+  box-shadow: inset 0 -4px 8px rgba(20, 60, 20, .45), inset 0 3px 6px rgba(255, 255, 240, .5), 0 4px 8px rgba(20, 50, 20, .4);
+  border: 2px solid #2b5a26; color: #f6ffe8; text-shadow: 0 1px 2px rgba(10, 40, 12, .8);
+  filter: none;
+}
+.boton.boton-menu[data-variante] { background-image: radial-gradient(circle at 35% 30%, #f4ffe6 0 8%, #a9d98a 26%, #5f9e42 62%, #2f6a2a 100%); }
+.boton.boton-menu:hover { filter: brightness(1.08) drop-shadow(0 0 8px rgba(220, 255, 190, .8)); }
+.boton-menu span[aria-hidden] { font-size: 26px; line-height: 1; margin-top: -2px; }
+/* El selector de idioma, a la altura de la esfera. */
+.idiomas { top: 14px; }
+@media (max-width: 640px) {
+  .barra { padding-right: 108px; gap: 8px; }
+  .titulo-barra { height: 40px; }
+  #ronda { font-size: 14px; white-space: normal; line-height: 1.15; }
+  .boton.boton-menu { width: 44px; height: 44px; }
+  .idiomas { top: 12px; }
+}

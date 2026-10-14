@@ -3,8 +3,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../motor');
 
-// Carta por nombre: c('6-a') = el primer 6, c('10-c') = el tercer 10.
-const c = (s) => { const [v, k] = s.split('-'); return M.VALORES.indexOf(v) * 4 + M.PALOS.indexOf(k); };
+// Carta por fuerza: c('6-a') = la primera carta de fuerza 6, c('10-c') = la tercera de fuerza 10.
+// En las pruebas, el número es la fuerza: '1' la carta más baja … '12' la más alta.
+const FUERZAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const c = (s) => { const [v, k] = s.split('-'); return FUERZAS.indexOf(v) * 4 + M.PALOS.indexOf(k); };
 const cs = (...s) => s.map(c);
 
 // Azar repetible para que las partidas de prueba sean siempre iguales.

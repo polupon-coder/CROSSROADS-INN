@@ -10,7 +10,9 @@ const CARTAS_CON_IMAGEN = true;
 const DORSO_CON_IMAGEN = true;
 
 // La baraja del bosque: 48 cartas del 1 (la más baja) al 12 (la más alta), cuatro de cada.
-const VALORES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+// Por fuerza, de la más baja a la más alta: los monstruos grandes son los más difíciles de quitarse.
+const VALORES = ['12', '11', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+const DRAGON_ROJO = 3; // la carta que abre la primera ronda (12 «d»)
 const COPIAS = ['a', 'b', 'c', 'd'];
 const MAXIMO = VALORES.length - 1;
 const valor = (c) => c >> 2;
@@ -32,7 +34,7 @@ const TEXTOS = {
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
     tuTurnoAbre: 'Te toca abrir: juega una carta, pareja, trío o cuatro iguales.',
-    tuTurnoTres: 'Abres la partida: tu jugada debe llevar el espíritu de hojas (el 1 que brilla).',
+    tuTurnoTres: 'Abres la partida: tu jugada debe llevar el dragón rojo (el 12 que brilla).',
     tuTurnoSupera: (k) => `Te toca: supera con ${k === 1 ? 'una carta' : k + ' cartas iguales'} más alta${k === 1 ? '' : 's'}, o pasa.`,
     turnoDe: (n) => `Le toca a ${n}`, hasPasado: 'Has pasado: esperas a que se limpie la mesa.', hasTerminado: (p) => `¡Has terminado ${p}.º! Mira cómo acaban los demás.`,
     finRonda: (r) => `Fin de la ronda ${r}`, eres: (r) => `Eres ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
@@ -42,7 +44,7 @@ const TEXTOS = {
     sustituir: 'Que juegue la máquina',
     errores: {
       nombre: 'Escribe tu nombre.', sala: 'No existe esa partida.', empezada: 'Esa partida ya ha empezado.', llena: 'La partida está llena (6 jugadores).',
-      tresDeTreboles: 'Tu primera jugada debe llevar el espíritu de hojas (el 1 que brilla).', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
+      tresDeTreboles: 'Tu primera jugada debe llevar el dragón rojo (el 12 que brilla).', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
       superior: 'Tiene que ser de un valor más alto.', mismoValor: 'Todas las cartas deben ser del mismo valor.', abres: 'Abres la mesa: no puedes pasar.',
       turno: 'No es tu turno.', cogido: 'Esa bruja ya la tiene otro jugador.', red: 'Sin conexión con el servidor. Reintentando…',
     },
@@ -72,7 +74,7 @@ const TEXTOS = {
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
     tuTurnoAbre: 'Your lead: play a single, pair, three or four of a kind.',
-    tuTurnoTres: 'You open the game: your play must include the leaf spirit (the glowing 1).',
+    tuTurnoTres: 'You open the game: your play must include the red dragon (the glowing 12).',
     tuTurnoSupera: (k) => `Your turn: beat it with ${k === 1 ? 'a higher card' : k + ' higher matching cards'}, or pass.`,
     turnoDe: (n) => `${n}'s turn`, hasPasado: 'You passed: wait until the table is cleared.', hasTerminado: (p) => `You finished #${p}! Watch the others finish.`,
     finRonda: (r) => `End of round ${r}`, eres: (r) => `You are ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
@@ -82,7 +84,7 @@ const TEXTOS = {
     sustituir: 'Let the computer play',
     errores: {
       nombre: 'Enter your name.', sala: 'That game does not exist.', empezada: 'That game has already started.', llena: 'The game is full (6 players).',
-      tresDeTreboles: 'Your first play must include the leaf spirit (the glowing 1).', mismaCantidad: 'You must play the same number of cards.',
+      tresDeTreboles: 'Your first play must include the red dragon (the glowing 12).', mismaCantidad: 'You must play the same number of cards.',
       superior: 'It must be a higher value.', mismoValor: 'All cards must have the same value.', abres: 'You lead: you cannot pass.',
       turno: 'It is not your turn.', cogido: 'Another player already has that witch.', red: 'No connection to the server. Retrying…',
     },
@@ -104,31 +106,31 @@ const REGLAS = {
   es: `<h2>Reglas</h2>
 <p>De 4 a 6 jugadores, con la baraja del bosque: 48 cartas, del 1 al 12, cuatro de cada número. El objetivo de cada ronda es <b>quedarse sin cartas lo antes posible</b>.</p>
 <h3>Valor de las cartas</h3>
-<p>De menor a mayor: <b>1 2 3 4 5 6 7 8 9 10 11 12</b>. Solo cuenta el número, no el dibujo.</p>
+<p>De menor a mayor: <b>12 11 10 9 8 7 6 5 4 3 2 1</b>. Los monstruos grandes son los más difíciles de quitarse de encima. Solo cuenta el número, no el dibujo.</p>
 <h3>Jugadas</h3>
 <p>Quien abre la mesa juega una carta, una pareja, un trío o cuatro iguales. Los demás, en sentido horario, deben <b>superarla</b> con la misma cantidad de cartas iguales de valor más alto, o <b>pasar</b>. Quien pasa queda fuera hasta que se limpie la mesa.</p>
-<p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (doces) limpia la mesa al momento.</p>
-<p>En la primera ronda abre quien tiene el <b>espíritu de hojas</b> (el 1 de las manos juntas), y su jugada debe llevarlo.</p>
+<p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (unos) limpia la mesa al momento.</p>
+<p>En la primera ronda abre quien tiene el <b>dragón rojo</b> (un 12), y su jugada debe llevarlo.</p>
 <h3>Rangos e intercambio</h3>
 <p>Según el orden en que os quedáis sin cartas: <b>Bruja Suprema, Alta Bruja, (Brujas), Bruja Aprendiz y Bruja Limpiaollas</b>. Al empezar la ronda siguiente, la Limpiaollas da sus 2 cartas más altas a la Suprema y recibe sus 2 más bajas; la Aprendiz da su carta más alta a la Alta Bruja y recibe su más baja. Abre la Bruja Suprema.</p>
 <h3>Puntos</h3>
 <p>En cada ronda, la <b>Bruja Suprema gana 2 puntos</b> y la <b>Alta Bruja 1 punto</b>; las demás, ninguno. La partida acaba al final de la ronda en que alguien llega a <b>10 puntos</b>: gana quien más tenga y, en empate, quien quedó mejor en esa ronda.</p>
 <h3>Revolución</h3>
-<p>Jugar cuatro cartas iguales invierte el orden (el 1 pasa a ser la más alta y el 12 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
+<p>Jugar cuatro cartas iguales invierte el orden (el 12 pasa a ser la más alta y el 1 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
   en: `<h2>Rules</h2>
 <p>4 to 6 players, with the forest deck: 48 cards, numbered 1 to 12, four of each. The goal of each round is to <b>run out of cards as soon as possible</b>.</p>
 <h3>Card values</h3>
-<p>Lowest to highest: <b>1 2 3 4 5 6 7 8 9 10 11 12</b>. Only the number counts, not the picture.</p>
+<p>Lowest to highest: <b>12 11 10 9 8 7 6 5 4 3 2 1</b>. The big monsters are the hardest to get rid of. Only the number counts, not the picture.</p>
 <h3>Plays</h3>
 <p>Whoever leads plays a single card, a pair, three or four of a kind. Going clockwise, the others must <b>beat it</b> with the same number of matching cards of a higher value, or <b>pass</b>. A player who passes is out until the table is cleared.</p>
-<p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (twelves) clears the table at once.</p>
-<p>In the first round, the holder of the <b>leaf spirit</b> (the 1 with joined hands) leads, and that play must include it.</p>
+<p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (ones) clears the table at once.</p>
+<p>In the first round, the holder of the <b>red dragon</b> (a 12) leads, and that play must include it.</p>
 <h3>Ranks and card exchange</h3>
 <p>By the order in which you run out: <b>Supreme Witch, High Witch, (Witches), Apprentice Witch and Pot-Scrubber Witch</b>. At the start of the next round, the Pot-Scrubber gives her 2 highest cards to the Supreme Witch and gets the Supreme's 2 lowest; the Apprentice gives her highest card to the High Witch and gets her lowest. The Supreme Witch leads.</p>
 <h3>Scoring</h3>
 <p>Each round, the <b>Supreme Witch scores 2 points</b> and the <b>High Witch 1 point</b>; the rest score nothing. The game ends after the round in which someone reaches <b>10 points</b>: the highest total wins and ties go to whoever placed better in that round.</p>
 <h3>Revolution</h3>
-<p>Playing four of a kind reverses the order (1 becomes highest, 12 lowest) until the end of the round. Another four of a kind restores it.</p>`,
+<p>Playing four of a kind reverses the order (12 becomes highest, 1 lowest) until the end of the round. Another four of a kind restores it.</p>`,
 };
 
 // ---------- Estado ----------
@@ -235,6 +237,8 @@ let enPortada = true;
 function pintar() {
   const pantalla = !v ? (enPortada ? 'portada' : 'inicio') : v.partida ? 'mesa' : 'espera';
   for (const id of ['portada', 'inicio', 'espera', 'mesa']) $(id).hidden = id !== pantalla;
+  // Al cambiar de pantalla, se empieza por arriba (si no, la mesa se abre donde estaba la sala).
+  if (pantalla !== pintar.anterior) { pintar.anterior = pantalla; window.scrollTo(0, 0); }
   if (pantalla === 'espera') pintarEspera();
   if (pantalla === 'mesa') pintarMesa();
 }
@@ -316,7 +320,7 @@ function pintarMesa() {
   $('mano').style.setProperty('--n', Math.max(orden.length, 1));
   $('mano').style.setProperty('--mitad', Math.max(Math.ceil(orden.length / 2), 1));
   $('mano').innerHTML = orden.map((c) => {
-    const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === 0 && 'abre'].filter(Boolean).join(' ');
+    const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === DRAGON_ROJO && 'abre'].filter(Boolean).join(' ');
     return htmlCarta(c, extra).replace('<span class="carta', '<button type="button" class="carta').replace(/<\/span>$/, '</button>');
   }).join('');
 
@@ -349,7 +353,7 @@ function valoresJugables(p) {
   for (const c of p.mano) cuenta.set(valor(c), (cuenta.get(valor(c)) || 0) + 1);
   const ok = new Set();
   for (const [vv, k] of cuenta) {
-    if (!p.mesa) { if (!p.abreConTres || vv === 0) ok.add(vv); continue; }
+    if (!p.mesa) { if (!p.abreConTres || vv === valor(DRAGON_ROJO)) ok.add(vv); continue; }
     if (k >= p.mesa.cantidad && fuerza(vv, p.revolucion) > fuerza(p.mesa.valor, p.revolucion)) ok.add(vv);
   }
   return ok;
@@ -363,7 +367,7 @@ function motivo(p, cartas) {
   if (p.mesa) {
     if (cartas.length !== p.mesa.cantidad) return 'mismaCantidad';
     if (fuerza(vv, p.revolucion) <= fuerza(p.mesa.valor, p.revolucion)) return 'superior';
-  } else if (p.abreConTres && !cartas.includes(0)) return 'tresDeTreboles';
+  } else if (p.abreConTres && !cartas.includes(DRAGON_ROJO)) return 'tresDeTreboles';
   return null;
 }
 

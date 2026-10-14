@@ -3,16 +3,18 @@
 // Las reglas están en REGLAS.md. Este archivo no sabe nada de pantallas ni de red: recibe
 // jugadas, comprueba que son válidas y cambia el estado de la partida.
 //
-// La baraja del bosque tiene 48 cartas: del 1 (la más baja) al 12 (la más alta), cuatro
-// de cada número, con dibujos distintos (a, b, c, d) pero sin palos que cuenten.
-// Cada carta es un número de 0 a 47: valor = n >> 2 (0 = el 1, … 11 = el 12) y
-// copia = n & 3. La carta 0 (el primer 1) abre la primera ronda.
+// La baraja del bosque tiene 48 cartas, del 1 al 12, cuatro de cada número, con dibujos
+// distintos (a, b, c, d) pero sin palos que cuenten. Los monstruos grandes son los más
+// difíciles de quitarse de encima: el 12 es la carta más baja y el 1 la más alta.
+// Cada carta es un número de 0 a 47: valor = n >> 2 es su fuerza (0 = la más baja, el 12;
+// … 11 = la más alta, el 1) y copia = n & 3. VALORES da el número impreso de cada fuerza.
+// La carta 3 (el 12 «d», el dragón rojo) abre la primera ronda.
 
-const VALORES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const VALORES = ['12', '11', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
 const PALOS = ['a', 'b', 'c', 'd'];
 const CARTAS = VALORES.length * PALOS.length;
 const MAXIMO = VALORES.length - 1; // fuerza de la carta más alta
-const TRES_DE_TREBOLES = 0; // la carta que abre la primera ronda
+const TRES_DE_TREBOLES = 3; // la carta que abre la primera ronda: el dragón rojo (12 «d»)
 const MIN_JUGADORES = 4;
 const MAX_JUGADORES = 6;
 const META = 10; // puntos para ganar la partida
