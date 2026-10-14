@@ -1,0 +1,15 @@
+{
+  "name": "bosque-encantado",
+  "version": "0.1.0",
+  "description": "BOSQUE ENCANTADO — el Capitalista de cartas, para jugar con amigos por internet o contra la máquina",
+  "main": "servidor.js",
+  "scripts": {
+    "start": "node servidor.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
