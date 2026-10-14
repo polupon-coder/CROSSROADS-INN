@@ -135,16 +135,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* ---------- Registro y ventanas ---------- */
 
 .ventana {
-  /* La ventana del bosque (ventana.webp): papel de acuarela con hojas por el borde. Con
-     border-image las esquinas no se deforman y los bordes se repiten según el tamaño. */
+  /* La ventana del bosque (ventana.webp): papel de acuarela con una enredadera por el borde.
+     Con border-image las esquinas no se deforman y los bordes se repiten según el tamaño. */
   --texto: #1d3a1f; --texto-suave: #3b5a37; --oro: #4f6f1e; --oro-claro: #23461f; --luz: #1f6b2a; --error: #a3322a;
   max-width: min(660px, calc(100vw - 16px)); max-height: calc(100vh - 24px);
-  color: var(--texto); border-radius: 0; padding: 4px 10px;
-  border: solid transparent; border-width: 66px 78px 70px;
-  border-image: url(ventana.webp) 150 180 160 / 66px 78px 70px / 0 round;
-  /* El centro es la parte central de la misma imagen, estirada de una pieza (sin costuras): la
-     imagen mide 1000 × 740 y el centro va de 180 a 820 en horizontal y de 150 a 580 en vertical. */
-  background: url(ventana.webp) 50% 48.39% / 156.25% 172.09% no-repeat;
+  color: var(--texto); border-radius: 0; padding: 6px 16px;
+  border: solid transparent; border-width: 54px;
+  border-image: url(ventana.webp) 140 / 54px / 0 round;
+  /* El centro: papel de la misma imagen, sin hojas y con el tono del papel junto al borde. */
+  background: url(ventana-papel.webp) center / cover no-repeat;
   background-origin: padding-box; background-clip: padding-box;
   filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6));
   overflow: auto;
@@ -152,7 +151,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .ventana .tabla th, .ventana .tabla td { border-bottom-color: rgba(47, 90, 45, .35); }
 .ventana .registro li { border-bottom-color: rgba(47, 90, 45, .25); }
 @media (max-width: 640px) {
-  .ventana { border-width: 44px 46px 46px; border-image-width: 44px 46px 46px; padding: 2px 4px; }
+  .ventana { border-width: 40px; border-image-width: 40px; padding: 2px 6px; }
 }
 .ventana::backdrop { background: rgba(0, 0, 0, .6); }
 .ventana h2 { margin: 0 0 10px; text-align: center; color: var(--oro-claro); }
@@ -401,3 +400,10 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .boton-menu span[aria-hidden] { font-size: 1.2em; margin-right: 4px; }
 .menu-opciones { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: min(300px, 70vw); }
 .menu-opciones .boton { width: 240px; }
+
+/* El aviso del intercambio, en la ventana alargada (ventana-ancha.webp). */
+.nota {
+  /* Tiene casi la forma de la imagen: va entera, estirada, sin cortes. */
+  --texto: #1d3a1f; color: #1d3a1f; background: url(ventana-ancha.webp) 0 0 / 100% 100% no-repeat;
+  border: 0; border-radius: 0; padding: 34px 48px; box-shadow: none; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .55));
+}
