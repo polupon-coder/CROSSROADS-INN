@@ -257,22 +257,26 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .mensaje.tuyo { color: var(--luz); font-weight: 600; }
 
 /* Tu zona: retrato, nombre y botones; debajo, la mano en grande. */
-.mio {
-  display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 12px; border-radius: 6px;
-  /* El follaje de la portada (sin la niña) detrás de tu mano, algo oscurecido para que destaquen las cartas. */
-  background: linear-gradient(rgba(6, 18, 10, .58), rgba(6, 18, 10, .68)), url(hojas-mano.webp) center / cover;
-  box-shadow: inset 0 0 0 1px rgba(217, 178, 106, .3), 0 -6px 20px rgba(0, 0, 0, .35);
-}
+.mio { display: flex; flex-direction: column; gap: 8px; }
 .mio-cabeza { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
 .yo { display: flex; align-items: center; gap: 12px; padding: 4px 14px 4px 4px; border-radius: 8px; }
 .yo.turno { background: rgba(30, 58, 30, .75); box-shadow: inset 0 0 0 2px var(--luz), 0 0 18px rgba(200, 240, 160, .35); }
 .yo .retrato { width: 96px; margin: 0; }
 .acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .acciones .boton { min-width: 110px; font-size: 19px; }
-.mano { display: flex; justify-content: center; padding-top: 18px; }
+.mano { display: flex; justify-content: center; }
+/* Tus cartas, entre las hojas: el follaje de la portada (sin la niña) solo en esta zona, con
+   las hojas a la misma escala que las del marco de las cartas y un margen pequeño. La baldosa
+   va en espejo, así que se repite sin costuras. */
+.mano {
+  align-self: center; max-width: 100%; padding: 7px; border-radius: 6px;
+  background: url(hojas-mano.webp) center / calc(var(--carta-w) * 4.6) auto repeat;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+}
 /* Las cartas se ven enteras, sin montarse: en una fila, y si no caben, más pequeñas. */
 .mano { --por-fila: var(--n); gap: 8px; flex-wrap: wrap; }
-.mano .carta { width: min(var(--carta-w), calc((100% - (var(--por-fila) - 1) * 8px) / var(--por-fila))); }
+/* La zona se ajusta a las cartas: su ancho sale de la pantalla (márgenes de la mesa y de la zona). */
+.mano .carta { width: min(var(--carta-w), calc((100vw - 24px - 14px - (var(--por-fila) - 1) * 8px) / var(--por-fila))); }
 
 /* ---------- Cartas ---------- */
 .carta {
@@ -326,8 +330,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .acciones .boton { min-width: 90px; font-size: 17px; }
   .quien .retrato-mini { width: 30px; }
   /* En el móvil, en dos filas para que no queden diminutas. */
-  .mano { --por-fila: var(--mitad); gap: 5px; padding-top: 12px; }
-  .mano .carta { width: min(var(--carta-w), calc((100% - (var(--por-fila) - 1) * 5px) / var(--por-fila))); }
+  .mano { --por-fila: var(--mitad); gap: 5px; padding: 5px; }
+  .mano .carta { width: min(var(--carta-w), calc((100vw - 16px - 10px - (var(--por-fila) - 1) * 5px) / var(--por-fila))); }
 }
 .registro { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; min-width: min(420px, 80vw); }
 .registro li { padding: 2px 0; color: var(--texto-suave); border-bottom: 1px solid rgba(63, 106, 72, .35); }
