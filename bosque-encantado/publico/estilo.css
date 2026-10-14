@@ -82,7 +82,7 @@ button { font: inherit; }
   .titulo-portada { width: min(92vw, 560px); margin-bottom: 9vh; }
   .boton.boton-portada { height: 84px; min-width: 250px; font-size: 28px; margin-top: 4vh; }
 }
-.cabecera-inicio { text-align: center; padding: 56px 0 4px; }
+.cabecera-inicio { height: 64px; }
 h1 {
   margin: 0; font-weight: 600; letter-spacing: .12em; line-height: 1;
   font-size: clamp(40px, 10vw, 76px);
