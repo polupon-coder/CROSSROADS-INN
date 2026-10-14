@@ -183,10 +183,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   background: center / contain no-repeat;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .55));
 }
-.retrato .estado-esquina {
-  position: absolute; right: -8px; bottom: -8px; width: 46px; aspect-ratio: 760 / 544;
-  background: center / contain no-repeat; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .7));
-}
 .retrato-mini { display: inline-block; width: 46px; aspect-ratio: 760 / 544; background: center / contain no-repeat; flex: none; }
 .titulo-bruja { margin: 0 0 6px; text-align: center; color: var(--texto-suave); }
 .elegir-personaje { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 16px; }
@@ -235,15 +231,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .rango { display: inline-block; font-size: 13px; padding: 0 7px; border-radius: 999px; background: rgba(217, 178, 106, .18); color: var(--oro); }
 .desconectado { color: var(--error); font-size: 13px; }
 
-/* Campo: el claro del bosque donde cae la última jugada, en grande. */
+/* Campo: donde cae la última jugada, en grande. */
 .campo {
   position: relative; flex: 1; min-height: calc(var(--carta-w) * 1.6 + 60px);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 8px; border-radius: 6px; overflow: hidden;
-  background: url(fondo.webp) center / cover;
-  box-shadow: inset 0 0 0 1px rgba(217, 178, 106, .25), inset 0 0 60px rgba(0, 0, 0, .6);
+  /* Sin dibujo propio: se ve el bosque del fondo, algo más oscuro para que destaquen las cartas. */
+  background: rgba(6, 16, 9, .35);
+  box-shadow: inset 0 0 0 1px rgba(217, 178, 106, .25);
 }
-.campo::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(10, 24, 14, .35), rgba(6, 16, 9, .72) 75%); }
 .campo > * { position: relative; }
 .monton { display: flex; gap: clamp(6px, 1.4vw, 18px); align-items: flex-end; justify-content: center; min-height: calc(var(--carta-w) * 1.25 * 1.4); }
 .monton .carta { width: calc(var(--carta-w) * 1.25); animation: caer .28s ease-out; }
@@ -333,6 +329,16 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* El aviso del intercambio sale en la parte baja del claro, justo encima de tu zona. */
 .nota { bottom: calc(clamp(58px, min(9.6vw, 15.5vh), 150px) * 1.4 + 110px); }
 @media (max-width: 640px) {
-  .retrato .estado-esquina { width: 30px; right: -4px; bottom: -4px; }
-  .nota { bottom: calc(clamp(46px, 15vw, 90px) * 2.8 + 150px); }
+    .nota { bottom: calc(clamp(46px, 15vw, 90px) * 2.8 + 150px); }
+}
+
+/* La brujita de estado va al lado del retrato, del mismo alto. */
+.retrato-y-estado { display: flex; align-items: center; gap: 6px; flex: none; }
+.estado-lado { display: block; aspect-ratio: 760 / 544; background: center / contain no-repeat; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .55)); flex: none; }
+.asiento .estado-lado { width: 84px; }
+.yo .estado-lado { width: 96px; }
+@media (max-width: 640px) {
+  .asiento .retrato-y-estado { flex-direction: column; gap: 3px; }
+  .asiento .estado-lado { width: 64px; }
+  .yo .estado-lado { width: 70px; }
 }

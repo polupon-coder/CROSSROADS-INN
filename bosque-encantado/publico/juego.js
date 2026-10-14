@@ -168,8 +168,11 @@ const htmlDorso = () => `<span class="dorso${DORSO_CON_IMAGEN ? ' imagen' : ''}"
 // Carta de estado del rango (publico/estados/): la bruja más o menos contenta.
 const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
 const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
-// Retrato del personaje de un jugador, con su carta de estado en la esquina si ya tiene rango.
-const htmlRetrato = (personaje, rango, clase = 'retrato') => `<span class="${clase}" style="background-image:url(personajes/${personaje}.webp)">${rango ? htmlEstado(rango, 'estado-esquina') : ''}</span>`;
+// Retrato del personaje de un jugador y, al lado, su carta de estado si ya tiene rango.
+const htmlRetrato = (personaje, rango, clase = 'retrato') => {
+  const retrato = `<span class="${clase}" style="background-image:url(personajes/${personaje}.webp)"></span>`;
+  return rango ? `<span class="retrato-y-estado">${retrato}${htmlEstado(rango, 'estado-lado')}</span>` : retrato;
+};
 const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)]).join(' '));
 
 // ---------- Red ----------

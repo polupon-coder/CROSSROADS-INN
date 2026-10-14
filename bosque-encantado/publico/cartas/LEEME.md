@@ -11,5 +11,4 @@ Las originales sin recortar están en `arte/baraja/`. Para volver a prepararlas:
 python3 -I herramientas/preparar_cartas.py --de-pie publico/cartas 400 01-a=arte/baraja/01-a.jpg …
 ```
 
-El reverso es `dorso.webp`, recortado de las hojas (`arte/hojas.jpg`), que también son el fondo
-de la página (`publico/fondo.webp`).
+El reverso es `dorso.webp`, recortado de las hojas (`arte/hojas.jpg`).
