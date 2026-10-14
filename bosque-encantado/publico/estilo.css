@@ -419,7 +419,9 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .mano { flex: none; }
 }
 /* Menú de la mesa: una sola entrada arriba que reúne Lo que ha pasado, Puntos y Reglas. */
-.boton-menu span[aria-hidden] { font-size: 1.2em; margin-right: 4px; }
+/* Solo las tres líneas. */
+.boton.boton-menu { min-width: 0; width: 92px; padding: 0 0 3px; }
+.boton-menu span[aria-hidden] { font-size: 26px; line-height: 1; }
 .menu-opciones { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: min(300px, 70vw); }
 .menu-opciones .boton { width: 240px; }
 
