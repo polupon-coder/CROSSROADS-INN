@@ -33,7 +33,7 @@ const TEXTOS = {
     tuTurnoTres: 'Abres la partida: tu jugada debe llevar el 3 de tréboles.',
     tuTurnoSupera: (k) => `Te toca: supera con ${k === 1 ? 'una carta' : k + ' cartas iguales'} más alta${k === 1 ? '' : 's'}, o pasa.`,
     turnoDe: (n) => `Le toca a ${n}`, hasPasado: 'Has pasado: esperas a que se limpie la mesa.', hasTerminado: (p) => `¡Has terminado ${p}.º! Mira cómo acaban los demás.`,
-    finRonda: (r) => `Fin de la ronda ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
+    finRonda: (r) => `Fin de la ronda ${r}`, eres: (r) => `Eres ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
     posicion: 'Pos.', jugador: 'Jugador', rango: 'Rango', ptsRonda: 'Ronda', total: 'Total',
     siguienteEn: (s) => `La siguiente ronda se reparte en ${s} s.`, repartir: 'Repartir ya', revancha: 'Otra partida', esperaRevancha: 'El anfitrión puede empezar otra partida.',
     diste: (cs, n) => `Has dado ${cs} a ${n}`, recibiste: (cs, n) => `y has recibido ${cs}.`,
@@ -71,7 +71,7 @@ const TEXTOS = {
     tuTurnoTres: 'You open the game: your play must include the 3 of clubs.',
     tuTurnoSupera: (k) => `Your turn: beat it with ${k === 1 ? 'a higher card' : k + ' higher matching cards'}, or pass.`,
     turnoDe: (n) => `${n}'s turn`, hasPasado: 'You passed: wait until the table is cleared.', hasTerminado: (p) => `You finished #${p}! Watch the others finish.`,
-    finRonda: (r) => `End of round ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
+    finRonda: (r) => `End of round ${r}`, eres: (r) => `You are ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
     posicion: 'Pos.', jugador: 'Player', rango: 'Rank', ptsRonda: 'Round', total: 'Total',
     siguienteEn: (s) => `Next round is dealt in ${s} s.`, repartir: 'Deal now', revancha: 'New game', esperaRevancha: 'The host can start a new game.',
     diste: (cs, n) => `You gave ${cs} to ${n}`, recibiste: (cs) => `and received ${cs}.`,
@@ -164,6 +164,8 @@ function htmlCarta(c, extra = '') {
     <span class="esquina abajo">${vv}<br>${SIMBOLOS[p]}</span></span>`;
 }
 const htmlDorso = () => `<span class="dorso${CARTAS_CON_IMAGEN ? ' imagen' : ''}"${CARTAS_CON_IMAGEN ? ' style="background-image:url(cartas/dorso.webp)"' : ''}></span>`;
+// Carta de estado del rango (publico/estados/): la bruja más o menos contenta.
+const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
 const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)] + SIMBOLOS[palo(c)]).join(' '));
 
 // ---------- Red ----------
@@ -266,7 +268,7 @@ function pintarMesa() {
     const dorsos = Array.from({ length: Math.min(j.cartas, 13) }, htmlDorso).join('');
     return `<div class="${clases}">
       <div class="nombre">${esc(a.nombre)}</div>
-      ${j.rango ? `<span class="rango">${t.rangos[j.rango]}</span>` : ''}
+      ${j.rango ? `${htmlEstado(j.rango)}<span class="rango">${t.rangos[j.rango]}</span>` : ''}
       <div class="dorsos">${dorsos}</div>
       <div class="estado">${estadoJugador(p, i)}</div>
       ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
@@ -279,7 +281,7 @@ function pintarMesa() {
   // Yo.
   const mia = p.jugadores[yo];
   $('yo').className = 'yo' + (p.fase === 'jugando' && p.turno === yo ? ' turno' : '');
-  $('yo').innerHTML = `<div class="nombre">${esc(v.asientos[yo].nombre)} ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}</div>
+  $('yo').innerHTML = `${htmlEstado(mia.rango)}<div class="nombre">${esc(v.asientos[yo].nombre)} ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}</div>
     <div class="estado">${t.tusPuntos}: ${mia.puntos}</div>`;
 
   // Quita de la selección las cartas que ya no tengo.
@@ -382,9 +384,11 @@ function pintarFin(p) {
   const soyAnfitrion = v.yo === v.anfitrion;
   const final = p.fase === 'finPartida';
   $('fin-titulo').textContent = final ? t.gana(nombreDe(p.ganador)) : t.finRonda(p.ronda);
+  const mio = p.jugadores[v.yo].rango;
+  $('fin-estado').innerHTML = mio ? `${htmlEstado(mio, 'estado-grande')}<p>${t.eres(t.rangos[mio])}</p>` : '';
   const orden = final ? p.clasificacion : p.ultimaRonda.orden;
   $('tabla-fin').innerHTML = `<tr><th>${t.posicion}</th><th>${t.jugador}</th><th>${t.rango}</th><th class="num">${t.ptsRonda}</th><th class="num">${t.total}</th></tr>` +
-    orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td>${t.rangos[p.jugadores[i].rango]}</td>
+    orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td class="con-estado">${htmlEstado(p.jugadores[i].rango)}${t.rangos[p.jugadores[i].rango]}</td>
       <td class="num">+${p.ultimaRonda.puntos[i]}</td><td class="num">${p.jugadores[i].puntos}</td></tr>`).join('');
   const boton = $('fin-boton');
   boton.hidden = !soyAnfitrion;

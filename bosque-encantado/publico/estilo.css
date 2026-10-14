@@ -234,3 +234,27 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .nota .carta { width: 40px; height: 58px; vertical-align: middle; display: inline-block; margin: 0 2px; }
 .nota .carta .esquina { font-size: 12px; }
 .nota .carta .centro { font-size: 20px; }
+
+/* ---------- Cartas de estado (rango) ---------- */
+/* Las ilustraciones tienen mucho fondo: las miniaturas se acercan a la bruja. */
+.estado-mini {
+  display: block; width: 72px; height: 56px; margin: 4px auto;
+  border-radius: 8px; border: 1px solid var(--oro);
+  background-size: 210% auto; background-position: 50% 42%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .45);
+}
+.yo .estado-mini { float: left; margin: 0 10px 0 0; }
+.tabla .estado-mini { display: inline-block; width: 40px; height: 31px; margin: 0 8px 0 0; vertical-align: middle; border-radius: 5px; }
+.fin-estado { text-align: center; }
+.fin-estado:empty { display: none; }
+.fin-estado p { margin: 6px 0 10px; font-size: 20px; color: var(--oro-claro); }
+.estado-grande {
+  display: block; width: min(300px, 70vw); aspect-ratio: 720 / 553; margin: 0 auto;
+  border-radius: 14px; border: 2px solid var(--oro);
+  background-size: cover; background-position: center;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .55);
+  animation: aparecer .4s ease-out;
+}
+@keyframes aparecer { from { transform: scale(.85) rotate(-3deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .estado-grande { animation: none; } }
+@media (max-width: 640px) { .estado-mini { width: 56px; height: 44px; } }
