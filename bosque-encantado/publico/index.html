@@ -61,37 +61,42 @@
   <button class="enlace" type="button" data-abrir="reglas" data-t="reglas"></button>
 </section>
 
-<!-- Mesa de juego -->
-<section id="mesa" class="pantalla" hidden>
-  <div class="barra">
+<!-- Mesa de juego: rivales arriba, el claro con la última jugada y tu mano abajo -->
+<section id="mesa" hidden>
+  <header class="barra">
     <span id="ronda"></span>
     <span id="revolucion-activa" class="sello" hidden data-t="revolucionActiva"></span>
     <span class="hueco"></span>
+    <button class="boton pequeno" type="button" data-abrir="ventana-registro" data-t="registro"></button>
     <button class="boton pequeno" type="button" data-abrir="puntos" data-t="puntos"></button>
     <button class="boton pequeno" type="button" data-abrir="reglas" data-t="reglas"></button>
-  </div>
-  <div id="rivales" class="rivales"></div>
-  <div class="claro">
+  </header>
+  <section id="rivales" class="rivales"></section>
+  <section class="campo">
     <div id="monton" class="monton" aria-live="polite"></div>
+    <div id="quien" class="quien"></div>
     <p id="mensaje" class="mensaje"></p>
-  </div>
-  <div class="mio">
-    <div id="yo" class="yo"></div>
-    <div id="mano" class="mano" role="group"></div>
-    <div class="acciones">
-      <button id="jugar" class="boton principal" type="button" data-t="jugar"></button>
-      <button id="pasar" class="boton" type="button" data-t="pasar"></button>
+  </section>
+  <section class="mio">
+    <div class="mio-cabeza">
+      <div id="yo" class="yo"></div>
+      <div class="acciones">
+        <button id="jugar" class="boton principal" type="button" data-t="jugar"></button>
+        <button id="pasar" class="boton" type="button" data-t="pasar"></button>
+      </div>
     </div>
-  </div>
-  <details class="registro">
-    <summary data-t="registro"></summary>
-    <ol id="registro"></ol>
-  </details>
+    <div id="mano" class="mano" role="group"></div>
+  </section>
 </section>
 
 <!-- Ventanas -->
 <dialog id="reglas" class="ventana">
   <div id="texto-reglas" class="reglas"></div>
+  <form method="dialog"><button class="boton" data-t="cerrar"></button></form>
+</dialog>
+<dialog id="ventana-registro" class="ventana">
+  <h2 data-t="registro"></h2>
+  <ol id="registro" class="registro"></ol>
   <form method="dialog"><button class="boton" data-t="cerrar"></button></form>
 </dialog>
 <dialog id="puntos" class="ventana">

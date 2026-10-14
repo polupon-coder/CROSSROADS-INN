@@ -116,98 +116,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .opciones { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: flex-end; }
 .casilla { flex-direction: row; align-items: center; gap: 6px; cursor: pointer; }
 
-/* ---------- Mesa ---------- */
-#mesa { display: flex; flex-direction: column; min-height: 100vh; gap: 10px; padding-top: 48px; }
-.barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 17px; }
-.barra .hueco { flex: 1; }
-.sello { padding: 2px 10px; border-radius: 999px; background: #6a2340; color: #ffd9e6; font-size: 15px; letter-spacing: .05em; animation: latir 2s ease-in-out infinite; }
-@keyframes latir { 50% { box-shadow: 0 0 12px rgba(255, 120, 170, .7); } }
-
-.rivales { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.rival {
-  min-width: 128px; padding: 8px 12px; border-radius: 12px; text-align: center;
-  background: var(--panel); border: 1px solid var(--borde);
-  transition: box-shadow .2s ease, border-color .2s ease;
-}
-.rival .nombre, .yo .nombre { font-weight: 600; color: var(--oro-claro); }
-.rival .estado, .yo .estado { font-size: 14px; color: var(--texto-suave); min-height: 1.3em; }
-.rival.turno, .yo.turno { border-color: var(--luz); box-shadow: 0 0 0 2px var(--luz), 0 0 22px rgba(200, 240, 160, .5); }
-.rival.pasado { opacity: .55; }
-.rival.fuera { opacity: .7; }
-.dorsos { display: flex; justify-content: center; height: 34px; margin: 4px 0; }
-.dorsos .dorso { width: 22px; height: 32px; margin-left: -12px; border-radius: 3px; }
-.dorsos .dorso:first-child { margin-left: 0; }
-.cuantas { font-size: 14px; color: var(--texto-suave); }
-.rango { display: inline-block; font-size: 13px; padding: 0 7px; border-radius: 999px; background: rgba(217, 178, 106, .18); color: var(--oro); }
-.desconectado { color: var(--error); font-size: 13px; }
-
-.claro {
-  flex: 1; min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  border-radius: 50% / 40%;
-  background: radial-gradient(ellipse at center, rgba(70, 120, 60, .55), rgba(30, 60, 35, .35) 60%, transparent 72%);
-}
-.monton { display: flex; gap: 6px; min-height: 120px; align-items: center; }
-.monton .quien { position: absolute; }
-.mensaje { margin: 0; text-align: center; font-size: 19px; text-shadow: 0 1px 4px #000; min-height: 1.4em; }
-.mensaje.tuyo { color: var(--luz); font-weight: 600; }
-
-.mio { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 8px; }
-.yo { padding: 6px 16px; border-radius: 12px; border: 1px solid var(--borde); background: var(--panel); text-align: center; }
-.mano { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 100%; }
-.acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-
-/* ---------- Cartas ---------- */
-.carta {
-  --color: var(--pica);
-  position: relative; width: 64px; height: 92px; padding: 0; flex: none;
-  border-radius: 7px; border: 1px solid var(--carta-borde);
-  background: linear-gradient(160deg, #fffaf0, var(--carta) 55%, #e8dcbc);
-  color: var(--color); font-family: Garamond, Georgia, serif;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .45);
-  transition: transform .15s ease, box-shadow .15s ease;
-  overflow: hidden;
-}
-.carta.T { --color: var(--trebol); }
-.carta.D { --color: var(--diamante); }
-.carta.C { --color: var(--corazon); }
-.carta.P { --color: var(--pica); }
-.carta .esquina { position: absolute; top: 3px; left: 5px; font-weight: 700; font-size: 18px; line-height: .95; text-align: center; }
-.carta .esquina.abajo { top: auto; left: auto; bottom: 3px; right: 5px; transform: rotate(180deg); }
-.carta .centro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 34px; }
-/* Una enredadera fina en el borde, para que parezcan cartas del bosque. */
-.carta::after { content: ""; position: absolute; inset: 4px; border-radius: 4px; border: 1px dashed color-mix(in srgb, var(--color) 35%, transparent); pointer-events: none; }
-.carta.imagen { background: #000 center / cover no-repeat; border: 0; }
-.carta.imagen::after { display: none; }
-.mano .carta { cursor: pointer; }
-.mano .carta:hover { transform: translateY(-6px); }
-.mano .carta.elegida { transform: translateY(-16px); box-shadow: 0 0 0 3px var(--luz), 0 8px 16px rgba(0, 0, 0, .5); }
-.mano .carta.apagada { filter: brightness(.7) saturate(.6); }
-.monton .carta { width: 76px; height: 108px; animation: caer .25s ease-out; }
-.monton .carta .centro { font-size: 40px; }
-@keyframes caer { from { transform: translateY(-24px) scale(1.08); opacity: 0; } }
-.dorso {
-  background:
-    radial-gradient(circle at 50% 50%, rgba(200, 240, 160, .35) 0 18%, transparent 20%),
-    repeating-linear-gradient(45deg, #24502c 0 4px, #1b3d22 4px 8px);
-  border: 1px solid var(--oro);
-}
-.dorso.imagen { background: center / 100% 100% no-repeat; border: 0; border-radius: 3px; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
-.vacia { color: var(--texto-suave); font-style: italic; }
-
-@media (max-width: 640px) {
-  body { font-size: 17px; }
-  .carta { width: 50px; height: 74px; }
-  .carta .esquina { font-size: 15px; }
-  .carta .centro { font-size: 26px; }
-  .monton .carta { width: 62px; height: 90px; }
-  .rival { min-width: 100px; padding: 6px 8px; }
-}
-
 /* ---------- Registro y ventanas ---------- */
-.registro { max-width: 640px; width: 100%; margin: 0 auto 16px; background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 6px 12px; font-size: 16px; }
-.registro summary { cursor: pointer; color: var(--oro); }
-.registro ol { list-style: none; margin: 6px 0; padding: 0; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
-.registro li { padding: 1px 0; color: var(--texto-suave); }
 
 .ventana {
   max-width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
@@ -246,7 +155,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   background-size: 210% auto; background-position: 50% 42%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, .45);
 }
-.yo .estado-mini { float: left; margin: 0 10px 0 0; }
 .tabla .estado-mini { display: inline-block; width: 40px; height: 31px; margin: 0 8px 0 0; vertical-align: middle; border-radius: 5px; }
 .fin-estado { text-align: center; }
 .fin-estado:empty { display: none; }
@@ -273,7 +181,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   position: absolute; right: -8px; bottom: -8px; width: 46px; aspect-ratio: 760 / 544;
   background: center / contain no-repeat; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .7));
 }
-.yo .retrato { float: left; margin: 0 14px 0 0; width: 96px; }
 .retrato-mini { display: inline-block; width: 46px; aspect-ratio: 760 / 544; background: center / contain no-repeat; flex: none; }
 .titulo-bruja { margin: 0 0 6px; text-align: center; color: var(--texto-suave); }
 .elegir-personaje { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 16px; }
@@ -286,31 +193,141 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .retrato-boton.elegido { outline: 3px solid var(--luz); outline-offset: 2px; }
 .retrato-boton:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; }
 .estado-grande { background-size: contain; background-repeat: no-repeat; border: 0; box-shadow: none; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .6)); }
-@media (max-width: 640px) { .retrato { width: 92px; } .yo .retrato { width: 76px; } }
 
-/* ---------- Cartas con dibujo (baraja del bosque, 400 × 559) ---------- */
-.carta.imagen { background-color: transparent; background-size: 100% 100%; border-radius: 6px; }
-.carta.imagen .chapa {
-  position: absolute; top: 4px; left: 4px; min-width: 24px; height: 24px; padding: 0 5px;
+
+/* ---------- Mesa (el esquema de REGIUM: rivales arriba, campo, tu mano abajo) ---------- */
+/* Las cartas mandan: su ancho se ajusta al ancho y al alto de la pantalla. */
+#mesa {
+  --carta-w: clamp(58px, min(9.6vw, 15.5vh), 150px);
+  --dorso-w: clamp(22px, min(3.4vw, 6vh), 52px);
+  max-width: none; min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; gap: 8px; padding: 6px 12px 12px;
+}
+.barra {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 18px;
+  padding: 4px 100px 6px 2px; border-bottom: 1px solid rgba(217, 178, 106, .3);
+}
+.barra .hueco { flex: 1; }
+.sello { padding: 2px 10px; border-radius: 999px; background: #6a2340; color: #ffd9e6; font-size: 15px; letter-spacing: .05em; animation: latir 2s ease-in-out infinite; }
+@keyframes latir { 50% { box-shadow: 0 0 12px rgba(255, 120, 170, .7); } }
+
+/* Rivales: tiras sin cajas, con el retrato y el abanico de cartas que les quedan. */
+.rivales { display: grid; grid-template-columns: repeat(var(--rivales, 3), minmax(0, 1fr)); gap: 12px; }
+.asiento {
+  display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px; min-width: 0;
+  background: rgba(6, 16, 10, .6); border-radius: 4px;
+  transition: background .25s, box-shadow .25s, opacity .25s;
+}
+.asiento.turno { background: rgba(30, 58, 30, .75); box-shadow: inset 0 0 0 2px var(--luz), 0 0 18px rgba(200, 240, 160, .35); }
+.asiento.pasado { opacity: .6; }
+.asiento.fuera { opacity: .75; }
+.asiento-cabeza { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.asiento .retrato { width: 84px; margin: 0; flex: none; }
+.asiento-info { flex: 1; min-width: 0; line-height: 1.25; }
+.nombre { font-weight: 600; color: var(--oro-claro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { font-size: 14px; color: var(--texto-suave); }
+.cuenta { font-size: 28px; font-weight: 700; color: var(--oro); line-height: 1; font-variant-numeric: lining-nums; }
+.rango { display: inline-block; font-size: 13px; padding: 0 7px; border-radius: 999px; background: rgba(217, 178, 106, .18); color: var(--oro); }
+.desconectado { color: var(--error); font-size: 13px; }
+.abanico { display: flex; justify-content: center; min-height: calc(var(--dorso-w) * 1.4); }
+.abanico .dorso { width: var(--dorso-w); aspect-ratio: 400 / 559; flex: none; }
+.abanico .dorso + .dorso { margin-left: min(3px, calc((100% - var(--n) * var(--dorso-w)) / (var(--n) - 1))); }
+
+/* Campo: el claro del bosque donde cae la última jugada, en grande. */
+.campo {
+  position: relative; flex: 1; min-height: calc(var(--carta-w) * 1.6 + 60px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 8px; border-radius: 6px; overflow: hidden;
+  background: url(fondo.webp) center / cover;
+  box-shadow: inset 0 0 0 1px rgba(217, 178, 106, .25), inset 0 0 60px rgba(0, 0, 0, .6);
+}
+.campo::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(10, 24, 14, .35), rgba(6, 16, 9, .72) 75%); }
+.campo > * { position: relative; }
+.monton { display: flex; gap: clamp(6px, 1.4vw, 18px); align-items: flex-end; justify-content: center; min-height: calc(var(--carta-w) * 1.25 * 1.4); }
+.monton .carta { width: calc(var(--carta-w) * 1.25); animation: caer .28s ease-out; }
+.monton .carta:nth-child(2n) { transform: rotate(2deg); }
+.monton .carta:nth-child(2n+1) { transform: rotate(-1.5deg); }
+@keyframes caer { from { translate: 0 -24px; scale: 1.08; opacity: 0; } }
+.hueco-carta {
+  width: calc(var(--carta-w) * 1.25); aspect-ratio: 400 / 559; border-radius: 8px;
+  border: 2px dashed rgba(217, 178, 106, .45); display: flex; align-items: center; justify-content: center;
+  color: var(--texto-suave); font-style: italic; text-align: center; padding: 6px; font-size: 15px;
+}
+.quien { display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--texto); text-shadow: 0 1px 3px #000; min-height: 1.4em; }
+.quien .retrato-mini { width: 40px; }
+.mensaje { margin: 0; text-align: center; font-size: 20px; text-shadow: 0 1px 4px #000; min-height: 1.4em; }
+.mensaje.tuyo { color: var(--luz); font-weight: 600; }
+
+/* Tu zona: retrato, nombre y botones; debajo, la mano en grande. */
+.mio { display: flex; flex-direction: column; gap: 8px; }
+.mio-cabeza { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.yo { display: flex; align-items: center; gap: 12px; padding: 4px 14px 4px 4px; border-radius: 8px; }
+.yo.turno { background: rgba(30, 58, 30, .75); box-shadow: inset 0 0 0 2px var(--luz), 0 0 18px rgba(200, 240, 160, .35); }
+.yo .retrato { width: 96px; margin: 0; }
+.acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.acciones .boton { min-width: 110px; font-size: 19px; }
+.mano { display: flex; justify-content: center; padding-top: 18px; }
+/* Si no caben, se montan unas sobre otras justo lo necesario. */
+.mano .carta { width: var(--carta-w); }
+.mano .carta + .carta { margin-left: min(8px, calc((100% - var(--n) * var(--carta-w)) / (var(--n) - 1))); }
+
+/* ---------- Cartas ---------- */
+.carta {
+  position: relative; display: block; padding: 0; flex: none; aspect-ratio: 400 / 559;
+  border-radius: 7px; border: 1px solid var(--carta-borde);
+  background: linear-gradient(160deg, #fffaf0, var(--carta) 55%, #e8dcbc);
+  color: #24402a; font-family: Garamond, Georgia, serif;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .7);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  overflow: hidden;
+}
+.carta .esquina { position: absolute; top: 4%; left: 7%; font-weight: 700; font-size: calc(var(--carta-w) * .24); line-height: 1; }
+.carta .esquina.abajo { top: auto; left: auto; bottom: 4%; right: 7%; transform: rotate(180deg); }
+.carta .centro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(var(--carta-w) * .5); font-weight: 700; opacity: .8; }
+.carta.imagen { background: transparent center / 100% 100% no-repeat; border: 0; border-radius: calc(var(--carta-w) * .06); }
+/* En pequeño el número del dibujo no se lee: se repite en una chapa en la esquina. */
+.carta .chapa {
+  position: absolute; top: 4%; left: 5%; min-width: 1.5em; height: 1.5em; padding: 0 .3em;
   display: flex; align-items: center; justify-content: center;
   border-radius: 999px; background: rgba(250, 244, 226, .95); border: 1px solid #5a6b3a;
-  color: #1d2a14; font-weight: 700; font-size: 16px; line-height: 1;
+  color: #1d2a14; font-weight: 700; font-size: max(12px, calc(var(--carta-w) * .17)); line-height: 1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
 }
-.mano { gap: 0; padding-left: 30px; }
-.mano .carta.imagen { width: 84px; height: 117px; margin-left: -30px; }
-.mano .carta.imagen:hover, .mano .carta.imagen.elegida { z-index: 1; }
-.monton .carta.imagen { width: 96px; height: 134px; }
-.monton .carta.imagen .chapa { font-size: 18px; min-width: 28px; height: 28px; }
-.nota .carta.imagen { width: 44px; height: 61px; }
-.nota .carta.imagen .chapa { font-size: 12px; min-width: 18px; height: 18px; top: 2px; left: 2px; }
-.mano .carta.abre { box-shadow: 0 0 0 3px var(--oro), 0 0 18px rgba(240, 210, 120, .8); }
-@media (max-width: 640px) {
-  .mano { padding-left: 26px; }
-  .mano .carta.imagen { width: 62px; height: 87px; margin-left: -26px; }
-  .monton .carta.imagen { width: 74px; height: 103px; }
-  .carta.imagen .chapa { font-size: 14px; min-width: 20px; height: 20px; }
+.mano .carta { cursor: pointer; }
+.mano .carta:hover { transform: translateY(-14px); filter: brightness(1.1); z-index: 1; }
+.mano .carta.elegida { transform: translateY(-22px); box-shadow: 0 0 0 3px var(--luz), 0 0 24px rgba(200, 240, 160, .7), 0 10px 18px rgba(0, 0, 0, .6); z-index: 2; }
+.mano .carta.apagada { filter: grayscale(.7) brightness(.5); }
+.mano .carta.abre { box-shadow: 0 0 0 3px var(--oro), 0 0 24px rgba(240, 210, 120, .85); }
+.dorso {
+  display: block; border-radius: 3px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(200, 240, 160, .35) 0 18%, transparent 20%),
+    repeating-linear-gradient(45deg, #24502c 0 4px, #1b3d22 4px 8px);
+  border: 1px solid var(--oro); box-shadow: 0 2px 5px rgba(0, 0, 0, .6);
 }
+.dorso.imagen { background: center / 100% 100% no-repeat; border: 0; }
+.nota .carta { --carta-w: 44px; display: inline-block; width: 44px; vertical-align: middle; margin: 0 2px; }
 
-/* El botón de idioma está fijo arriba a la derecha: que no tape los de la barra. */
-#mesa .barra { padding-right: 100px; }
+/* ---------- Móvil: como en REGIUM, los rivales se quedan en una fila compacta ---------- */
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  #mesa { --carta-w: clamp(46px, 15vw, 90px); --dorso-w: 14px; padding: 4px 8px 10px; }
+  .barra { font-size: 16px; padding-right: 96px; }
+  .rivales { gap: 6px; }
+  .asiento { padding: 4px; gap: 3px; }
+  .asiento-cabeza { flex-direction: column; gap: 2px; text-align: center; }
+  .asiento .retrato { width: 64px; }
+  .asiento .cuenta { font-size: 20px; }
+  .asiento .rango { display: none; }
+  .yo .retrato { width: 70px; }
+  .acciones .boton { min-width: 90px; font-size: 17px; }
+  .quien .retrato-mini { width: 30px; }
+}
+.registro { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; min-width: min(420px, 80vw); }
+.registro li { padding: 2px 0; color: var(--texto-suave); border-bottom: 1px solid rgba(63, 106, 72, .35); }
+/* El aviso del intercambio sale en la parte baja del claro, justo encima de tu zona. */
+.nota { bottom: calc(clamp(58px, min(9.6vw, 15.5vh), 150px) * 1.4 + 110px); }
+@media (max-width: 640px) {
+  .retrato .estado-esquina { width: 30px; right: -4px; bottom: -4px; }
+  .nota { bottom: calc(clamp(46px, 15vw, 90px) * 1.4 + 120px); }
+}

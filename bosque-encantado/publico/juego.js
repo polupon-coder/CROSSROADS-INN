@@ -267,38 +267,48 @@ function pintarMesa() {
   $('ronda').textContent = t.ronda(p.ronda, v.opciones.rondas);
   $('revolucion-activa').hidden = !p.revolucion;
 
-  // Rivales, en el orden en que juegan después de ti.
+  // Rivales, en el orden en que juegan después de ti: retrato, nombre y el abanico de cartas.
   const rivales = [];
   for (let k = 1; k < n; k++) rivales.push((yo + k) % n);
+  $('rivales').style.setProperty('--rivales', rivales.length);
   $('rivales').innerHTML = rivales.map((i) => {
     const j = p.jugadores[i];
     const a = v.asientos[i];
-    const clases = ['rival', p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
-    const dorsos = Array.from({ length: Math.min(j.cartas, 13) }, htmlDorso).join('');
+    const clases = ['asiento', p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
+    const dorsos = Array.from({ length: j.cartas }, htmlDorso).join('');
     return `<div class="${clases}">
-      ${htmlRetrato(a.personaje, j.rango)}
-      <div class="nombre">${esc(a.nombre)}</div>
-      ${j.rango ? `<span class="rango">${t.rangos[j.rango]}</span>` : ''}
-      <div class="dorsos">${dorsos}</div>
-      <div class="estado">${estadoJugador(p, i)}</div>
-      ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
+      <div class="asiento-cabeza">
+        ${htmlRetrato(a.personaje, j.rango)}
+        <div class="asiento-info">
+          <div class="nombre">${esc(a.nombre)}</div>
+          ${j.rango ? `<span class="rango">${t.rangos[j.rango]}</span>` : ''}
+          <div class="meta">${estadoJugador(p, i)}</div>
+          ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
+        </div>
+        <span class="cuenta" title="${t.cartas(j.cartas)}">${j.cartas}</span>
+      </div>
+      <div class="abanico" style="--n:${Math.max(j.cartas, 1)}">${dorsos}</div>
     </div>`;
   }).join('');
 
-  // El montón: solo importa el último grupo jugado.
-  $('monton').innerHTML = p.mesa ? p.mesa.cartas.map((c) => htmlCarta(c)).join('') : `<span class="vacia">${t.mesaVacia}</span>`;
+  // El claro: la última jugada en grande, y de quién es.
+  $('monton').innerHTML = p.mesa ? p.mesa.cartas.map((c) => htmlCarta(c)).join('') : `<span class="hueco-carta">${t.mesaVacia}</span>`;
+  $('quien').innerHTML = p.mesa ? `${htmlRetrato(v.asientos[p.mesa.jugador].personaje, null, 'retrato-mini')}<span>${esc(t.jugo(nombreDe(p.mesa.jugador)))}</span>` : '';
 
   // Yo.
   const mia = p.jugadores[yo];
   $('yo').className = 'yo' + (p.fase === 'jugando' && p.turno === yo ? ' turno' : '');
-  $('yo').innerHTML = `${htmlRetrato(v.asientos[yo].personaje, mia.rango)}<div class="nombre">${esc(v.asientos[yo].nombre)} ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}</div>
-    <div class="estado">${t.tusPuntos}: ${mia.puntos}</div>`;
+  $('yo').innerHTML = `${htmlRetrato(v.asientos[yo].personaje, mia.rango)}
+    <div><div class="nombre">${esc(v.asientos[yo].nombre)}</div>
+    ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}
+    <div class="meta">${t.tusPuntos}: ${mia.puntos}</div></div>`;
 
   // Quita de la selección las cartas que ya no tengo.
   elegidas = new Set([...elegidas].filter((c) => p.mano.includes(c)));
   const miTurno = p.fase === 'jugando' && p.turno === yo;
   const posibles = miTurno ? valoresJugables(p) : null;
   const orden = p.mano.slice().sort((a, b) => fuerza(valor(a), p.revolucion) - fuerza(valor(b), p.revolucion) || a - b);
+  $('mano').style.setProperty('--n', Math.max(orden.length, 1));
   $('mano').innerHTML = orden.map((c) => {
     const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === 0 && 'abre'].filter(Boolean).join(' ');
     return htmlCarta(c, extra).replace('<span class="carta', '<button type="button" class="carta').replace(/<\/span>$/, '</button>');
@@ -311,7 +321,6 @@ function pintarMesa() {
     else if (p.orden.includes(yo)) msg = t.hasTerminado(p.orden.indexOf(yo) + 1);
     else if (mia.pasado) msg = t.hasPasado;
     else msg = t.turnoDe(nombreDe(p.turno));
-    if (p.mesa && !miTurno) msg = `${t.jugo(nombreDe(p.mesa.jugador))} · ${msg}`;
   }
   $('mensaje').textContent = msg;
   $('mensaje').className = 'mensaje' + (miTurno ? ' tuyo' : '');
