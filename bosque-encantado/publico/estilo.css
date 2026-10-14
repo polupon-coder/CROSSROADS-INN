@@ -650,3 +650,24 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
    El turno se ve en el panel iluminado y quién jugó, en la franja de color. */
 #mensaje, #quien { display: none !important; }
 .hueco-carta { font-size: 0; }
+
+/* Franja blanca opal arriba, con el título en negro y sin brillo. */
+#mesa > .barra {
+  margin: -6px -12px 0; padding-left: 14px; padding-right: 128px;
+  background: rgba(252, 255, 250, .72); backdrop-filter: blur(6px) saturate(1.1);
+  border-bottom: 1px solid rgba(255, 255, 255, .9); box-shadow: 0 2px 10px rgba(20, 50, 20, .15);
+}
+.titulo-barra { filter: none; }
+#mesa > .barra #ronda { color: #1d2a1a; text-shadow: none; }
+/* El menú, una bola del mismo alto que el selector de idioma. */
+.idiomas button { height: 32px; padding-top: 0; padding-bottom: 0; }
+.boton.boton-menu { width: 36px; height: 36px; border-width: 2px; }
+.boton-menu span[aria-hidden] { font-size: 20px; }
+/* Más aire entre Jugar y Pasar y la columna de brujas. */
+@media (min-width: 641px) { #mesa .mio-cabeza { gap: 22px; } #mesa .mio-cabeza .acciones { margin-top: 6px; } }
+@media (max-width: 640px) {
+  #mesa > .barra { margin: -4px -8px 0; padding-left: 10px; padding-right: 116px; }
+  .boton.boton-menu { width: 36px; height: 36px; }
+}
+.idiomas { top: 12px; }
+@media (max-width: 640px) { .idiomas { top: 11px; } }
