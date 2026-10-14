@@ -274,8 +274,12 @@ function estadoJugador(p, i) {
   const pos = p.orden.indexOf(i);
   if (pos >= 0) return t.termino(pos + 1);
   if (j.pasado) return t.haPasado;
-  return t.cartas(j.cartas);
+  return htmlNumCartas(j.cartas);
 }
+// Cartas en la mano: un reverso pequeño y el número en grande.
+const htmlNumCartas = (n) => `<span class="num-cartas" title="${t.cartas(n)}"><span class="mini-dorso" aria-hidden="true"></span><b>${n}</b></span>`;
+// Puntos: el número entre dos hojitas.
+const htmlPuntos = (n) => `<span class="cuenta-hojas" title="${t.tusPuntos}: ${n}"><span class="hojita"></span><span class="cuenta">${n}</span><span class="hojita espejo"></span></span>`;
 
 function pintarMesa() {
   const p = v.partida;
@@ -301,7 +305,7 @@ function pintarMesa() {
           <div class="meta">${estadoJugador(p, i)}</div>
           ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
         </div>
-        <span class="cuenta-hojas" title="${t.cartas(j.cartas)}"><span class="hojita"></span><span class="cuenta">${j.cartas}</span><span class="hojita espejo"></span></span>
+        ${htmlPuntos(j.puntos)}
       </div>
     </div>`;
   }).join('');
@@ -316,7 +320,8 @@ function pintarMesa() {
   $('yo').innerHTML = `${htmlRetrato(v.asientos[yo].personaje, mia.rango)}
     <div><div class="nombre">${esc(v.asientos[yo].nombre)}</div>
     ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}
-    <div class="meta">${t.tusPuntos}: ${mia.puntos}</div></div>`;
+    <div class="meta">${p.orden.includes(yo) || mia.pasado ? estadoJugador(p, yo) : htmlNumCartas(mia.cartas)}</div></div>
+    ${htmlPuntos(mia.puntos)}`;
 
   // Quita de la selección las cartas que ya no tengo.
   elegidas = new Set([...elegidas].filter((c) => p.mano.includes(c)));
