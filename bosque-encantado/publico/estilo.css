@@ -475,3 +475,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 @media (max-width: 640px) {
   .intercambio-cartas .carta { --carta-w: 86px; width: 86px; }
 }
+
+/* Elegir bruja: las ilustraciones en grande (la sala de espera se ensancha para que quepan). */
+#espera .panel { max-width: 760px; }
+.elegir-personaje { gap: 12px; }
+.elegir-personaje { width: 100%; }
+.retrato-boton { width: min(156px, calc((100% - 4 * 12px) / 5)); border-radius: 8px; box-shadow: 0 4px 10px rgba(20, 50, 20, .3); }
+.retrato-boton.elegido { outline-width: 4px; outline-offset: 3px; }
+.asientos .retrato-mini { width: 64px; }
+@media (max-width: 640px) {
+  .elegir-personaje { gap: 8px; }
+  .retrato-boton { width: calc((100% - 2 * 8px) / 3); }
+}
