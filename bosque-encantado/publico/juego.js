@@ -226,6 +226,8 @@ function pintarTextos() {
   }
   for (const b of document.querySelectorAll('[data-idioma]')) b.setAttribute('aria-pressed', b.dataset.idioma === idioma);
   $('texto-reglas').innerHTML = REGLAS[idioma];
+  $('boton-menu').setAttribute('aria-label', t.menu);
+  $('boton-menu').title = t.menu;
 }
 
 // Al abrir el juego se ve solo la portada, hasta que se pulsa Jugar.
