@@ -575,3 +575,42 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .mini-dorso { display: inline-block; width: 18px; aspect-ratio: 400 / 559; border-radius: 3px; background: url(cartas/dorso.webp) center / 100% 100%; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); transform: rotate(-8deg); }
 .yo .cuenta-hojas { margin-left: 4px; }
 @media (max-width: 640px) { .num-cartas b { font-size: 22px; } .mini-dorso { width: 15px; } }
+
+/* ---------- Ordenador: mesa y cartas a la izquierda, columna de brujas a la derecha (como REGIUM) ---------- */
+@media (min-width: 641px) {
+  #mesa {
+    display: grid; height: 100vh; height: 100dvh; min-height: 0;
+    grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'top top'
+      'campo yo'
+      'campo rivales'
+      'mano rivales';
+    column-gap: 16px; row-gap: 10px;
+    /* Columna izquierda ≈ 63,6 % del ancho: seis cartas por fila, dos filas, sin pasarse de alto. */
+    --mano-w: clamp(56px, min((63.6vw - 30px - 54px) / 6, (100vh - 330px) / 2.85), 190px);
+    --carta-w: var(--mano-w);
+  }
+  #mesa > .barra { grid-area: top; }
+  #mesa .mio { display: contents; }
+  #mesa .campo { grid-area: campo; min-height: 0; }
+  #mesa .mano { grid-area: mano; justify-self: center; align-self: end; }
+  /* Tu bruja con Jugar y Pasar, arriba de la columna. */
+  #mesa .mio-cabeza { grid-area: yo; flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: nowrap; }
+  #mesa .mio-cabeza .yo { flex: 1; min-width: 0; }
+  #mesa .mio-cabeza .acciones { flex-direction: column; gap: 6px; }
+  #mesa .mio-cabeza .acciones .boton { min-width: 140px; height: 54px; font-size: 19px; }
+  /* Rivales: uno debajo de otro; si no caben, la columna se desplaza. */
+  #mesa .rivales { grid-area: rivales; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 2px; }
+  #mesa .asiento { flex: none; }
+  #mesa .asiento-cabeza { justify-content: flex-start; }
+  #mesa .asiento-info { flex: 1; }
+  #mesa .asiento .retrato { width: clamp(90px, 9vw, 130px); }
+  #mesa .monton .carta, #mesa .hueco-carta { width: calc(var(--carta-w) * 1.15); }
+}
+@media (min-width: 641px) {
+  /* Tus puntos, a la derecha como los de los rivales. */
+  #mesa .yo > div { flex: 1; min-width: 0; }
+  #mesa .yo .cuenta-hojas { margin-right: 6px; }
+}
