@@ -173,7 +173,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 @media (max-width: 640px) {
   .ventana { border-width: 40px; border-image-width: 40px; padding: 2px 6px; }
 }
-.ventana::backdrop { background: rgba(225, 240, 215, .45); backdrop-filter: blur(2px); }
+.ventana::backdrop { background: rgba(236, 250, 226, .38); backdrop-filter: blur(2px) saturate(1.15); }
 .ventana h2 { margin: 0 0 10px; text-align: center; color: var(--oro-claro); }
 .ventana form { text-align: center; margin-top: 12px; }
 .ventana .acciones { margin-top: 12px; }
