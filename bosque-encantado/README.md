@@ -5,6 +5,9 @@ De 4 a 6 jugadores: quédate sin cartas antes que nadie. Se juega en el navegado
 por internet o contra jugadores máquina, en español e inglés.
 
 - **Reglas:** [REGLAS.md](REGLAS.md). El juego las enseña resumidas en el botón **Reglas**.
+- **Personajes y estados:** cada jugador elige su bruja en la sala de espera (`publico/personajes/`),
+  y su carta de estado cambia según el rango (`publico/estados/`). Se recortan como en REGIUM
+  (plantilla póker 63x88) con `python3 -I herramientas/preparar_cartas.py salida ancho nombre=imagen …`.
 - **Cartas:** de momento se dibujan solas (valor y palo). Las ilustraciones van en
   `publico/cartas/` — ver [publico/cartas/LEEME.md](publico/cartas/LEEME.md).
 

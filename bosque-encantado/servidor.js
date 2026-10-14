@@ -15,6 +15,8 @@ const CADUCA = 6 * 60 * 60 * 1000; // las salas se borran tras seis horas sin mo
 const PAUSA_MAQUINA = Number(process.env.PAUSA_MAQUINA ?? 1100); // ms que «piensa» la máquina
 const PAUSA_RONDA = 12000; // ms entre el final de una ronda y el reparto de la siguiente
 const NOMBRES_MAQUINA = ['Búho', 'Zorro', 'Ardilla', 'Ciervo', 'Tejón', 'Liebre', 'Erizo', 'Cuervo'];
+// Las brujas que se pueden elegir (publico/personajes/). Con seis jugadores, una se repite.
+const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
 
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -37,10 +39,16 @@ const nuevoCodigo = () => {
 const nuevoToken = () => crypto.randomBytes(18).toString('base64url');
 const limpiarNombre = (s) => String(s ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 18);
 
+// La primera bruja libre o, si están todas cogidas, la menos repetida.
+function personajeLibre(sala) {
+  const usos = (p) => sala.asientos.filter((a) => a.personaje === p).length;
+  return PERSONAJES.slice().sort((a, b) => usos(a) - usos(b))[0];
+}
+
 function asientoMaquina(sala) {
   const usados = new Set(sala.asientos.map((a) => a.nombre));
   const nombre = NOMBRES_MAQUINA.find((n) => !usados.has(n)) || `Máquina ${sala.asientos.length + 1}`;
-  return { id: nuevoToken(), token: null, nombre, maquina: true, oyentes: new Set() };
+  return { id: nuevoToken(), token: null, nombre, maquina: true, personaje: personajeLibre(sala), oyentes: new Set() };
 }
 
 // Lo que ve cada jugador: todo lo público y solo su propia mano.
@@ -52,7 +60,7 @@ function vista(sala, yo) {
     yo: idx,
     anfitrion: sala.asientos.findIndex((a) => a.id === sala.anfitrion),
     opciones: sala.opciones,
-    asientos: sala.asientos.map((a) => ({ nombre: a.nombre, maquina: a.maquina, conectado: a.maquina || a.oyentes.size > 0 })),
+    asientos: sala.asientos.map((a) => ({ nombre: a.nombre, maquina: a.maquina, personaje: a.personaje, conectado: a.maquina || a.oyentes.size > 0 })),
     partida: null,
   };
   if (!p) return v;
@@ -117,6 +125,13 @@ function accion(sala, asiento, a) {
       if (!esAnfitrion || p) return 'anfitrion';
       const rondas = Number(a.rondas);
       sala.opciones = { rondas: [0, 3, 5, 10].includes(rondas) ? rondas : 5, revolucion: !!a.revolucion };
+      return null;
+    }
+    case 'personaje': {
+      // Antes de empezar, cada uno elige su bruja entre las que no tiene otro.
+      if (p || !PERSONAJES.includes(a.personaje)) return 'personaje';
+      if (sala.asientos.some((o) => o !== asiento && o.personaje === a.personaje)) return 'cogido';
+      asiento.personaje = a.personaje;
       return null;
     }
     case 'maquina': {
@@ -215,7 +230,7 @@ const servidor = http.createServer(async (req, res) => {
       const { nombre } = await leerJson(req);
       if (!limpiarNombre(nombre)) return json(res, 400, { error: 'nombre' });
       const codigo = nuevoCodigo();
-      const asiento = { id: nuevoToken(), token: nuevoToken(), nombre: limpiarNombre(nombre), maquina: false, oyentes: new Set() };
+      const asiento = { id: nuevoToken(), token: nuevoToken(), nombre: limpiarNombre(nombre), maquina: false, personaje: PERSONAJES[0], oyentes: new Set() };
       salas.set(codigo, { codigo, anfitrion: asiento.id, asientos: [asiento], opciones: { rondas: 5, revolucion: false }, partida: null, t: Date.now() });
       return json(res, 200, { codigo, token: asiento.token });
     }
@@ -227,7 +242,7 @@ const servidor = http.createServer(async (req, res) => {
       if (sala.partida) return json(res, 409, { error: 'empezada' });
       if (sala.asientos.length >= M.MAX_JUGADORES) return json(res, 409, { error: 'llena' });
       if (!limpiarNombre(nombre)) return json(res, 400, { error: 'nombre' });
-      const asiento = { id: nuevoToken(), token: nuevoToken(), nombre: limpiarNombre(nombre), maquina: false, oyentes: new Set() };
+      const asiento = { id: nuevoToken(), token: nuevoToken(), nombre: limpiarNombre(nombre), maquina: false, personaje: personajeLibre(sala), oyentes: new Set() };
       sala.asientos.push(asiento);
       difundir(sala);
       return json(res, 200, { codigo: sala.codigo, token: asiento.token });

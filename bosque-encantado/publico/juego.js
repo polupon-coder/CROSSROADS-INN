@@ -21,6 +21,7 @@ const TEXTOS = {
     lema: 'Quédate sin cartas antes que nadie y reina sobre el bosque',
     tuNombre: 'Tu nombre', crear: 'Crear partida', o: 'o únete a una', codigo: 'Código de la partida', unirse: 'Unirse',
     reglas: 'Reglas', sala: 'Sala de espera', codigoSala: 'Código:', copiar: 'Copiar enlace para invitar', copiado: 'Enlace copiado',
+    tuBruja: 'Elige tu bruja', brujas: { pelirroja: 'Pelirroja', rubia: 'Rubia', verde: 'Verde', azul: 'Azul', blanca: 'Blanca' },
     anadirMaquina: '+ Jugador máquina', rondas: 'Rondas', sinLimite: 'Sin límite', variante: 'Variante: revolución',
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'máquina', tu: 'tú', ausente: 'desconectado',
     faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6). Añade máquinas o invita a amigos.`,
@@ -42,7 +43,7 @@ const TEXTOS = {
       nombre: 'Escribe tu nombre.', sala: 'No existe esa partida.', empezada: 'Esa partida ya ha empezado.', llena: 'La partida está llena (6 jugadores).',
       tresDeTreboles: 'Tu primera jugada debe llevar el 3 de tréboles.', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
       superior: 'Tiene que ser de un valor más alto.', mismoValor: 'Todas las cartas deben ser del mismo valor.', abres: 'Abres la mesa: no puedes pasar.',
-      turno: 'No es tu turno.', red: 'Sin conexión con el servidor. Reintentando…',
+      turno: 'No es tu turno.', cogido: 'Esa bruja ya la tiene otro jugador.', red: 'Sin conexión con el servidor. Reintentando…',
     },
     rangos: { capitalista: 'Capitalista', vicepresidente: 'Vicepresidente', ciudadano: 'Ciudadano', viceculo: 'Viceculo', culo: 'Culo' },
     sucesos: {
@@ -59,6 +60,7 @@ const TEXTOS = {
     lema: 'Run out of cards before anyone else and rule the forest',
     tuNombre: 'Your name', crear: 'Create game', o: 'or join one', codigo: 'Game code', unirse: 'Join',
     reglas: 'Rules', sala: 'Waiting room', codigoSala: 'Code:', copiar: 'Copy invite link', copiado: 'Link copied',
+    tuBruja: 'Choose your witch', brujas: { pelirroja: 'Redhead', rubia: 'Blonde', verde: 'Green', azul: 'Blue', blanca: 'White' },
     anadirMaquina: '+ Computer player', rondas: 'Rounds', sinLimite: 'No limit', variante: 'Variant: revolution',
     empezar: 'Start', anfitrion: 'host', maquina: 'computer', tu: 'you', ausente: 'disconnected',
     faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6). Add computers or invite friends.`,
@@ -80,7 +82,7 @@ const TEXTOS = {
       nombre: 'Enter your name.', sala: 'That game does not exist.', empezada: 'That game has already started.', llena: 'The game is full (6 players).',
       tresDeTreboles: 'Your first play must include the 3 of clubs.', mismaCantidad: 'You must play the same number of cards.',
       superior: 'It must be a higher value.', mismoValor: 'All cards must have the same value.', abres: 'You lead: you cannot pass.',
-      turno: 'It is not your turn.', red: 'No connection to the server. Retrying…',
+      turno: 'It is not your turn.', cogido: 'Another player already has that witch.', red: 'No connection to the server. Retrying…',
     },
     rangos: { capitalista: 'Capitalist', vicepresidente: 'Vice-President', ciudadano: 'Citizen', viceculo: 'Vice-Scum', culo: 'Scum' },
     sucesos: {
@@ -166,6 +168,9 @@ function htmlCarta(c, extra = '') {
 const htmlDorso = () => `<span class="dorso${CARTAS_CON_IMAGEN ? ' imagen' : ''}"${CARTAS_CON_IMAGEN ? ' style="background-image:url(cartas/dorso.webp)"' : ''}></span>`;
 // Carta de estado del rango (publico/estados/): la bruja más o menos contenta.
 const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
+const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
+// Retrato del personaje de un jugador, con su carta de estado en la esquina si ya tiene rango.
+const htmlRetrato = (personaje, rango, clase = 'retrato') => `<span class="${clase}" style="background-image:url(personajes/${personaje}.webp)">${rango ? htmlEstado(rango, 'estado-esquina') : ''}</span>`;
 const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)] + SIMBOLOS[palo(c)]).join(' '));
 
 // ---------- Red ----------
@@ -230,10 +235,15 @@ function pintarEspera() {
   const soyAnfitrion = v.yo === v.anfitrion;
   $('codigo-sala').textContent = v.codigo;
   $('asientos').innerHTML = v.asientos.map((a, i) => `<li>
+      ${htmlRetrato(a.personaje, null, 'retrato-mini')}
       <span class="nombre">${esc(a.nombre)}</span>
       <span class="etiqueta">${[i === v.yo && t.tu, i === v.anfitrion && t.anfitrion, a.maquina && t.maquina, !a.conectado && t.ausente].filter(Boolean).join(' · ')}</span>
       ${soyAnfitrion && i !== v.anfitrion ? `<button class="quitar" type="button" data-quitar="${i}" aria-label="✕">✕</button>` : ''}
     </li>`).join('');
+  const cogidos = new Set(v.asientos.filter((_, i) => i !== v.yo).map((a) => a.personaje));
+  $('elegir-personaje').innerHTML = PERSONAJES.map((p) => `<button type="button" class="retrato-boton${v.asientos[v.yo].personaje === p ? ' elegido' : ''}"
+      data-personaje="${p}" aria-pressed="${v.asientos[v.yo].personaje === p}" ${cogidos.has(p) ? 'disabled' : ''}
+      style="background-image:url(personajes/${p}.webp)" aria-label="${t.brujas[p]}" title="${t.brujas[p]}"></button>`).join('');
   $('controles-anfitrion').hidden = !soyAnfitrion;
   $('anadir-maquina').disabled = v.asientos.length >= 6;
   $('rondas').value = String(v.opciones.rondas);
@@ -267,8 +277,9 @@ function pintarMesa() {
     const clases = ['rival', p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
     const dorsos = Array.from({ length: Math.min(j.cartas, 13) }, htmlDorso).join('');
     return `<div class="${clases}">
+      ${htmlRetrato(a.personaje, j.rango)}
       <div class="nombre">${esc(a.nombre)}</div>
-      ${j.rango ? `${htmlEstado(j.rango)}<span class="rango">${t.rangos[j.rango]}</span>` : ''}
+      ${j.rango ? `<span class="rango">${t.rangos[j.rango]}</span>` : ''}
       <div class="dorsos">${dorsos}</div>
       <div class="estado">${estadoJugador(p, i)}</div>
       ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
@@ -281,7 +292,7 @@ function pintarMesa() {
   // Yo.
   const mia = p.jugadores[yo];
   $('yo').className = 'yo' + (p.fase === 'jugando' && p.turno === yo ? ' turno' : '');
-  $('yo').innerHTML = `${htmlEstado(mia.rango)}<div class="nombre">${esc(v.asientos[yo].nombre)} ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}</div>
+  $('yo').innerHTML = `${htmlRetrato(v.asientos[yo].personaje, mia.rango)}<div class="nombre">${esc(v.asientos[yo].nombre)} ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}</div>
     <div class="estado">${t.tusPuntos}: ${mia.puntos}</div>`;
 
   // Quita de la selección las cartas que ya no tengo.
@@ -385,7 +396,9 @@ function pintarFin(p) {
   const final = p.fase === 'finPartida';
   $('fin-titulo').textContent = final ? t.gana(nombreDe(p.ganador)) : t.finRonda(p.ronda);
   const mio = p.jugadores[v.yo].rango;
-  $('fin-estado').innerHTML = mio ? `${htmlEstado(mio, 'estado-grande')}<p>${t.eres(t.rangos[mio])}</p>` : '';
+  $('fin-estado').innerHTML = final
+    ? `<span class="estado-grande" style="background-image:url(personajes/${v.asientos[p.ganador].personaje}.webp)"></span>`
+    : mio ? `${htmlEstado(mio, 'estado-grande')}<p>${t.eres(t.rangos[mio])}</p>` : '';
   const orden = final ? p.clasificacion : p.ultimaRonda.orden;
   $('tabla-fin').innerHTML = `<tr><th>${t.posicion}</th><th>${t.jugador}</th><th>${t.rango}</th><th class="num">${t.ptsRonda}</th><th class="num">${t.total}</th></tr>` +
     orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td class="con-estado">${htmlEstado(p.jugadores[i].rango)}${t.rangos[p.jugadores[i].rango]}</td>
@@ -447,6 +460,7 @@ $('copiar').addEventListener('click', () => {
   navigator.clipboard?.writeText(u).then(() => nota(t.copiado), () => nota(u));
 });
 $('anadir-maquina').addEventListener('click', () => accion('maquina'));
+$('elegir-personaje').addEventListener('click', (e) => { const b = e.target.closest('[data-personaje]'); if (b && !b.disabled) accion('personaje', { personaje: b.dataset.personaje }); });
 $('asientos').addEventListener('click', (e) => { const b = e.target.closest('[data-quitar]'); if (b) accion('quitar', { asiento: Number(b.dataset.quitar) }); });
 const cambiarOpciones = () => accion('opciones', { rondas: Number($('rondas').value), revolucion: $('revolucion').checked });
 $('rondas').addEventListener('change', cambiarOpciones);

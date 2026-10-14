@@ -258,3 +258,29 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 @keyframes aparecer { from { transform: scale(.85) rotate(-3deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .estado-grande { animation: none; } }
 @media (max-width: 640px) { .estado-mini { width: 56px; height: 44px; } }
+
+/* ---------- Personajes ---------- */
+/* Las cartas de personaje ya traen su borde de color y sus esquinas (como en REGIUM). */
+.retrato {
+  position: relative; display: block; width: 118px; aspect-ratio: 760 / 544; margin: 2px auto 6px;
+  background: center / contain no-repeat;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .55));
+}
+.retrato .estado-esquina {
+  position: absolute; right: -8px; bottom: -8px; width: 46px; aspect-ratio: 760 / 544;
+  background: center / contain no-repeat; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .7));
+}
+.yo .retrato { float: left; margin: 0 14px 0 0; width: 96px; }
+.retrato-mini { display: inline-block; width: 46px; aspect-ratio: 760 / 544; background: center / contain no-repeat; flex: none; }
+.titulo-bruja { margin: 0 0 6px; text-align: center; color: var(--texto-suave); }
+.elegir-personaje { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 16px; }
+.retrato-boton {
+  width: 76px; aspect-ratio: 760 / 544; padding: 0; border: 0; border-radius: 6px; cursor: pointer;
+  background: center / contain no-repeat transparent;
+  transition: transform .15s ease, filter .15s ease;
+}
+.retrato-boton:hover:not(:disabled) { transform: translateY(-3px); }
+.retrato-boton.elegido { outline: 3px solid var(--luz); outline-offset: 2px; }
+.retrato-boton:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; }
+.estado-grande { background-size: contain; background-repeat: no-repeat; border: 0; box-shadow: none; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .6)); }
+@media (max-width: 640px) { .retrato { width: 92px; } .yo .retrato { width: 76px; } }
