@@ -267,7 +267,7 @@ function pintarMesa() {
   $('ronda').textContent = t.ronda(p.ronda, v.opciones.rondas);
   $('revolucion-activa').hidden = !p.revolucion;
 
-  // Rivales, en el orden en que juegan después de ti: retrato, nombre y el abanico de cartas.
+  // Rivales, en el orden en que juegan después de ti: retrato, nombre y cuántas cartas les quedan.
   const rivales = [];
   for (let k = 1; k < n; k++) rivales.push((yo + k) % n);
   $('rivales').style.setProperty('--rivales', rivales.length);
@@ -275,7 +275,6 @@ function pintarMesa() {
     const j = p.jugadores[i];
     const a = v.asientos[i];
     const clases = ['asiento', p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
-    const dorsos = Array.from({ length: j.cartas }, htmlDorso).join('');
     return `<div class="${clases}">
       <div class="asiento-cabeza">
         ${htmlRetrato(a.personaje, j.rango)}
@@ -287,7 +286,6 @@ function pintarMesa() {
         </div>
         <span class="cuenta" title="${t.cartas(j.cartas)}">${j.cartas}</span>
       </div>
-      <div class="abanico" style="--n:${Math.max(j.cartas, 1)}">${dorsos}</div>
     </div>`;
   }).join('');
 
@@ -309,6 +307,7 @@ function pintarMesa() {
   const posibles = miTurno ? valoresJugables(p) : null;
   const orden = p.mano.slice().sort((a, b) => fuerza(valor(a), p.revolucion) - fuerza(valor(b), p.revolucion) || a - b);
   $('mano').style.setProperty('--n', Math.max(orden.length, 1));
+  $('mano').style.setProperty('--mitad', Math.max(Math.ceil(orden.length / 2), 1));
   $('mano').innerHTML = orden.map((c) => {
     const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === 0 && 'abre'].filter(Boolean).join(' ');
     return htmlCarta(c, extra).replace('<span class="carta', '<button type="button" class="carta').replace(/<\/span>$/, '</button>');
