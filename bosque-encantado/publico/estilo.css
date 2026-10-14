@@ -72,7 +72,7 @@ button { font: inherit; }
 }
 .boton.boton-portada {
   height: 104px; min-width: 330px; padding: 0 60px 4px; font-size: 34px; letter-spacing: .12em;
-  margin-top: 9vh;
+  margin-top: 5vh;
   /* Más claro que el resto de botones: es lo primero que se ve, sobre las hojas. */
   filter: brightness(1.22) saturate(1.05) drop-shadow(0 6px 10px rgba(0, 0, 0, .5));
 }
@@ -80,7 +80,7 @@ button { font: inherit; }
 .titulo-portada { display: block; width: min(560px, 40vw); height: auto; }
 @media (max-width: 640px), (orientation: portrait) {
   .titulo-portada { width: min(92vw, 560px); margin-bottom: 9vh; }
-  .boton.boton-portada { height: 84px; min-width: 250px; font-size: 28px; margin-top: 7vh; }
+  .boton.boton-portada { height: 84px; min-width: 250px; font-size: 28px; margin-top: 4vh; }
 }
 .cabecera-inicio { text-align: center; padding: 56px 0 4px; }
 h1 {
