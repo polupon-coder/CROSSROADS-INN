@@ -12,10 +12,11 @@ del navegador y se cambia con el botón ES | EN.
 | REGIUM | https://regium-bcii.onrender.com |
 | HÉROES | https://heroes-q423.onrender.com |
 | MANA | https://mana-qupu.onrender.com (inglés: `/en`) |
+| BOSQUE ENCANTADO | https://bosque-encantado.onrender.com |
 
 BOSQUE ENCANTADO (el Capitalista de cartas) está en la carpeta
-[`bosque-encantado/`](bosque-encantado/README.md), con su propio servidor. Su tarjeta ya está
-en el portal como «Próximamente»: cuando esté publicado, pon su dirección en `url`.
+[`bosque-encantado/`](bosque-encantado/README.md), con su propio servidor (servicio
+`bosque-encantado` del `render.yaml`).
 
 ## Añadir o cambiar un juego
 
