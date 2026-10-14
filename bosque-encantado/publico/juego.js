@@ -446,7 +446,7 @@ for (const b of document.querySelectorAll('[data-idioma]')) {
     pintar();
   });
 }
-for (const b of document.querySelectorAll('[data-abrir]')) b.addEventListener('click', () => $(b.dataset.abrir).showModal());
+for (const b of document.querySelectorAll('[data-abrir]')) b.addEventListener('click', () => { const d = $(b.dataset.abrir); d.showModal(); d.scrollTop = 0; });
 
 function recordarNombre() {
   const nombre = $('nombre').value.trim();

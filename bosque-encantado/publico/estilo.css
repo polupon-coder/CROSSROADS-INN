@@ -135,9 +135,24 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* ---------- Registro y ventanas ---------- */
 
 .ventana {
-  max-width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
-  background: #10241a; color: var(--texto); border: 1px solid var(--oro); border-radius: 14px; padding: 18px 22px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .7);
+  /* La ventana del bosque (ventana.webp): papel de acuarela con hojas por el borde. Con
+     border-image las esquinas no se deforman y los bordes se repiten según el tamaño. */
+  --texto: #1d3a1f; --texto-suave: #3b5a37; --oro: #4f6f1e; --oro-claro: #23461f; --luz: #1f6b2a; --error: #a3322a;
+  max-width: min(660px, calc(100vw - 16px)); max-height: calc(100vh - 24px);
+  color: var(--texto); border-radius: 0; padding: 4px 10px;
+  border: solid transparent; border-width: 66px 78px 70px;
+  border-image: url(ventana.webp) 150 180 160 / 66px 78px 70px / 0 round;
+  /* El centro es la parte central de la misma imagen, estirada de una pieza (sin costuras): la
+     imagen mide 1000 × 740 y el centro va de 180 a 820 en horizontal y de 150 a 580 en vertical. */
+  background: url(ventana.webp) 50% 48.39% / 156.25% 172.09% no-repeat;
+  background-origin: padding-box; background-clip: padding-box;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6));
+  overflow: auto;
+}
+.ventana .tabla th, .ventana .tabla td { border-bottom-color: rgba(47, 90, 45, .35); }
+.ventana .registro li { border-bottom-color: rgba(47, 90, 45, .25); }
+@media (max-width: 640px) {
+  .ventana { border-width: 44px 46px 46px; border-image-width: 44px 46px 46px; padding: 2px 4px; }
 }
 .ventana::backdrop { background: rgba(0, 0, 0, .6); }
 .ventana h2 { margin: 0 0 10px; text-align: center; color: var(--oro-claro); }
