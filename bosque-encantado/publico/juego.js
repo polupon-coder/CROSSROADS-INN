@@ -46,8 +46,8 @@ const TEXTOS = {
       superior: 'Tiene que ser de un valor más alto.', mismoValor: 'Todas las cartas deben ser del mismo valor.', abres: 'Abres la mesa: no puedes pasar.',
       turno: 'No es tu turno.', cogido: 'Esa bruja ya la tiene otro jugador.', red: 'Sin conexión con el servidor. Reintentando…',
     },
-    rangos: { capitalista: 'Reina del Bosque', vicepresidente: 'Hechicera', ciudadano: 'Aprendiz', viceculo: 'Renacuajo', culo: 'Sapo' },
-    eresRango: { capitalista: 'la Reina del Bosque', vicepresidente: 'la Hechicera', ciudadano: 'Aprendiz', viceculo: 'un Renacuajo', culo: 'un Sapo' },
+    rangos: { capitalista: 'Bruja Suprema', vicepresidente: 'Alta Bruja', ciudadano: 'Bruja', viceculo: 'Bruja Aprendiz', culo: 'Bruja Limpiaollas' },
+    eresRango: { capitalista: 'la Bruja Suprema', vicepresidente: 'Alta Bruja', ciudadano: 'Bruja', viceculo: 'Bruja Aprendiz', culo: 'Bruja Limpiaollas' },
     sucesos: {
       ronda: (e, n) => `— Ronda ${e.ronda}: abre ${n(e.abre)} —`,
       juega: (e, n, c) => `${n(e.jugador)} juega ${c(e.cartas)}`,
@@ -86,8 +86,8 @@ const TEXTOS = {
       superior: 'It must be a higher value.', mismoValor: 'All cards must have the same value.', abres: 'You lead: you cannot pass.',
       turno: 'It is not your turn.', cogido: 'Another player already has that witch.', red: 'No connection to the server. Retrying…',
     },
-    rangos: { capitalista: 'Forest Queen', vicepresidente: 'Sorceress', ciudadano: 'Apprentice', viceculo: 'Tadpole', culo: 'Toad' },
-    eresRango: { capitalista: 'the Forest Queen', vicepresidente: 'the Sorceress', ciudadano: 'an Apprentice', viceculo: 'a Tadpole', culo: 'a Toad' },
+    rangos: { capitalista: 'Supreme Witch', vicepresidente: 'High Witch', ciudadano: 'Witch', viceculo: 'Apprentice Witch', culo: 'Pot-Scrubber Witch' },
+    eresRango: { capitalista: 'the Supreme Witch', vicepresidente: 'a High Witch', ciudadano: 'a Witch', viceculo: 'an Apprentice Witch', culo: 'the Pot-Scrubber Witch' },
     sucesos: {
       ronda: (e, n) => `— Round ${e.ronda}: ${n(e.abre)} leads —`,
       juega: (e, n, c) => `${n(e.jugador)} plays ${c(e.cartas)}`,
@@ -110,7 +110,7 @@ const REGLAS = {
 <p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (doces) limpia la mesa al momento.</p>
 <p>En la primera ronda abre quien tiene el <b>espíritu de hojas</b> (el 1 de las manos juntas), y su jugada debe llevarlo.</p>
 <h3>Rangos e intercambio</h3>
-<p>Según el orden en que os quedáis sin cartas: <b>Reina del Bosque, Hechicera, (Aprendices), Renacuajo y Sapo</b>. Al empezar la ronda siguiente, el Sapo da sus 2 cartas más altas a la Reina del Bosque y recibe sus 2 más bajas; el Renacuajo da su carta más alta a la Hechicera y recibe su más baja. Abre la Reina del Bosque.</p>
+<p>Según el orden en que os quedáis sin cartas: <b>Bruja Suprema, Alta Bruja, (Brujas), Bruja Aprendiz y Bruja Limpiaollas</b>. Al empezar la ronda siguiente, la Limpiaollas da sus 2 cartas más altas a la Suprema y recibe sus 2 más bajas; la Aprendiz da su carta más alta a la Alta Bruja y recibe su más baja. Abre la Bruja Suprema.</p>
 <h3>Puntos</h3>
 <p>Cada jugador gana tantos puntos como jugadores terminan detrás de él. Gana quien más puntos tenga al acabar las rondas; en empate, quien quedó mejor en la última.</p>
 <h3>Variante: revolución</h3>
@@ -124,7 +124,7 @@ const REGLAS = {
 <p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (twelves) clears the table at once.</p>
 <p>In the first round, the holder of the <b>leaf spirit</b> (the 1 with joined hands) leads, and that play must include it.</p>
 <h3>Ranks and card exchange</h3>
-<p>By the order in which you run out: <b>Forest Queen, Sorceress, (Apprentices), Tadpole and Toad</b>. At the start of the next round, the Toad gives their 2 highest cards to the Forest Queen and gets the Queen's 2 lowest; the Tadpole gives their highest card to the Sorceress and gets her lowest. The Forest Queen leads.</p>
+<p>By the order in which you run out: <b>Supreme Witch, High Witch, (Witches), Apprentice Witch and Pot-Scrubber Witch</b>. At the start of the next round, the Pot-Scrubber gives her 2 highest cards to the Supreme Witch and gets the Supreme's 2 lowest; the Apprentice gives her highest card to the High Witch and gets her lowest. The Supreme Witch leads.</p>
 <h3>Scoring</h3>
 <p>Each player scores one point per player who finished behind them. The highest total after the last round wins; ties go to whoever placed better in the last round.</p>
 <h3>Variant: revolution</h3>

@@ -1,6 +1,6 @@
 # BOSQUE ENCANTADO · Reglas
 
-Está basado en el **Capitalista de cartas** (también llamado Presidente o Culo), con los rangos del bosque de las brujas. Como existen variantes, aquí se fija una versión concreta, que es la que aplica el juego.
+Está basado en el **Capitalista de cartas** (también llamado Presidente o Culo), con los rangos del aquelarre del bosque. Como existen variantes, aquí se fija una versión concreta, que es la que aplica el juego.
 
 ## Jugadores y objetivo
 
@@ -80,30 +80,30 @@ Los rangos se asignan de nuevo al final de cada ronda:
 
 | Posición | 4 jugadores | 5 jugadores | 6 jugadores |
 |---|---|---|---|
-| 1.º | Reina del Bosque | Reina del Bosque | Reina del Bosque |
-| 2.º | Hechicera | Hechicera | Hechicera |
-| 3.º | Renacuajo | Aprendiz | Aprendiz |
-| 4.º | Sapo | Renacuajo | Aprendiz |
-| 5.º | — | Sapo | Renacuajo |
-| 6.º | — | — | Sapo |
+| 1.º | Bruja Suprema | Bruja Suprema | Bruja Suprema |
+| 2.º | Alta Bruja | Alta Bruja | Alta Bruja |
+| 3.º | Bruja Aprendiz | Bruja | Bruja |
+| 4.º | Bruja Limpiaollas | Bruja Aprendiz | Bruja |
+| 5.º | — | Bruja Limpiaollas | Bruja Aprendiz |
+| 6.º | — | — | Bruja Limpiaollas |
 
 El rango dura hasta que termina la siguiente ronda. No garantiza conservar la posición.
 
 ## Preparación de las siguientes rondas
 
-El Sapo recoge las cartas, baraja y reparte toda la baraja. Después, antes de jugar, se hacen estos intercambios:
+La Bruja Limpiaollas recoge las cartas, baraja y reparte toda la baraja. Después, antes de jugar, se hacen estos intercambios:
 
 | Jugador | Entrega | Recibe |
 |---|---|---|
-| Sapo | Sus dos cartas de mayor valor | Las dos cartas de menor valor de la Reina del Bosque |
-| Reina del Bosque | Sus dos cartas de menor valor | Las dos cartas de mayor valor del Sapo |
-| Renacuajo | Su carta de mayor valor | La carta de menor valor de la Hechicera |
-| Hechicera | Su carta de menor valor | La carta de mayor valor del Renacuajo |
-| Aprendices | Nada | Nada |
+| Bruja Limpiaollas | Sus dos cartas de mayor valor | Las dos cartas de menor valor de la Bruja Suprema |
+| Bruja Suprema | Sus dos cartas de menor valor | Las dos cartas de mayor valor de la Limpiaollas |
+| Bruja Aprendiz | Su carta de mayor valor | La carta de menor valor de la Alta Bruja |
+| Alta Bruja | Su carta de menor valor | La carta de mayor valor de la Aprendiz |
+| Brujas | Nada | Nada |
 
 Las cartas entregadas se eligen **sobre la mano recién repartida**, antes de recibir las del intercambio. Los intercambios son obligatorios; si hay varias cartas empatadas en valor, se puede entregar cualquiera de ellas.
 
-Después del intercambio, **la Reina del Bosque abre la ronda** con cualquier jugada válida. Ya no es obligatorio empezar con el espíritu de hojas.
+Después del intercambio, **la Bruja Suprema abre la ronda** con cualquier jugada válida. Ya no es obligatorio empezar con el espíritu de hojas.
 
 ## Final de la partida
 

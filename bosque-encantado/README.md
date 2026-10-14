@@ -1,7 +1,7 @@
 # BOSQUE ENCANTADO
 
 El **Capitalista de cartas** (también llamado Presidente o Culo) en un bosque encantado, con sus
-rangos propios: Reina del Bosque, Hechicera, Aprendiz, Renacuajo y Sapo.
+rangos propios: Bruja Suprema, Alta Bruja, Bruja, Bruja Aprendiz y Bruja Limpiaollas.
 De 4 a 6 jugadores: quédate sin cartas antes que nadie. Se juega en el navegador, con amigos
 por internet o contra jugadores máquina, en español e inglés.
 
