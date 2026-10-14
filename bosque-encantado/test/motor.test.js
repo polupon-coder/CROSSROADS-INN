@@ -3,8 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../motor');
 
-// Carta por nombre: c('8T') = ocho de tréboles, c('10C') = diez de corazones.
-const c = (s) => M.VALORES.indexOf(s.slice(0, -1)) * 4 + M.PALOS.indexOf(s.slice(-1));
+// Carta por nombre: c('6-a') = el primer 6, c('10-c') = el tercer 10.
+const c = (s) => { const [v, k] = s.split('-'); return M.VALORES.indexOf(v) * 4 + M.PALOS.indexOf(k); };
 const cs = (...s) => s.map(c);
 
 // Azar repetible para que las partidas de prueba sean siempre iguales.
@@ -23,12 +23,12 @@ function preparada(manos, { turno = 0, revolucion = false } = {}) {
   return p;
 }
 
-test('se reparte toda la baraja y abre quien tiene el 3 de tréboles', () => {
+test('se reparte toda la baraja y abre quien tiene el primer 1', () => {
   for (const n of [4, 5, 6]) {
     const p = M.nuevaPartida(jugadores(n), {}, semilla(n));
     const todas = p.jugadores.flatMap((j) => j.mano);
-    assert.equal(todas.length, 52);
-    assert.equal(new Set(todas).size, 52);
+    assert.equal(todas.length, M.CARTAS);
+    assert.equal(new Set(todas).size, M.CARTAS);
     const tamanos = p.jugadores.map((j) => j.mano.length);
     assert.ok(Math.max(...tamanos) - Math.min(...tamanos) <= 1);
     assert.ok(p.jugadores[p.turno].mano.includes(M.TRES_DE_TREBOLES));
@@ -36,7 +36,7 @@ test('se reparte toda la baraja y abre quien tiene el 3 de tréboles', () => {
   }
 });
 
-test('la primera jugada debe llevar el 3 de tréboles', () => {
+test('la primera jugada debe llevar el primer 1', () => {
   const p = M.nuevaPartida(jugadores(4), {}, semilla(7));
   const t = p.turno;
   const otra = p.jugadores[t].mano.find((x) => M.valor(x) !== 0);
@@ -46,21 +46,21 @@ test('la primera jugada debe llevar el 3 de tréboles', () => {
 });
 
 test('hay que jugar la misma cantidad y de valor superior', () => {
-  const p = preparada([['8T', '8D', '5C'], ['10T', '10D', 'KC', '9P', '9T', '9D'], ['3T', '4T'], ['6T', '7T']]);
-  assert.equal(M.jugar(p, 0, cs('8T', '5C')), 'mismoValor');
-  assert.equal(M.jugar(p, 0, cs('8T', '8D')), null);
+  const p = preparada([['6-a', '6-b', '3-c'], ['8-a', '8-b', '11-c', '7-d', '7-a', '7-b'], ['1-a', '2-a'], ['4-a', '5-a']]);
+  assert.equal(M.jugar(p, 0, cs('6-a', '3-c')), 'mismoValor');
+  assert.equal(M.jugar(p, 0, cs('6-a', '6-b')), null);
   assert.equal(p.turno, 1);
-  assert.equal(M.jugar(p, 1, cs('KC')), 'mismaCantidad');
-  assert.equal(M.jugar(p, 1, cs('9P', '9T', '9D')), 'mismaCantidad');
-  assert.equal(M.jugar(p, 1, cs('10T', '10D')), null);
+  assert.equal(M.jugar(p, 1, cs('11-c')), 'mismaCantidad');
+  assert.equal(M.jugar(p, 1, cs('7-d', '7-a', '7-b')), 'mismaCantidad');
+  assert.equal(M.jugar(p, 1, cs('8-a', '8-b')), null);
 });
 
 test('quien pasa queda fuera hasta que se limpia la mesa', () => {
-  const p = preparada([['5T', 'KT'], ['6T', '7T'], ['8T', '9T'], ['4T', 'QT']]);
-  M.jugar(p, 0, cs('5T'));
+  const p = preparada([['3-a', '11-a'], ['4-a', '5-a'], ['6-a', '7-a'], ['2-a', '10-a']]);
+  M.jugar(p, 0, cs('3-a'));
   M.pasar(p, 1);
-  M.jugar(p, 2, cs('8T'));
-  M.jugar(p, 3, cs('QT'));
+  M.jugar(p, 2, cs('6-a'));
+  M.jugar(p, 3, cs('10-a'));
   // Le tocaría a 1, pero pasó: va directo a 0.
   assert.equal(p.turno, 0);
   M.pasar(p, 0);
@@ -72,16 +72,16 @@ test('quien pasa queda fuera hasta que se limpia la mesa', () => {
 });
 
 test('la combinación más alta limpia la mesa y repite quien la jugó', () => {
-  const p = preparada([['2T', '5T'], ['6T', '7T'], ['8T', '9T'], ['4T', 'QT']], { turno: 3 });
-  M.jugar(p, 3, cs('4T'));
-  M.jugar(p, 0, cs('2T'));
+  const p = preparada([['12-a', '3-a'], ['4-a', '5-a'], ['6-a', '7-a'], ['2-a', '10-a']], { turno: 3 });
+  M.jugar(p, 3, cs('2-a'));
+  M.jugar(p, 0, cs('12-a'));
   assert.equal(p.mesa, null);
   assert.equal(p.turno, 0);
 });
 
 test('si nadie supera la última jugada de quien termina, abre el siguiente con cartas', () => {
-  const p = preparada([['KT'], ['6T', '7T'], ['8T', '9T'], ['4T', 'QT']], { turno: 0 });
-  M.jugar(p, 0, cs('KT'));
+  const p = preparada([['11-a'], ['4-a', '5-a'], ['6-a', '7-a'], ['2-a', '10-a']], { turno: 0 });
+  M.jugar(p, 0, cs('11-a'));
   assert.deepEqual(p.orden, [0]);
   assert.equal(p.turno, 1);
   M.pasar(p, 1);
@@ -92,31 +92,31 @@ test('si nadie supera la última jugada de quien termina, abre el siguiente con 
 });
 
 test('las cartas de quien termina se pueden superar', () => {
-  const p = preparada([['JT'], ['QT', '7T'], ['8T', '9T'], ['4T', '5T']], { turno: 0 });
-  M.jugar(p, 0, cs('JT'));
-  assert.equal(M.jugar(p, 1, cs('QT')), null);
+  const p = preparada([['9-a'], ['10-a', '5-a'], ['6-a', '7-a'], ['2-a', '3-a']], { turno: 0 });
+  M.jugar(p, 0, cs('9-a'));
+  assert.equal(M.jugar(p, 1, cs('10-a')), null);
   assert.equal(p.ultimo, 1);
 });
 
 test('fin de ronda: rangos, puntos e intercambio de cartas', () => {
-  const p = preparada([['3T'], ['4T', '5T'], ['6T', '7T'], ['8T', '9T', '10T']], { turno: 0 });
-  M.jugar(p, 0, cs('3T')); // 0 termina primero
-  M.jugar(p, 1, cs('4T'));
-  M.jugar(p, 2, cs('6T'));
-  M.jugar(p, 3, cs('8T'));
+  const p = preparada([['1-a'], ['2-a', '3-a'], ['4-a', '5-a'], ['6-a', '7-a', '8-a']], { turno: 0 });
+  M.jugar(p, 0, cs('1-a')); // 0 termina primero
+  M.jugar(p, 1, cs('2-a'));
+  M.jugar(p, 2, cs('4-a'));
+  M.jugar(p, 3, cs('6-a'));
   M.pasar(p, 1);
   M.pasar(p, 2); // se limpia: abre 3
-  M.jugar(p, 3, cs('9T'));
-  M.jugar(p, 1, cs('5T')); // 5 < 9: no vale
+  M.jugar(p, 3, cs('7-a'));
+  M.jugar(p, 1, cs('3-a')); // 5 < 9: no vale
   M.pasar(p, 1);
-  M.jugar(p, 2, cs('7T')); // tampoco
+  M.jugar(p, 2, cs('5-a')); // tampoco
   M.pasar(p, 2); // abre 3 de nuevo
-  M.jugar(p, 3, cs('10T')); // 3 termina segundo
-  M.jugar(p, 1, cs('5T')); // 5 < 10
+  M.jugar(p, 3, cs('8-a')); // 3 termina segundo
+  M.jugar(p, 1, cs('3-a')); // 5 < 10
   M.pasar(p, 1);
   M.pasar(p, 2); // limpia; 3 ya no tiene cartas: abre el siguiente, 0 terminó, así que 1
   assert.equal(p.turno, 1);
-  M.jugar(p, 1, cs('5T')); // 1 termina tercero; queda 2, último
+  M.jugar(p, 1, cs('3-a')); // 1 termina tercero; queda 2, último
   assert.equal(p.fase, 'finRonda');
   assert.deepEqual(p.orden, [0, 3, 1, 2]);
   assert.deepEqual(p.jugadores.map((j) => j.rango), ['capitalista', 'viceculo', 'culo', 'vicepresidente']);
@@ -135,28 +135,28 @@ test('fin de ronda: rangos, puntos e intercambio de cartas', () => {
   for (const x of e(2, 0)) assert.ok(p.jugadores[0].mano.includes(x));
   for (const x of e(0, 2)) assert.ok(p.jugadores[2].mano.includes(x));
   const todas = p.jugadores.flatMap((j) => j.mano);
-  assert.equal(new Set(todas).size, 52);
+  assert.equal(new Set(todas).size, M.CARTAS);
   // Lo que da el Culo es al menos tan alto como todo lo que se queda.
   const resto = p.jugadores[2].mano.filter((x) => !e(0, 2).includes(x));
   assert.ok(Math.min(...e(2, 0).map(M.valor)) >= Math.max(...resto.map(M.valor)));
 });
 
 test('revolución: cuatro iguales invierten el orden', () => {
-  const p = preparada([['5T', '5D', '5C', '5P', 'KT'], ['3T', '2T'], ['8T', '9T'], ['4T', 'QT']], { revolucion: true });
-  M.jugar(p, 0, cs('5T', '5D', '5C', '5P'));
+  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: true });
+  M.jugar(p, 0, cs('3-a', '3-b', '3-c', '3-d'));
   assert.ok(p.revolucion);
   M.pasar(p, 1);
   M.pasar(p, 2);
   M.pasar(p, 3);
-  M.jugar(p, 0, cs('KT'));
-  assert.equal(M.jugar(p, 1, cs('2T')), 'superior'); // ahora el 2 es la más baja
-  assert.equal(M.jugar(p, 1, cs('3T')), null); // y el 3 la más alta: limpia la mesa
+  M.jugar(p, 0, cs('11-a'));
+  assert.equal(M.jugar(p, 1, cs('12-a')), 'superior'); // ahora el 2 es la más baja
+  assert.equal(M.jugar(p, 1, cs('1-a')), null); // y el 3 la más alta: limpia la mesa
   assert.equal(p.mesa, null);
 });
 
 test('sin la variante, cuatro iguales no cambian el orden', () => {
-  const p = preparada([['5T', '5D', '5C', '5P', 'KT'], ['3T', '2T'], ['8T', '9T'], ['4T', 'QT']]);
-  M.jugar(p, 0, cs('5T', '5D', '5C', '5P'));
+  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']]);
+  M.jugar(p, 0, cs('3-a', '3-b', '3-c', '3-d'));
   assert.equal(p.revolucion, false);
 });
 
@@ -184,24 +184,24 @@ test('partidas completas solo con máquinas, de 4 a 6, con y sin revolución', (
 });
 
 test('desempate por la última ronda', () => {
-  const p = preparada([['3T'], ['4T'], ['5T'], ['6T', '7T']]);
+  const p = preparada([['1-a'], ['2-a'], ['3-a'], ['4-a', '5-a']]);
   p.opciones.rondas = 1;
   p.ronda = 1;
   p.jugadores[1].puntos = 3; // llega con ventaja
-  M.jugar(p, 0, cs('3T'));
-  M.jugar(p, 1, cs('4T'));
-  M.jugar(p, 2, cs('5T'));
+  M.jugar(p, 0, cs('1-a'));
+  M.jugar(p, 1, cs('2-a'));
+  M.jugar(p, 2, cs('3-a'));
   assert.equal(p.fase, 'finPartida');
   // 0: 3 puntos, 1: 3 + 2 = 5 puntos
   assert.equal(p.ganador, 1);
   // Reconstruye el empate: 0 y 1 con 3 puntos, gana 0 por quedar mejor.
-  const q = preparada([['3T'], ['4T'], ['5T'], ['6T', '7T']]);
+  const q = preparada([['1-a'], ['2-a'], ['3-a'], ['4-a', '5-a']]);
   q.opciones.rondas = 1;
   q.ronda = 1;
   q.jugadores[1].puntos = 1;
-  M.jugar(q, 0, cs('3T'));
-  M.jugar(q, 1, cs('4T'));
-  M.jugar(q, 2, cs('5T'));
+  M.jugar(q, 0, cs('1-a'));
+  M.jugar(q, 1, cs('2-a'));
+  M.jugar(q, 2, cs('3-a'));
   assert.equal(q.jugadores[0].puntos, q.jugadores[1].puntos);
   assert.equal(q.ganador, 0);
 });

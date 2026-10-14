@@ -284,3 +284,27 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .retrato-boton:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; }
 .estado-grande { background-size: contain; background-repeat: no-repeat; border: 0; box-shadow: none; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .6)); }
 @media (max-width: 640px) { .retrato { width: 92px; } .yo .retrato { width: 76px; } }
+
+/* ---------- Cartas con dibujo (baraja del bosque, 400 × 559) ---------- */
+.carta.imagen { background-color: transparent; background-size: 100% 100%; border-radius: 6px; }
+.carta.imagen .chapa {
+  position: absolute; top: 4px; left: 4px; min-width: 24px; height: 24px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: rgba(250, 244, 226, .95); border: 1px solid #5a6b3a;
+  color: #1d2a14; font-weight: 700; font-size: 16px; line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+.mano { gap: 0; padding-left: 30px; }
+.mano .carta.imagen { width: 84px; height: 117px; margin-left: -30px; }
+.mano .carta.imagen:hover, .mano .carta.imagen.elegida { z-index: 1; }
+.monton .carta.imagen { width: 96px; height: 134px; }
+.monton .carta.imagen .chapa { font-size: 18px; min-width: 28px; height: 28px; }
+.nota .carta.imagen { width: 44px; height: 61px; }
+.nota .carta.imagen .chapa { font-size: 12px; min-width: 18px; height: 18px; top: 2px; left: 2px; }
+.mano .carta.abre { box-shadow: 0 0 0 3px var(--oro), 0 0 18px rgba(240, 210, 120, .8); }
+@media (max-width: 640px) {
+  .mano { padding-left: 26px; }
+  .mano .carta.imagen { width: 62px; height: 87px; margin-left: -26px; }
+  .monton .carta.imagen { width: 74px; height: 103px; }
+  .carta.imagen .chapa { font-size: 14px; min-width: 20px; height: 20px; }
+}

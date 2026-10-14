@@ -3,12 +3,16 @@
 // Las reglas están en REGLAS.md. Este archivo no sabe nada de pantallas ni de red: recibe
 // jugadas, comprueba que son válidas y cambia el estado de la partida.
 //
-// Las cartas son números de 0 a 51: valor = n >> 2 (0 = 3, 1 = 4, … 11 = As, 12 = 2) y
-// palo = n & 3 (0 tréboles, 1 diamantes, 2 corazones, 3 picas). El 3 de tréboles es el 0.
+// La baraja del bosque tiene 48 cartas: del 1 (la más baja) al 12 (la más alta), cuatro
+// de cada número, con dibujos distintos (a, b, c, d) pero sin palos que cuenten.
+// Cada carta es un número de 0 a 47: valor = n >> 2 (0 = el 1, … 11 = el 12) y
+// copia = n & 3. La carta 0 (el primer 1) abre la primera ronda.
 
-const VALORES = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
-const PALOS = ['T', 'D', 'C', 'P'];
-const TRES_DE_TREBOLES = 0;
+const VALORES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const PALOS = ['a', 'b', 'c', 'd'];
+const CARTAS = VALORES.length * PALOS.length;
+const MAXIMO = VALORES.length - 1; // fuerza de la carta más alta
+const TRES_DE_TREBOLES = 0; // la carta que abre la primera ronda
 const MIN_JUGADORES = 4;
 const MAX_JUGADORES = 6;
 
@@ -17,7 +21,7 @@ const palo = (c) => c & 3;
 const nombreCarta = (c) => VALORES[valor(c)] + PALOS[palo(c)];
 
 // Fuerza de un valor según el orden vigente: con revolución se invierte.
-const fuerza = (v, revolucion) => (revolucion ? 12 - v : v);
+const fuerza = (v, revolucion) => (revolucion ? MAXIMO - v : v);
 
 // Rango de cada posición final, según el número de jugadores (tabla de REGLAS.md).
 function rangos(n) {
@@ -57,7 +61,7 @@ function nuevaPartida(jugadores, opciones = {}, azar = Math.random) {
     turno: 0,
     ultimo: null, // quién hizo la última jugada de la mesa actual
     revolucion: false,
-    abreConTres: false, // primera ronda: la primera jugada lleva el 3 de tréboles
+    abreConTres: false, // primera ronda: la primera jugada lleva el espíritu de hojas (carta 0)
     orden: [], // índices de jugadores en el orden en que se quedan sin cartas
     ultimaRonda: null, // { orden, puntos } de la ronda anterior
     intercambios: [], // [{ de, a, cartas }] hechos al empezar la ronda
@@ -88,7 +92,7 @@ function empezarRonda(p, azar = Math.random) {
   // Reparte toda la baraja de una en una, empezando por la izquierda de quien da.
   // En la primera ronda da cualquiera; después, el Culo.
   const reparte = p.ronda === 1 ? Math.floor(azar() * n) : p.jugadores.findIndex((j) => j.rango === 'culo');
-  const mazo = barajar([...Array(52).keys()], azar);
+  const mazo = barajar([...Array(CARTAS).keys()], azar);
   mazo.forEach((c, i) => p.jugadores[(reparte + 1 + i) % n].mano.push(c));
   for (const j of p.jugadores) ordenarMano(j.mano);
 
@@ -182,7 +186,7 @@ function jugar(p, i, cartas) {
   if (quedan.length <= 1) { terminarRonda(p, quedan[0]); return null; }
 
   // La combinación más alta posible no se puede superar: se limpia la mesa.
-  if (fuerza(v, p.revolucion) === 12) { limpiar(p); return null; }
+  if (fuerza(v, p.revolucion) === MAXIMO) { limpiar(p); return null; }
   avanzar(p);
   return null;
 }
@@ -272,13 +276,13 @@ function jugadaMaquina(p, i) {
     // Si puede quedarse sin cartas de una vez, lo hace.
     if (porFuerza.length === 1) return porFuerza[0][1];
     // Con dos grupos, si uno es imbatible, primero ese y luego el otro.
-    const imbatible = porFuerza.find(([v]) => fuerza(v, rev) === 12);
+    const imbatible = porFuerza.find(([v]) => fuerza(v, rev) === MAXIMO);
     if (porFuerza.length === 2 && imbatible) return imbatible[1];
     // Abre con su grupo más bajo; si tiene cuatro iguales y la revolución le conviene, la usa.
     if (p.opciones.revolucion) {
       const cuatro = porFuerza.find(([, cs]) => cs.length === 4);
       const media = mano.reduce((s, c) => s + fuerza(valor(c), rev), 0) / mano.length;
-      if (cuatro && media < 5.5) return cuatro[1];
+      if (cuatro && media < MAXIMO / 2) return cuatro[1];
     }
     return porFuerza[0][1];
   }
@@ -299,14 +303,14 @@ function jugadaMaquina(p, i) {
   if (!eleccion) return null;
   // Guarda las cartas más altas mientras le queden muchas, salvo que la mesa ya sea alta.
   const f = fuerza(eleccion[0], rev);
-  if (f >= 11 && mitad && minimo < 7) return null;
+  if (f >= MAXIMO - 1 && mitad && minimo < MAXIMO / 2) return null;
   if (p.opciones.revolucion && eleccion[1].length === 4 && k < 4) return null;
   const cartas = eleccion[1].slice(0, k);
   return valida(cartas) ? cartas : null;
 }
 
 module.exports = {
-  VALORES, PALOS, TRES_DE_TREBOLES, MIN_JUGADORES, MAX_JUGADORES,
+  VALORES, PALOS, CARTAS, MAXIMO, TRES_DE_TREBOLES, MIN_JUGADORES, MAX_JUGADORES,
   valor, palo, fuerza, nombreCarta, rangos, barajar,
   nuevaPartida, motivoInvalida, jugar, pasar, siguienteRonda, jugadaMaquina,
 };

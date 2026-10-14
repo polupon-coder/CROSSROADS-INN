@@ -3,18 +3,20 @@
 // (/api/escuchar) y aquí se dibuja; las jugadas se mandan a /api/accion.
 
 // ─────────────────────────────────────────────────────────────────────────
-// CARTAS CON DIBUJO. Cuando estén las ilustraciones, ponlas en publico/cartas/
-// con estos nombres y cambia a true: 3T.webp … 2P.webp (valor + palo: T tréboles,
-// D diamantes, C corazones, P picas; J, Q, K, A para las figuras) y dorso.webp.
+// CARTAS CON DIBUJO: publico/cartas/01-a.webp … 12-d.webp (número y copia).
+// Si se pone false, se dibujan solas con su número. DORSO_CON_IMAGEN: cuando
+// esté publico/cartas/dorso.webp, cámbialo a true.
 // ─────────────────────────────────────────────────────────────────────────
-const CARTAS_CON_IMAGEN = false;
+const CARTAS_CON_IMAGEN = true;
+const DORSO_CON_IMAGEN = false;
 
-const VALORES = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
-const PALOS = ['T', 'D', 'C', 'P'];
-const SIMBOLOS = { T: '♣', D: '♦', C: '♥', P: '♠' };
+// La baraja del bosque: 48 cartas del 1 (la más baja) al 12 (la más alta), cuatro de cada.
+const VALORES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const COPIAS = ['a', 'b', 'c', 'd'];
+const MAXIMO = VALORES.length - 1;
 const valor = (c) => c >> 2;
-const palo = (c) => PALOS[c & 3];
-const fuerza = (v, rev) => (rev ? 12 - v : v);
+const copia = (c) => COPIAS[c & 3];
+const fuerza = (v, rev) => (rev ? MAXIMO - v : v);
 
 const TEXTOS = {
   es: {
@@ -31,7 +33,7 @@ const TEXTOS = {
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
     tuTurnoAbre: 'Te toca abrir: juega una carta, pareja, trío o cuatro iguales.',
-    tuTurnoTres: 'Abres la partida: tu jugada debe llevar el 3 de tréboles.',
+    tuTurnoTres: 'Abres la partida: tu jugada debe llevar el espíritu de hojas (el 1 que brilla).',
     tuTurnoSupera: (k) => `Te toca: supera con ${k === 1 ? 'una carta' : k + ' cartas iguales'} más alta${k === 1 ? '' : 's'}, o pasa.`,
     turnoDe: (n) => `Le toca a ${n}`, hasPasado: 'Has pasado: esperas a que se limpie la mesa.', hasTerminado: (p) => `¡Has terminado ${p}.º! Mira cómo acaban los demás.`,
     finRonda: (r) => `Fin de la ronda ${r}`, eres: (r) => `Eres ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
@@ -41,7 +43,7 @@ const TEXTOS = {
     sustituir: 'Que juegue la máquina',
     errores: {
       nombre: 'Escribe tu nombre.', sala: 'No existe esa partida.', empezada: 'Esa partida ya ha empezado.', llena: 'La partida está llena (6 jugadores).',
-      tresDeTreboles: 'Tu primera jugada debe llevar el 3 de tréboles.', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
+      tresDeTreboles: 'Tu primera jugada debe llevar el espíritu de hojas (el 1 que brilla).', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
       superior: 'Tiene que ser de un valor más alto.', mismoValor: 'Todas las cartas deben ser del mismo valor.', abres: 'Abres la mesa: no puedes pasar.',
       turno: 'No es tu turno.', cogido: 'Esa bruja ya la tiene otro jugador.', red: 'Sin conexión con el servidor. Reintentando…',
     },
@@ -70,7 +72,7 @@ const TEXTOS = {
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
     tuTurnoAbre: 'Your lead: play a single, pair, three or four of a kind.',
-    tuTurnoTres: 'You open the game: your play must include the 3 of clubs.',
+    tuTurnoTres: 'You open the game: your play must include the leaf spirit (the glowing 1).',
     tuTurnoSupera: (k) => `Your turn: beat it with ${k === 1 ? 'a higher card' : k + ' higher matching cards'}, or pass.`,
     turnoDe: (n) => `${n}'s turn`, hasPasado: 'You passed: wait until the table is cleared.', hasTerminado: (p) => `You finished #${p}! Watch the others finish.`,
     finRonda: (r) => `End of round ${r}`, eres: (r) => `You are ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
@@ -80,7 +82,7 @@ const TEXTOS = {
     sustituir: 'Let the computer play',
     errores: {
       nombre: 'Enter your name.', sala: 'That game does not exist.', empezada: 'That game has already started.', llena: 'The game is full (6 players).',
-      tresDeTreboles: 'Your first play must include the 3 of clubs.', mismaCantidad: 'You must play the same number of cards.',
+      tresDeTreboles: 'Your first play must include the leaf spirit (the glowing 1).', mismaCantidad: 'You must play the same number of cards.',
       superior: 'It must be a higher value.', mismoValor: 'All cards must have the same value.', abres: 'You lead: you cannot pass.',
       turno: 'It is not your turn.', cogido: 'Another player already has that witch.', red: 'No connection to the server. Retrying…',
     },
@@ -99,33 +101,33 @@ const TEXTOS = {
 
 const REGLAS = {
   es: `<h2>Reglas</h2>
-<p>De 4 a 6 jugadores, con una baraja francesa de 52 cartas. El objetivo de cada ronda es <b>quedarse sin cartas lo antes posible</b>.</p>
+<p>De 4 a 6 jugadores, con la baraja del bosque: 48 cartas, del 1 al 12, cuatro de cada número. El objetivo de cada ronda es <b>quedarse sin cartas lo antes posible</b>.</p>
 <h3>Valor de las cartas</h3>
-<p>De menor a mayor: <b>3 4 5 6 7 8 9 10 J Q K A 2</b>. Los palos no importan.</p>
+<p>De menor a mayor: <b>1 2 3 4 5 6 7 8 9 10 11 12</b>. Solo cuenta el número, no el dibujo.</p>
 <h3>Jugadas</h3>
 <p>Quien abre la mesa juega una carta, una pareja, un trío o cuatro iguales. Los demás, en sentido horario, deben <b>superarla</b> con la misma cantidad de cartas iguales de valor más alto, o <b>pasar</b>. Quien pasa queda fuera hasta que se limpie la mesa.</p>
-<p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (doses) limpia la mesa al momento.</p>
-<p>En la primera ronda abre quien tiene el <b>3 de tréboles</b>, y su jugada debe llevarlo.</p>
+<p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (doces) limpia la mesa al momento.</p>
+<p>En la primera ronda abre quien tiene el <b>espíritu de hojas</b> (el 1 de las manos juntas), y su jugada debe llevarlo.</p>
 <h3>Rangos e intercambio</h3>
 <p>Según el orden en que os quedáis sin cartas: <b>Capitalista, Vicepresidente, (Ciudadanos), Viceculo y Culo</b>. Al empezar la ronda siguiente, el Culo da sus 2 cartas más altas al Capitalista y recibe sus 2 más bajas; el Viceculo da su carta más alta al Vicepresidente y recibe su más baja. Abre el Capitalista.</p>
 <h3>Puntos</h3>
 <p>Cada jugador gana tantos puntos como jugadores terminan detrás de él. Gana quien más puntos tenga al acabar las rondas; en empate, quien quedó mejor en la última.</p>
 <h3>Variante: revolución</h3>
-<p>Si está activada, jugar cuatro cartas iguales invierte el orden (el 3 pasa a ser la más alta y el 2 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
+<p>Si está activada, jugar cuatro cartas iguales invierte el orden (el 1 pasa a ser la más alta y el 12 la más baja) hasta el final de la ronda. Otros cuatro iguales lo devuelven a la normalidad.</p>`,
   en: `<h2>Rules</h2>
-<p>4 to 6 players, with a standard 52-card deck. The goal of each round is to <b>run out of cards as soon as possible</b>.</p>
+<p>4 to 6 players, with the forest deck: 48 cards, numbered 1 to 12, four of each. The goal of each round is to <b>run out of cards as soon as possible</b>.</p>
 <h3>Card values</h3>
-<p>Lowest to highest: <b>3 4 5 6 7 8 9 10 J Q K A 2</b>. Suits don't matter.</p>
+<p>Lowest to highest: <b>1 2 3 4 5 6 7 8 9 10 11 12</b>. Only the number counts, not the picture.</p>
 <h3>Plays</h3>
 <p>Whoever leads plays a single card, a pair, three or four of a kind. Going clockwise, the others must <b>beat it</b> with the same number of matching cards of a higher value, or <b>pass</b>. A player who passes is out until the table is cleared.</p>
-<p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (twos) clears the table at once.</p>
-<p>In the first round, the holder of the <b>3 of clubs</b> leads, and that play must include it.</p>
+<p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (twelves) clears the table at once.</p>
+<p>In the first round, the holder of the <b>leaf spirit</b> (the 1 with joined hands) leads, and that play must include it.</p>
 <h3>Ranks and card exchange</h3>
 <p>By the order in which you run out: <b>Capitalist, Vice-President, (Citizens), Vice-Scum and Scum</b>. At the start of the next round, the Scum gives their 2 highest cards to the Capitalist and gets the Capitalist's 2 lowest; the Vice-Scum gives their highest card to the Vice-President and gets their lowest. The Capitalist leads.</p>
 <h3>Scoring</h3>
 <p>Each player scores one point per player who finished behind them. The highest total after the last round wins; ties go to whoever placed better in the last round.</p>
 <h3>Variant: revolution</h3>
-<p>When enabled, playing four of a kind reverses the order (3 becomes highest, 2 lowest) until the end of the round. Another four of a kind restores it.</p>`,
+<p>When enabled, playing four of a kind reverses the order (1 becomes highest, 12 lowest) until the end of the round. Another four of a kind restores it.</p>`,
 };
 
 // ---------- Estado ----------
@@ -153,25 +155,23 @@ function idiomaInicial() {
 }
 
 // ---------- Cartas ----------
+// En pequeño el número del dibujo no se lee, así que se repite en una chapa en la esquina.
 function htmlCarta(c, extra = '') {
   const vv = VALORES[valor(c)];
-  const p = palo(c);
-  const titulo = `${vv}${SIMBOLOS[p]}`;
   if (CARTAS_CON_IMAGEN) {
-    return `<span class="carta imagen ${p} ${extra}" style="background-image:url(cartas/${vv}${p}.webp)" title="${titulo}" data-carta="${c}"></span>`;
+    const archivo = `${vv.padStart(2, '0')}-${copia(c)}`;
+    return `<span class="carta imagen ${extra}" style="background-image:url(cartas/${archivo}.webp)" title="${vv}" data-carta="${c}"><span class="chapa">${vv}</span></span>`;
   }
-  return `<span class="carta ${p} ${extra}" title="${titulo}" data-carta="${c}">
-    <span class="esquina">${vv}<br>${SIMBOLOS[p]}</span>
-    <span class="centro">${SIMBOLOS[p]}</span>
-    <span class="esquina abajo">${vv}<br>${SIMBOLOS[p]}</span></span>`;
+  return `<span class="carta ${extra}" title="${vv}" data-carta="${c}">
+    <span class="esquina">${vv}</span><span class="centro">${vv}</span><span class="esquina abajo">${vv}</span></span>`;
 }
-const htmlDorso = () => `<span class="dorso${CARTAS_CON_IMAGEN ? ' imagen' : ''}"${CARTAS_CON_IMAGEN ? ' style="background-image:url(cartas/dorso.webp)"' : ''}></span>`;
+const htmlDorso = () => `<span class="dorso${DORSO_CON_IMAGEN ? ' imagen' : ''}"${DORSO_CON_IMAGEN ? ' style="background-image:url(cartas/dorso.webp)"' : ''}></span>`;
 // Carta de estado del rango (publico/estados/): la bruja más o menos contenta.
 const htmlEstado = (rango, clase = 'estado-mini') => (rango ? `<span class="${clase}" style="background-image:url(estados/${rango}.webp)" title="${t.rangos[rango]}" role="img" aria-label="${t.rangos[rango]}"></span>` : '');
 const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
 // Retrato del personaje de un jugador, con su carta de estado en la esquina si ya tiene rango.
 const htmlRetrato = (personaje, rango, clase = 'retrato') => `<span class="${clase}" style="background-image:url(personajes/${personaje}.webp)">${rango ? htmlEstado(rango, 'estado-esquina') : ''}</span>`;
-const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)] + SIMBOLOS[palo(c)]).join(' '));
+const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)]).join(' '));
 
 // ---------- Red ----------
 async function api(ruta, cuerpo) {
@@ -301,7 +301,7 @@ function pintarMesa() {
   const posibles = miTurno ? valoresJugables(p) : null;
   const orden = p.mano.slice().sort((a, b) => fuerza(valor(a), p.revolucion) - fuerza(valor(b), p.revolucion) || a - b);
   $('mano').innerHTML = orden.map((c) => {
-    const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada'].filter(Boolean).join(' ');
+    const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === 0 && 'abre'].filter(Boolean).join(' ');
     return htmlCarta(c, extra).replace('<span class="carta', '<button type="button" class="carta').replace(/<\/span>$/, '</button>');
   }).join('');
 
