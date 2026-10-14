@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CROSSROADS INN</title>
+<meta name="description" content="Elige un juego y pulsa para jugar con tus amigos o contra la máquina. / Pick a game and click to play with friends or against the computer.">
+<meta property="og:title" content="CROSSROADS INN">
+<meta property="og:description" content="IMPERIO, REGIUM, HÉROES, MANA — elige un juego y pulsa para jugar / pick a game and play.">
+<meta property="og:image" content="img/cartel-en.webp">
+<style>
+@font-face { font-family: Garamond; src: url(EBGaramond.ttf) format("truetype"); font-display: swap; }
+:root {
+  --fondo: #140e09;
+  --panel: rgba(22, 15, 9, .78);
+  --borde: #5a4a37;
+  --oro: #d9b26a;
+  --oro-claro: #f0d59a;
+  --texto: #efe6d6;
+  --texto-suave: #c9b99f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh;
+  background-color: var(--fondo);
+  color: var(--texto);
+  font-family: Garamond, Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.45;
+}
+/* La madera, fija detrás de todo y algo oscurecida en el centro para que se lea el texto. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(12,8,4,.45), rgba(12,8,4,.15) 75%),
+    url(img/madera.webp) center / cover no-repeat;
+}
+
+header { position: relative; text-align: center; padding: 28px 16px 8px; }
+.cartel {
+  display: block;
+  width: min(560px, 86vw);
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.7));
+  transform-origin: 50% 0;
+  animation: balanceo 6s ease-in-out infinite;
+}
+@keyframes balanceo { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+@media (prefers-reduced-motion: reduce) { .cartel { animation: none; } }
+h1 { margin: 0; }
+.lema { margin: 10px 0 0; color: var(--texto); font-size: 21px; font-style: italic; text-shadow: 0 2px 6px #000; }
+
+/* Los juegos llegan por los lados hasta el borde exterior de la primera banda de
+   hierro del fondo y tapan sus pernos. La madera mide 941 × 1672 y se escala como
+   «cover», así que se calcula con la misma escala: --s píxeles por píxel de imagen.
+   La banda empieza a 120 px del borde izquierdo de la imagen y a 117 del derecho. */
+main {
+  --s: max(100vw / 941, 100vh / 1672);
+  --margen: calc((100vw - 941 * var(--s)) / 2);
+  padding: 20px max(12px, calc(var(--margen) + 117 * var(--s))) 40px max(12px, calc(var(--margen) + 120 * var(--s)));
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 34px 30px;
+}
+@media (min-width: 800px) { main { grid-template-columns: 1fr 1fr; } }
+.juego {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .2s ease;
+}
+.juego:hover, .juego:focus-visible { transform: translateY(-5px); outline: none; }
+.portada { position: relative; aspect-ratio: 800 / 563; }
+.portada img {
+  width: 100%; height: 100%; display: block;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.65));
+  transition: filter .2s ease;
+}
+.juego:hover .portada img, .juego:focus-visible .portada img {
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.65)) drop-shadow(0 0 14px rgba(240,190,100,.55));
+}
+.etiqueta {
+  position: absolute; left: 10%; bottom: 14%;
+  padding: 2px 10px; border-radius: 999px;
+  background: rgba(20,15,10,.85); color: var(--oro-claro);
+  font-size: 15px; letter-spacing: .03em;
+}
+.datos {
+  flex: 1; display: flex; flex-direction: column;
+  margin: 4px 0 0;
+  padding: 14px 20px 18px;
+  background: var(--panel);
+  border: 1px solid rgba(217,178,106,.25);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+}
+.datos h2 { margin: 0; font-size: 28px; letter-spacing: .06em; font-weight: 600; color: var(--oro-claro); }
+.datos p { margin: 4px 0 14px; color: var(--texto-suave); flex: 1; }
+.jugar {
+  align-self: center;
+  display: flex; align-items: center; justify-content: center;
+  width: 230px;
+  aspect-ratio: 600 / 143;
+  padding-bottom: 2px;
+  background: url(img/boton.webp) center / 100% 100% no-repeat;
+  color: var(--oro-claro);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: .08em;
+  text-shadow: 0 2px 2px #000, 0 0 8px rgba(0,0,0,.8);
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.6));
+  transition: filter .2s ease, color .2s ease;
+}
+.juego:hover .jugar, .juego:focus-visible .jugar {
+  color: #fff3d0;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(240,190,100,.6)) brightness(1.12);
+}
+.pronto { opacity: .6; cursor: default; }
+.pronto:hover { transform: none; }
+.pronto .jugar { filter: grayscale(.7) brightness(.8); color: var(--texto-suave); }
+
+.idiomas { position: absolute; top: 14px; right: 16px; z-index: 1; display: flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; background: rgba(20,14,9,.7); }
+.idiomas button { font: inherit; font-size: 15px; letter-spacing: .05em; padding: 4px 12px; border: 0; background: transparent; color: var(--texto-suave); cursor: pointer; }
+.idiomas button[aria-pressed="true"] { background: var(--oro); color: #24190c; font-weight: 700; }
+@media (max-width: 600px) { header { padding-top: 52px; } }
+
+footer { text-align: center; padding: 0 16px 40px; color: var(--texto-suave); font-size: 16px; text-shadow: 0 1px 4px #000; }
+footer p { max-width: 640px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header>
+  <div class="idiomas" role="group" aria-label="Idioma / Language">
+    <button type="button" data-idioma="es">ES</button>
+    <button type="button" data-idioma="en">EN</button>
+  </div>
+  <h1><img class="cartel" id="cartel" src="img/cartel-es.webp" alt="Posada del Cruce" width="900" height="587"></h1>
+  <p class="lema" data-t="lema"></p>
+</header>
+
+<main id="juegos"></main>
+
+<footer>
+  <p data-t="pie"></p>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// TUS JUEGOS. Para añadir uno nuevo, copia un bloque { … } y cámbialo.
+// «url» es la dirección donde está publicado el juego (la que da Render).
+// Si dejas url vacía (""), la tarjeta aparece como «Próximamente».
+// Cada texto va en español (es) y en inglés (en). El nombre y la url también
+// pueden ir así, si el juego tiene una dirección distinta para cada idioma.
+// ─────────────────────────────────────────────────────────────────────────
+const JUEGOS = [
+  {
+    nombre: "IMPERIO",
+    url: "https://imperio-re8d.onrender.com",
+    imagen: "img/imperio.webp",
+    jugadores: { es: "4 jugadores", en: "4 players" },
+    descripcion: {
+      es: "Levanta tu Capital, construye, recluta tropas y conquista el Mundo. Juego de tablero con combates a dados.",
+      en: "Raise your Capital, build, recruit troops and conquer the World. A board game with dice battles.",
+    },
+  },
+  {
+    nombre: "REGIUM",
+    url: "https://regium-bcii.onrender.com",
+    imagen: "img/regium.webp",
+    jugadores: { es: "2–5 jugadores", en: "2–5 players" },
+    descripcion: {
+      es: "Juego de cartas: cinco reinos, diez guerras y siete ciudades para reinar sobre todos.",
+      en: "A card game: five kingdoms, ten wars and seven cities to rule them all.",
+    },
+  },
+  {
+    nombre: { es: "HÉROES", en: "HEROES" },
+    url: "https://heroes-q423.onrender.com",
+    imagen: "img/heroes.webp",
+    jugadores: { es: "2–4 jugadores", en: "2–4 players" },
+    descripcion: {
+      es: "Crea tu héroe, sobrevive a 12 rondas de aventura contra monstruos y gana el torneo final.",
+      en: "Create your hero, survive 12 rounds of adventure against monsters and win the final tournament.",
+    },
+  },
+  {
+    nombre: "MANA",
+    url: { es: "https://mana-qupu.onrender.com", en: "https://mana-qupu.onrender.com/en" },
+    imagen: "img/mana.webp",
+    jugadores: { es: "2–4 jugadores", en: "2–4 players" },
+    descripcion: {
+      es: "Construye tu mazo de Elementales de Fuego, Agua, Tierra y Aire y reúne más Sellos en tres Eras.",
+      en: "Build your deck of Fire, Water, Earth and Air Elementals and gather the most Seals over three Eras.",
+    },
+  },
+];
+
+const TEXTOS = {
+  es: {
+    titulo: "POSADA DEL CRUCE",
+    cartel: "img/cartel-es.webp",
+    lema: "Elige tu juego y pulsa para jugar",
+    jugar: "Jugar",
+    pronto: "Próximamente",
+    pie: "Todos se juegan en el navegador, con amigos por internet o contra la máquina. Si un juego tarda en abrir, espera un momento: el servidor se está despertando (hasta un minuto).",
+  },
+  en: {
+    titulo: "CROSSROADS INN",
+    cartel: "img/cartel-en.webp",
+    lema: "Pick your game and click to play",
+    jugar: "Play",
+    pronto: "Coming soon",
+    pie: "All games run in the browser, online with friends or against the computer. If a game is slow to open, give it a moment: the server is waking up (up to a minute).",
+  },
+};
+
+function idiomaInicial() {
+  try {
+    const guardado = localStorage.getItem("idioma");
+    if (guardado in TEXTOS) return guardado;
+  } catch {}
+  return (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
+}
+
+function pintar(idioma) {
+  const t = TEXTOS[idioma];
+  document.documentElement.lang = idioma;
+  document.title = t.titulo;
+  const cartel = document.getElementById("cartel");
+  cartel.src = t.cartel;
+  cartel.alt = t.titulo;
+  for (const el of document.querySelectorAll("[data-t]")) el.textContent = t[el.dataset.t];
+  for (const b of document.querySelectorAll("[data-idioma]")) b.setAttribute("aria-pressed", b.dataset.idioma === idioma);
+
+  const lista = document.getElementById("juegos");
+  lista.replaceChildren();
+  for (const j of JUEGOS) {
+    const url = j.url[idioma] ?? j.url;
+    const tarjeta = document.createElement(url ? "a" : "div");
+    tarjeta.className = "juego" + (url ? "" : " pronto");
+    if (url) tarjeta.href = url;
+    tarjeta.innerHTML = `
+      <div class="portada">
+        <img src="${j.imagen}" alt="" width="800" height="563" loading="lazy">
+        <span class="etiqueta">${j.jugadores[idioma]}</span>
+      </div>
+      <div class="datos">
+        <h2>${j.nombre[idioma] ?? j.nombre}</h2>
+        <p>${j.descripcion[idioma]}</p>
+        <span class="jugar">${url ? t.jugar : t.pronto}</span>
+      </div>`;
+    lista.appendChild(tarjeta);
+  }
+}
+
+for (const b of document.querySelectorAll("[data-idioma]")) {
+  b.addEventListener("click", () => {
+    try { localStorage.setItem("idioma", b.dataset.idioma); } catch {}
+    pintar(b.dataset.idioma);
+  });
+}
+pintar(idiomaInicial());
+</script>
+</body>
+</html>

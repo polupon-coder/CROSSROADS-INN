@@ -1,0 +1,8 @@
+# Configuración para Render (https://render.com): New → Blueprint → este repositorio.
+# También vale New → Static Site con «Publish Directory» = . y sin comando de compilación.
+services:
+  - type: web
+    name: crossroads-inn
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
