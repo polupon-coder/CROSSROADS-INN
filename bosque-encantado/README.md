@@ -7,7 +7,9 @@ por internet o contra jugadores máquina, en español e inglés.
 - **Reglas:** [REGLAS.md](REGLAS.md). El juego las enseña resumidas en el botón **Reglas**.
 - **Personajes y estados:** cada jugador elige su bruja en la sala de espera (`publico/personajes/`),
   y su carta de estado cambia según el rango (`publico/estados/`). Se recortan como en REGIUM
-  (plantilla póker 63x88) con `python3 -I herramientas/preparar_cartas.py salida ancho nombre=imagen …`.
+  (plantilla póker 63x88) y se les quita el velo gris (`--niveles`) con
+  `python3 -I herramientas/preparar_cartas.py --niveles salida ancho nombre=imagen …`;
+  las originales están en `arte/personajes/` y `arte/estados/`.
 - **Cartas:** la baraja del bosque, 48 cartas del 1 al 12 (cuatro de cada), en `publico/cartas/`
   — ver [publico/cartas/LEEME.md](publico/cartas/LEEME.md). Las hojas son el reverso; el bosque
   (`publico/fondo-bosque.webp`) es el fondo y el espíritu de hojas la portada (`publico/portada.webp`).
