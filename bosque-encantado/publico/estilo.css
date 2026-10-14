@@ -62,13 +62,27 @@ button { font: inherit; }
 .idiomas button[aria-pressed="true"] { background: linear-gradient(#a3cf85, #7aac5e); color: #0f2e12; font-weight: 700; text-shadow: 0 0 4px rgba(240, 255, 220, .7); }
 
 /* ---------- Inicio ---------- */
-.portada { text-align: center; padding: 36px 0 10px; }
-/* La portada del juego: el espíritu de hojas con el título (arte/portada-con-titulo.webp). */
-.portada-img {
-  display: block; width: min(760px, 100%); height: auto; aspect-ratio: 16 / 9; margin: 0 auto 6px; object-fit: cover;
-  border-radius: 14px; border: 2px solid var(--oro);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .65), 0 0 40px rgba(200, 240, 160, .18);
+/* Portada: la ilustración del espíritu de hojas a pantalla completa, con Jugar arriba y el
+   título abajo (aparte, para que quepa entero en cualquier pantalla). */
+.portada-completa {
+  position: fixed; inset: 0; z-index: 4;
+  background: #1a3a1f url(portada-fondo.webp) 50% 40% / cover no-repeat;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  padding: max(28px, 5vh) 12px max(12px, 3vh);
 }
+.boton.boton-portada {
+  height: 104px; min-width: 330px; padding: 0 60px 4px; font-size: 34px; letter-spacing: .12em;
+  margin-top: 9vh;
+  /* Más claro que el resto de botones: es lo primero que se ve, sobre las hojas. */
+  filter: brightness(1.22) saturate(1.05) drop-shadow(0 6px 10px rgba(0, 0, 0, .5));
+}
+.boton.boton-portada:hover { filter: brightness(1.32) drop-shadow(0 6px 10px rgba(0, 0, 0, .5)) drop-shadow(0 0 14px rgba(230, 255, 200, .8)); }
+.titulo-portada { display: block; width: min(560px, 40vw); height: auto; }
+@media (max-width: 640px), (orientation: portrait) {
+  .titulo-portada { width: min(92vw, 560px); }
+  .boton.boton-portada { height: 84px; min-width: 250px; font-size: 28px; margin-top: 7vh; }
+}
+.cabecera-inicio { text-align: center; padding: 56px 0 4px; }
 h1 {
   margin: 0; font-weight: 600; letter-spacing: .12em; line-height: 1;
   font-size: clamp(40px, 10vw, 76px);

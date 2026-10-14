@@ -211,7 +211,7 @@ function escuchar() {
 function olvidarSala() {
   if (fuente) fuente.close();
   try { localStorage.removeItem('sala:' + sala.codigo); } catch {}
-  sala = null; v = null;
+  sala = null; v = null; enPortada = false;
   history.replaceState(null, '', location.pathname);
   pintar();
   $('error-inicio').textContent = t.errores.sala;
@@ -228,9 +228,11 @@ function pintarTextos() {
   $('texto-reglas').innerHTML = REGLAS[idioma];
 }
 
+// Al abrir el juego se ve solo la portada, hasta que se pulsa Jugar.
+let enPortada = true;
 function pintar() {
-  const pantalla = !v ? 'inicio' : v.partida ? 'mesa' : 'espera';
-  for (const id of ['inicio', 'espera', 'mesa']) $(id).hidden = id !== pantalla;
+  const pantalla = !v ? (enPortada ? 'portada' : 'inicio') : v.partida ? 'mesa' : 'espera';
+  for (const id of ['portada', 'inicio', 'espera', 'mesa']) $(id).hidden = id !== pantalla;
   if (pantalla === 'espera') pintarEspera();
   if (pantalla === 'mesa') pintarMesa();
 }
@@ -460,6 +462,11 @@ function recordarNombre() {
   try { localStorage.setItem('nombre', nombre); } catch {}
   return nombre;
 }
+$('jugar-portada').addEventListener('click', () => {
+  enPortada = false;
+  pintar();
+  if (!$('nombre').value) $('nombre').focus();
+});
 $('crear').addEventListener('click', async () => {
   $('error-inicio').textContent = '';
   try { guardarSala(await api('/api/crear', { nombre: recordarNombre() })); } catch (e) { $('error-inicio').textContent = t.errores[e.message] || e.message; }
