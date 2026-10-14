@@ -76,14 +76,15 @@ main {
   text-decoration: none;
   transition: transform .2s ease;
 }
-.juego:hover, .juego:focus-visible { transform: translateY(-5px); outline: none; }
+.juego:hover, .juego:focus-within { transform: translateY(-5px); }
+.portada-enlace { display: block; }
 .portada { position: relative; aspect-ratio: 800 / 563; }
 .portada img {
   width: 100%; height: 100%; display: block;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.65));
   transition: filter .2s ease;
 }
-.juego:hover .portada img, .juego:focus-visible .portada img {
+.juego:hover .portada img, .juego:focus-within .portada img {
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.65)) drop-shadow(0 0 14px rgba(240,190,100,.55));
 }
 .datos {
@@ -97,10 +98,11 @@ main {
 }
 .datos h2 { margin: 0; font-size: 28px; letter-spacing: .06em; font-weight: 600; color: var(--oro-claro); }
 .datos p { margin: 4px 0 14px; color: var(--texto-suave); flex: 1; }
-.jugar {
-  align-self: center;
+.botones { display: flex; justify-content: center; gap: 12px; width: 100%; }
+.jugar, .info {
   display: flex; align-items: center; justify-content: center;
-  width: 230px;
+  width: min(210px, calc(50% - 6px));
+  border: 0; cursor: pointer; font-family: inherit; text-decoration: none;
   aspect-ratio: 600 / 143;
   padding-bottom: 2px;
   background: url(img/boton.webp) center / 100% 100% no-repeat;
@@ -112,13 +114,44 @@ main {
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.6));
   transition: filter .2s ease, color .2s ease;
 }
-.juego:hover .jugar, .juego:focus-visible .jugar {
+.jugar:hover, .jugar:focus-visible, .info:hover, .info:focus-visible {
+  outline: none;
   color: #fff3d0;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(240,190,100,.6)) brightness(1.12);
 }
 .pronto { opacity: .6; cursor: default; }
 .pronto:hover { transform: none; }
+@media (max-width: 420px) { .jugar, .info { font-size: 17px; letter-spacing: .04em; } }
 .pronto .jugar { filter: grayscale(.7) brightness(.8); color: var(--texto-suave); }
+
+/* Ventana «Cómo se juega» */
+.ventana {
+  width: min(640px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid rgba(217,178,106,.55);
+  border-radius: 10px;
+  background: #1c130c;
+  color: var(--texto);
+  box-shadow: 0 20px 60px rgba(0,0,0,.8);
+}
+.ventana::backdrop { background: rgba(8,5,2,.75); backdrop-filter: blur(2px); }
+.ventana img { display: block; width: min(100%, 420px); height: auto; margin: 14px auto 0; }
+.ventana .cuerpo { padding: 6px 26px 24px; text-align: center; }
+.ventana h2 { margin: 0; font-size: 30px; letter-spacing: .06em; font-weight: 600; color: var(--oro-claro); }
+.ventana .ficha { margin: 2px 0 10px; color: var(--oro); font-size: 16px; letter-spacing: .05em; }
+.ventana .intro { margin: 0 0 12px; font-style: italic; }
+.ventana ul { margin: 0 0 20px; padding: 0; list-style: none; text-align: left; }
+.ventana li { position: relative; margin: 0 0 8px; padding-left: 22px; color: var(--texto-suave); }
+.ventana li::before { content: "◆"; position: absolute; left: 0; top: .1em; font-size: 12px; color: var(--oro); }
+.ventana b { color: var(--texto); font-weight: 600; }
+.cerrar {
+  position: absolute; top: 8px; right: 10px;
+  width: 36px; height: 36px; border: 0; border-radius: 50%;
+  background: rgba(20,14,9,.85); color: var(--oro-claro);
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.cerrar:hover, .cerrar:focus-visible { background: var(--oro); color: #24190c; outline: none; }
 
 .idiomas { position: absolute; top: 14px; right: 16px; z-index: 1; display: flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; background: rgba(20,14,9,.7); }
 .idiomas button { font: inherit; font-size: 15px; letter-spacing: .05em; padding: 4px 12px; border: 0; background: transparent; color: var(--texto-suave); cursor: pointer; }
@@ -141,6 +174,8 @@ footer p { max-width: 640px; margin: 0 auto; }
 
 <main id="juegos"></main>
 
+<dialog class="ventana" id="ventana"></dialog>
+
 <footer>
   <p data-t="pie"></p>
 </footer>
@@ -152,6 +187,7 @@ footer p { max-width: 640px; margin: 0 auto; }
 // Si dejas url vacía (""), la tarjeta aparece como «Próximamente».
 // Cada texto va en español (es) y en inglés (en). El nombre y la url también
 // pueden ir así, si el juego tiene una dirección distinta para cada idioma.
+// «explicacion» es lo que sale al pulsar «Cómo se juega» (ficha, intro y puntos).
 // ─────────────────────────────────────────────────────────────────────────
 const JUEGOS = [
   {
@@ -162,6 +198,30 @@ const JUEGOS = [
       es: "Levanta tu Capital, recluta tropas y conquista el Mundo.",
       en: "Raise your Capital, recruit troops and conquer the World.",
     },
+    explicacion: {
+      es: {
+        ficha: "4 jugadores · Estrategia",
+        intro: "Cada jugador gobierna una Capital y lucha por dominar el Mundo.",
+        puntos: [
+          "<b>Fase I — Creación del Mundo:</b> por turnos colocáis losetas de llanura, bosque, montaña y agua; así se forma el mapa y se reúnen recursos.",
+          "<b>Fase II — El Imperio:</b> con madera, piedra, agua y comida construyes edificios, reclutas infantería, arqueros, lanceros, caballería y artillería, y levantas Murallas.",
+          "Los combates se deciden con dados, y la Fe te deja repetir una tirada.",
+          "<b>Gana</b> quien tiene sus 8 edificios y ha conquistado 2 Capitales rivales.",
+          "Se juega online con amigos; las Capitales libres las ocupa la máquina (fácil, medio o difícil).",
+        ],
+      },
+      en: {
+        ficha: "4 players · Strategy",
+        intro: "Each player rules a Capital and fights to dominate the World.",
+        puntos: [
+          "<b>Phase I — Creation of the World:</b> take turns placing plains, forest, mountain and water tiles to build the map and gather resources.",
+          "<b>Phase II — The Empire:</b> spend wood, stone, water and food to build, recruit infantry, archers, spearmen, cavalry and artillery, and raise Walls.",
+          "Battles are decided with dice, and Faith lets you reroll.",
+          "<b>To win</b>, own all 8 buildings and conquer 2 rival Capitals.",
+          "Play online with friends; empty Capitals are taken by the computer (easy, medium or hard).",
+        ],
+      },
+    },
   },
   {
     nombre: "REGIUM",
@@ -170,6 +230,30 @@ const JUEGOS = [
     descripcion: {
       es: "Cinco reinos y diez guerras para reinar sobre todos.",
       en: "Five kingdoms and ten wars to rule them all.",
+    },
+    explicacion: {
+      es: {
+        ficha: "2–5 jugadores · Cartas",
+        intro: "Cada jugador es el regente de un reino y quiere levantar 7 ciudades antes que nadie.",
+        puntos: [
+          "La partida tiene <b>10 guerras</b>: en la 1.ª se reparte 1 tropa a cada jugador, en la 2.ª 2… y en la 10.ª, 10.",
+          "Al empezar cada guerra <b>apuestas</b> cuántas batallas vas a ganar. Las tropas del reino del Emperador de turno son el triunfo.",
+          "Si aciertas la apuesta ganas un territorio, y con tus victorias levantas ciudades, arrasas las de tus rivales o les conquistas territorios.",
+          "<b>Gana</b> el primero que levanta su 7.ª ciudad.",
+          "Online con amigos o en el mismo dispositivo, también contra la máquina (fácil o difícil).",
+        ],
+      },
+      en: {
+        ficha: "2–5 players · Cards",
+        intro: "Each player is the regent of a kingdom racing to raise 7 cities first.",
+        puntos: [
+          "The game has <b>10 wars</b>: in the 1st each player gets 1 troop card, in the 2nd 2… and in the 10th, 10.",
+          "At the start of each war you <b>bid</b> how many battles you will win. The current Emperor's kingdom is trumps.",
+          "Make your bid and you gain a territory, and your victories raise cities, raze your rivals' or conquer their territories.",
+          "<b>The winner</b> is the first to raise a 7th city.",
+          "Online with friends or on one device, also against the computer (easy or hard).",
+        ],
+      },
     },
   },
   {
@@ -180,6 +264,30 @@ const JUEGOS = [
       es: "Crea tu héroe, vence monstruos y gana el torneo.",
       en: "Create your hero, beat the monsters and win the tournament.",
     },
+    explicacion: {
+      es: {
+        ficha: "2–4 jugadores · Aventura",
+        intro: "Cada jugador crea su héroe eligiendo una raza y una clase.",
+        puntos: [
+          "Durante <b>12 rondas</b> os enfrentáis a monstruos: lanzas esferas de colores y formas, hasta 3 veces, para completar lo que pide cada uno.",
+          "Los monstruos vencidos dan objetos y monedas para mejorar a tu héroe. Entre combates puedes comprar, comerciar, lanzar maleficios o robar.",
+          "Al final, los héroes se miden en un <b>torneo</b> de semifinales y final.",
+          "<b>Gana</b> el campeón del torneo.",
+          "Online con amigos; los huecos libres los ocupan bots.",
+        ],
+      },
+      en: {
+        ficha: "2–4 players · Adventure",
+        intro: "Each player creates a hero by choosing a race and a class.",
+        puntos: [
+          "Over <b>12 rounds</b> you face monsters: roll coloured, shaped orbs up to 3 times to complete what each monster demands.",
+          "Defeated monsters drop items and coins to improve your hero. Between fights you can buy, trade, cast hexes or steal.",
+          "At the end, the heroes meet in a <b>tournament</b> with semifinals and a final.",
+          "<b>The winner</b> is the tournament champion.",
+          "Online with friends; empty seats are filled by bots.",
+        ],
+      },
+    },
   },
   {
     nombre: "MANA",
@@ -188,6 +296,30 @@ const JUEGOS = [
     descripcion: {
       es: "Crea tu mazo de Elementales y reúne más Sellos.",
       en: "Build your deck of Elementals and gather the most Seals.",
+    },
+    explicacion: {
+      es: {
+        ficha: "2–4 jugadores · 30–55 min · Construcción de mazo",
+        intro: "Eres un Guardián capaz de vincularte con los espíritus de los cuatro elementos.",
+        puntos: [
+          "Empiezas con un mazo pequeño y lo mejoras atrayendo <b>Elementales</b> de Fuego, Agua, Tierra y Aire desde el Umbral.",
+          "Con sus poderes pones <b>Presencia</b> en los cuatro Santuarios Elementales.",
+          "Al final de cada una de las <b>3 Eras</b>, cada Santuario da Sellos a quien más Presencia tiene allí: 1 en la primera, 2 en la segunda y 3 en la tercera.",
+          "Nadie queda eliminado. <b>Gana</b> quien reúne más Sellos al terminar la tercera Era.",
+          "Online con amigos o en la misma pantalla; los huecos libres los juegan bots.",
+        ],
+      },
+      en: {
+        ficha: "2–4 players · 30–55 min · Deck-building",
+        intro: "You are a Guardian able to bond with the spirits of the four elements.",
+        puntos: [
+          "You start with a small deck and improve it by drawing Fire, Water, Earth and Air <b>Elementals</b> from the Threshold.",
+          "Their powers let you place <b>Presence</b> in the four Elemental Sanctuaries.",
+          "At the end of each of the <b>3 Eras</b>, every Sanctuary awards Seals to whoever has the most Presence there: 1 in the first, 2 in the second and 3 in the third.",
+          "No one is knocked out. <b>The winner</b> has the most Seals after the third Era.",
+          "Online with friends or on one screen; empty seats are played by bots.",
+        ],
+      },
     },
   },
 ];
@@ -198,6 +330,8 @@ const TEXTOS = {
     cartel: "img/cartel-es.webp",
     lema: "Elige tu juego y pulsa para jugar",
     jugar: "Jugar",
+    info: "Cómo se juega",
+    cerrar: "Cerrar",
     pronto: "Próximamente",
     pie: "Todos se juegan en el navegador, con amigos por internet o contra la máquina. Si un juego tarda en abrir, espera un momento: el servidor se está despertando (hasta un minuto).",
   },
@@ -206,6 +340,8 @@ const TEXTOS = {
     cartel: "img/cartel-en.webp",
     lema: "Pick your game and click to play",
     jugar: "Play",
+    info: "How to play",
+    cerrar: "Close",
     pronto: "Coming soon",
     pie: "All games run in the browser, online with friends or against the computer. If a game is slow to open, give it a moment: the server is waking up (up to a minute).",
   },
@@ -233,21 +369,52 @@ function pintar(idioma) {
   lista.replaceChildren();
   for (const j of JUEGOS) {
     const url = j.url[idioma] ?? j.url;
-    const tarjeta = document.createElement(url ? "a" : "div");
+    const nombre = j.nombre[idioma] ?? j.nombre;
+    const tarjeta = document.createElement("article");
     tarjeta.className = "juego" + (url ? "" : " pronto");
-    if (url) tarjeta.href = url;
+    const portada = `<div class="portada"><img src="${j.imagen}" alt="${nombre}" width="800" height="563" loading="lazy"></div>`;
     tarjeta.innerHTML = `
-      <div class="portada">
-        <img src="${j.imagen}" alt="" width="800" height="563" loading="lazy">
-      </div>
+      ${url ? `<a class="portada-enlace" href="${url}">${portada}</a>` : portada}
       <div class="datos">
-        <h2>${j.nombre[idioma] ?? j.nombre}</h2>
+        <h2>${nombre}</h2>
         <p>${j.descripcion[idioma]}</p>
-        <span class="jugar">${url ? t.jugar : t.pronto}</span>
+        <div class="botones">
+          ${url ? `<a class="jugar" href="${url}">${t.jugar}</a>` : `<span class="jugar">${t.pronto}</span>`}
+          ${j.explicacion ? `<button type="button" class="info">${t.info}</button>` : ""}
+        </div>
       </div>`;
+    tarjeta.querySelector(".info")?.addEventListener("click", () => explicar(j, idioma));
     lista.appendChild(tarjeta);
   }
 }
+
+// Abre la ventana «Cómo se juega» de un juego.
+function explicar(j, idioma) {
+  const t = TEXTOS[idioma];
+  const e = j.explicacion[idioma];
+  const url = j.url[idioma] ?? j.url;
+  const v = document.getElementById("ventana");
+  v.innerHTML = `
+    <button type="button" class="cerrar" aria-label="${t.cerrar}">×</button>
+    <img src="${j.imagen}" alt="" width="800" height="563">
+    <div class="cuerpo">
+      <h2>${j.nombre[idioma] ?? j.nombre}</h2>
+      <p class="ficha">${e.ficha}</p>
+      <p class="intro">${e.intro}</p>
+      <ul>${e.puntos.map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="botones">
+        ${url ? `<a class="jugar" href="${url}">${t.jugar}</a>` : ""}
+        <button type="button" class="info cerrar-abajo">${t.cerrar}</button>
+      </div>
+    </div>`;
+  for (const b of v.querySelectorAll(".cerrar, .cerrar-abajo")) b.addEventListener("click", () => v.close());
+  v.showModal();
+  v.scrollTop = 0;
+}
+// Pulsar fuera de la ventana también la cierra.
+document.getElementById("ventana").addEventListener("click", ev => {
+  if (ev.target === ev.currentTarget) ev.currentTarget.close();
+});
 
 for (const b of document.querySelectorAll("[data-idioma]")) {
   b.addEventListener("click", () => {
