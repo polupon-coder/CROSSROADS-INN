@@ -13,10 +13,6 @@ del navegador y se cambia con el botón ES | EN.
 | HÉROES | https://heroes-q423.onrender.com |
 | MANA | https://mana-qupu.onrender.com (inglés: `/en`) |
 
-BOSQUE ENCANTADO (el Capitalista de cartas) está en la carpeta
-[`bosque-encantado/`](bosque-encantado/README.md), con su propio servidor. De momento
-no está publicado en Render ni tiene tarjeta en el portal.
-
 ## Añadir o cambiar un juego
 
 Todo está en la lista `JUEGOS` al principio del código de `index.html`:
