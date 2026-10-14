@@ -107,18 +107,17 @@ Después del intercambio, **la Bruja Suprema abre la ronda** con cualquier jugad
 
 ## Final de la partida
 
-El juego puede continuar durante tantas rondas como queráis. Para tener un ganador global, se fija antes de empezar el número de rondas (cinco, por defecto) y se usa esta puntuación:
+Se juega a **10 puntos**. Al final de cada ronda:
 
-- Cada jugador obtiene tantos puntos como jugadores hayan terminado detrás de él.
-- El último obtiene 0 puntos.
+- La **Bruja Suprema** gana **2 puntos**.
+- La **Alta Bruja** gana **1 punto**.
+- Las demás no ganan puntos.
 
-Por ejemplo, con cinco jugadores, las posiciones dan **4, 3, 2, 1 y 0 puntos**. Gana quien acumule más puntos al terminar las rondas. En caso de empate, gana quien haya quedado mejor en la última ronda.
+La partida termina al final de la ronda en que alguien llega a 10 puntos o más. Gana quien acumule más puntos; en caso de empate, gana quien haya quedado mejor en esa última ronda.
 
-También se puede jugar sin límite de rondas, solo por los rangos.
+## Revolución
 
-## Variante opcional: revolución
-
-Si se activa, cuando alguien juega **cuatro cartas iguales**, se invierte el orden de fuerza:
+Forma parte siempre del juego: cuando alguien juega **cuatro cartas iguales**, se invierte el orden de fuerza:
 
 **12 < 11 < 10 < 9 < 8 < 7 < 6 < 5 < 4 < 3 < 2 < 1**
 

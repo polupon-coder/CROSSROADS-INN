@@ -121,12 +121,6 @@ function accion(sala, asiento, a) {
   const esAnfitrion = asiento.id === sala.anfitrion;
   const p = sala.partida;
   switch (a.tipo) {
-    case 'opciones': {
-      if (!esAnfitrion || p) return 'anfitrion';
-      const rondas = Number(a.rondas);
-      sala.opciones = { rondas: [0, 3, 5, 10].includes(rondas) ? rondas : 5, revolucion: !!a.revolucion };
-      return null;
-    }
     case 'personaje': {
       // Antes de empezar, cada uno elige su bruja entre las que no tiene otro.
       if (p || !PERSONAJES.includes(a.personaje)) return 'personaje';
@@ -231,7 +225,7 @@ const servidor = http.createServer(async (req, res) => {
       if (!limpiarNombre(nombre)) return json(res, 400, { error: 'nombre' });
       const codigo = nuevoCodigo();
       const asiento = { id: nuevoToken(), token: nuevoToken(), nombre: limpiarNombre(nombre), maquina: false, personaje: PERSONAJES[0], oyentes: new Set() };
-      salas.set(codigo, { codigo, anfitrion: asiento.id, asientos: [asiento], opciones: { rondas: 5, revolucion: false }, partida: null, t: Date.now() });
+      salas.set(codigo, { codigo, anfitrion: asiento.id, asientos: [asiento], opciones: {}, partida: null, t: Date.now() });
       return json(res, 200, { codigo, token: asiento.token });
     }
 

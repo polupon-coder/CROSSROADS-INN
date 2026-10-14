@@ -21,7 +21,8 @@ por internet o contra jugadores máquina, en español e inglés.
 2. Comparte el enlace (`…/?sala=CÓDIGO`) o el código de 5 letras. Tus amigos lo abren y pulsan **Unirse**.
 3. Si faltan jugadores, el anfitrión añade **jugadores máquina** (hasta 6 en total).
    Para jugar solo contra la máquina, añade tres o más máquinas y pulsa **Empezar**.
-4. El anfitrión elige el número de rondas (3, 5, 10 o sin límite) y si se juega con la **revolución**.
+4. Se juega siempre con la **revolución** y a **10 puntos**: en cada ronda la Bruja Suprema gana 2 y la
+   Alta Bruja 1; la partida acaba al final de la ronda en que alguien llega a 10.
 
 Si alguien se desconecta, al volver a abrir el enlace recupera su sitio. Si no vuelve, el
 anfitrión puede pulsar *Que juegue la máquina* en su asiento.

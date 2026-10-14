@@ -15,6 +15,9 @@ const MAXIMO = VALORES.length - 1; // fuerza de la carta más alta
 const TRES_DE_TREBOLES = 0; // la carta que abre la primera ronda
 const MIN_JUGADORES = 4;
 const MAX_JUGADORES = 6;
+const META = 10; // puntos para ganar la partida
+// Puntos de cada ronda: 2 la Bruja Suprema, 1 la Alta Bruja y 0 las demás.
+const PUNTOS_RANGO = { capitalista: 2, vicepresidente: 1 };
 
 const valor = (c) => c >> 2;
 const palo = (c) => c & 3;
@@ -47,12 +50,13 @@ const ordenarMano = (mano) => mano.sort((a, b) => a - b);
 
 // ---------- Partida ----------
 
-// jugadores: [{ nombre }]. opciones: { rondas: 5 (0 = sin límite), revolucion: false }.
+// jugadores: [{ nombre }]. La revolución forma parte siempre del juego y la partida acaba al
+// final de la ronda en que alguien llega a la meta de puntos (10). opciones: { meta: 10 }.
 function nuevaPartida(jugadores, opciones = {}, azar = Math.random) {
   const n = jugadores.length;
   if (n < MIN_JUGADORES || n > MAX_JUGADORES) throw new Error(`Hacen falta de ${MIN_JUGADORES} a ${MAX_JUGADORES} jugadores`);
   const p = {
-    opciones: { rondas: opciones.rondas ?? 5, revolucion: !!opciones.revolucion },
+    opciones: { meta: opciones.meta ?? META, revolucion: opciones.revolucion ?? true },
     jugadores: jugadores.map((j) => ({ nombre: j.nombre, mano: [], pasado: false, puntos: 0, rango: null })),
     ronda: 0,
     fase: 'jugando', // jugando | finRonda | finPartida
@@ -226,15 +230,15 @@ function terminarRonda(p, ultimoEnTerminar) {
   const puntos = Array(n).fill(0);
   p.orden.forEach((k, pos) => {
     p.jugadores[k].rango = nombres[pos];
-    puntos[k] = n - 1 - pos; // tantos puntos como jugadores terminan detrás
+    puntos[k] = PUNTOS_RANGO[nombres[pos]] || 0;
     p.jugadores[k].puntos += puntos[k];
   });
   p.ultimaRonda = { ronda: p.ronda, orden: p.orden.slice(), puntos };
   p.mesa = null;
   anotar(p, { tipo: 'finRonda', ronda: p.ronda, orden: p.orden.slice() });
 
-  if (p.opciones.rondas && p.ronda >= p.opciones.rondas) {
-    // Gana quien más puntos tenga; en empate, quien quedó mejor en la última ronda.
+  if (p.jugadores.some((j) => j.puntos >= p.opciones.meta)) {
+    // Alguien llegó a la meta: gana quien más puntos tenga; en empate, quien quedó mejor en la última ronda.
     const posicion = (k) => p.orden.indexOf(k);
     const clasificacion = p.jugadores.map((_, k) => k)
       .sort((a, b) => p.jugadores[b].puntos - p.jugadores[a].puntos || posicion(a) - posicion(b));
@@ -310,7 +314,7 @@ function jugadaMaquina(p, i) {
 }
 
 module.exports = {
-  VALORES, PALOS, CARTAS, MAXIMO, TRES_DE_TREBOLES, MIN_JUGADORES, MAX_JUGADORES,
+  VALORES, PALOS, CARTAS, MAXIMO, TRES_DE_TREBOLES, META, PUNTOS_RANGO, MIN_JUGADORES, MAX_JUGADORES,
   valor, palo, fuerza, nombreCarta, rangos, barajar,
   nuevaPartida, motivoInvalida, jugar, pasar, siguienteRonda, jugadaMaquina,
 };

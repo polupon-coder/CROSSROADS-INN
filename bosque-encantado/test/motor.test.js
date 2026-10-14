@@ -15,7 +15,7 @@ function semilla(n) {
 const jugadores = (n) => Array.from({ length: n }, (_, i) => ({ nombre: `J${i}` }));
 
 // Partida con manos fijas: la ronda está empezada y le toca a «turno».
-function preparada(manos, { turno = 0, revolucion = false } = {}) {
+function preparada(manos, { turno = 0, revolucion = true } = {}) {
   const p = M.nuevaPartida(jugadores(manos.length), { revolucion }, semilla(1));
   p.jugadores.forEach((j, i) => { j.mano = cs(...manos[i]).sort((a, b) => a - b); });
   p.turno = turno;
@@ -120,7 +120,7 @@ test('fin de ronda: rangos, puntos e intercambio de cartas', () => {
   assert.equal(p.fase, 'finRonda');
   assert.deepEqual(p.orden, [0, 3, 1, 2]);
   assert.deepEqual(p.jugadores.map((j) => j.rango), ['capitalista', 'viceculo', 'culo', 'vicepresidente']);
-  assert.deepEqual(p.jugadores.map((j) => j.puntos), [3, 1, 0, 2]);
+  assert.deepEqual(p.jugadores.map((j) => j.puntos), [2, 0, 0, 1]);
 
   M.siguienteRonda(p, semilla(3));
   assert.equal(p.ronda, 2);
@@ -155,16 +155,16 @@ test('revolución: cuatro iguales invierten el orden', () => {
 });
 
 test('sin la variante, cuatro iguales no cambian el orden', () => {
-  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']]);
+  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: false });
   M.jugar(p, 0, cs('3-a', '3-b', '3-c', '3-d'));
   assert.equal(p.revolucion, false);
 });
 
-test('partidas completas solo con máquinas, de 4 a 6, con y sin revolución', () => {
+test('partidas completas solo con máquinas, de 4 a 6, hasta 10 puntos', () => {
   for (const n of [4, 5, 6]) {
-    for (const revolucion of [false, true]) {
-      const azar = semilla(n * 10 + (revolucion ? 1 : 0));
-      const p = M.nuevaPartida(jugadores(n), { rondas: 5, revolucion }, azar);
+    for (const s of [1, 2]) {
+      const azar = semilla(n * 10 + s);
+      const p = M.nuevaPartida(jugadores(n), {}, azar);
       let pasos = 0;
       while (p.fase !== 'finPartida') {
         if (p.fase === 'finRonda') { assert.equal(M.siguienteRonda(p, azar), null); continue; }
@@ -175,33 +175,40 @@ test('partidas completas solo con máquinas, de 4 a 6, con y sin revolución', (
         else assert.equal(M.pasar(p, t), null);
         assert.ok(++pasos < 5000, 'la partida no termina');
       }
-      assert.equal(p.ronda, 5);
+      // Cada ronda reparte 3 puntos (2 + 1) y la partida acaba en cuanto alguien llega a 10.
       const total = p.jugadores.reduce((s, j) => s + j.puntos, 0);
-      assert.equal(total, 5 * (n * (n - 1)) / 2);
+      assert.equal(total, 3 * p.ronda);
+      assert.ok(Math.max(...p.jugadores.map((j) => j.puntos)) >= 10);
+      assert.ok(p.ronda >= 5);
       assert.equal(p.ganador, p.clasificacion[0]);
     }
   }
 });
 
-test('desempate por la última ronda', () => {
+test('puntos por rango: 2 la Bruja Suprema, 1 la Alta Bruja y 0 las demás', () => {
   const p = preparada([['1-a'], ['2-a'], ['3-a'], ['4-a', '5-a']]);
-  p.opciones.rondas = 1;
-  p.ronda = 1;
-  p.jugadores[1].puntos = 3; // llega con ventaja
+  M.jugar(p, 0, cs('1-a'));
+  M.jugar(p, 1, cs('2-a'));
+  M.jugar(p, 2, cs('3-a'));
+  assert.equal(p.fase, 'finRonda');
+  assert.deepEqual(p.jugadores.map((j) => j.puntos), [2, 1, 0, 0]);
+});
+
+test('se gana al llegar a 10 puntos; en empate, quien quedó mejor en la última ronda', () => {
+  const p = preparada([['1-a'], ['2-a'], ['3-a'], ['4-a', '5-a']]);
+  p.jugadores[1].puntos = 9; // con 1 punto más llega a 10
   M.jugar(p, 0, cs('1-a'));
   M.jugar(p, 1, cs('2-a'));
   M.jugar(p, 2, cs('3-a'));
   assert.equal(p.fase, 'finPartida');
-  // 0: 3 puntos, 1: 3 + 2 = 5 puntos
-  assert.equal(p.ganador, 1);
-  // Reconstruye el empate: 0 y 1 con 3 puntos, gana 0 por quedar mejor.
+  assert.equal(p.ganador, 1); // 10 frente a 2
   const q = preparada([['1-a'], ['2-a'], ['3-a'], ['4-a', '5-a']]);
-  q.opciones.rondas = 1;
-  q.ronda = 1;
-  q.jugadores[1].puntos = 1;
+  q.jugadores[0].puntos = 8;
+  q.jugadores[1].puntos = 9;
   M.jugar(q, 0, cs('1-a'));
   M.jugar(q, 1, cs('2-a'));
   M.jugar(q, 2, cs('3-a'));
-  assert.equal(q.jugadores[0].puntos, q.jugadores[1].puntos);
-  assert.equal(q.ganador, 0);
+  assert.equal(q.jugadores[0].puntos, 10);
+  assert.equal(q.jugadores[1].puntos, 10);
+  assert.equal(q.ganador, 0); // empate a 10: gana la Bruja Suprema de esta ronda
 });

@@ -21,9 +21,7 @@
 
 <!-- Inicio: crear o unirse a una partida -->
 <section id="inicio" class="pantalla" hidden>
-  <header class="cabecera-inicio">
-    <p class="lema" data-t="lema"></p>
-  </header>
+  <header class="cabecera-inicio"></header>
   <div class="panel formulario">
     <label><span data-t="tuNombre"></span>
       <input id="nombre" maxlength="18" autocomplete="nickname">
@@ -50,15 +48,6 @@
     <div id="elegir-personaje" class="elegir-personaje" role="group"></div>
     <div id="controles-anfitrion">
       <button id="anadir-maquina" class="boton pequeno" type="button" data-t="anadirMaquina"></button>
-      <div class="opciones">
-        <label><span data-t="rondas"></span>
-          <select id="rondas">
-            <option value="3">3</option><option value="5">5</option><option value="10">10</option>
-            <option value="0" data-t="sinLimite"></option>
-          </select>
-        </label>
-        <label class="casilla"><input type="checkbox" id="revolucion"> <span data-t="variante"></span></label>
-      </div>
       <button id="empezar" class="boton principal" type="button" data-t="empezar"></button>
     </div>
     <p id="aviso-espera" class="aviso"></p>
