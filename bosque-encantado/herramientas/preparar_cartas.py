@@ -3,7 +3,8 @@ Las originales salen de la plantilla Ludotipia póker 88x63 (página 83x108 mm):
 la línea de corte (63x88 mm centrada), con esquinas redondeadas de 3 mm, se gira para que la
 figura quede de pie (vienen tumbadas) y se guarda en WebP con transparencia.
 Uso: python3 -I herramientas/preparar_cartas.py [--de-pie] salida_dir ancho nombre=imagen [nombre=imagen ...]
---de-pie: la imagen ya viene derecha (las cartas de la baraja) y no se gira."""
+--de-pie: la imagen ya viene derecha (las cartas de la baraja) y no se gira.
+--niveles: quita el velo gris como en REGIUM (negros más negros, más contraste)."""
 import sys, os
 from PIL import Image, ImageDraw
 
@@ -23,8 +24,24 @@ def recortar(path, girar=True):
         card = card.rotate(90, expand=True)  # en sentido antihorario
     return card.convert("RGBA"), sx
 
-def preparar(path, out, ancho, girar=True):
+def niveles(card, gamma=1.18, satur=1.08):
+    """Quita el velo gris (como en REGIUM): lleva el negro de la carta a negro de verdad (punto
+    negro en el percentil 0,5), estira los blancos si no llegan y oscurece algo las sombras."""
+    import numpy as np
+    a = np.asarray(card).astype(np.float32)
+    rgb, alpha = a[..., :3], a[..., 3:]
+    L = rgb.mean(2)
+    bp = max(0.0, float(np.percentile(L, 0.5)) - 4)
+    wp = max(float(np.percentile(L, 99.7)), 200.0)
+    x = np.clip((rgb - bp) / (wp - bp), 0, 1) ** gamma
+    gris = x.mean(axis=2, keepdims=True)
+    x = np.clip(gris + (x - gris) * satur, 0, 1)
+    return Image.fromarray(np.clip(np.concatenate([x * 255, alpha], axis=2) + 0.5, 0, 255).astype("uint8"), "RGBA")
+
+def preparar(path, out, ancho, girar=True, contraste=False):
     card, sx = recortar(path, girar)
+    if contraste:
+        card = niveles(card)
     escala = ancho / card.size[0]
     card = card.resize((ancho, round(card.size[1] * escala)), Image.LANCZOS)
     m = Image.new("L", card.size, 0)
@@ -36,9 +53,10 @@ def preparar(path, out, ancho, girar=True):
 if __name__ == "__main__":
     args = sys.argv[1:]
     girar = "--de-pie" not in args
-    args = [a for a in args if a != "--de-pie"]
+    contraste = "--niveles" in args
+    args = [a for a in args if a not in ("--de-pie", "--niveles")]
     salida, ancho = args[0], int(args[1])
     os.makedirs(salida, exist_ok=True)
     for par in args[2:]:
         nombre, imagen = par.split("=", 1)
-        preparar(imagen, os.path.join(salida, nombre + ".webp"), ancho, girar)
+        preparar(imagen, os.path.join(salida, nombre + ".webp"), ancho, girar, contraste)
