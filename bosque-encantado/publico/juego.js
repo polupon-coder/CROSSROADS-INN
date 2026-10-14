@@ -38,7 +38,7 @@ const TEXTOS = {
     finRonda: (r) => `Fin de la ronda ${r}`, eres: (r) => `Eres ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
     posicion: 'Pos.', jugador: 'Jugador', rango: 'Rango', ptsRonda: 'Ronda', total: 'Total',
     siguienteEn: (s) => `La siguiente ronda se reparte en ${s} s.`, repartir: 'Repartir ya', revancha: 'Otra partida', esperaRevancha: 'El anfitrión puede empezar otra partida.',
-    diste: (cs, n) => `Has dado ${cs} a ${n}`, recibiste: (cs, n) => `y has recibido ${cs}.`,
+    diste: (n) => `Has dado a ${n}`, recibiste: (n) => `Has recibido de ${n}`, intercambioTitulo: 'Intercambio de cartas', deAcuerdo: 'De acuerdo',
     sustituir: 'Que juegue la máquina',
     errores: {
       nombre: 'Escribe tu nombre.', sala: 'No existe esa partida.', empezada: 'Esa partida ya ha empezado.', llena: 'La partida está llena (6 jugadores).',
@@ -78,7 +78,7 @@ const TEXTOS = {
     finRonda: (r) => `End of round ${r}`, eres: (r) => `You are ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
     posicion: 'Pos.', jugador: 'Player', rango: 'Rank', ptsRonda: 'Round', total: 'Total',
     siguienteEn: (s) => `Next round is dealt in ${s} s.`, repartir: 'Deal now', revancha: 'New game', esperaRevancha: 'The host can start a new game.',
-    diste: (cs, n) => `You gave ${cs} to ${n}`, recibiste: (cs) => `and received ${cs}.`,
+    diste: (n) => `You gave ${n}`, recibiste: (n) => `You received from ${n}`, intercambioTitulo: 'Card exchange', deAcuerdo: 'OK',
     sustituir: 'Let the computer play',
     errores: {
       nombre: 'Enter your name.', sala: 'That game does not exist.', empezada: 'That game has already started.', llena: 'The game is full (6 players).',
@@ -339,8 +339,8 @@ function pintarMesa() {
   $('registro').innerHTML = p.registro.slice().reverse().map((e) => `<li>${esc(t.sucesos[e.tipo]?.(e, nombreDe, c) ?? '')}</li>`).join('');
 
   pintarPuntos();
+  pintarFin(p); // primero: al empezar la ronda cierra la ventana de fin
   avisarIntercambio(p);
-  pintarFin(p);
 }
 
 // Valores con los que este jugador puede jugar ahora (para atenuar el resto).
@@ -397,8 +397,16 @@ function avisarIntercambio(p) {
   const dado = p.intercambios.find((e) => e.de === v.yo);
   const recibido = p.intercambios.find((e) => e.a === v.yo);
   if (!dado || !recibido) return;
+  // Ventana de hojas con las cartas en grande; se cierra sola a los 10 s o con «De acuerdo».
   const html = (cs) => cs.map((c) => htmlCarta(c)).join('');
-  nota(`${t.diste(html(dado.cartas), esc(nombreDe(dado.a)))} ${t.recibiste(html(recibido.cartas), esc(nombreDe(recibido.de)))}`, 7000, true);
+  $('intercambio-diste').textContent = t.diste(nombreDe(dado.a));
+  $('intercambio-recibiste').textContent = t.recibiste(nombreDe(recibido.de));
+  $('intercambio-dadas').innerHTML = html(dado.cartas);
+  $('intercambio-recibidas').innerHTML = html(recibido.cartas);
+  const d = $('intercambio');
+  if (!d.open && !$('fin').open) d.showModal();
+  clearTimeout(avisarIntercambio.cierre);
+  avisarIntercambio.cierre = setTimeout(() => { if (d.open) d.close(); }, 10000);
 }
 
 function pintarFin(p) {

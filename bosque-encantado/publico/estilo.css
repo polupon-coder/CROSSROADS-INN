@@ -463,3 +463,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .cuenta-hojas { margin-left: 0; }
   .hojita { width: 18px; }
 }
+
+/* Intercambio de cartas al empezar la ronda: ventana de hojas con las cartas en grande. */
+.intercambio h2 { margin-bottom: 6px; }
+.intercambio-filas { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.intercambio-fila { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.intercambio-fila p { margin: 0; font-size: 19px; font-weight: 600; color: var(--oro-claro); }
+.intercambio-cartas { display: flex; gap: 10px; }
+.intercambio-cartas .carta { --carta-w: 110px; width: 110px; }
+.intercambio-flecha { font-size: 30px; line-height: 1; color: var(--oro); transform: rotate(90deg); }
+@media (max-width: 640px) {
+  .intercambio-cartas .carta { --carta-w: 86px; width: 86px; }
+}
