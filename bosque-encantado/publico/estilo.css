@@ -645,3 +645,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 @media (max-width: 640px) {
   .asiento .cuenta-hojas { flex: none; }
 }
+
+/* Mesa sin textos explicativos: ni el mensaje de turno, ni «X jugó», ni «Mesa vacía».
+   El turno se ve en el panel iluminado y quién jugó, en la franja de color. */
+#mensaje, #quien { display: none !important; }
+.hueco-carta { font-size: 0; }
