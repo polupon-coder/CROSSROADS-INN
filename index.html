@@ -193,7 +193,7 @@ const JUEGOS = [
   {
     nombre: { es: "BOSQUE ENCANTADO", en: "ENCHANTED FOREST" },
     url: "https://bosque-encantado.onrender.com",
-    imagen: "img/bosque.webp",
+    imagen: { es: "img/bosque.webp", en: "img/bosque-en.webp" },
     descripcion: {
       es: "Quédate sin cartas antes que nadie y reina sobre el bosque.",
       en: "Run out of cards before anyone else and rule the forest.",
@@ -247,7 +247,7 @@ function pintar(idioma) {
     if (url) tarjeta.href = url;
     tarjeta.innerHTML = `
       <div class="portada">
-        <img src="${j.imagen}" alt="" width="800" height="563" loading="lazy">
+        <img src="${j.imagen[idioma] ?? j.imagen}" alt="" width="800" height="563" loading="lazy">
       </div>
       <div class="datos">
         <h2>${j.nombre[idioma] ?? j.nombre}</h2>
