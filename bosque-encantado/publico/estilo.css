@@ -76,6 +76,11 @@ h1 {
   text-shadow: 0 0 18px rgba(200, 240, 160, .35), 0 3px 8px #000;
 }
 h1 span { display: block; font-size: .62em; letter-spacing: .32em; margin-top: 8px; color: var(--luz); }
+/* El título dibujado: letras de enredadera. Sobre el bosque oscuro, un halo claro detrás para que se lea. */
+.titulo {
+  display: block; width: min(520px, 92%); height: auto; margin: -6px auto 0;
+  filter: drop-shadow(0 0 10px rgba(235, 250, 215, .55)) drop-shadow(0 0 22px rgba(235, 250, 215, .35)) drop-shadow(0 4px 6px rgba(0, 0, 0, .5));
+}
 .lema { margin: 16px 0 0; font-style: italic; font-size: 21px; color: var(--texto-suave); }
 .panel {
   max-width: 460px; margin: 18px auto; padding: 20px 22px;
