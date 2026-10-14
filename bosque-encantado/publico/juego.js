@@ -228,6 +228,12 @@ function pintarTextos() {
   }
   for (const b of document.querySelectorAll('[data-idioma]')) b.setAttribute('aria-pressed', b.dataset.idioma === idioma);
   $('texto-reglas').innerHTML = REGLAS[idioma];
+  // El título dibujado, en el idioma elegido: «Bosque Encantado» o «Enchanted Forest».
+  const sufijo = idioma === 'en' ? '-en' : '';
+  const nombre = idioma === 'en' ? 'Enchanted Forest' : 'Bosque Encantado';
+  $('titulo-portada').src = `titulo-blanco${sufijo}.webp`; $('titulo-portada').alt = nombre;
+  $('titulo-barra').src = `titulo-barra${sufijo}.webp`; $('titulo-barra').alt = nombre;
+  document.title = nombre.toUpperCase();
   $('boton-menu').setAttribute('aria-label', t.menu);
   $('boton-menu').title = t.menu;
 }
@@ -336,7 +342,8 @@ function pintarMesa() {
   $('mensaje').className = 'mensaje' + (miTurno ? ' tuyo' : '');
   $('jugar').disabled = !miTurno || motivo(p, [...elegidas]) !== null;
   $('pasar').disabled = !miTurno || !p.mesa;
-  document.title = miTurno ? `● ${t.jugar}! · BOSQUE ENCANTADO` : 'BOSQUE ENCANTADO';
+  const titulo = idioma === 'en' ? 'ENCHANTED FOREST' : 'BOSQUE ENCANTADO';
+  document.title = miTurno ? `● ${t.jugar}! · ${titulo}` : titulo;
 
   // Registro.
   const c = (cs) => textoCartas(cs);
