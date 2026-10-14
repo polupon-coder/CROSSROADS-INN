@@ -568,3 +568,10 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .boton.boton-menu { width: 44px; height: 44px; }
   .idiomas { top: 12px; }
 }
+
+/* Número de cartas: un reverso pequeño y el número en grande. */
+.num-cartas { display: inline-flex; align-items: center; gap: 6px; }
+.num-cartas b { font-size: 26px; line-height: 1; color: #23461f; }
+.mini-dorso { display: inline-block; width: 18px; aspect-ratio: 400 / 559; border-radius: 3px; background: url(cartas/dorso.webp) center / 100% 100%; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); transform: rotate(-8deg); }
+.yo .cuenta-hojas { margin-left: 4px; }
+@media (max-width: 640px) { .num-cartas b { font-size: 22px; } .mini-dorso { width: 15px; } }
