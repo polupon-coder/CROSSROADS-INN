@@ -12,16 +12,16 @@ La baraja del bosque: **48 cartas, del 1 al 12**, cuatro de cada número, cada u
 
 El orden, de menor a mayor, es:
 
-**1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < 11 < 12**
+**12 < 11 < 10 < 9 < 8 < 7 < 6 < 5 < 4 < 3 < 2 < 1**
 
-Solo cuenta el número, no el dibujo. El 12 es la carta más alta, pero no tiene ningún otro poder especial.
+Los monstruos grandes son los más difíciles de quitarse de encima: el 12 es la carta más baja y el 1 la más alta, aunque no tiene ningún otro poder especial. Solo cuenta el número, no el dibujo.
 
 ## Preparación
 
 1. Se baraja y se reparten todas las cartas, de una en una y boca abajo.
 2. Algunos jugadores pueden recibir una carta más que otros.
 3. Cada jugador mira su mano y la mantiene oculta.
-4. En la primera ronda empieza quien tenga el **espíritu de hojas** (el 1 de las manos juntas). Su primera jugada debe incluir esa carta.
+4. En la primera ronda empieza quien tenga el **dragón rojo** (un 12). Su primera jugada debe incluir esa carta.
 5. Se juega en sentido horario.
 
 ## Jugadas permitidas
@@ -33,7 +33,7 @@ Quien abre la mesa puede jugar:
 - Un trío de cartas del mismo valor.
 - Cuatro cartas del mismo valor.
 
-Por ejemplo: un 6, dos 11 o tres 12.
+Por ejemplo: un 6, dos 2 o tres 1.
 
 No se permiten escaleras ni grupos de valores distintos.
 
@@ -46,7 +46,7 @@ Cuando hay cartas en el centro, debes elegir entre:
 
 Puedes pasar aunque tengas una jugada válida.
 
-Ejemplo: si hay **dos 6**, puedes jugar **dos 8** o **dos 12**. No puedes jugar un 11, tres 7 ni otros dos 6.
+Ejemplo: si hay **dos 6**, puedes jugar **dos 4** o **dos 1**. No puedes jugar un 2, tres 5 ni otros dos 6.
 
 Cada jugada se coloca sobre las anteriores. Solo importa el último grupo jugado.
 
@@ -64,7 +64,7 @@ Cuando todos los demás jugadores han pasado o ya se han quedado sin cartas:
 2. Quien hizo la última jugada abre una nueva mesa.
 3. Puede elegir cualquier valor y cualquier cantidad permitida: una carta, pareja, trío o cuatro iguales.
 
-Si juega la combinación más alta posible —por ejemplo, una pareja de doces sobre una mesa de parejas—, nadie puede superarla y se limpia la mesa.
+Si juega la combinación más alta posible —por ejemplo, una pareja de unos sobre una mesa de parejas—, nadie puede superarla y se limpia la mesa.
 
 ## Quedarse sin cartas
 
@@ -103,7 +103,7 @@ La Bruja Limpiaollas recoge las cartas, baraja y reparte toda la baraja. Despué
 
 Las cartas entregadas se eligen **sobre la mano recién repartida**, antes de recibir las del intercambio. Los intercambios son obligatorios; si hay varias cartas empatadas en valor, se puede entregar cualquiera de ellas.
 
-Después del intercambio, **la Bruja Suprema abre la ronda** con cualquier jugada válida. Ya no es obligatorio empezar con el espíritu de hojas.
+Después del intercambio, **la Bruja Suprema abre la ronda** con cualquier jugada válida. Ya no es obligatorio empezar con el dragón rojo.
 
 ## Final de la partida
 
@@ -119,7 +119,7 @@ La partida termina al final de la ronda en que alguien llega a 10 puntos o más.
 
 Forma parte siempre del juego: cuando alguien juega **cuatro cartas iguales**, se invierte el orden de fuerza:
 
-**12 < 11 < 10 < 9 < 8 < 7 < 6 < 5 < 4 < 3 < 2 < 1**
+**1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < 11 < 12**
 
 La inversión afecta a las jugadas posteriores y dura hasta el final de la ronda. Otra jugada de cuatro cartas iguales devuelve el orden anterior.
 
