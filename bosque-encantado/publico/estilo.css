@@ -510,3 +510,36 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
     linear-gradient(rgba(228, 250, 210, .82), rgba(222, 247, 204, .86)),
     url(hojas-panel.webp) center / 520px auto repeat;
 }
+
+/* ---------- Móvil: tu bruja arriba, luego la mesa, tus cartas y, abajo, los rivales ---------- */
+@media (max-width: 640px) {
+  #mesa { --carta-w: 23vw; --mano-w: 23vw; gap: 10px; }
+  #mesa .mio { display: contents; }
+  #mesa .barra { order: 0; }
+  #mesa .mio-cabeza { order: 1; flex-wrap: nowrap; gap: 10px; justify-content: space-between; }
+  #mesa .campo { order: 2; min-height: calc(var(--carta-w) * 1.3 * 1.4 + 60px); }
+  #mesa .mano { order: 3; }
+  #mesa .rivales { order: 4; }
+
+  /* Tu bruja y los botones, en grande. */
+  .yo { flex: 1; min-width: 0; padding: 6px 10px 6px 6px; }
+  .yo .retrato { width: 128px; }
+  .mio-cabeza .acciones { flex-direction: column; gap: 6px; }
+  .mio-cabeza .acciones .boton { min-width: 118px; height: 52px; font-size: 18px; }
+
+  /* La carta jugada, grande. */
+  .monton .carta, .hueco-carta { width: calc(var(--carta-w) * 1.3); }
+
+  /* Tus cartas: cuatro por fila, grandes. */
+  .mano { --por-fila: 4; gap: 6px; padding: 6px; max-width: 100%; }
+  .mano .carta { width: calc((100vw - 16px - 12px - 3 * 6px) / 4); }
+  .carta .chapa { font-size: 15px; min-width: 22px; height: 22px; }
+
+  /* Rivales: dos por fila, con el retrato grande. */
+  .rivales { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .asiento .retrato { width: 100%; max-width: 170px; }
+  .asiento .nombre { font-size: 18px; }
+  .asiento .cuenta { font-size: 24px; }
+  .hojita { width: 22px; }
+  .retrato .estado-circulo, .estado-circulo { width: 40%; }
+}
