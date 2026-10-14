@@ -11,5 +11,5 @@ Las originales sin recortar están en `arte/baraja/`. Para volver a prepararlas:
 python3 -I herramientas/preparar_cartas.py --de-pie publico/cartas 400 01-a=arte/baraja/01-a.jpg …
 ```
 
-Falta el dorso: cuando esté, guárdalo como `dorso.webp` y pon `DORSO_CON_IMAGEN` a `true` al
-principio de `publico/juego.js`. Mientras tanto, el dorso se dibuja solo.
+El reverso es `dorso.webp`, recortado de las hojas (`arte/hojas.jpg`), que también son el fondo
+de la página (`publico/fondo.webp`).

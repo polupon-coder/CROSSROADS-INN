@@ -25,6 +25,9 @@ body {
     radial-gradient(ellipse at 50% 30%, rgba(120, 200, 110, .16), transparent 60%),
     radial-gradient(ellipse at 20% 90%, rgba(40, 90, 50, .5), transparent 55%),
     radial-gradient(ellipse at 85% 80%, rgba(30, 70, 45, .5), transparent 50%),
+    /* Las hojas del bosque, oscurecidas para que se lea todo encima. */
+    linear-gradient(rgba(8, 22, 13, .74), rgba(6, 18, 10, .84)),
+    url(fondo.webp) center / cover,
     var(--fondo);
   background-attachment: fixed;
   color: var(--texto);
@@ -188,7 +191,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
     repeating-linear-gradient(45deg, #24502c 0 4px, #1b3d22 4px 8px);
   border: 1px solid var(--oro);
 }
-.dorso.imagen { background: center / cover no-repeat; }
+.dorso.imagen { background: center / 100% 100% no-repeat; border: 0; border-radius: 3px; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 .vacia { color: var(--texto-suave); font-style: italic; }
 
 @media (max-width: 640px) {
@@ -308,3 +311,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .monton .carta.imagen { width: 74px; height: 103px; }
   .carta.imagen .chapa { font-size: 14px; min-width: 20px; height: 20px; }
 }
+
+/* El botón de idioma está fijo arriba a la derecha: que no tape los de la barra. */
+#mesa .barra { padding-right: 100px; }

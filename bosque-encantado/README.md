@@ -9,7 +9,7 @@ por internet o contra jugadores máquina, en español e inglés.
   y su carta de estado cambia según el rango (`publico/estados/`). Se recortan como en REGIUM
   (plantilla póker 63x88) con `python3 -I herramientas/preparar_cartas.py salida ancho nombre=imagen …`.
 - **Cartas:** la baraja del bosque, 48 cartas del 1 al 12 (cuatro de cada), en `publico/cartas/`
-  — ver [publico/cartas/LEEME.md](publico/cartas/LEEME.md). Falta el dorso.
+  — ver [publico/cartas/LEEME.md](publico/cartas/LEEME.md). Las hojas son el reverso y el fondo.
 
 ## Cómo se juega
 

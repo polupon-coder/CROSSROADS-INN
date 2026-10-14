@@ -4,11 +4,10 @@
 
 // ─────────────────────────────────────────────────────────────────────────
 // CARTAS CON DIBUJO: publico/cartas/01-a.webp … 12-d.webp (número y copia).
-// Si se pone false, se dibujan solas con su número. DORSO_CON_IMAGEN: cuando
-// esté publico/cartas/dorso.webp, cámbialo a true.
+// Si se pone false, se dibujan solas con su número. El reverso es cartas/dorso.webp.
 // ─────────────────────────────────────────────────────────────────────────
 const CARTAS_CON_IMAGEN = true;
-const DORSO_CON_IMAGEN = false;
+const DORSO_CON_IMAGEN = true;
 
 // La baraja del bosque: 48 cartas del 1 (la más baja) al 12 (la más alta), cuatro de cada.
 const VALORES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
