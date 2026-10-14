@@ -225,7 +225,9 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* ---------- Mesa (el esquema de REGIUM: rivales arriba, campo, tu mano abajo) ---------- */
 /* Las cartas mandan: su ancho se ajusta al ancho y al alto de la pantalla. */
 #mesa {
-  --carta-w: clamp(58px, min(9.6vw, 15.5vh), 150px);
+  --carta-w: clamp(58px, min(9.6vw, 14vh), 150px);
+  /* Las cartas de tu mano, en dos filas: más grandes que las de una sola fila. */
+  --mano-w: clamp(60px, min((100vw - 340px) / 6 - 8px, 15vh), 170px);
   max-width: none; min-height: 100vh; min-height: 100dvh;
   display: flex; flex-direction: column; gap: 8px; padding: 6px 12px 12px;
 }
@@ -248,7 +250,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .asiento.pasado { opacity: .6; }
 .asiento.fuera { opacity: .75; }
 .asiento-cabeza { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.asiento .retrato { width: 84px; margin: 0; flex: none; }
+.asiento .retrato { width: 120px; margin: 0; flex: none; }
 .asiento-info { flex: 1; min-width: 0; line-height: 1.25; }
 .nombre { font-weight: 600; color: var(--oro-claro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta { font-size: 14px; color: var(--texto-suave); }
@@ -258,7 +260,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 
 /* Campo: donde cae la última jugada, en grande. */
 .campo {
-  position: relative; flex: 1; min-height: calc(var(--carta-w) * 1.6 + 60px);
+  position: relative; flex: 1; min-height: calc(var(--carta-w) * 1.1 * 1.4 + 70px);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 8px; border-radius: 6px; overflow: hidden;
   /* Sin dibujo propio: se ve el bosque del fondo, algo más oscuro para que destaquen las cartas. */
@@ -266,13 +268,13 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   box-shadow: inset 0 0 0 1px rgba(217, 178, 106, .25);
 }
 .campo > * { position: relative; }
-.monton { display: flex; gap: clamp(6px, 1.4vw, 18px); align-items: flex-end; justify-content: center; min-height: calc(var(--carta-w) * 1.25 * 1.4); }
-.monton .carta { width: calc(var(--carta-w) * 1.25); animation: caer .28s ease-out; }
+.monton { display: flex; gap: clamp(6px, 1.4vw, 18px); align-items: flex-end; justify-content: center; min-height: calc(var(--carta-w) * 1.1 * 1.4); }
+.monton .carta { width: calc(var(--carta-w) * 1.1); animation: caer .28s ease-out; }
 .monton .carta:nth-child(2n) { transform: rotate(2deg); }
 .monton .carta:nth-child(2n+1) { transform: rotate(-1.5deg); }
 @keyframes caer { from { translate: 0 -24px; scale: 1.08; opacity: 0; } }
 .hueco-carta {
-  width: calc(var(--carta-w) * 1.25); aspect-ratio: 400 / 559; border-radius: 8px;
+  width: calc(var(--carta-w) * 1.1); aspect-ratio: 400 / 559; border-radius: 8px;
   border: 2px dashed rgba(217, 178, 106, .45); display: flex; align-items: center; justify-content: center;
   color: var(--texto-suave); font-style: italic; text-align: center; padding: 6px; font-size: 15px;
 }
@@ -286,7 +288,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .mio-cabeza { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
 .yo { display: flex; align-items: center; gap: 12px; padding: 4px 14px 4px 4px; border-radius: 8px; }
 .yo.turno { background: rgba(30, 58, 30, .75); box-shadow: inset 0 0 0 2px var(--luz), 0 0 18px rgba(200, 240, 160, .35); }
-.yo .retrato { width: 96px; margin: 0; }
+.yo .retrato { width: 132px; margin: 0; }
 .acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .acciones .boton { min-width: 180px; font-size: 21px; }
 .mano { display: flex; justify-content: center; }
@@ -299,7 +301,9 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
 }
 /* Las cartas se ven enteras, sin montarse: en una fila, y si no caben, más pequeñas. */
-.mano { --por-fila: var(--n); gap: 8px; flex-wrap: wrap; }
+.mano { --carta-w: var(--mano-w); --por-fila: var(--mitad); gap: 8px; flex-wrap: wrap;
+  /* Justo el ancho de media mano, para que salgan dos filas iguales. */
+  max-width: min(100%, calc(var(--por-fila) * (var(--carta-w) + 8px) + 6px)); }
 /* La zona se ajusta a las cartas: su ancho sale de la pantalla (márgenes de la mesa y de la zona). */
 .mano .carta { width: min(var(--carta-w), calc((100vw - 24px - 14px - (var(--por-fila) - 1) * 8px) / var(--por-fila))); }
 
@@ -344,15 +348,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* ---------- Móvil: como en REGIUM, los rivales se quedan en una fila compacta ---------- */
 @media (max-width: 640px) {
   body { font-size: 17px; }
-  #mesa { --carta-w: clamp(46px, 15vw, 90px); padding: 4px 8px 10px; }
+  #mesa { --carta-w: clamp(46px, 15vw, 90px); --mano-w: clamp(46px, 15vw, 90px); padding: 4px 8px 10px; }
   .barra { font-size: 16px; padding-right: 96px; }
   .rivales { gap: 6px; }
   .asiento { padding: 4px; gap: 3px; }
   .asiento-cabeza { flex-direction: column; gap: 2px; text-align: center; }
-  .asiento .retrato { width: 64px; }
+  .asiento .retrato { width: 88px; }
   .asiento .cuenta { font-size: 20px; }
   .asiento .rango { display: none; }
-  .yo .retrato { width: 70px; }
+  .yo .retrato { width: 110px; }
   .acciones .boton { min-width: 140px; height: 54px; font-size: 18px; }
   .boton.pequeno { height: 40px; min-width: 112px; padding: 0 20px 2px; font-size: 14px; }
   .quien .retrato-mini { width: 30px; }
@@ -363,22 +367,30 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .registro { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; min-width: min(420px, 80vw); }
 .registro li { padding: 2px 0; color: var(--texto-suave); border-bottom: 1px solid rgba(63, 106, 72, .35); }
 /* El aviso del intercambio sale en la parte baja del claro, justo encima de tu zona. */
-.nota { bottom: calc(clamp(58px, min(9.6vw, 15.5vh), 150px) * 1.4 + 110px); }
+.nota { bottom: calc(15vh * 2.8 + 44px); }
 @media (max-width: 640px) {
     .nota { bottom: calc(clamp(46px, 15vw, 90px) * 2.8 + 150px); }
 }
 
-/* La brujita de estado va al lado del retrato, del mismo alto. */
-.retrato-y-estado { display: flex; align-items: center; gap: 6px; flex: none; }
-.estado-lado { display: block; aspect-ratio: 760 / 544; background: center / contain no-repeat; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .55)); flex: none; }
-.asiento .estado-lado { width: 84px; }
-.yo .estado-lado { width: 96px; }
-@media (max-width: 640px) {
-  .asiento .retrato-y-estado { flex-direction: column; gap: 3px; }
-  .asiento .estado-lado { width: 64px; }
-  .yo .estado-lado { width: 70px; }
+/* La brujita de estado, recortada en círculo y montada sobre la esquina de la carta de personaje. */
+.retrato-y-estado { position: relative; display: block; flex: none; }
+.retrato-y-estado .retrato { display: block; }
+.estado-circulo {
+  position: absolute; right: -12%; bottom: -16%; width: 46%; aspect-ratio: 1;
+  border-radius: 50%; border: 2px solid #f0d59a;
+  background-repeat: no-repeat; background-size: 175% auto; background-position: 50% 62%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .65);
 }
-
+/* El círculo sobresale de la carta: hueco para que no tape el nombre ni los números. */
+.asiento .retrato-y-estado, .yo .retrato-y-estado { margin: 0 14px 10px 0; }
+/* En ordenador, tu bruja y los botones van a la izquierda de la mano: así las cartas caben en
+   dos filas y más grandes. */
+@media (min-width: 641px) {
+  .mio { flex-direction: row; align-items: center; justify-content: center; gap: 18px; }
+  .mio-cabeza { flex-direction: column; gap: 12px; flex: none; }
+  .mio-cabeza .acciones { flex-direction: column; }
+  .mano { flex: none; }
+}
 /* Menú de la mesa: una sola entrada arriba que reúne Lo que ha pasado, Puntos y Reglas. */
 .boton-menu span[aria-hidden] { font-size: 1.2em; margin-right: 4px; }
 .menu-opciones { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: min(300px, 70vw); }
