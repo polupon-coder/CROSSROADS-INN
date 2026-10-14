@@ -482,6 +482,8 @@ $('jugar').addEventListener('click', () => { const cs = [...elegidas]; elegidas.
 $('pasar').addEventListener('click', () => { elegidas.clear(); accion('pasar'); });
 
 // ---------- Arranque ----------
+// Cada botón usa una de las cuatro simetrías del panel de hojas, alternándolas en orden.
+document.querySelectorAll('.boton').forEach((b, i) => { b.dataset.variante = ['', 'h', 'v', 'hv'][i % 4]; });
 pintarTextos();
 try { $('nombre').value = localStorage.getItem('nombre') || ''; } catch {}
 {
