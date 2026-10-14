@@ -377,3 +377,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .asiento .estado-lado { width: 64px; }
   .yo .estado-lado { width: 70px; }
 }
+
+/* Menú de la mesa: una sola entrada arriba que reúne Lo que ha pasado, Puntos y Reglas. */
+.boton-menu span[aria-hidden] { font-size: 1.2em; margin-right: 4px; }
+.menu-opciones { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: min(300px, 70vw); }
+.menu-opciones .boton { width: 240px; }

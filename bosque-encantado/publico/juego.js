@@ -27,7 +27,7 @@ const TEXTOS = {
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'máquina', tu: 'tú', ausente: 'desconectado',
     faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6). Añade máquinas o invita a amigos.`,
     esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…', listos: '¡Listos! Pulsa Empezar.',
-    puntos: 'Puntos', jugar: 'Jugar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
+    menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
     ronda: (r, t) => (t ? `Ronda ${r} de ${t}` : `Ronda ${r}`), revolucionActiva: '¡Revolución!',
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
@@ -66,7 +66,7 @@ const TEXTOS = {
     empezar: 'Start', anfitrion: 'host', maquina: 'computer', tu: 'you', ausente: 'disconnected',
     faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6). Add computers or invite friends.`,
     esperaAnfitrion: 'Waiting for the host to start the game…', listos: 'Ready! Press Start.',
-    puntos: 'Scores', jugar: 'Play', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
+    menu: 'Menu', puntos: 'Scores', jugar: 'Play', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
     ronda: (r, t) => (t ? `Round ${r} of ${t}` : `Round ${r}`), revolucionActiva: 'Revolution!',
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
@@ -446,7 +446,12 @@ for (const b of document.querySelectorAll('[data-idioma]')) {
     pintar();
   });
 }
-for (const b of document.querySelectorAll('[data-abrir]')) b.addEventListener('click', () => { const d = $(b.dataset.abrir); d.showModal(); d.scrollTop = 0; });
+// Las opciones del menú cierran el menú y abren su ventana.
+for (const b of document.querySelectorAll('[data-abrir]')) b.addEventListener('click', () => {
+  const menu = b.closest('#menu');
+  if (menu) menu.close();
+  const d = $(b.dataset.abrir); d.showModal(); d.scrollTop = 0;
+});
 
 function recordarNombre() {
   const nombre = $('nombre').value.trim();

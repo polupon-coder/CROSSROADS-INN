@@ -68,9 +68,7 @@
     <span id="ronda"></span>
     <span id="revolucion-activa" class="sello" hidden data-t="revolucionActiva"></span>
     <span class="hueco"></span>
-    <button class="boton pequeno" type="button" data-abrir="ventana-registro" data-t="registro"></button>
-    <button class="boton pequeno" type="button" data-abrir="puntos" data-t="puntos"></button>
-    <button class="boton pequeno" type="button" data-abrir="reglas" data-t="reglas"></button>
+    <button class="boton pequeno boton-menu" type="button" data-abrir="menu"><span aria-hidden="true">☰</span> <span data-t="menu"></span></button>
   </header>
   <section id="rivales" class="rivales"></section>
   <section class="campo">
@@ -93,6 +91,15 @@
 <!-- Ventanas -->
 <dialog id="reglas" class="ventana">
   <div id="texto-reglas" class="reglas"></div>
+  <form method="dialog"><button class="boton" data-t="cerrar"></button></form>
+</dialog>
+<dialog id="menu" class="ventana menu">
+  <h2 data-t="menu"></h2>
+  <div class="menu-opciones">
+    <button class="boton" type="button" data-abrir="ventana-registro" data-t="registro"></button>
+    <button class="boton" type="button" data-abrir="puntos" data-t="puntos"></button>
+    <button class="boton" type="button" data-abrir="reglas" data-t="reglas"></button>
+  </div>
   <form method="dialog"><button class="boton" data-t="cerrar"></button></form>
 </dialog>
 <dialog id="ventana-registro" class="ventana">
