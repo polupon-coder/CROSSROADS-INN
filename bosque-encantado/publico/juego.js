@@ -291,7 +291,7 @@ function pintarMesa() {
           <div class="meta">${estadoJugador(p, i)}</div>
           ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
         </div>
-        <span class="cuenta" title="${t.cartas(j.cartas)}">${j.cartas}</span>
+        <span class="cuenta-hojas" title="${t.cartas(j.cartas)}"><span class="hojita"></span><span class="cuenta">${j.cartas}</span><span class="hojita espejo"></span></span>
       </div>
     </div>`;
   }).join('');

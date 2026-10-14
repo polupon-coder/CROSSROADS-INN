@@ -26,7 +26,7 @@ body {
     radial-gradient(ellipse at 20% 90%, rgba(40, 90, 50, .5), transparent 55%),
     radial-gradient(ellipse at 85% 80%, rgba(30, 70, 45, .5), transparent 50%),
     /* El bosque, oscurecido para que se lea todo encima. */
-    linear-gradient(rgba(8, 22, 13, .62), rgba(6, 18, 10, .8)),
+    linear-gradient(rgba(236, 246, 226, .22), rgba(214, 234, 204, .30)),
     url(fondo-bosque.webp) center / cover,
     var(--fondo);
   background-attachment: fixed;
@@ -425,4 +425,41 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   /* Tiene casi la forma de la imagen: va entera, estirada, sin cortes. */
   --texto: #1d3a1f; color: #1d3a1f; background: url(ventana-ancha.webp) 0 0 / 100% 100% no-repeat;
   border: 0; border-radius: 0; padding: 34px 48px; box-shadow: none; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .55));
+}
+
+/* ---------- Veladuras claras: verde blanquecino en vez de negro ---------- */
+/* Paneles, asientos y tu zona: papel verde claro translúcido con letra verde oscura. */
+.panel, .asiento, .yo, .campo, .cabecera-inicio .lema {
+  --texto: #1d3a1f; --texto-suave: #3b5a37; --oro: #4f6f1e; --oro-claro: #23461f; --luz: #2f7a35; --error: #a3322a;
+}
+.panel, .asiento, .yo {
+  background: rgba(238, 247, 230, .80); color: var(--texto);
+  border-color: rgba(79, 111, 30, .35);
+  box-shadow: 0 6px 18px rgba(20, 50, 20, .25);
+}
+.asiento.turno, .yo.turno { background: rgba(225, 248, 205, .92); box-shadow: inset 0 0 0 2px #4f9a3a, 0 0 18px rgba(230, 255, 200, .7); }
+.campo { background: rgba(240, 248, 234, .18); box-shadow: inset 0 0 0 1px rgba(79, 111, 30, .25); }
+.panel input, .panel select { background: rgba(255, 255, 255, .72); color: #1d3a1f; border-color: rgba(79, 111, 30, .45); }
+.asientos li { background: rgba(255, 255, 255, .5); }
+.rango { background: rgba(79, 111, 30, .14); color: #4f6f1e; }
+.cuenta { color: #4f6f1e; }
+.hueco-carta { border-color: rgba(35, 70, 31, .5); color: #23461f; background: rgba(240, 248, 234, .35); }
+/* Lo que va directamente sobre el bosque: verde oscuro con un halo claro. */
+.barra, .lema, .mensaje, .quien, .enlace, .separador, .codigo-sala, #espera h2 {
+  color: #1d3a1f; text-shadow: 0 0 6px rgba(245, 252, 238, .95), 0 0 2px #fff;
+}
+.mensaje.tuyo { color: #1f5e22; }
+.barra { border-bottom-color: rgba(35, 70, 31, .3); }
+.codigo-sala strong { color: #2f7a35; }
+
+/* Cartas que le quedan a cada rival: el número junto al nombre, centrado y entre dos hojitas. */
+.asiento-cabeza { justify-content: center; }
+.asiento-info { flex: 0 1 auto; }
+.cuenta-hojas { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 6px; }
+.hojita { display: block; width: 30px; aspect-ratio: 110 / 46; background: url(hojitas.webp) center / contain no-repeat; transform: rotate(-18deg); }
+.hojita.espejo { transform: scaleX(-1) rotate(-18deg); }
+.cuenta-hojas .cuenta { min-width: 1.2em; text-align: center; }
+@media (max-width: 640px) {
+  .cuenta-hojas { margin-left: 0; }
+  .hojita { width: 18px; }
 }
