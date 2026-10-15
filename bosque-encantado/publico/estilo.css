@@ -948,3 +948,6 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 }
 /* El título de la barra, en blanco. */
 .titulo-barra { filter: drop-shadow(0 1px 3px rgba(10, 40, 12, .55)); }
+/* Título de la barra: solo blanco, sin sombra, y algo más grande. */
+.titulo-barra { filter: none; height: 68px; margin: -4px 0; }
+@media (max-width: 640px) { .titulo-barra { height: 52px; margin: -3px 0; } }
