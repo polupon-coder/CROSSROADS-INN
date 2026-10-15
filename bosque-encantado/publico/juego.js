@@ -455,7 +455,7 @@ function pintarFin(p) {
     : mio ? `${htmlEstado(mio, 'estado-grande')}<p>${t.eres(t.eresRango[mio])}</p>` : '';
   const orden = final ? p.clasificacion : p.ultimaRonda.orden;
   $('tabla-fin').innerHTML = `<tr><th>${t.posicion}</th><th>${t.jugador}</th><th>${t.rango}</th><th class="num">${t.ptsRonda}</th><th class="num">${t.total}</th></tr>` +
-    orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td class="con-estado">${htmlEstado(p.jugadores[i].rango)}${t.rangos[p.jugadores[i].rango]}</td>
+    orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td class="con-estado">${htmlEstado(p.jugadores[i].rango, 'estado-bola')}</td>
       <td class="num">+${p.ultimaRonda.puntos[i]}</td><td class="num">${p.jugadores[i].puntos}</td></tr>`).join('');
   // Fin de ronda: el resumen se queda hasta que lo aceptas; la siguiente ronda empieza cuando
   // lo han aceptado todos.
