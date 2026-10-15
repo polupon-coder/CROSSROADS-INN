@@ -29,7 +29,7 @@ const TEXTOS = {
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'bot', tu: 'tú', ausente: 'desconectado',
     faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6).\nAñade bots o invita a amigos.`,
     esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…',
-    menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
+    menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', lanzar: 'Lanzar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
     ronda: (r) => `Ronda ${r} · a 10 puntos`, revolucionActiva: '¡Revolución!',
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
@@ -69,7 +69,7 @@ const TEXTOS = {
     empezar: 'Start', anfitrion: 'host', maquina: 'bot', tu: 'you', ausente: 'disconnected',
     faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6).\nAdd bots or invite friends.`,
     esperaAnfitrion: 'Waiting for the host to start the game…',
-    menu: 'Menu', puntos: 'Scores', jugar: 'Play', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
+    menu: 'Menu', puntos: 'Scores', jugar: 'Play', lanzar: 'Throw', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
     ronda: (r) => `Round ${r} · first to 10 points`, revolucionActiva: 'Revolution!',
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
@@ -348,7 +348,7 @@ function pintarMesa() {
   $('mensaje').className = 'mensaje' + (miTurno ? ' tuyo' : '');
   $('jugar').disabled = !miTurno || motivo(p, [...elegidas]) !== null;
   $('pasar').disabled = !miTurno || !p.mesa;
-  // Parpadeo: Jugar cuando lo que has marcado se puede lanzar; Pasar cuando no puedes lanzar nada.
+  // Parpadeo: Lanzar cuando lo que has marcado se puede lanzar; Pasar cuando no puedes lanzar nada.
   $('jugar').classList.toggle('parpadea', !$('jugar').disabled);
   $('pasar').classList.toggle('parpadea', !$('pasar').disabled && posibles !== null && posibles.size === 0);
   const titulo = idioma === 'en' ? 'ENCHANTED FOREST' : 'BOSQUE ENCANTADO';
