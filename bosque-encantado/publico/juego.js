@@ -275,6 +275,7 @@ function pintarEspera() {
       data-personaje="${p}" aria-pressed="${v.asientos[v.yo].personaje === p}" ${cogidos.has(p) ? 'disabled' : ''}
       style="background-image:url(personajes/${p}.webp)" aria-label="${t.brujas[p]}" title="${t.brujas[p]}"></button>`).join('');
   $('controles-anfitrion').hidden = !soyAnfitrion;
+  $('controles-bot').hidden = !soyAnfitrion;
   $('anadir-maquina').disabled = v.asientos.length >= 6;
   const faltan = 4 - v.asientos.length;
   $('empezar').disabled = faltan > 0;
