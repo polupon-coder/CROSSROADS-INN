@@ -254,7 +254,7 @@ function pintarEspera() {
   $('codigo-sala').textContent = v.codigo;
   $('asientos').innerHTML = v.asientos.map((a, i) => `<li>
       ${htmlRetrato(a.personaje, null, 'retrato-mini')}
-      <span class="nombre">${esc(a.nombre)}</span>
+      <span class="nombre" title="${esc(a.nombre)}">${esc(i === v.yo ? a.nombre : [...a.nombre].slice(0, 2).join(''))}</span>
       <span class="etiqueta">${[i === v.yo && t.tu, i === v.anfitrion && t.anfitrion, a.maquina && t.maquina, !a.conectado && t.ausente].filter(Boolean).join(' · ')}</span>
       ${soyAnfitrion && i !== v.anfitrion ? `<button class="quitar" type="button" data-quitar="${i}" aria-label="✕">✕</button>` : ''}
     </li>`).join('');
@@ -292,7 +292,7 @@ function htmlBruja(p, i, clase = 'bruja') {
     <div class="bruja-info">
       <span class="bola bola-cartas" title="${pos >= 0 ? t.termino(pos + 1) : t.cartas(j.cartas)}">${pos >= 0 ? `${pos + 1}º` : j.cartas}</span>
       <span class="bola bola-puntos" title="${t.tusPuntos}: ${j.puntos}">${j.puntos}</span>
-      <span class="nombre">${esc(a.nombre)}</span>
+      <span class="nombre" title="${esc(a.nombre)}">${esc(i === v.yo ? a.nombre : [...a.nombre].slice(0, 2).join(''))}</span>
       ${!a.conectado && i !== v.yo ? `<div class="desconectado">${t.ausente}${v.yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
     </div>
   </div>`;
@@ -348,6 +348,9 @@ function pintarMesa() {
   $('mensaje').className = 'mensaje' + (miTurno ? ' tuyo' : '');
   $('jugar').disabled = !miTurno || motivo(p, [...elegidas]) !== null;
   $('pasar').disabled = !miTurno || !p.mesa;
+  // Parpadeo: Jugar cuando lo que has marcado se puede lanzar; Pasar cuando no puedes lanzar nada.
+  $('jugar').classList.toggle('parpadea', !$('jugar').disabled);
+  $('pasar').classList.toggle('parpadea', !$('pasar').disabled && posibles !== null && posibles.size === 0);
   const titulo = idioma === 'en' ? 'ENCHANTED FOREST' : 'BOSQUE ENCANTADO';
   document.title = miTurno ? `● ${t.jugar}! · ${titulo}` : titulo;
 

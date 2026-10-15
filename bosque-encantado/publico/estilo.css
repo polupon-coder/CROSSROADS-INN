@@ -834,3 +834,15 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .rivales .bruja-info .nombre { font-size: 15px; }
   .rivales .bruja-rango { right: -3%; }
 }
+
+/* Idioma y menú sin marco. */
+.idiomas { border: 0; }
+.boton.boton-menu, #mesa .boton.boton-menu { border: 0; }
+
+/* Jugar o Pasar parpadean cuando es lo que toca hacer. */
+@keyframes parpadeo {
+  0%, 100% { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .35)) brightness(1); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 10px rgba(255, 255, 210, 1)) drop-shadow(0 0 20px rgba(150, 235, 110, .95)) brightness(1.15); transform: scale(1.06); }
+}
+.boton.parpadea { animation: parpadeo 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .boton.parpadea { animation-duration: 2.4s; } }
