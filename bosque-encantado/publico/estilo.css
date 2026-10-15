@@ -936,3 +936,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   #mesa .rivales > .acciones { align-self: center; margin: 0; }
   #mesa .rivales[data-jugadores="5"] .propia-lista { grid-column: 1 / -1; justify-self: center; width: calc(50% - 8px); }
 }
+
+/* Barra de arriba sin franja blanca: el título, el menú y el idioma, directamente sobre el bosque. */
+#mesa > .barra { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; border-bottom: 0; }
+#mesa > .barra::after { content: none; }
