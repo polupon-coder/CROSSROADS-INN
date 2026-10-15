@@ -733,3 +733,16 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   #mesa #yo { flex: 1; min-width: 0; max-width: 300px; margin-top: 8px; }
   #mesa .rivales { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; padding-top: 8px; }
 }
+
+/* Sala de espera: el código, pequeño y discreto, con el botón de invitar al lado. */
+.fila-codigo { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 16px; }
+.fila-codigo .codigo-sala { margin: 0; font-size: 15px; color: #3b5a37; }
+.fila-codigo .codigo-sala strong { font-size: 18px; letter-spacing: .14em; color: #3b5a37; font-weight: 600; }
+#copiar { display: inline-flex; margin: 0; min-width: 250px; }
+#anadir-maquina { min-width: 250px; }
+@media (max-width: 640px) {
+  .fila-codigo { flex-wrap: nowrap; gap: 10px; }
+  .fila-codigo .codigo-sala { font-size: 13px; white-space: nowrap; }
+  .fila-codigo .codigo-sala strong { font-size: 16px; letter-spacing: .1em; }
+  #copiar { min-width: 0; padding: 0 22px 2px; font-size: 17px; white-space: nowrap; }
+}

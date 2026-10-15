@@ -41,13 +41,15 @@
 <section id="espera" class="pantalla" hidden>
   <div class="panel">
     <h2 data-t="sala"></h2>
-    <p class="codigo-sala"><span data-t="codigoSala"></span> <strong id="codigo-sala"></strong></p>
-    <button id="copiar" class="boton pequeno" type="button" data-t="copiar"></button>
+    <div class="fila-codigo">
+      <p class="codigo-sala"><span data-t="codigoSala"></span> <strong id="codigo-sala"></strong></p>
+      <button id="copiar" class="boton" type="button" data-t="copiar"></button>
+    </div>
     <ol id="asientos" class="asientos"></ol>
     <p class="titulo-bruja" data-t="tuBruja"></p>
     <div id="elegir-personaje" class="elegir-personaje" role="group"></div>
     <div id="controles-anfitrion">
-      <button id="anadir-maquina" class="boton pequeno" type="button" data-t="anadirMaquina"></button>
+      <button id="anadir-maquina" class="boton" type="button" data-t="anadirMaquina"></button>
       <button id="empezar" class="boton principal" type="button" data-t="empezar"></button>
     </div>
     <p id="aviso-espera" class="aviso"></p>
