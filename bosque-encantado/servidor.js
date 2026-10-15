@@ -13,7 +13,6 @@ const PUERTO = Number(process.env.PORT) || 3000;
 const PUBLICO = path.join(__dirname, 'publico');
 const CADUCA = 6 * 60 * 60 * 1000; // las salas se borran tras seis horas sin movimiento
 const PAUSA_MAQUINA = Number(process.env.PAUSA_MAQUINA ?? 1100); // ms que «piensa» la máquina
-const PAUSA_RONDA = 12000; // ms entre el final de una ronda y el reparto de la siguiente
 const NOMBRES_MAQUINA = ['Búho', 'Zorro', 'Ardilla', 'Ciervo', 'Tejón', 'Liebre', 'Erizo', 'Cuervo'];
 // Las brujas que se pueden elegir (publico/personajes/). Con seis jugadores, una se repite.
 const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
@@ -76,7 +75,7 @@ function vista(sala, yo) {
     ultimaRonda: p.ultimaRonda,
     ganador: p.ganador,
     clasificacion: p.clasificacion ?? null,
-    proximaRonda: sala.proximaRonda ?? null,
+    listos: sala.asientos.flatMap((a, i) => (sala.listos?.has(a.id) ? [i] : [])),
     jugadores: p.jugadores.map((j) => ({ cartas: j.mano.length, pasado: j.pasado, puntos: j.puntos, rango: j.rango })),
     mano: idx >= 0 ? p.jugadores[idx].mano : [],
     // De los intercambios, cada uno ve qué cartas exactas dio y recibió; del resto, cuántas.
@@ -95,16 +94,19 @@ function difundir(sala) {
   }
 }
 
-// Tras cada cambio: si le toca a una máquina, juega tras una pausa; si acabó la ronda,
-// la siguiente se reparte sola al cabo de unos segundos.
+// Al acabar una ronda, la siguiente no se reparte hasta que todas las personas conectadas han
+// aceptado el resumen (los bots no esperan).
+const todosListos = (sala) => sala.asientos.every((a) => a.maquina || !a.oyentes.size || sala.listos.has(a.id));
+
+// Tras cada cambio: si le toca a una máquina, juega tras una pausa; si acabó la ronda y ya
+// han aceptado todos, reparte la siguiente.
 function programar(sala) {
   clearTimeout(sala.temporizador);
-  sala.proximaRonda = null;
   const p = sala.partida;
   if (!p) return;
+  sala.listos ??= new Set();
   if (p.fase === 'finRonda') {
-    sala.proximaRonda = Date.now() + PAUSA_RONDA;
-    sala.temporizador = setTimeout(() => { M.siguienteRonda(p); programar(sala); difundir(sala); }, PAUSA_RONDA);
+    if (todosListos(sala)) { sala.listos.clear(); M.siguienteRonda(p); programar(sala); }
     return;
   }
   if (p.fase !== 'jugando' || !sala.asientos[p.turno].maquina) return;
@@ -151,9 +153,11 @@ function accion(sala, asiento, a) {
     }
     case 'jugar': return p ? M.jugar(p, idx, Array.isArray(a.cartas) ? a.cartas.map(Number) : []) : 'fase';
     case 'pasar': return p ? M.pasar(p, idx) : 'fase';
-    case 'siguienteRonda': {
-      if (!esAnfitrion || !p) return 'anfitrion';
-      return M.siguienteRonda(p);
+    case 'listo': {
+      // Cada persona acepta el resumen de la ronda; programar() reparte cuando están todas.
+      if (!p || p.fase !== 'finRonda') return 'fase';
+      (sala.listos ??= new Set()).add(asiento.id);
+      return null;
     }
     case 'sustituir': {
       // El anfitrión puede pasar a la máquina el asiento de alguien que se ha ido.
@@ -252,7 +256,8 @@ const servidor = http.createServer(async (req, res) => {
       req.on('close', () => {
         clearInterval(latido);
         asiento.oyentes.delete(res);
-        if (salas.has(sala.codigo)) difundir(sala);
+        // Si se va alguien a quien se esperaba para la siguiente ronda, ya no se le espera.
+        if (salas.has(sala.codigo)) { if (sala.partida?.fase === 'finRonda') programar(sala); difundir(sala); }
       });
       return;
     }

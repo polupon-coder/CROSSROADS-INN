@@ -823,3 +823,14 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 [data-personaje="azul"] { --color-bruja: #2c6bb3; }
 /* Móvil: tu carta de personaje un poco más pequeña. */
 @media (max-width: 640px) { #mesa #yo { max-width: 250px; } }
+
+/* Brujita de rango más grande y entera dentro del círculo. */
+.bruja-rango { width: 37%; bottom: -9%; right: -5%; background-size: 138% auto; background-position: 55% 50%; background-color: var(--fondo-rango, #f0d59a); }
+.bruja-info { right: 36%; }
+@media (max-width: 640px) {
+  /* Rivales en móvil: bolas algo menores para que quepa el nombre. */
+  .rivales .bruja-info { right: 33%; gap: 4px; }
+  .rivales .bruja-info .bola { font-size: 13px; }
+  .rivales .bruja-info .nombre { font-size: 15px; }
+  .rivales .bruja-rango { right: -3%; }
+}
