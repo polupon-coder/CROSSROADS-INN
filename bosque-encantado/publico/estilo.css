@@ -891,3 +891,13 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
     width: max(56px, min(calc(var(--carta-w) * 1.15), calc((100vh - var(--mano-w) * 2.8 - 154px) / 1.4), calc((63.6vw - 120px) / 4)));
   }
 }
+
+/* Tu mano siempre en dos filas (en móvil, de cuatro en cuatro): una rejilla con tantas columnas
+   como cartas por fila, que encogen si no caben. Antes el ancho salía de 100vw y, con la barra de
+   desplazamiento de Windows, la última carta saltaba a una tercera fila y la mesa se cortaba. */
+.mano {
+  display: grid; grid-template-columns: repeat(var(--por-fila), minmax(0, var(--carta-w)));
+  justify-content: center; width: auto; max-width: 100%;
+}
+.mano .carta { width: 100%; }
+@media (min-width: 641px) { #mesa .monton { min-height: 0; } }
