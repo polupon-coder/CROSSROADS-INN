@@ -252,6 +252,9 @@ function pintarTextos() {
 
 // Al abrir el juego se ve solo la portada, hasta que se pulsa Jugar.
 let enPortada = true;
+const ACCIONES = document.querySelector('.mio-cabeza .acciones');
+const enOrdenador = matchMedia('(min-width: 641px)');
+enOrdenador.addEventListener('change', () => { if (v && v.partida) pintar(); });
 function pintar() {
   const pantalla = !v ? (enPortada ? 'portada' : 'inicio') : v.partida ? 'mesa' : 'espera';
   for (const id of ['portada', 'inicio', 'espera', 'mesa']) $(id).hidden = id !== pantalla;
@@ -325,6 +328,10 @@ function pintarMesa() {
   $('rivales').style.setProperty('--rivales', rivales.length);
   $('rivales').style.setProperty('--filas', Math.ceil(n / 2));
   $('rivales').innerHTML = htmlBruja(p, yo, 'bruja propia-lista') + rivales.map((i) => htmlBruja(p, i)).join('');
+  // En ordenador, Lanzar y Pasar van dentro de la columna de las brujas, encima de ellas, y todo
+  // el bloque se centra en el alto de la columna; en móvil vuelven junto a tu bruja.
+  if (enOrdenador.matches) $('rivales').prepend(ACCIONES);
+  else if (ACCIONES.parentNode !== $('yo').parentNode) $('yo').after(ACCIONES);
 
   // El claro: la última jugada en grande, y de quién es.
   // Bajo la carta jugada, una franja del color de la bruja que la ha jugado.
