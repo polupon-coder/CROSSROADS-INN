@@ -327,6 +327,7 @@ function pintarMesa() {
   for (let k = 1; k < n; k++) rivales.push((yo + k) % n);
   $('rivales').style.setProperty('--rivales', rivales.length);
   $('rivales').style.setProperty('--filas', Math.ceil(n / 2));
+  $('rivales').dataset.jugadores = n;
   $('rivales').innerHTML = htmlBruja(p, yo, 'bruja propia-lista') + rivales.map((i) => htmlBruja(p, i)).join('');
   // En ordenador, Lanzar y Pasar van dentro de la columna de las brujas, encima de ellas, y todo
   // el bloque se centra en el alto de la columna; en móvil vuelven junto a tu bruja.
