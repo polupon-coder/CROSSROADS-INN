@@ -27,7 +27,7 @@ const TEXTOS = {
     tuBruja: 'Elige tu bruja', brujas: { pelirroja: 'Pelirroja', rubia: 'Rubia', verde: 'Verde', azul: 'Azul', blanca: 'Blanca' },
     anadirMaquina: 'Añadir bot',
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'bot', tu: 'tú', ausente: 'desconectado',
-    faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6). Añade bots o invita a amigos.`,
+    faltan: (n) => `Faltan ${n} jugador${n === 1 ? '' : 'es'} (de 4 a 6).\nAñade bots o invita a amigos.`,
     esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…',
     menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
     ronda: (r) => `Ronda ${r} · a 10 puntos`, revolucionActiva: '¡Revolución!',
@@ -67,7 +67,7 @@ const TEXTOS = {
     tuBruja: 'Choose your witch', brujas: { pelirroja: 'Redhead', rubia: 'Blonde', verde: 'Green', azul: 'Blue', blanca: 'White' },
     anadirMaquina: 'Add bot',
     empezar: 'Start', anfitrion: 'host', maquina: 'bot', tu: 'you', ausente: 'disconnected',
-    faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6). Add bots or invite friends.`,
+    faltan: (n) => `${n} more player${n === 1 ? '' : 's'} needed (4 to 6).\nAdd bots or invite friends.`,
     esperaAnfitrion: 'Waiting for the host to start the game…',
     menu: 'Menu', puntos: 'Scores', jugar: 'Play', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
     ronda: (r) => `Round ${r} · first to 10 points`, revolucionActiva: 'Revolution!',
@@ -233,6 +233,7 @@ function pintarTextos() {
   const nombre = idioma === 'en' ? 'Enchanted Forest' : 'Bosque Encantado';
   $('titulo-portada').src = `titulo-blanco${sufijo}.webp`; $('titulo-portada').alt = nombre;
   $('titulo-barra').src = `titulo-barra${sufijo}.webp`; $('titulo-barra').alt = nombre;
+  $('titulo-sala').src = `titulo-barra${sufijo}.webp`; $('titulo-sala').alt = nombre;
   document.title = nombre.toUpperCase();
   $('boton-menu').setAttribute('aria-label', t.menu);
   $('boton-menu').title = t.menu;
