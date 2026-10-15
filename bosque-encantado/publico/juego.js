@@ -243,7 +243,7 @@ function pintarTextos() {
   const sufijo = idioma === 'en' ? '-en' : '';
   const nombre = idioma === 'en' ? 'Enchanted Forest' : 'Bosque Encantado';
   $('titulo-portada').src = `titulo-blanco${sufijo}.webp`; $('titulo-portada').alt = nombre;
-  $('titulo-barra').src = `titulo-barra${sufijo}.webp`; $('titulo-barra').alt = nombre;
+  $('titulo-barra').src = `titulo-blanco${sufijo}.webp`; $('titulo-barra').alt = nombre;
   $('titulo-sala').src = `titulo-barra${sufijo}.webp`; $('titulo-sala').alt = nombre;
   document.title = nombre.toUpperCase();
   $('boton-menu').setAttribute('aria-label', t.menu);
@@ -254,6 +254,22 @@ function pintarTextos() {
 let enPortada = true;
 const ACCIONES = document.querySelector('.mio-cabeza .acciones');
 const enOrdenador = matchMedia('(min-width: 641px)');
+// En ordenador, las brujas empiezan a la altura de tus cartas (si caben debajo); el hueco de
+// encima es para Lanzar y Pasar, centrados en él.
+function alinearBrujas() {
+  const riv = $('rivales');
+  if (!enOrdenador.matches || $('mesa').hidden) { riv.style.removeProperty('--hueco'); return; }
+  const brujas = [...riv.querySelectorAll('.bruja')].filter((b) => b.offsetParent);
+  if (!brujas.length) return;
+  const cs = getComputedStyle(riv);
+  const filas = new Set(brujas.map((b) => b.offsetTop)).size;
+  const alto = filas * brujas[0].offsetHeight + (filas - 1) * parseFloat(cs.rowGap);
+  const arriba = riv.getBoundingClientRect().top + parseFloat(cs.paddingTop);
+  const libre = riv.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - alto - parseFloat(cs.rowGap);
+  const hueco = Math.max(ACCIONES.offsetHeight, Math.min($('mano').getBoundingClientRect().top - arriba - parseFloat(cs.rowGap), libre));
+  riv.style.setProperty('--hueco', `${Math.round(hueco)}px`);
+}
+addEventListener('resize', () => requestAnimationFrame(alinearBrujas));
 enOrdenador.addEventListener('change', () => { if (v && v.partida) pintar(); });
 function pintar() {
   const pantalla = !v ? (enPortada ? 'portada' : 'inicio') : v.partida ? 'mesa' : 'espera';
@@ -333,6 +349,7 @@ function pintarMesa() {
   // el bloque se centra en el alto de la columna; en móvil vuelven junto a tu bruja.
   if (enOrdenador.matches) $('rivales').prepend(ACCIONES);
   else if (ACCIONES.parentNode !== $('yo').parentNode) $('yo').after(ACCIONES);
+  requestAnimationFrame(alinearBrujas);
 
   // El claro: la última jugada en grande, y de quién es.
   // Bajo la carta jugada, una franja del color de la bruja que la ha jugado.
