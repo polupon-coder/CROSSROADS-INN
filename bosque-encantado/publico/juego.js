@@ -280,16 +280,20 @@ function estadoJugador(p, i) {
 // Cartas en la mano: un reverso pequeño y el número en grande.
 const htmlNumCartas = (n) => `<span class="num-cartas" title="${t.cartas(n)}"><span class="mini-dorso" aria-hidden="true"></span><b>${n}</b></span>`;
 
-// Carta de personaje grande con todo dentro: nombre, rango, cartas que le quedan y puntos.
+// Carta de personaje grande con todo dentro: a un lado las cartas que le quedan (o el puesto en que
+// terminó), en el centro el nombre y al otro lado los puntos, en una bola de su color.
 function htmlBruja(p, i, clase = 'bruja') {
   const j = p.jugadores[i];
   const a = v.asientos[i];
-  const clases = [clase, p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
+  const pos = p.orden.indexOf(i);
+  const clases = [clase, p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', pos >= 0 && 'fuera'].filter(Boolean).join(' ');
   return `<div class="${clases}" data-personaje="${a.personaje}">
     <span class="bruja-imagen" style="background-image:url(personajes/${a.personaje}.webp)"></span>
     ${htmlEstado(j.rango, 'bruja-rango')}
     <div class="bruja-info">
-      <div class="bruja-linea"><span class="nombre">${esc(a.nombre)}</span><span class="meta">${estadoJugador(p, i)}</span><span class="bruja-puntos" title="${t.tusPuntos}: ${j.puntos}">${j.puntos}</span></div>
+      <span class="bola bola-cartas" title="${pos >= 0 ? t.termino(pos + 1) : t.cartas(j.cartas)}">${pos >= 0 ? `${pos + 1}º` : j.cartas}</span>
+      <span class="nombre">${esc(a.nombre)}</span>
+      <span class="bola bola-puntos" title="${t.tusPuntos}: ${j.puntos}">${j.puntos}</span>
       ${!a.conectado && i !== v.yo ? `<div class="desconectado">${t.ausente}${v.yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
     </div>
   </div>`;
