@@ -280,8 +280,8 @@ function estadoJugador(p, i) {
 // Cartas en la mano: un reverso pequeño y el número en grande.
 const htmlNumCartas = (n) => `<span class="num-cartas" title="${t.cartas(n)}"><span class="mini-dorso" aria-hidden="true"></span><b>${n}</b></span>`;
 
-// Carta de personaje grande con todo dentro: a un lado las cartas que le quedan (o el puesto en que
-// terminó), en el centro el nombre y al otro lado los puntos, en una bola de su color.
+// Carta de personaje grande con todo dentro: abajo a la izquierda las cartas que le quedan (o el
+// puesto en que terminó), los puntos en una bola de su color y el nombre; a la derecha, la brujita.
 function htmlBruja(p, i, clase = 'bruja') {
   const j = p.jugadores[i];
   const a = v.asientos[i];
@@ -292,8 +292,8 @@ function htmlBruja(p, i, clase = 'bruja') {
     ${htmlEstado(j.rango, 'bruja-rango')}
     <div class="bruja-info">
       <span class="bola bola-cartas" title="${pos >= 0 ? t.termino(pos + 1) : t.cartas(j.cartas)}">${pos >= 0 ? `${pos + 1}º` : j.cartas}</span>
-      <span class="nombre">${esc(a.nombre)}</span>
       <span class="bola bola-puntos" title="${t.tusPuntos}: ${j.puntos}">${j.puntos}</span>
+      <span class="nombre">${esc(a.nombre)}</span>
       ${!a.conectado && i !== v.yo ? `<div class="desconectado">${t.ausente}${v.yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
     </div>
   </div>`;

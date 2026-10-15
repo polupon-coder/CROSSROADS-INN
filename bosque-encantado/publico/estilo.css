@@ -811,3 +811,10 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .idiomas button { height: 100%; width: 50px; padding: 0; line-height: 1; }
 #mesa .boton.boton-menu { position: fixed; top: 12px; right: 124px; z-index: 5; width: 38px; height: 38px; box-sizing: border-box; }
 @media (max-width: 640px) { .idiomas, #mesa .boton.boton-menu { top: 11px; } }
+
+/* Cartas, nombre y puntos juntos a la izquierda; la brujita de rango, abajo a la derecha. */
+.bruja-info { right: 30%; justify-content: flex-start; gap: 7px; }
+.bruja .nombre { flex: 0 1 auto; text-align: left; }
+.bruja-rango { top: auto; bottom: -6%; right: -4%; width: 30%; }
+.bruja-info .bola { font-size: clamp(16px, 13cqi, 24px); }
+.bruja-info .nombre { font-size: clamp(17px, 14cqi, 27px); }
