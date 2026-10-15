@@ -1,0 +1,15 @@
+{
+  "name": "Posada del Cruce · Crossroads Inn",
+  "short_name": "Posada del Cruce",
+  "description": "La Taberna de los Juegos de Mesa · The Board Game Tavern",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#140e09",
+  "theme_color": "#140e09",
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
