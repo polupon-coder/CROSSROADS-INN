@@ -478,9 +478,10 @@ function pintarFin(p) {
 // ---------- Ventana flotante de la revolución ----------
 let revolucionVista = null; // { ronda, activa } la última vez que se pintó la mesa
 let turnoAvisado = null; // para avisar de la revolución posible una sola vez por turno
-function flotante(titulo, texto) {
+function flotante(titulo, texto, cartas = []) {
   $('flotante-titulo').textContent = titulo;
   $('flotante-texto').textContent = texto;
+  $('flotante-cartas').innerHTML = cartas.map((c) => htmlCarta(c)).join('');
   $('flotante').hidden = false;
   clearTimeout(flotante.cierre);
   flotante.cierre = setTimeout(() => { $('flotante').hidden = true; }, 5000);
@@ -502,7 +503,9 @@ function avisarRevolucion(p, posibles) {
   const cuatro = [...posibles].filter((vv) => p.mano.filter((c) => valor(c) === vv).length === 4);
   if (!cuatro.length) return;
   turnoAvisado = clave;
-  flotante(t.puedesRevolucion, t.puedesRevolucionTexto(cuatro.map((vv) => VALORES[vv]).join(' / ')));
+  // Se enseñan las cuatro cartas que la permiten.
+  const cartas = p.mano.filter((c) => cuatro.includes(valor(c))).sort((a, b) => a - b);
+  flotante(t.puedesRevolucion, t.puedesRevolucionTexto(cuatro.map((vv) => VALORES[vv]).join(' / ')), cartas);
 }
 
 let temporizadorNota = null;

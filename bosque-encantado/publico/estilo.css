@@ -859,3 +859,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .flotante p { margin: 0; font-size: 17px; line-height: 1.3; }
 @keyframes aparecer { from { opacity: 0; transform: translate(-50%, -40%) scale(.92); } }
 @media (max-width: 640px) { .flotante { padding: 30px 36px 32px; } .flotante h3 { font-size: 21px; } .flotante p { font-size: 15px; } }
+/* Las cuatro cartas de la revolución posible, dentro de la ventana flotante. */
+.flotante-cartas { --carta-w: 70px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.flotante-cartas:empty { display: none; }
+.flotante-cartas .carta { width: var(--carta-w); }
+@media (max-width: 640px) { .flotante-cartas { --carta-w: 58px; gap: 6px; } }
