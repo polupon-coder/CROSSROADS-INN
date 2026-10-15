@@ -940,3 +940,11 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* Barra de arriba sin franja blanca: el título, el menú y el idioma, directamente sobre el bosque. */
 #mesa > .barra { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; border-bottom: 0; }
 #mesa > .barra::after { content: none; }
+
+/* Ordenador: las brujas, alineadas por arriba con tus cartas (juego.js mide el hueco); Lanzar y
+   Pasar, centrados en el espacio que queda encima. */
+@media (min-width: 641px) {
+  #mesa .rivales { align-content: start; grid-template-rows: var(--hueco, auto); }
+}
+/* El título de la barra, en blanco. */
+.titulo-barra { filter: drop-shadow(0 1px 3px rgba(10, 40, 12, .55)); }
