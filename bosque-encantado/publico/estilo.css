@@ -818,3 +818,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .bruja-rango { top: auto; bottom: -6%; right: -4%; width: 30%; }
 .bruja-info .bola { font-size: clamp(16px, 13cqi, 24px); }
 .bruja-info .nombre { font-size: clamp(17px, 14cqi, 27px); }
+
+/* Azul de la bruja más claro (el de la carta salía casi negro en la franja). */
+[data-personaje="azul"] { --color-bruja: #2c6bb3; }
+/* Móvil: tu carta de personaje un poco más pequeña. */
+@media (max-width: 640px) { #mesa #yo { max-width: 250px; } }
