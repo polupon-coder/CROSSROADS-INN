@@ -278,8 +278,21 @@ function estadoJugador(p, i) {
 }
 // Cartas en la mano: un reverso pequeño y el número en grande.
 const htmlNumCartas = (n) => `<span class="num-cartas" title="${t.cartas(n)}"><span class="mini-dorso" aria-hidden="true"></span><b>${n}</b></span>`;
-// Puntos: el número entre dos hojitas.
-const htmlPuntos = (n) => `<span class="cuenta-hojas" title="${t.tusPuntos}: ${n}"><span class="hojita"></span><span class="cuenta">${n}</span><span class="hojita espejo"></span></span>`;
+
+// Carta de personaje grande con todo dentro: nombre, rango, cartas que le quedan y puntos.
+function htmlBruja(p, i, clase = 'bruja') {
+  const j = p.jugadores[i];
+  const a = v.asientos[i];
+  const clases = [clase, p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
+  return `<div class="${clases}" data-personaje="${a.personaje}">
+    <span class="bruja-imagen" style="background-image:url(personajes/${a.personaje}.webp)"></span>
+    ${htmlEstado(j.rango, 'bruja-rango')}
+    <div class="bruja-info">
+      <div class="bruja-linea"><span class="nombre">${esc(a.nombre)}</span><span class="meta">${estadoJugador(p, i)}</span><span class="bruja-puntos" title="${t.tusPuntos}: ${j.puntos}">${j.puntos}</span></div>
+      ${!a.conectado && i !== v.yo ? `<div class="desconectado">${t.ausente}${v.yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
+    </div>
+  </div>`;
+}
 
 function pintarMesa() {
   const p = v.partida;
@@ -288,27 +301,13 @@ function pintarMesa() {
   $('ronda').textContent = t.ronda(p.ronda);
   $('revolucion-activa').hidden = !p.revolucion;
 
-  // Rivales, en el orden en que juegan después de ti: retrato, nombre y cuántas cartas les quedan.
+  // Rivales, en el orden en que juegan después de ti. En ordenador, tu bruja va la primera de
+  // la lista (en móvil se ve arriba, junto a Jugar y Pasar).
   const rivales = [];
   for (let k = 1; k < n; k++) rivales.push((yo + k) % n);
   $('rivales').style.setProperty('--rivales', rivales.length);
-  $('rivales').innerHTML = rivales.map((i) => {
-    const j = p.jugadores[i];
-    const a = v.asientos[i];
-    const clases = ['asiento', p.fase === 'jugando' && p.turno === i && 'turno', j.pasado && 'pasado', p.orden.includes(i) && 'fuera'].filter(Boolean).join(' ');
-    return `<div class="${clases}">
-      <div class="asiento-cabeza">
-        ${htmlRetrato(a.personaje, j.rango)}
-        <div class="asiento-info">
-          <div class="nombre">${esc(a.nombre)}</div>
-          ${j.rango ? `<span class="rango">${t.rangos[j.rango]}</span>` : ''}
-          <div class="meta">${estadoJugador(p, i)}</div>
-          ${!a.conectado ? `<div class="desconectado">${t.ausente}${yo === v.anfitrion ? ` · <button class="enlace" type="button" data-sustituir="${i}">${t.sustituir}</button>` : ''}</div>` : ''}
-        </div>
-        ${htmlPuntos(j.puntos)}
-      </div>
-    </div>`;
-  }).join('');
+  $('rivales').style.setProperty('--filas', Math.ceil(n / 2));
+  $('rivales').innerHTML = htmlBruja(p, yo, 'bruja propia-lista') + rivales.map((i) => htmlBruja(p, i)).join('');
 
   // El claro: la última jugada en grande, y de quién es.
   // Bajo la carta jugada, una franja del color de la bruja que la ha jugado.
@@ -319,12 +318,7 @@ function pintarMesa() {
 
   // Yo.
   const mia = p.jugadores[yo];
-  $('yo').className = 'yo' + (p.fase === 'jugando' && p.turno === yo ? ' turno' : '');
-  $('yo').innerHTML = `${htmlRetrato(v.asientos[yo].personaje, mia.rango)}
-    <div><div class="nombre">${esc(v.asientos[yo].nombre)}</div>
-    ${mia.rango ? `<span class="rango">${t.rangos[mia.rango]}</span>` : ''}
-    <div class="meta">${p.orden.includes(yo) || mia.pasado ? estadoJugador(p, yo) : htmlNumCartas(mia.cartas)}</div></div>
-    ${htmlPuntos(mia.puntos)}`;
+  $('yo').outerHTML = htmlBruja(p, yo, 'bruja propia').replace('<div ', '<div id="yo" ');
 
   // Quita de la selección las cartas que ya no tengo.
   elegidas = new Set([...elegidas].filter((c) => p.mano.includes(c)));

@@ -674,3 +674,62 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 
 /* Sin el texto de la ronda en la barra. */
 #ronda { display: none !important; }
+
+/* ---------- Cartas de personaje grandes, con la información dentro ---------- */
+.bruja {
+  position: relative; aspect-ratio: 760 / 544; min-width: 0;
+  filter: drop-shadow(0 5px 10px rgba(20, 50, 20, .35));
+  transition: opacity .25s, transform .25s, filter .25s;
+}
+.bruja-imagen { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
+.bruja-imagen { border-radius: 4.6% / 6.4%; }
+.bruja.turno { transform: translateY(-3px); }
+.bruja.turno .bruja-imagen { box-shadow: 0 0 0 3px #f6ffe6, 0 0 22px 6px rgba(150, 235, 110, .95); }
+.bruja.pasado { opacity: .55; }
+.bruja.fuera { opacity: .75; }
+/* La brujita de estado, en círculo sobre la esquina de arriba. */
+.bruja-rango {
+  position: absolute; top: -7%; right: -4%; width: 27%; aspect-ratio: 1;
+  border-radius: 50%; border: 3px solid var(--fondo-rango, #f0d59a);
+  background-repeat: no-repeat; background-size: 175% auto; background-position: 50% 62%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .5);
+}
+/* La información, en una franja clara dentro del marco de la carta. */
+.bruja-info {
+  position: absolute; left: 5%; right: 5%; bottom: 7%;
+  display: flex; flex-direction: column; gap: 1px; padding: 3px 6px 3px 9px;
+  border-radius: 8px; background: rgba(244, 251, 238, .86); backdrop-filter: blur(2px);
+  color: #1d3a1f; line-height: 1.15; container-type: inline-size;
+}
+.bruja-linea { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.bruja .nombre { flex: 1; font-weight: 700; color: #1d3a1f; font-size: clamp(13px, 8.5cqi, 21px); min-width: 0; }
+.bruja .rango { flex: none; padding: 1px 7px; border-radius: 999px; font-size: clamp(10px, 6cqi, 14px); background: rgba(79, 111, 30, .14); color: #4f6f1e; white-space: nowrap; }
+.bruja .meta { flex: none; font-size: clamp(12px, 7cqi, 17px); color: #3b5a37; white-space: nowrap; }
+.bruja .num-cartas b { font-size: clamp(17px, 11cqi, 26px); }
+.bruja .mini-dorso { width: clamp(11px, 7cqi, 17px); }
+/* Puntos: el número en una bola verde. */
+.bruja-puntos {
+  flex: none; min-width: 1.7em; height: 1.7em; padding: 0 .35em; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, #8cc66a, #4f8f3a 70%); border: 1.5px solid #1f4a22;
+  color: #fbffef; font-weight: 700; font-size: clamp(13px, 9cqi, 20px); line-height: 1;
+  text-shadow: 0 1px 2px rgba(10, 40, 12, .8); box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+.bruja .desconectado { font-size: 12px; color: #a3322a; }
+/* En la lista de rivales no hay caja: solo las cartas. */
+#mesa .rivales { background: none; }
+
+/* Ordenador: Jugar y Pasar arriba de la columna; debajo, tu bruja y las rivales, dos por fila. */
+@media (min-width: 641px) {
+  #mesa #yo { display: none; }
+  #mesa .rivales {
+    display: grid; align-content: start; justify-content: center; gap: 18px 16px; padding: 10px 8px 4px;
+    grid-template-columns: repeat(2, minmax(0, calc((100vh - 200px - (var(--filas, 2) - 1) * 18px) / var(--filas, 2) * 760 / 544)));
+  }
+}
+/* Móvil: tu bruja arriba, grande, junto a Jugar y Pasar; las rivales abajo, dos por fila. */
+@media (max-width: 640px) {
+  .propia-lista { display: none; }
+  #mesa #yo { flex: 1; min-width: 0; max-width: 300px; margin-top: 8px; }
+  #mesa .rivales { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; padding-top: 8px; }
+}
