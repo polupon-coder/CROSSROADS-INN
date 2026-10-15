@@ -31,6 +31,12 @@ const TEXTOS = {
     esperaAnfitrion: 'Esperando a que el anfitrión empiece la partida…',
     menu: 'Menú', puntos: 'Puntos', jugar: 'Jugar', lanzar: 'Lanzar', pasar: 'Pasar', registro: 'Lo que ha pasado', cerrar: 'Cerrar', verMesa: 'Ver la mesa',
     ronda: (r) => `Ronda ${r} · a 10 puntos`, revolucionActiva: '¡Revolución!',
+    puedesRevolucion: '¡Puedes hacer la revolución!',
+    puedesRevolucionTexto: (n) => `Lanza los cuatro ${n} y se invierte el orden: el 12 pasa a ser la carta más alta y el 1 la más baja.`,
+    revolucionHecha: (n) => `¡${n} hace la revolución!`,
+    revolucionHechaTexto: 'Ha lanzado cuatro iguales y se invierte el orden: ahora el 12 es la carta más alta y el 1 la más baja.',
+    revolucionDeshecha: (n) => `¡${n} deshace la revolución!`,
+    revolucionDeshechaTexto: 'Ha lanzado cuatro iguales y vuelve el orden normal: el 1 es la carta más alta y el 12 la más baja.',
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
     tuTurnoAbre: 'Te toca abrir: juega una carta, pareja, trío o cuatro iguales.',
@@ -71,6 +77,12 @@ const TEXTOS = {
     esperaAnfitrion: 'Waiting for the host to start the game…',
     menu: 'Menu', puntos: 'Scores', jugar: 'Play', lanzar: 'Throw', pasar: 'Pass', registro: 'What happened', cerrar: 'Close', verMesa: 'See the table',
     ronda: (r) => `Round ${r} · first to 10 points`, revolucionActiva: 'Revolution!',
+    puedesRevolucion: 'You can start a revolution!',
+    puedesRevolucionTexto: (n) => `Throw your four ${n}s and the order is reversed: 12 becomes the highest card and 1 the lowest.`,
+    revolucionHecha: (n) => `${n} starts a revolution!`,
+    revolucionHechaTexto: 'Four of a kind reverses the order: now 12 is the highest card and 1 the lowest.',
+    revolucionDeshecha: (n) => `${n} undoes the revolution!`,
+    revolucionDeshechaTexto: 'Four of a kind brings back the normal order: 1 is the highest card and 12 the lowest.',
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
     tuTurnoAbre: 'Your lead: play a single, pair, three or four of a kind.',
@@ -328,6 +340,7 @@ function pintarMesa() {
   elegidas = new Set([...elegidas].filter((c) => p.mano.includes(c)));
   const miTurno = p.fase === 'jugando' && p.turno === yo;
   const posibles = miTurno ? valoresJugables(p) : null;
+  avisarRevolucion(p, posibles);
   const orden = p.mano.slice().sort((a, b) => fuerza(valor(a), p.revolucion) - fuerza(valor(b), p.revolucion) || a - b);
   $('mano').style.setProperty('--n', Math.max(orden.length, 1));
   $('mano').style.setProperty('--mitad', Math.max(Math.ceil(orden.length / 2), 1));
@@ -462,6 +475,36 @@ function pintarFin(p) {
   if (finVisto !== clave || (!final && !dlg.open)) { finVisto = clave; if (!dlg.open) dlg.showModal(); }
 }
 
+// ---------- Ventana flotante de la revolución ----------
+let revolucionVista = null; // { ronda, activa } la última vez que se pintó la mesa
+let turnoAvisado = null; // para avisar de la revolución posible una sola vez por turno
+function flotante(titulo, texto) {
+  $('flotante-titulo').textContent = titulo;
+  $('flotante-texto').textContent = texto;
+  $('flotante').hidden = false;
+  clearTimeout(flotante.cierre);
+  flotante.cierre = setTimeout(() => { $('flotante').hidden = true; }, 5000);
+}
+function avisarRevolucion(p, posibles) {
+  // Alguien acaba de hacer (o deshacer) la revolución.
+  const antes = revolucionVista;
+  revolucionVista = { ronda: p.ronda, activa: p.revolucion };
+  if (antes && antes.ronda === p.ronda && antes.activa !== p.revolucion) {
+    const quien = p.mesa ? nombreDe(p.mesa.jugador) : '';
+    if (p.revolucion) flotante(t.revolucionHecha(quien), t.revolucionHechaTexto);
+    else flotante(t.revolucionDeshecha(quien), t.revolucionDeshechaTexto);
+    return;
+  }
+  // Te toca y tienes cuatro iguales que se pueden lanzar.
+  if (!posibles || (p.mesa && p.mesa.cantidad !== 4)) return;
+  const clave = `${p.ronda}:${p.registro.length}`;
+  if (turnoAvisado === clave) return;
+  const cuatro = [...posibles].filter((vv) => p.mano.filter((c) => valor(c) === vv).length === 4);
+  if (!cuatro.length) return;
+  turnoAvisado = clave;
+  flotante(t.puedesRevolucion, t.puedesRevolucionTexto(cuatro.map((vv) => VALORES[vv]).join(' / ')));
+}
+
 let temporizadorNota = null;
 function nota(texto, ms = 3500, html = false) {
   const el = $('nota');
@@ -472,6 +515,7 @@ function nota(texto, ms = 3500, html = false) {
 }
 
 // ---------- Eventos ----------
+$('flotante').addEventListener('click', () => { $('flotante').hidden = true; });
 // El resumen de la ronda no se cierra con Escape: hay que aceptarlo.
 $('fin').addEventListener('cancel', (e) => { if (v?.partida?.fase === 'finRonda') e.preventDefault(); });
 for (const b of document.querySelectorAll('[data-idioma]')) {
