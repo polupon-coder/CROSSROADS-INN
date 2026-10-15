@@ -12,7 +12,7 @@ const M = require('./motor');
 const PUERTO = Number(process.env.PORT) || 3000;
 const PUBLICO = path.join(__dirname, 'publico');
 const CADUCA = 6 * 60 * 60 * 1000; // las salas se borran tras seis horas sin movimiento
-const PAUSA_MAQUINA = Number(process.env.PAUSA_MAQUINA ?? 1100); // ms que «piensa» la máquina
+const PAUSA_MAQUINA = Number(process.env.PAUSA_MAQUINA ?? 2100); // ms que «piensa» un bot: da tiempo a ver lo que han tirado
 const NOMBRES_MAQUINA = ['Búho', 'Zorro', 'Ardilla', 'Ciervo', 'Tejón', 'Liebre', 'Erizo', 'Cuervo'];
 // Las brujas que se pueden elegir (publico/personajes/). Con seis jugadores, una se repite.
 const PERSONAJES = ['pelirroja', 'rubia', 'verde', 'azul', 'blanca'];
