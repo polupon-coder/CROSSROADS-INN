@@ -884,11 +884,10 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .controles-bot { display: flex; justify-content: center; margin: 4px 0 10px; }
 .controles-bot[hidden] { display: none; }
 
-/* Ordenador: las cartas lanzadas se ajustan al alto y al ancho de la mesa, para que no las corte
-   la barra de arriba cuando hay pocas filas de sitio. */
+/* Ordenador: las cartas lanzadas no pueden ser más altas que el hueco que dejan la barra y las dos
+   filas de tu mano (si no, la barra de arriba las corta), ni más anchas que la mesa. */
 @media (min-width: 641px) {
-  #mesa .campo { container-type: size; }
   #mesa .monton .carta, #mesa .hueco-carta {
-    width: min(calc(var(--carta-w) * 1.15), calc((100cqh - 44px) / 1.4), calc((100cqw - 90px) / 4));
+    width: max(56px, min(calc(var(--carta-w) * 1.15), calc((100vh - var(--mano-w) * 2.8 - 154px) / 1.4), calc((63.6vw - 120px) / 4)));
   }
 }
