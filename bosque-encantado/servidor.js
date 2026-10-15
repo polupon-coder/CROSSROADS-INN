@@ -47,7 +47,7 @@ function personajeLibre(sala) {
 
 function asientoMaquina(sala) {
   const usados = new Set(sala.asientos.map((a) => a.nombre));
-  const nombre = NOMBRES_MAQUINA.find((n) => !usados.has(n)) || `Máquina ${sala.asientos.length + 1}`;
+  const nombre = NOMBRES_MAQUINA.find((n) => !usados.has(n)) || `Bot ${sala.asientos.length + 1}`;
   return { id: nuevoToken(), token: null, nombre, maquina: true, personaje: personajeLibre(sala), oyentes: new Set() };
 }
 

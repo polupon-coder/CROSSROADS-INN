@@ -3,7 +3,7 @@
 El **Capitalista de cartas** (también llamado Presidente o Culo) en un bosque encantado, con sus
 rangos propios: Bruja Suprema, Alta Bruja, Bruja, Bruja Aprendiz y Bruja Limpiaollas.
 De 4 a 6 jugadores: quédate sin cartas antes que nadie. Se juega en el navegador, con amigos
-por internet o contra jugadores máquina, en español e inglés.
+por internet o contra bots, en español e inglés.
 
 - **Reglas:** [REGLAS.md](REGLAS.md). El juego las enseña resumidas en el botón **Reglas**.
 - **Personajes y estados:** cada jugador elige su bruja en la sala de espera (`publico/personajes/`),
@@ -19,20 +19,20 @@ por internet o contra jugadores máquina, en español e inglés.
 
 1. Escribe tu nombre y pulsa **Crear partida**.
 2. Comparte el enlace (`…/?sala=CÓDIGO`) o el código de 5 letras. Tus amigos lo abren y pulsan **Unirse**.
-3. Si faltan jugadores, el anfitrión añade **jugadores máquina** (hasta 6 en total).
-   Para jugar solo contra la máquina, añade tres o más máquinas y pulsa **Empezar**.
+3. Si faltan jugadores, el anfitrión añade **bots** (botón *+ Añadir bot*) (hasta 6 en total).
+   Para jugar solo contra bots, añade tres o más y pulsa **Empezar**.
 4. Se juega siempre con la **revolución** y a **10 puntos**: en cada ronda la Bruja Suprema gana 2 y la
    Alta Bruja 1; la partida acaba al final de la ronda en que alguien llega a 10.
 
 Si alguien se desconecta, al volver a abrir el enlace recupera su sitio. Si no vuelve, el
-anfitrión puede pulsar *Que juegue la máquina* en su asiento.
+anfitrión puede pulsar *Que juegue un bot* en su asiento.
 
 ## Cómo está hecho
 
 - `motor.js` — las reglas: reparto, jugadas, pases, limpiar la mesa, rangos, intercambios,
-  puntos, revolución y los jugadores máquina. No sabe nada de pantallas ni de red.
+  puntos, revolución y los bots. No sabe nada de pantallas ni de red.
 - `servidor.js` — Node sin dependencias. Guarda las salas en memoria, aplica las jugadas con el
-  motor, mueve a las máquinas y manda a cada pantalla (Server-Sent Events) solo lo que su jugador
+  motor, mueve a los bots y manda a cada pantalla (Server-Sent Events) solo lo que su jugador
   puede ver: nadie recibe las cartas de los demás.
 - `publico/` — la página: `index.html`, `estilo.css` y `juego.js`.
 - `test/` — pruebas del motor: `npm test`.
