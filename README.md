@@ -9,14 +9,13 @@ del navegador y se cambia con el botón ES | EN.
 | Juego | Dirección |
 |---|---|
 | IMPERIO | https://imperio-re8d.onrender.com |
-| REGIUM | https://regium-bcii.onrender.com |
-| HÉROES | https://heroes-q423.onrender.com |
-| MANA | https://mana-qupu.onrender.com (inglés: `/en`) |
 | BOSQUE ENCANTADO | https://bosque-encantado.onrender.com |
+| REGIUM | https://regium-bcii.onrender.com |
+| MANA | https://mana-qupu.onrender.com (inglés: `/en`) |
+| HÉROES | https://heroes-q423.onrender.com |
 
 BOSQUE ENCANTADO está en la carpeta [`bosque-encantado/`](bosque-encantado/README.md),
 con su propio servidor (servicio web de Render con «Root Directory» = `bosque-encantado`).
-De momento no tiene tarjeta en el portal.
 
 ## Añadir o cambiar un juego
 
