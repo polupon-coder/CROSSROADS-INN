@@ -19,7 +19,7 @@ por internet o contra bots, en español e inglés.
 
 1. Escribe tu nombre y pulsa **Crear partida**.
 2. Comparte el enlace (`…/?sala=CÓDIGO`) o el código de 5 letras. Tus amigos lo abren y pulsan **Unirse**.
-3. Si faltan jugadores, el anfitrión añade **bots** (botón *+ Añadir bot*) (hasta 6 en total).
+3. Si faltan jugadores, el anfitrión añade **bots** (botón *Añadir bot*) (hasta 6 en total).
    Para jugar solo contra bots, añade tres o más y pulsa **Empezar**.
 4. Se juega siempre con la **revolución** y a **10 puntos**: en cada ronda la Bruja Suprema gana 2 y la
    Alta Bruja 1; la partida acaba al final de la ronda en que alguien llega a 10.
