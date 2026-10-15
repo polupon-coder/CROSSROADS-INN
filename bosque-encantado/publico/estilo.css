@@ -746,3 +746,20 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .fila-codigo .codigo-sala strong { font-size: 16px; letter-spacing: .1em; }
   #copiar { min-width: 0; padding: 0 22px 2px; font-size: 17px; white-space: nowrap; }
 }
+
+/* Sala de espera: el título arriba, botones sin hojas y el aviso en dos líneas. */
+#espera h2.titulo-sala { margin: 0 0 10px; }
+.titulo-sala img { display: block; height: 78px; width: auto; margin: 0 auto; }
+.boton.boton-liso, .boton.boton-liso[data-variante] {
+  background: url(boton-liso.webp) center / cover no-repeat;
+  border: 2px solid #3d6b34; border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+  filter: drop-shadow(0 3px 5px rgba(20, 50, 20, .3));
+}
+#copiar { min-width: 0; height: 52px; padding: 0 22px 2px; }
+#anadir-maquina { min-width: 192px; }
+#aviso-espera { white-space: pre-line; }
+@media (max-width: 640px) {
+  .titulo-sala img { height: 62px; }
+  #copiar { height: 46px; }
+}
