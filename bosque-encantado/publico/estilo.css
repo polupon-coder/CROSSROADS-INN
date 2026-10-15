@@ -901,3 +901,21 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 }
 .mano .carta { width: 100%; }
 @media (min-width: 641px) { #mesa .monton { min-height: 0; } }
+
+/* Inicio: el formulario en la ventana de hojas (la misma que las ventanas emergentes), más alta,
+   con los botones más cortos y centrados. */
+#inicio .panel.formulario {
+  --texto: #1d3a1f; --texto-suave: #3b5a37;
+  width: min(520px, calc(100vw - 16px)); max-width: none; box-sizing: border-box;
+  gap: 18px; padding: 26px 26px 30px; border-radius: 0; box-shadow: none;
+  border: solid transparent; border-width: 54px;
+  border-image: url(ventana.webp) 140 / 54px / 0 round;
+  background: url(ventana-papel.webp) center / cover no-repeat;
+  background-origin: padding-box; background-clip: padding-box;
+  filter: drop-shadow(0 12px 22px rgba(20, 50, 20, .35));
+}
+#inicio .panel.formulario .boton { align-self: center; width: auto; min-width: 230px; }
+#inicio .panel.formulario input { text-align: center; }
+@media (max-width: 640px) {
+  #inicio .panel.formulario { border-width: 40px; border-image-width: 40px; padding: 18px 10px 22px; }
+}
