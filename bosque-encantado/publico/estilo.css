@@ -763,3 +763,10 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
   .titulo-sala img { height: 62px; }
   #copiar { height: 46px; }
 }
+/* Botones lisos de la sala, más pequeños. */
+#copiar { height: 40px; padding: 0 16px 2px; font-size: 15px; border-radius: 12px; }
+#anadir-maquina { height: 46px; min-width: 150px; padding: 0 22px 2px; font-size: 17px; border-radius: 13px; }
+@media (max-width: 640px) {
+  #copiar { height: 38px; padding: 0 14px 2px; font-size: 14px; }
+  #anadir-maquina { height: 44px; font-size: 16px; }
+}
