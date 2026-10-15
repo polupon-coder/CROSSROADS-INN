@@ -39,7 +39,7 @@ const TEXTOS = {
     turnoDe: (n) => `Le toca a ${n}`, hasPasado: 'Has pasado: esperas a que se limpie la mesa.', hasTerminado: (p) => `¡Has terminado ${p}.º! Mira cómo acaban los demás.`,
     finRonda: (r) => `Fin de la ronda ${r}`, eres: (r) => `Eres ${r}`, finPartida: 'Fin de la partida', gana: (n) => `¡${n} gana la partida!`,
     posicion: 'Pos.', jugador: 'Jugador', rango: 'Rango', ptsRonda: 'Ronda', total: 'Total',
-    siguienteEn: (s) => `La siguiente ronda se reparte en ${s} s.`, repartir: 'Repartir ya', revancha: 'Otra partida', esperaRevancha: 'El anfitrión puede empezar otra partida.',
+    siguiente: 'Siguiente ronda', esperandoA: (n) => `Esperando a ${n}…`, revancha: 'Otra partida', esperaRevancha: 'El anfitrión puede empezar otra partida.',
     diste: (n) => `Has dado a ${n}`, recibiste: (n) => `Has recibido de ${n}`, intercambioTitulo: 'Intercambio de cartas', deAcuerdo: 'De acuerdo',
     sustituir: 'Que juegue un bot',
     errores: {
@@ -79,7 +79,7 @@ const TEXTOS = {
     turnoDe: (n) => `${n}'s turn`, hasPasado: 'You passed: wait until the table is cleared.', hasTerminado: (p) => `You finished #${p}! Watch the others finish.`,
     finRonda: (r) => `End of round ${r}`, eres: (r) => `You are ${r}`, finPartida: 'Game over', gana: (n) => `${n} wins the game!`,
     posicion: 'Pos.', jugador: 'Player', rango: 'Rank', ptsRonda: 'Round', total: 'Total',
-    siguienteEn: (s) => `Next round is dealt in ${s} s.`, repartir: 'Deal now', revancha: 'New game', esperaRevancha: 'The host can start a new game.',
+    siguiente: 'Next round', esperandoA: (n) => `Waiting for ${n}…`, revancha: 'New game', esperaRevancha: 'The host can start a new game.',
     diste: (n) => `You gave ${n}`, recibiste: (n) => `You received from ${n}`, intercambioTitulo: 'Card exchange', deAcuerdo: 'OK',
     sustituir: 'Let a bot play',
     errores: {
@@ -142,7 +142,6 @@ let elegidas = new Set();
 let fuente = null;
 let rondaVista = 0; // para avisar del intercambio una vez por ronda
 let finVisto = null;
-let cuentaAtras = null;
 
 const $ = (id) => document.getElementById(id);
 const nombreDe = (i) => (v && v.asientos[i] ? v.asientos[i].nombre : '?');
@@ -429,7 +428,6 @@ function avisarIntercambio(p) {
 
 function pintarFin(p) {
   const dlg = $('fin');
-  clearInterval(cuentaAtras);
   if (p.fase === 'jugando') { if (dlg.open) dlg.close(); return; }
   const clave = `${p.ronda}:${p.fase}`;
   const soyAnfitrion = v.yo === v.anfitrion;
@@ -443,18 +441,22 @@ function pintarFin(p) {
   $('tabla-fin').innerHTML = `<tr><th>${t.posicion}</th><th>${t.jugador}</th><th>${t.rango}</th><th class="num">${t.ptsRonda}</th><th class="num">${t.total}</th></tr>` +
     orden.map((i, k) => `<tr class="${k === 0 ? 'ganador' : ''}"><td>${k + 1}</td><td>${esc(nombreDe(i))}</td><td class="con-estado">${htmlEstado(p.jugadores[i].rango)}${t.rangos[p.jugadores[i].rango]}</td>
       <td class="num">+${p.ultimaRonda.puntos[i]}</td><td class="num">${p.jugadores[i].puntos}</td></tr>`).join('');
+  // Fin de ronda: el resumen se queda hasta que lo aceptas; la siguiente ronda empieza cuando
+  // lo han aceptado todos.
   const boton = $('fin-boton');
-  boton.hidden = !soyAnfitrion;
-  boton.textContent = final ? t.revancha : t.repartir;
-  boton.onclick = () => accion(final ? 'revancha' : 'siguienteRonda');
+  const listo = (p.listos || []).includes(v.yo);
+  boton.hidden = final && !soyAnfitrion;
+  boton.disabled = !final && listo;
+  boton.textContent = final ? t.revancha : t.siguiente;
+  boton.onclick = () => accion(final ? 'revancha' : 'listo');
+  $('fin-ver').hidden = !final;
   const nota = $('fin-nota');
   if (final) nota.textContent = soyAnfitrion ? '' : t.esperaRevancha;
   else {
-    const tic = () => { nota.textContent = t.siguienteEn(Math.max(0, Math.ceil((p.proximaRonda - Date.now()) / 1000))); };
-    tic();
-    cuentaAtras = setInterval(tic, 500);
+    const faltan = v.asientos.map((a, i) => i).filter((i) => !v.asientos[i].maquina && v.asientos[i].conectado && !(p.listos || []).includes(i));
+    nota.textContent = listo && faltan.length ? t.esperandoA(faltan.map(nombreDe).join(', ')) : '';
   }
-  if (finVisto !== clave) { finVisto = clave; if (!dlg.open) dlg.showModal(); }
+  if (finVisto !== clave || (!final && !dlg.open)) { finVisto = clave; if (!dlg.open) dlg.showModal(); }
 }
 
 let temporizadorNota = null;
@@ -467,6 +469,8 @@ function nota(texto, ms = 3500, html = false) {
 }
 
 // ---------- Eventos ----------
+// El resumen de la ronda no se cierra con Escape: hay que aceptarlo.
+$('fin').addEventListener('cancel', (e) => { if (v?.partida?.fase === 'finRonda') e.preventDefault(); });
 for (const b of document.querySelectorAll('[data-idioma]')) {
   b.addEventListener('click', () => {
     idioma = b.dataset.idioma;
