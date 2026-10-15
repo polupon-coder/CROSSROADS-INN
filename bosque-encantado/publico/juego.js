@@ -243,7 +243,7 @@ function pintarTextos() {
   const sufijo = idioma === 'en' ? '-en' : '';
   const nombre = idioma === 'en' ? 'Enchanted Forest' : 'Bosque Encantado';
   $('titulo-portada').src = `titulo-blanco${sufijo}.webp`; $('titulo-portada').alt = nombre;
-  $('titulo-barra').src = `titulo-blanco${sufijo}.webp`; $('titulo-barra').alt = nombre;
+  $('titulo-barra').src = `titulo-solo-blanco${sufijo}.webp`; $('titulo-barra').alt = nombre;
   $('titulo-sala').src = `titulo-barra${sufijo}.webp`; $('titulo-sala').alt = nombre;
   document.title = nombre.toUpperCase();
   $('boton-menu').setAttribute('aria-label', t.menu);
