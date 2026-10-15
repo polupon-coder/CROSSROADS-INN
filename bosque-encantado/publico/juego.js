@@ -23,7 +23,7 @@ const TEXTOS = {
   es: {
     lema: 'Quédate sin cartas antes que nadie y reina sobre el bosque',
     tuNombre: 'Tu nombre', crear: 'Crear partida', o: 'o únete a una', codigo: 'Código de la partida', unirse: 'Unirse',
-    reglas: 'Reglas', sala: 'Sala de espera', codigoSala: 'Código:', copiar: 'Copiar enlace para invitar', copiado: 'Enlace copiado',
+    reglas: 'Reglas', sala: 'Sala de espera', codigoSala: 'Código:', copiar: 'Enlace para invitar', copiado: 'Enlace copiado',
     tuBruja: 'Elige tu bruja', brujas: { pelirroja: 'Pelirroja', rubia: 'Rubia', verde: 'Verde', azul: 'Azul', blanca: 'Blanca' },
     anadirMaquina: '+ Jugador máquina',
     empezar: 'Empezar', anfitrion: 'anfitrión', maquina: 'máquina', tu: 'tú', ausente: 'desconectado',
@@ -63,7 +63,7 @@ const TEXTOS = {
   en: {
     lema: 'Run out of cards before anyone else and rule the forest',
     tuNombre: 'Your name', crear: 'Create game', o: 'or join one', codigo: 'Game code', unirse: 'Join',
-    reglas: 'Rules', sala: 'Waiting room', codigoSala: 'Code:', copiar: 'Copy invite link', copiado: 'Link copied',
+    reglas: 'Rules', sala: 'Waiting room', codigoSala: 'Code:', copiar: 'Invite link', copiado: 'Link copied',
     tuBruja: 'Choose your witch', brujas: { pelirroja: 'Redhead', rubia: 'Blonde', verde: 'Green', azul: 'Blue', blanca: 'White' },
     anadirMaquina: '+ Computer player',
     empezar: 'Start', anfitrion: 'host', maquina: 'computer', tu: 'you', ausente: 'disconnected',
