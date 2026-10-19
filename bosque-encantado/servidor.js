@@ -68,6 +68,9 @@ function vista(sala, yo) {
     fase: p.fase,
     turno: p.turno,
     mesa: p.mesa,
+    debajo: p.debajo,
+    // Quién tiene que elegir qué cartas da, a quién y cuántas (sin enseñar cuáles).
+    ofertas: p.ofertas.map((o) => ({ de: o.de, a: o.a, n: o.n, lista: !!o.cartas })),
     descartes: p.descartes,
     revolucion: p.revolucion,
     abreConTres: p.abreConTres,
@@ -107,6 +110,12 @@ function programar(sala) {
   sala.listos ??= new Set();
   if (p.fase === 'finRonda') {
     if (todosListos(sala)) { sala.listos.clear(); M.siguienteRonda(p); programar(sala); }
+    return;
+  }
+  if (p.fase === 'intercambio') {
+    // Las brujas altas que son bots eligen al momento qué cartas dan (las más bajas).
+    for (const o of p.ofertas) if (!o.cartas && sala.asientos[o.de].maquina) M.ofrecer(p, o.de, M.ofertaMaquina(p, o.de));
+    if (p.fase === 'jugando') programar(sala);
     return;
   }
   if (p.fase !== 'jugando' || !sala.asientos[p.turno].maquina) return;
@@ -153,6 +162,7 @@ function accion(sala, asiento, a) {
     }
     case 'jugar': return p ? M.jugar(p, idx, Array.isArray(a.cartas) ? a.cartas.map(Number) : []) : 'fase';
     case 'pasar': return p ? M.pasar(p, idx) : 'fase';
+    case 'ofrecer': return p ? M.ofrecer(p, idx, Array.isArray(a.cartas) ? a.cartas.map(Number) : []) : 'fase';
     case 'listo': {
       // Cada persona acepta el resumen de la ronda; programar() reparte cuando están todas.
       if (!p || p.fase !== 'finRonda') return 'fase';
@@ -166,6 +176,7 @@ function accion(sala, asiento, a) {
       if (!otro || otro.maquina || otro.oyentes.size) return 'asiento';
       otro.maquina = true;
       otro.token = null;
+      if (p && p.fase === 'intercambio') programar(sala);
       return null;
     }
     case 'revancha': {

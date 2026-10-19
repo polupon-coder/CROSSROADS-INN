@@ -951,3 +951,45 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 /* Título de la barra: solo blanco, sin sombra, y algo más grande. */
 .titulo-barra { filter: none; height: 68px; margin: -4px 0; }
 @media (max-width: 640px) { .titulo-barra { height: 52px; margin: -3px 0; } }
+
+/* ---------- Mesa más grande: tu mano un poco más pequeña en ordenador ---------- */
+@media (min-width: 641px) {
+  #mesa { --mano-w: clamp(52px, min((63.6vw - 30px - 54px) / 6.6, (100vh - 330px) / 3.2), 170px); }
+}
+
+/* Las jugadas anteriores asoman por detrás de la última, como un montón. */
+.pila { position: relative; display: grid; justify-items: center; }
+.pila > .jugada-cartas { grid-area: 1 / 1; }
+.pila > .debajo { pointer-events: none; filter: brightness(.82) saturate(.85); }
+.pila > .debajo .carta { animation: none; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); }
+.pila > .debajo .chapa { display: none; }
+.pila > .debajo-1 { transform: translate(-7px, -7px) rotate(-2.5deg); }
+.pila > .debajo-2 { transform: translate(8px, -12px) rotate(2deg); }
+
+/* El comodín: borde dorado y estrella en la chapa. */
+.carta.comodin { box-shadow: 0 0 0 2px #f3d77a, 0 0 14px rgba(255, 230, 140, .8), 0 6px 16px rgba(0, 0, 0, .6); }
+.carta.comodin .chapa { background: radial-gradient(circle at 35% 30%, #fff3b8, #d9a72e 70%); border-color: #7a5512; color: #4a3204; text-shadow: none; }
+.mano .carta.comodin.apagada { box-shadow: none; }
+
+/* Aviso en la mesa durante el intercambio (elige qué cartas das / espera). */
+.aviso-mesa {
+  margin: 0; padding: 14px 22px; max-width: 420px; text-align: center;
+  font-size: 19px; font-weight: 600; color: #1d3a1f; line-height: 1.3;
+  background: rgba(244, 251, 238, .88); border-radius: 12px; box-shadow: 0 4px 14px rgba(20, 50, 20, .25);
+}
+
+/* Sin barras de desplazamiento por lo que asoma (brujitas de rango, brillo de los botones). */
+@media (min-width: 641px) { #mesa .rivales { overflow: visible; } }
+body { overflow-x: clip; }
+/* El brillo de los botones que parpadean, sin cortes: más suave y sin escalar. */
+@keyframes parpadeo {
+  0%, 100% { filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .3)) brightness(1); }
+  50% { filter: drop-shadow(0 0 6px rgba(255, 255, 215, .95)) drop-shadow(0 0 12px rgba(150, 235, 110, .8)) brightness(1.14); }
+}
+#mesa .acciones { overflow: visible; padding: 10px 14px; margin: -10px -14px; }
+html { overflow-x: clip; }
+/* Ordenador: hueco bajo las brujas para la brujita de rango, que asoma por la esquina. */
+@media (min-width: 641px) { #mesa .rivales { padding-bottom: calc(var(--bruja-asoma, 0px) + 4px); } #mesa .rivales:has(.bruja-rango) { --bruja-asoma: 18px; } }
+@media (min-width: 641px) {
+  #mesa .rivales { grid-template-columns: repeat(2, minmax(0, calc((100vh - 236px - (var(--filas, 2) - 1) * 18px) / var(--filas, 2) * 760 / 544))); }
+}

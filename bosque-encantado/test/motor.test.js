@@ -19,7 +19,8 @@ const jugadores = (n) => Array.from({ length: n }, (_, i) => ({ nombre: `J${i}` 
 // Partida con manos fijas: la ronda está empezada y le toca a «turno».
 function preparada(manos, { turno = 0, revolucion = true } = {}) {
   const p = M.nuevaPartida(jugadores(manos.length), { revolucion }, semilla(1));
-  p.jugadores.forEach((j, i) => { j.mano = cs(...manos[i]).sort((a, b) => a - b); });
+  p.jugadores.forEach((j, i) => { j.mano = cs(...manos[i]).sort((a, b) => a - b);
+  if (manos.flat().includes('12-a')) throw new Error('12-a es el comodín'); });
   p.turno = turno;
   p.abreConTres = false;
   return p;
@@ -29,8 +30,8 @@ test('se reparte toda la baraja y abre quien tiene el primer 1', () => {
   for (const n of [4, 5, 6]) {
     const p = M.nuevaPartida(jugadores(n), {}, semilla(n));
     const todas = p.jugadores.flatMap((j) => j.mano);
-    assert.equal(todas.length, M.CARTAS);
-    assert.equal(new Set(todas).size, M.CARTAS);
+    assert.equal(todas.length, M.TOTAL);
+    assert.equal(new Set(todas).size, M.TOTAL);
     const tamanos = p.jugadores.map((j) => j.mano.length);
     assert.ok(Math.max(...tamanos) - Math.min(...tamanos) <= 1);
     assert.ok(p.jugadores[p.turno].mano.includes(M.TRES_DE_TREBOLES));
@@ -74,9 +75,9 @@ test('quien pasa queda fuera hasta que se limpia la mesa', () => {
 });
 
 test('la combinación más alta limpia la mesa y repite quien la jugó', () => {
-  const p = preparada([['12-a', '3-a'], ['4-a', '5-a'], ['6-a', '7-a'], ['2-a', '10-a']], { turno: 3 });
+  const p = preparada([['12-b', '3-a'], ['4-a', '5-a'], ['6-a', '7-a'], ['2-a', '10-a']], { turno: 3 });
   M.jugar(p, 3, cs('2-a'));
-  M.jugar(p, 0, cs('12-a'));
+  M.jugar(p, 0, cs('12-b'));
   assert.equal(p.mesa, null);
   assert.equal(p.turno, 0);
 });
@@ -126,6 +127,16 @@ test('fin de ronda: rangos, puntos e intercambio de cartas', () => {
 
   M.siguienteRonda(p, semilla(3));
   assert.equal(p.ronda, 2);
+  // Antes de jugar, la Bruja Suprema (0) y la Alta Bruja (3) eligen qué cartas dan.
+  assert.equal(p.fase, 'intercambio');
+  assert.equal(M.jugar(p, 0, p.jugadores[0].mano.slice(0, 1)), 'fase');
+  assert.equal(M.ofrecer(p, 0, p.jugadores[0].mano.slice(0, 1)), 'cantidad');
+  assert.equal(M.ofrecer(p, 2, p.jugadores[2].mano.slice(0, 2)), 'turno'); // el Culo no elige
+  const elegidas0 = p.jugadores[0].mano.slice(-2); // da sus dos más altas, si quiere
+  assert.equal(M.ofrecer(p, 0, elegidas0), null);
+  assert.equal(p.fase, 'intercambio'); // falta la Alta Bruja
+  assert.equal(M.ofrecer(p, 3, M.ofertaMaquina(p, 3)), null);
+  assert.equal(p.fase, 'jugando');
   assert.equal(p.turno, 0); // abre el Capitalista
   assert.equal(p.abreConTres, false);
   const e = (de, a) => p.intercambios.find((x) => x.de === de && x.a === a).cartas;
@@ -136,28 +147,29 @@ test('fin de ronda: rangos, puntos e intercambio de cartas', () => {
   assert.equal(e(3, 1).length, 1);
   for (const x of e(2, 0)) assert.ok(p.jugadores[0].mano.includes(x));
   for (const x of e(0, 2)) assert.ok(p.jugadores[2].mano.includes(x));
+  assert.deepEqual(e(0, 2), elegidas0.slice().sort((a, b) => a - b)); // lo que eligió
   const todas = p.jugadores.flatMap((j) => j.mano);
-  assert.equal(new Set(todas).size, M.CARTAS);
+  assert.equal(new Set(todas).size, M.TOTAL);
   // Lo que da el Culo es al menos tan alto como todo lo que se queda.
   const resto = p.jugadores[2].mano.filter((x) => !e(0, 2).includes(x));
   assert.ok(Math.min(...e(2, 0).map(M.valor)) >= Math.max(...resto.map(M.valor)));
 });
 
 test('revolución: cuatro iguales invierten el orden', () => {
-  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: true });
+  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-b'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: true });
   M.jugar(p, 0, cs('3-a', '3-b', '3-c', '3-d'));
   assert.ok(p.revolucion);
   M.pasar(p, 1);
   M.pasar(p, 2);
   M.pasar(p, 3);
   M.jugar(p, 0, cs('11-a'));
-  assert.equal(M.jugar(p, 1, cs('12-a')), 'superior'); // ahora el 2 es la más baja
+  assert.equal(M.jugar(p, 1, cs('12-b')), 'superior'); // ahora el 2 es la más baja
   assert.equal(M.jugar(p, 1, cs('1-a')), null); // y el 3 la más alta: limpia la mesa
   assert.equal(p.mesa, null);
 });
 
 test('sin la variante, cuatro iguales no cambian el orden', () => {
-  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-a'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: false });
+  const p = preparada([['3-a', '3-b', '3-c', '3-d', '11-a'], ['1-a', '12-b'], ['6-a', '7-a'], ['2-a', '10-a']], { revolucion: false });
   M.jugar(p, 0, cs('3-a', '3-b', '3-c', '3-d'));
   assert.equal(p.revolucion, false);
 });
@@ -170,6 +182,7 @@ test('partidas completas solo con máquinas, de 4 a 6, hasta 10 puntos', () => {
       let pasos = 0;
       while (p.fase !== 'finPartida') {
         if (p.fase === 'finRonda') { assert.equal(M.siguienteRonda(p, azar), null); continue; }
+        if (p.fase === 'intercambio') { const o = p.ofertas.find((x) => !x.cartas); assert.equal(M.ofrecer(p, o.de, M.ofertaMaquina(p, o.de)), null); continue; }
         const t = p.turno;
         assert.ok(p.jugadores[t].mano.length > 0, 'le toca a alguien sin cartas');
         const cartas = M.jugadaMaquina(p, t);
@@ -213,4 +226,40 @@ test('se gana al llegar a 10 puntos; en empate, quien quedó mejor en la última
   assert.equal(q.jugadores[0].puntos, 10);
   assert.equal(q.jugadores[1].puntos, 10);
   assert.equal(q.ganador, 0); // empate a 10: gana la Bruja Suprema de esta ronda
+});
+
+test('el comodín gana a todo: va solo, vale sobre parejas y tríos y limpia la mesa', () => {
+  const p = preparada([['5-a', '5-b', '5-c', '2-a'], ['1-a', '6-a'], ['7-a', '7-b'], ['8-a', '9-a']]);
+  p.jugadores[1].mano.push(M.COMODIN);
+  M.jugar(p, 0, cs('5-a', '5-b', '5-c'));
+  assert.equal(M.jugar(p, 1, [M.COMODIN, c('1-a')]), 'comodinSolo');
+  assert.equal(M.jugar(p, 1, [M.COMODIN]), null);
+  assert.equal(p.mesa, null); // nadie lo supera: se limpia
+  assert.equal(p.turno, 1); // y abre quien lo lanzó
+  assert.ok(!p.revolucion);
+});
+
+test('el comodín no abre la primera ronda; con revolución sigue ganando', () => {
+  const p = preparada([['1-a', '2-a'], ['3-a', '4-a'], ['5-a'], ['6-a']]);
+  p.jugadores[0].mano.push(M.COMODIN);
+  p.abreConTres = true;
+  assert.equal(M.jugar(p, 0, [M.COMODIN]), 'tresDeTreboles');
+  p.abreConTres = false;
+  p.revolucion = true;
+  M.jugar(p, 0, cs('2-a'));
+  assert.equal(M.jugar(p, 1, cs('3-a')), 'superior');
+  M.pasar(p, 1);
+  p.jugadores[2].mano.push(M.COMODIN);
+  assert.equal(M.jugar(p, 2, [M.COMODIN]), null);
+  assert.equal(p.mesa, null);
+});
+
+test('debajo de la mesa quedan las dos jugadas anteriores', () => {
+  const p = preparada([['1-a', '1-b'], ['3-a', '3-b'], ['5-a', '5-b'], ['7-a', '7-b']]);
+  M.jugar(p, 0, cs('1-a'));
+  M.jugar(p, 1, cs('3-a'));
+  M.jugar(p, 2, cs('5-a'));
+  assert.deepEqual(p.debajo, [cs('1-a'), cs('3-a')]);
+  M.jugar(p, 3, cs('7-a'));
+  assert.deepEqual(p.debajo, [cs('3-a'), cs('5-a')]);
 });

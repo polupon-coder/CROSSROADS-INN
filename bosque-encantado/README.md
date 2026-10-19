@@ -11,7 +11,7 @@ por internet o contra bots, en español e inglés.
   (plantilla póker 63x88) y se les quita el velo gris (`--niveles`) con
   `python3 -I herramientas/preparar_cartas.py --niveles salida ancho nombre=imagen …`;
   las originales están en `arte/personajes/` y `arte/estados/`.
-- **Cartas:** la baraja del bosque, 48 cartas del 1 al 12 (cuatro de cada), en `publico/cartas/`
+- **Cartas:** la baraja del bosque, 48 cartas del 1 al 12 (cuatro de cada; el 1 «a», el Espíritu del Bosque, es el comodín), en `publico/cartas/`
   — ver [publico/cartas/LEEME.md](publico/cartas/LEEME.md). Las hojas son el reverso; el bosque
   (`publico/fondo-bosque.webp`) es el fondo y el espíritu de hojas la portada (`publico/portada.webp`).
 
