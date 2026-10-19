@@ -16,6 +16,16 @@ El orden, de menor a mayor, es:
 
 Los monstruos grandes son los más difíciles de quitarse de encima: el 12 es la carta más baja y el 1 la más alta, aunque no tiene ningún otro poder especial. Solo cuenta el número, no el dibujo.
 
+## El comodín
+
+Uno de los unos, el **Espíritu del Bosque** (la niña de hojas de la portada, marcado con ★), es el comodín: **gana a todo**.
+
+- Se lanza **solo**, sobre cualquier jugada: una carta, una pareja, un trío o cuatro iguales.
+- Nadie puede superarlo: se limpia la mesa y abre quien lo lanzó.
+- La revolución no le afecta, y no la provoca.
+- No vale para abrir la primera ronda, que tiene que llevar el dragón rojo.
+- En el intercambio cuenta como la carta más alta.
+
 ## Preparación
 
 1. Se baraja y se reparten todas las cartas, de una en una y boca abajo.
@@ -95,13 +105,13 @@ La Bruja Limpiaollas recoge las cartas, baraja y reparte toda la baraja. Despué
 
 | Jugador | Entrega | Recibe |
 |---|---|---|
-| Bruja Limpiaollas | Sus dos cartas de mayor valor | Las dos cartas de menor valor de la Bruja Suprema |
-| Bruja Suprema | Sus dos cartas de menor valor | Las dos cartas de mayor valor de la Limpiaollas |
-| Bruja Aprendiz | Su carta de mayor valor | La carta de menor valor de la Alta Bruja |
-| Alta Bruja | Su carta de menor valor | La carta de mayor valor de la Aprendiz |
+| Bruja Limpiaollas | Sus dos cartas de mayor valor | Las dos cartas que elija la Bruja Suprema |
+| Bruja Suprema | Las dos cartas que ella elija | Las dos cartas de mayor valor de la Limpiaollas |
+| Bruja Aprendiz | Su carta de mayor valor | La carta que elija la Alta Bruja |
+| Alta Bruja | La carta que ella elija | La carta de mayor valor de la Aprendiz |
 | Brujas | Nada | Nada |
 
-Las cartas entregadas se eligen **sobre la mano recién repartida**, antes de recibir las del intercambio. Los intercambios son obligatorios; si hay varias cartas empatadas en valor, se puede entregar cualquiera de ellas.
+Antes de jugar, la Bruja Suprema y la Alta Bruja **eligen qué cartas dan**; las de la Limpiaollas y la Aprendiz salen solas. Todas se eligen **sobre la mano recién repartida**, antes de recibir las del intercambio. Los intercambios son obligatorios; si hay varias cartas empatadas en valor, se puede entregar cualquiera de ellas.
 
 Después del intercambio, **la Bruja Suprema abre la ronda** con cualquier jugada válida. Ya no es obligatorio empezar con el dragón rojo.
 

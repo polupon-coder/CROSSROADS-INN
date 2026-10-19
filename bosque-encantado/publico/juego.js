@@ -18,6 +18,11 @@ const MAXIMO = VALORES.length - 1;
 const valor = (c) => c >> 2;
 const copia = (c) => COPIAS[c & 3];
 const fuerza = (v, rev) => (rev ? MAXIMO - v : v);
+// El comodín: el 1 «a», el Espíritu del Bosque de la portada. Gana a todo y va solo.
+const COMODIN = MAXIMO * 4;
+const esComodin = (c) => c === COMODIN;
+// Fuerza de una carta concreta para ordenar la mano: el comodín, siempre la más alta.
+const fuerzaCarta = (c, rev) => (esComodin(c) ? 99 : fuerza(valor(c), rev));
 
 const TEXTOS = {
   es: {
@@ -40,6 +45,10 @@ const TEXTOS = {
     cartas: (n) => `${n} carta${n === 1 ? '' : 's'}`, haPasado: 'ha pasado', termino: (p) => `terminó ${p}.º`,
     mesaVacia: 'Mesa vacía', jugo: (n) => `${n} jugó`, tusPuntos: 'Puntos',
     tuTurnoAbre: 'Te toca abrir: juega una carta, pareja, trío o cuatro iguales.',
+    comodin: 'Comodín: el Espíritu del Bosque gana a todo',
+    elige: (n, k) => `Elige ${k === 1 ? 'la carta' : `las ${k} cartas`} que das a ${n}`,
+    esperaElegir: (n) => `${n} está eligiendo qué cartas dar…`,
+    dar: 'Dar',
     tuTurnoTres: 'Abres la partida: tu jugada debe llevar el dragón rojo (el 12 que brilla).',
     tuTurnoSupera: (k) => `Te toca: supera con ${k === 1 ? 'una carta' : k + ' cartas iguales'} más alta${k === 1 ? '' : 's'}, o pasa.`,
     turnoDe: (n) => `Le toca a ${n}`, hasPasado: 'Has pasado: esperas a que se limpie la mesa.', hasTerminado: (p) => `¡Has terminado ${p}.º! Mira cómo acaban los demás.`,
@@ -50,7 +59,7 @@ const TEXTOS = {
     sustituir: 'Que juegue un bot',
     errores: {
       nombre: 'Escribe tu nombre.', sala: 'No existe esa partida.', empezada: 'Esa partida ya ha empezado.', llena: 'La partida está llena (6 jugadores).',
-      tresDeTreboles: 'Tu primera jugada debe llevar el dragón rojo (el 12 que brilla).', mismaCantidad: 'Tienes que jugar el mismo número de cartas.',
+      tresDeTreboles: 'Tu primera jugada debe llevar el dragón rojo (el 12 que brilla).', mismaCantidad: 'Tienes que jugar el mismo número de cartas.', comodinSolo: 'El comodín se lanza solo.',
       superior: 'Tiene que ser de un valor más alto.', mismoValor: 'Todas las cartas deben ser del mismo valor.', abres: 'Abres la mesa: no puedes pasar.',
       turno: 'No es tu turno.', cogido: 'Esa bruja ya la tiene otro jugador.', red: 'Sin conexión con el servidor. Reintentando…',
     },
@@ -86,6 +95,10 @@ const TEXTOS = {
     cartas: (n) => `${n} card${n === 1 ? '' : 's'}`, haPasado: 'passed', termino: (p) => `finished #${p}`,
     mesaVacia: 'Empty table', jugo: (n) => `${n} played`, tusPuntos: 'Points',
     tuTurnoAbre: 'Your lead: play a single, pair, three or four of a kind.',
+    comodin: 'Wild card: the Forest Spirit beats everything',
+    elige: (n, k) => `Choose ${k === 1 ? 'the card' : `the ${k} cards`} you give to ${n}`,
+    esperaElegir: (n) => `${n} is choosing which cards to give…`,
+    dar: 'Give',
     tuTurnoTres: 'You open the game: your play must include the red dragon (the glowing 12).',
     tuTurnoSupera: (k) => `Your turn: beat it with ${k === 1 ? 'a higher card' : k + ' higher matching cards'}, or pass.`,
     turnoDe: (n) => `${n}'s turn`, hasPasado: 'You passed: wait until the table is cleared.', hasTerminado: (p) => `You finished #${p}! Watch the others finish.`,
@@ -96,7 +109,7 @@ const TEXTOS = {
     sustituir: 'Let a bot play',
     errores: {
       nombre: 'Enter your name.', sala: 'That game does not exist.', empezada: 'That game has already started.', llena: 'The game is full (6 players).',
-      tresDeTreboles: 'Your first play must include the red dragon (the glowing 12).', mismaCantidad: 'You must play the same number of cards.',
+      tresDeTreboles: 'Your first play must include the red dragon (the glowing 12).', mismaCantidad: 'You must play the same number of cards.', comodinSolo: 'The wild card is played on its own.',
       superior: 'It must be a higher value.', mismoValor: 'All cards must have the same value.', abres: 'You lead: you cannot pass.',
       turno: 'It is not your turn.', cogido: 'Another player already has that witch.', red: 'No connection to the server. Retrying…',
     },
@@ -123,8 +136,10 @@ const REGLAS = {
 <p>Quien abre la mesa juega una carta, una pareja, un trío o cuatro iguales. Los demás, en sentido horario, deben <b>superarla</b> con la misma cantidad de cartas iguales de valor más alto, o <b>pasar</b>. Quien pasa queda fuera hasta que se limpie la mesa.</p>
 <p>Cuando todos los demás han pasado, se limpia la mesa y abre quien hizo la última jugada (si ya no tiene cartas, el siguiente que tenga). La jugada más alta posible (unos) limpia la mesa al momento.</p>
 <p>En la primera ronda abre quien tiene el <b>dragón rojo</b> (un 12), y su jugada debe llevarlo.</p>
+<h3>El comodín</h3>
+<p>Uno de los unos, el <b>Espíritu del Bosque</b> (la niña de hojas de la portada, con ★), es el comodín: <b>gana a todo</b>. Se lanza solo, sobre cualquier jugada (una carta, pareja, trío o cuatro iguales), y limpia la mesa. Solo no vale para abrir la primera ronda.</p>
 <h3>Rangos e intercambio</h3>
-<p>Según el orden en que os quedáis sin cartas: <b>Bruja Suprema, Alta Bruja, (Brujas), Bruja Aprendiz y Bruja Limpiaollas</b>. Al empezar la ronda siguiente, la Limpiaollas da sus 2 cartas más altas a la Suprema y recibe sus 2 más bajas; la Aprendiz da su carta más alta a la Alta Bruja y recibe su más baja. Abre la Bruja Suprema.</p>
+<p>Según el orden en que os quedáis sin cartas: <b>Bruja Suprema, Alta Bruja, (Brujas), Bruja Aprendiz y Bruja Limpiaollas</b>. Al empezar la ronda siguiente, la Limpiaollas da sus 2 cartas más altas a la Suprema y recibe 2 cartas <b>que elige la Suprema</b>; la Aprendiz da su carta más alta a la Alta Bruja y recibe 1 <b>que elige la Alta Bruja</b>. Abre la Bruja Suprema.</p>
 <h3>Puntos</h3>
 <p>En cada ronda, la <b>Bruja Suprema gana 2 puntos</b> y la <b>Alta Bruja 1 punto</b>; las demás, ninguno. La partida acaba al final de la ronda en que alguien llega a <b>10 puntos</b>: gana quien más tenga y, en empate, quien quedó mejor en esa ronda.</p>
 <h3>Revolución</h3>
@@ -137,8 +152,10 @@ const REGLAS = {
 <p>Whoever leads plays a single card, a pair, three or four of a kind. Going clockwise, the others must <b>beat it</b> with the same number of matching cards of a higher value, or <b>pass</b>. A player who passes is out until the table is cleared.</p>
 <p>When everyone else has passed, the table is cleared and whoever played last leads (if they are out of cards, the next player who still has some). The highest possible play (ones) clears the table at once.</p>
 <p>In the first round, the holder of the <b>red dragon</b> (a 12) leads, and that play must include it.</p>
+<h3>The wild card</h3>
+<p>One of the ones, the <b>Forest Spirit</b> (the leaf girl from the cover, marked ★), is the wild card: it <b>beats everything</b>. It is played on its own, on top of any play (a single, pair, three or four of a kind), and clears the table. It just can't lead the first round.</p>
 <h3>Ranks and card exchange</h3>
-<p>By the order in which you run out: <b>Supreme Witch, High Witch, (Witches), Apprentice Witch and Pot-Scrubber Witch</b>. At the start of the next round, the Pot-Scrubber gives her 2 highest cards to the Supreme Witch and gets the Supreme's 2 lowest; the Apprentice gives her highest card to the High Witch and gets her lowest. The Supreme Witch leads.</p>
+<p>By the order in which you run out: <b>Supreme Witch, High Witch, (Witches), Apprentice Witch and Pot-Scrubber Witch</b>. At the start of the next round, the Pot-Scrubber gives her 2 highest cards to the Supreme Witch and gets 2 cards <b>chosen by the Supreme Witch</b>; the Apprentice gives her highest card to the High Witch and gets 1 <b>chosen by the High Witch</b>. The Supreme Witch leads.</p>
 <h3>Scoring</h3>
 <p>Each round, the <b>Supreme Witch scores 2 points</b> and the <b>High Witch 1 point</b>; the rest score nothing. The game ends after the round in which someone reaches <b>10 points</b>: the highest total wins and ties go to whoever placed better in that round.</p>
 <h3>Revolution</h3>
@@ -174,7 +191,8 @@ function htmlCarta(c, extra = '') {
   const vv = VALORES[valor(c)];
   if (CARTAS_CON_IMAGEN) {
     const archivo = `${vv.padStart(2, '0')}-${copia(c)}`;
-    return `<span class="carta imagen ${extra}" style="background-image:url(cartas/${archivo}.webp)" title="${vv}" data-carta="${c}"><span class="chapa">${vv}</span></span>`;
+    const comodin = esComodin(c);
+    return `<span class="carta imagen ${comodin ? 'comodin ' : ''}${extra}" style="background-image:url(cartas/${archivo}.webp)" title="${comodin ? t.comodin : vv}" data-carta="${c}"><span class="chapa">${comodin ? '★' : vv}</span></span>`;
   }
   return `<span class="carta ${extra}" title="${vv}" data-carta="${c}">
     <span class="esquina">${vv}</span><span class="centro">${vv}</span><span class="esquina abajo">${vv}</span></span>`;
@@ -188,7 +206,7 @@ const htmlRetrato = (personaje, rango, clase = 'retrato') => {
   const retrato = `<span class="${clase}" style="background-image:url(personajes/${personaje}.webp)"></span>`;
   return rango ? `<span class="retrato-y-estado">${retrato}${htmlEstado(rango, 'estado-circulo')}</span>` : retrato;
 };
-const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => VALORES[valor(c)]).join(' '));
+const textoCartas = (cs) => (typeof cs === 'number' ? t.cartas(cs) : cs.map((c) => (esComodin(c) ? '★' : VALORES[valor(c)])).join(' '));
 
 // ---------- Red ----------
 async function api(ruta, cuerpo) {
@@ -353,9 +371,17 @@ function pintarMesa() {
 
   // El claro: la última jugada en grande, y de quién es.
   // Bajo la carta jugada, una franja del color de la bruja que la ha jugado.
-  $('monton').innerHTML = p.mesa
-    ? `<div class="jugada" data-personaje="${v.asientos[p.mesa.jugador].personaje}"><div class="jugada-cartas">${p.mesa.cartas.map((c) => htmlCarta(c)).join('')}</div><span class="franja"></span></div>`
-    : `<span class="hueco-carta">${t.mesaVacia}</span>`;
+  // Debajo, las jugadas anteriores de esta mesa asoman un poco, para que se note que hay cartas.
+  const debajo = (p.debajo || []).map((cs, k, todas) => `<div class="jugada-cartas debajo debajo-${todas.length - k}">${cs.map((c) => htmlCarta(c)).join('')}</div>`).join('');
+  const oferta = p.fase === 'intercambio' ? (p.ofertas || []).find((o) => o.de === yo && !o.lista) : null;
+  const esperando = p.fase === 'intercambio' ? (p.ofertas || []).filter((o) => !o.lista && o.de !== yo) : [];
+  $('monton').innerHTML = oferta
+    ? `<p class="aviso-mesa">${esc(t.elige(nombreDe(oferta.a), oferta.n))}</p>`
+    : p.fase === 'intercambio'
+      ? `<p class="aviso-mesa">${esc(t.esperaElegir(esperando.map((o) => nombreDe(o.de)).join(', ')))}</p>`
+      : p.mesa
+        ? `<div class="jugada" data-personaje="${v.asientos[p.mesa.jugador].personaje}"><div class="pila">${debajo}<div class="jugada-cartas">${p.mesa.cartas.map((c) => htmlCarta(c)).join('')}</div></div><span class="franja"></span></div>`
+        : `<span class="hueco-carta">${t.mesaVacia}</span>`;
   $('quien').innerHTML = p.mesa ? `${htmlRetrato(v.asientos[p.mesa.jugador].personaje, null, 'retrato-mini')}<span>${esc(t.jugo(nombreDe(p.mesa.jugador)))}</span>` : '';
 
   // Yo.
@@ -366,12 +392,14 @@ function pintarMesa() {
   elegidas = new Set([...elegidas].filter((c) => p.mano.includes(c)));
   const miTurno = p.fase === 'jugando' && p.turno === yo;
   const posibles = miTurno ? valoresJugables(p) : null;
+  const comodinVale = miTurno && p.mano.some(esComodin) && !(p.abreConTres && !p.mesa);
+  const jugable = (c) => (esComodin(c) ? comodinVale : posibles.has(valor(c)));
   avisarRevolucion(p, posibles);
-  const orden = p.mano.slice().sort((a, b) => fuerza(valor(a), p.revolucion) - fuerza(valor(b), p.revolucion) || a - b);
+  const orden = p.mano.slice().sort((a, b) => fuerzaCarta(a, p.revolucion) - fuerzaCarta(b, p.revolucion) || a - b);
   $('mano').style.setProperty('--n', Math.max(orden.length, 1));
   $('mano').style.setProperty('--mitad', Math.max(Math.ceil(orden.length / 2), 1));
   $('mano').innerHTML = orden.map((c) => {
-    const extra = [elegidas.has(c) && 'elegida', posibles && !posibles.has(valor(c)) && 'apagada', p.abreConTres && c === DRAGON_ROJO && 'abre'].filter(Boolean).join(' ');
+    const extra = [elegidas.has(c) && 'elegida', posibles && !jugable(c) && 'apagada', p.abreConTres && c === DRAGON_ROJO && 'abre'].filter(Boolean).join(' ');
     return htmlCarta(c, extra).replace('<span class="carta', '<button type="button" class="carta').replace(/<\/span>$/, '</button>');
   }).join('');
 
@@ -385,11 +413,12 @@ function pintarMesa() {
   }
   $('mensaje').textContent = msg;
   $('mensaje').className = 'mensaje' + (miTurno ? ' tuyo' : '');
-  $('jugar').disabled = !miTurno || motivo(p, [...elegidas]) !== null;
+  $('jugar').disabled = oferta ? elegidas.size !== oferta.n : !miTurno || motivo(p, [...elegidas]) !== null;
+  $('jugar').textContent = oferta ? t.dar : t.lanzar;
   $('pasar').disabled = !miTurno || !p.mesa;
   // Parpadeo: Lanzar cuando lo que has marcado se puede lanzar; Pasar cuando no puedes lanzar nada.
   $('jugar').classList.toggle('parpadea', !$('jugar').disabled);
-  $('pasar').classList.toggle('parpadea', !$('pasar').disabled && posibles !== null && posibles.size === 0);
+  $('pasar').classList.toggle('parpadea', !$('pasar').disabled && posibles !== null && posibles.size === 0 && !comodinVale);
   const titulo = idioma === 'en' ? 'ENCHANTED FOREST' : 'BOSQUE ENCANTADO';
   document.title = miTurno ? `● ${t.jugar}! · ${titulo}` : titulo;
 
@@ -405,7 +434,7 @@ function pintarMesa() {
 // Valores con los que este jugador puede jugar ahora (para atenuar el resto).
 function valoresJugables(p) {
   const cuenta = new Map();
-  for (const c of p.mano) cuenta.set(valor(c), (cuenta.get(valor(c)) || 0) + 1);
+  for (const c of p.mano) if (!esComodin(c)) cuenta.set(valor(c), (cuenta.get(valor(c)) || 0) + 1);
   const ok = new Set();
   for (const [vv, k] of cuenta) {
     if (!p.mesa) { if (!p.abreConTres || vv === valor(DRAGON_ROJO)) ok.add(vv); continue; }
@@ -417,6 +446,7 @@ function valoresJugables(p) {
 // Las mismas comprobaciones que el servidor, para avisar antes de mandar la jugada.
 function motivo(p, cartas) {
   if (cartas.length < 1 || cartas.length > 4) return 'cantidad';
+  if (cartas.some(esComodin)) return cartas.length !== 1 ? 'comodinSolo' : !p.mesa && p.abreConTres ? 'tresDeTreboles' : null;
   const vv = valor(cartas[0]);
   if (!cartas.every((c) => valor(c) === vv)) return 'mismoValor';
   if (p.mesa) {
@@ -428,8 +458,23 @@ function motivo(p, cartas) {
 
 function elegir(c) {
   const p = v.partida;
+  // Fase de intercambio: eliges cualquier carta, hasta las que tienes que dar.
+  const oferta = p.fase === 'intercambio' ? (p.ofertas || []).find((o) => o.de === v.yo && !o.lista) : null;
+  if (p.fase === 'intercambio') {
+    if (!oferta) return;
+    if (elegidas.has(c)) elegidas.delete(c);
+    else { elegidas.add(c); if (elegidas.size > oferta.n) elegidas.delete([...elegidas][0]); }
+    pintarMesa();
+    return;
+  }
+  // El comodín va solo.
+  if (esComodin(c) || [...elegidas].some(esComodin)) {
+    elegidas = elegidas.has(c) ? new Set() : new Set([c]);
+    pintarMesa();
+    return;
+  }
   const vv = valor(c);
-  const mismas = p.mano.filter((x) => valor(x) === vv);
+  const mismas = p.mano.filter((x) => valor(x) === vv && !esComodin(x));
   if (elegidas.size && valor([...elegidas][0]) !== vv) elegidas.clear();
   if (p.mesa && p.turno === v.yo) {
     // Hay que igualar la cantidad: un toque elige de golpe las cartas necesarias de ese valor.
@@ -450,7 +495,7 @@ function pintarPuntos() {
 }
 
 function avisarIntercambio(p) {
-  if (p.ronda === rondaVista) return;
+  if (p.ronda === rondaVista || p.fase === 'intercambio') return;
   rondaVista = p.ronda;
   elegidas.clear();
   const dado = p.intercambios.find((e) => e.de === v.yo);
@@ -470,7 +515,7 @@ function avisarIntercambio(p) {
 
 function pintarFin(p) {
   const dlg = $('fin');
-  if (p.fase === 'jugando') { if (dlg.open) dlg.close(); return; }
+  if (p.fase === 'jugando' || p.fase === 'intercambio') { if (dlg.open) dlg.close(); return; }
   const clave = `${p.ronda}:${p.fase}`;
   const soyAnfitrion = v.yo === v.anfitrion;
   const final = p.fase === 'finPartida';
@@ -526,7 +571,7 @@ function avisarRevolucion(p, posibles) {
   if (!posibles || (p.mesa && p.mesa.cantidad !== 4)) return;
   const clave = `${p.ronda}:${p.registro.length}`;
   if (turnoAvisado === clave) return;
-  const cuatro = [...posibles].filter((vv) => p.mano.filter((c) => valor(c) === vv).length === 4);
+  const cuatro = [...posibles].filter((vv) => p.mano.filter((c) => valor(c) === vv && !esComodin(c)).length === 4);
   if (!cuatro.length) return;
   turnoAvisado = clave;
   // Se enseñan las cuatro cartas que la permiten.
@@ -595,7 +640,11 @@ $('asientos').addEventListener('click', (e) => { const b = e.target.closest('[da
 $('empezar').addEventListener('click', () => accion('empezar'));
 $('mano').addEventListener('click', (e) => { const b = e.target.closest('[data-carta]'); if (b) elegir(Number(b.dataset.carta)); });
 $('rivales').addEventListener('click', (e) => { const b = e.target.closest('[data-sustituir]'); if (b) accion('sustituir', { asiento: Number(b.dataset.sustituir) }); });
-$('jugar').addEventListener('click', () => { const cs = [...elegidas]; elegidas.clear(); accion('jugar', { cartas: cs }); });
+$('jugar').addEventListener('click', () => {
+  const cs = [...elegidas];
+  elegidas.clear();
+  accion(v.partida.fase === 'intercambio' ? 'ofrecer' : 'jugar', { cartas: cs });
+});
 $('pasar').addEventListener('click', () => { elegidas.clear(); accion('pasar'); });
 
 // ---------- Arranque ----------
