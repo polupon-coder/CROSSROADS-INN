@@ -14,6 +14,7 @@ del navegador y se cambia con el botón ES | EN.
 | MANA | https://mana-qupu.onrender.com (inglés: `/en`) |
 | HÉROES | https://heroes-q423.onrender.com |
 | ESCUELA DE MAGIA | https://magic-school-wsiz.onrender.com |
+| PIRATAS | https://piratas-az7b.onrender.com |
 
 BOSQUE ENCANTADO está en la carpeta [`bosque-encantado/`](bosque-encantado/README.md),
 con su propio servidor (servicio web de Render con «Root Directory» = `bosque-encantado`).
