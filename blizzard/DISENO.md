@@ -1,0 +1,172 @@
+# BLIZZARD · Documento de diseño vivo
+
+Memoria del proyecto: lo que dice el documento original (v1.0, octubre de 2026),
+lo que hemos decidido después al revisar el concept art y lo que queda pendiente.
+Cada sesión nueva debería empezar leyendo este archivo.
+
+---
+
+## 1. Resumen
+
+- **Qué es:** aventura contemplativa de exploración, plataformas y puzles, en 3D.
+- **Duración:** 2–3 horas, lineal, 7 capítulos con 3 pruebas cada uno (21 en total).
+- **Protagonista:** Blizzard, figura pequeña encapuchada de amarillo, rostro siempre oculto.
+- **Sin** combate, enemigos, animales ni muerte. Si cae, el viento lo rescata.
+- **Una sola magia (el viento) con un solo botón**, que va ganando aplicaciones.
+- **Narrativa visual:** el círculo del bastón se cierra mientras la capa se desgasta.
+- **Final:** abre las puertas del templo con el círculo completo, se quita la capucha
+  por primera vez y el juego termina antes de que entre.
+
+## 2. Plataforma y objetivo
+
+- **Se juega en el navegador**, como los demás juegos de la Posada del Cruce.
+- **Para:** el autor, su familia y sus amigos. Más adelante, más público (itch.io o similar).
+- **3D:** formas facetadas (*low-poly*) generadas por código para el prototipo. Más
+  adelante, el protagonista podría hacerse con una IA de modelado (Meshy, Tripo, Rodin)
+  a partir de las láminas 7 y 11, animado con Mixamo, y con la capa movida por código.
+  Antes de publicar para más gente, revisar las condiciones de uso de esas herramientas.
+- **Presupuesto:** plan Claude Pro. Sesiones cortas, una tarea por sesión, decisiones
+  siempre escritas aquí.
+
+## 3. Personaje
+
+### 3.1 Diseño (referencia: láminas 7, 11, 19)
+- Capa amarilla mostaza, facetada, en campana; capucha en punta con interior negro.
+- Túnica oscura, fajín, pantalones amplios gris carbón, guantes oscuros, botas puntiagudas.
+- **Acabado base:** facetado limpio (7, 11, 17, 19). La nieve pegada a la capa
+  (4, 5, 18, 23) es un efecto de los capítulos nevados, no el modelo base.
+- **Capucha:** recta en reposo; la punta se dobla hacia atrás con el movimiento.
+- **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
+  (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
+
+### 3.2 Capa: tres estados de desgaste
+| Estado | Lámina | Cuándo |
+|---|---|---|
+| Intacta | 11 | Capítulos 1–2 |
+| Bordes deshilachados | 17 | Capítulos 3–5 |
+| Maltrecha | 12 | Capítulos 6–7 |
+
+### 3.3 Bastón: siete etapas (láminas 27 de día y 28 de noche)
+| Etapa | Momento |
+|---|---|
+| 1 (muesca) | Al recogerlo en la plataforma arcana del capítulo 1 |
+| 2–6 | Al superar la prueba 3 de los capítulos 1 a 5 |
+| 6 | Se mantiene durante el capítulo 6: casi cerrado, tensión |
+| 7 (círculo) | Al superar la prueba final del capítulo 7 |
+
+- De noche el bastón entero brilla en ámbar translúcido (16, 28). Es el mismo modelo
+  con un material que pasa a emisivo al anochecer.
+- Idea opcional: la intensidad del brillo crece con la etapa.
+- Cada vez que crece, plano cercano del bastón (de día, desde lejos, no se distingue).
+
+### 3.4 Animaciones y su lámina de referencia
+| Animación | Lámina |
+|---|---|
+| Reposo | 5, 7, 6 (espaldas) |
+| Caminar | 22 |
+| Correr | 20, 24 (espaldas, la vista principal del juego) |
+| Agacharse | 21 |
+| Arrodillarse (recoger el bastón, pausas, final) | 2 |
+| Saltar y caer | 3 |
+| Impulso de viento en el salto | 4 |
+| Ascenso sostenido (bastón girando como hélice) | 18 |
+| Cargar y dirigir la ráfaga | 1 |
+| Apartar nieve (barrido a ras de suelo) | 8, 13 (cenital) |
+| Mover piedras | 15 |
+| Equilibrar plataformas | 25 |
+| Alzar el bastón (activar, abrir puertas) | 10, 72 |
+| Meditar / punto seguro / pantalla de título | 9, 14 |
+| Rescate del viento | 29 (pasiva; mejor con la mano libre abierta) |
+| Sin bastón (inicio del capítulo 1) | 23 |
+| Nocturno | 16 |
+| Manipular runas | **pendiente** |
+
+## 4. Lenguaje visual
+
+- **El viento mágico** es siempre una espiral blanca de partículas (9, 15, 26, 29).
+- **Los anillos de piedra incompletos** del paisaje (32, 33, 47, 50, 66) riman con el bastón.
+  Propuesta: la abertura de los anillos de cada capítulo coincide con la etapa del bastón.
+- **Las plataformas arcanas** son discos de piedra oscura con losas en abanico y anillos
+  concéntricos. Crecen en complejidad con el viaje: 69/60 (capítulo 1, la del bastón)
+  → 68 (intermedios) → 67 (finales). La 61 es una gigante medio enterrada en nieve.
+- **Las runas:** el rombo con un triángulo dentro (48, 49, 50, 70) es el símbolo recurrente.
+  El anillo de la 66 lleva un alfabeto completo grabado.
+  - Capítulos 3–4: solo grabados que anuncian lo que viene.
+  - Capítulo 5: las mismas runas se vuelven interactivas.
+  - De noche brillan en ámbar.
+- **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
+  suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
+  las puertas del templo, donde el centro espera el aro completo del bastón.
+- **Noche:** rocas iluminadas por dentro en ámbar (30, 43, 57, 70).
+- **Guiar sin interfaz:** caminos que serpentean, rayos de luz y el destino visible a lo
+  lejos (34, 39, 58, 71).
+
+### Pendiente de unificar en las láminas
+- En muchos paisajes la capa sale naranja o terracota. Debe ser amarilla, como en 56 y 60.
+- A partir del capítulo 2, Blizzard siempre lleva el bastón.
+- En 69, el momento de encontrar el bastón, el remate debería ser la etapa 1.
+
+## 5. Capítulos y láminas (propuesta provisional)
+
+El autor está revisando el orden y cómo se conectan los paisajes. Esta tabla solo
+recoge dónde encaja cada lámina según su contenido.
+
+| Capítulo | Habilidad | Láminas candidatas |
+|---|---|---|
+| 1 · La llanura nevada | Moverse; recoger el bastón; impulso en el salto | 34, 64, 60, 69, 58 (transición) |
+| 2 · Las dunas (de nieve) | Apartar nieve | 33, 40, 45, 62, 47, 41 y 63 (transición) |
+| 3 · Las formaciones rocosas | Mover piedras | 32, 35, 37, 43 (puzle cenital), 46 |
+| 4 · Las montañas | Equilibrar plataformas | 31, 38, 39, 42, 44, 48, 52, 53, 59, 65, 73, 71; 51 (entrada a la montaña) |
+| 5 · Las cuevas | Manipular runas | 55, 70, 50 (gran prueba del anillo), 56 |
+| 6 · El ascenso interior | Combinar todo | Faltan láminas |
+| 7 · La cumbre y el templo | Pruebas finales | 54, 57, 36 (¿templo?), 66 (icono / título) |
+
+**Lámina para la portada del portal:** 66 (el anillo de runas) o 9 (meditación).
+
+## 6. Mecánicas
+
+### 6.1 Movimiento
+Caminar, correr, saltar, agacharse, magia del viento.
+
+### 6.2 Un botón de magia
+- Pulsar durante un salto: impulso extra hacia arriba.
+- Mantener durante un salto: ascenso sostenido, con límite.
+- Mantener y dirigir: carga y orienta la ráfaga (incluidas diagonales). Soltar: la libera.
+- Aplicaciones en orden de aparición: impulsar saltos → apartar nieve → mover piedras →
+  equilibrar plataformas → manipular runas. En los capítulos 6–7 se combinan.
+
+### 6.3 Caídas
+Sin daño, vidas ni pantallas de muerte. El viento lo recoge en el aire y lo lleva a un
+punto seguro con una curva suave, distinta de un salto (lámina 29). Se conservan las
+pruebas completadas.
+
+### 6.4 Cámara
+Tercera persona, dirigida por el juego, sin control del jugador. Encuadres: seguimiento
+por detrás (19, 73), plano general, plano cercano, lateral, tres cuartos, cenital (13, 43,
+60), contrapicado (44). Transiciones suaves; nada de giros bruscos en saltos precisos.
+
+### 6.5 Día y noche
+Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
+
+## 7. Preguntas abiertas
+
+1. Orden y conexión de los paisajes (lo está decidiendo el autor).
+2. Diseño de las 21 pruebas.
+3. ¿El hielo (41, 43, 58) resbala o es solo visual?
+4. Duración exacta del día y la noche; ¿20 minutos son el ciclo completo?
+5. Reglas de carga, alcance e interacción del viento.
+6. Puntos seguros para los rescates.
+7. Guardado y continuación de partida (en el navegador).
+8. Controles de teclado, ratón, mando y táctil.
+9. Interfaz.
+10. Sonido y música.
+11. El rostro de Blizzard en la escena final.
+12. ¿Es la 36 (pirámide con puerta) el templo? Si lo es, la puerta necesita el círculo.
+13. Láminas que faltan: manipular runas, interiores del capítulo 6, las puertas del templo.
+
+## 8. Siguientes pasos
+
+1. El autor ordena las láminas y dice cómo se conectan.
+2. Mapa del viaje: tramos de cada capítulo y transiciones.
+3. Prototipo del capítulo 1 en el navegador: llanura, plataforma, bastón, impulso,
+   rescate, cámara automática y día/noche.
