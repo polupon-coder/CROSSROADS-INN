@@ -164,6 +164,12 @@ Cada sesión nueva debería empezar leyendo este archivo.
   columna y una hacia abajo la baja; colocadas a las alturas correctas forman una
   escalera hasta la salida iluminada. Cada columna suena con una nota al moverse, y
   el orden de las runas es una pequeña melodía que guía la solución.
+- **El disco rodante (lámina 97):** un gran disco de piedra roto, de canto sobre una
+  ladera nevada, con una runa grabada; Blizzard camina por su borde. Propuesta para el
+  capítulo 3 (mover piedras): con ráfagas se hace rodar el disco por la pendiente
+  hasta encajarlo en un hueco y usarlo de puente o de escalón hacia la cornisa, o se
+  camina sobre él mientras rueda. La runa de la 97 (palo con un rombo, parecida a
+  la *wunjo* nórdica) se sustituye por una de la lámina 80.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
