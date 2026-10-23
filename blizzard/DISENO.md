@@ -288,7 +288,17 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
 14. Qué runa lleva cada mecanismo (alfabeto: lámina 80).
 
-## 8. Siguientes pasos
+## 8. Prototipo 0 (capítulo 1)
+
+`blizzard/index.html` + `blizzard/juego.js`, en el navegador con three.js. Todo
+generado por código con formas facetadas. Incluye: la llanura casi vacía, la montaña
+al fondo, el kit de rocas, la plataforma 89 con el bastón clavado (arrodillarse y
+recogerlo), salto, correr, agacharse, impulso de viento en el aire (E), la grieta que
+solo se cruza con impulso y el rescate si se cae, el rellano de 1,8 B, huellas
+apuntadas, nieve que cae, el viento como límite del mundo y el anillo abierto como
+meta. Falta: día y noche, sonido, controles táctiles y de mando, modelo de verdad.
+
+## 9. Siguientes pasos
 
 1. El autor ordena las láminas y dice cómo se conectan.
 2. Mapa del viaje: tramos de cada capítulo y transiciones.
