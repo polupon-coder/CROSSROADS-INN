@@ -79,7 +79,7 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Rescate del viento | 29 (pasiva; mejor con la mano libre abierta) |
 | Sin bastón (inicio del capítulo 1) | 23 |
 | Nocturno | 16 |
-| Manipular runas | **pendiente** |
+| Manipular runas (piedra con runa alzada y girada por el viento, vista de espaldas) | 74 |
 
 ## 4. Lenguaje visual
 
@@ -94,6 +94,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
   - Capítulos 3–4: solo grabados que anuncian lo que viene.
   - Capítulo 5: las mismas runas se vuelven interactivas.
   - De noche brillan en ámbar.
+  - La 74 usa una letra de aspecto nórdico (parecida a la R del futhark). Pendiente de
+    decidir: alfabeto propio, de la familia del rombo, o runas de estilo nórdico.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
@@ -162,7 +164,8 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 10. Sonido y música.
 11. El rostro de Blizzard en la escena final.
 12. ¿Es la 36 (pirámide con puerta) el templo? Si lo es, la puerta necesita el círculo.
-13. Láminas que faltan: manipular runas, interiores del capítulo 6, las puertas del templo.
+13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
+14. Estilo de las runas: alfabeto propio o de estilo nórdico (ver 74).
 
 ## 8. Siguientes pasos
 
