@@ -144,6 +144,23 @@ ajustan al probar el prototipo.
 | 3–4 B | Pilar (4), bloque alto (6) | Necesita el ascenso sostenido; atalayas |
 | > 5 B | Aguja (7), acantilado (8) | Inalcanzables: puntos de referencia, muros del recorrido |
 
+### Kit de ruinas talladas (lámina 82)
+
+Ocho monumentos de piedra trabajada, con el mismo Blizzard como escala y la runa del
+rombo grabada. Complementan las rocas naturales: lo tallado indica camino o mecanismo.
+
+| Pieza | Altura | Función |
+|---|---|---|
+| Base rota (1) | ≈ 1 B | Escalón; resto de algo mayor |
+| Pedestal con runa (2) | ≈ 1,5 B | Soporte de mecanismos o de objetos |
+| Pilar roto con bloque caído (3) | ≈ 3 B | El bloque suelto sirve para el puzle de mover piedras |
+| Estela (4), pilar con panel (5), obelisco (6) | 4–6 B | Referencias visuales; portadoras de runas |
+| Pilares con viga caída (7) | ≈ 5 B | La viga inclinada es una rampa natural |
+| Muro escalonado (8) | ≈ 6 B | Las gradas de la base se suben como una escalera |
+
+Regla de lectura para el jugador: **lo tallado se puede usar; lo natural es paisaje
+o reto de salto**.
+
 ## 5. Capítulos y láminas (propuesta provisional)
 
 El autor está revisando el orden y cómo se conectan los paisajes. Esta tabla solo
