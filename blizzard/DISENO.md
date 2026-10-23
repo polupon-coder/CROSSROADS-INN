@@ -168,6 +168,8 @@ o reto de salto**.
   continuo. Avanza más despacio y no puede correr ni saltar alto.
 - Así la nieve profunda da sentido a la habilidad de apartar nieve (capítulo 2):
   despejar un camino es más rápido que vadearlo.
+- **Forma de la huella: lámina 87** (talón redondo, cintura estrecha y punta). Puede
+  servir casi directamente como textura de la marca en la nieve.
 - Las huellas deben ser estrechas y apuntadas, como las botas de la 78. En la 84 las
   botas salen romas y las huellas redondas: tomar de ella solo la profundidad y el
   borde de nieve removida. En 85 y 86 las botas tienen tacón y caña de montar: tampoco
