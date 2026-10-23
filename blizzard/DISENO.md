@@ -129,6 +129,21 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - A partir del capítulo 2, Blizzard siempre lleva el bastón.
 - En 69, el momento de encontrar el bastón, el remate debería ser la etapa 1.
 
+## 4b. Escala y kit de rocas (lámina 81)
+
+Ocho rocas de tamaño creciente con Blizzard al lado como escala. Forman un kit
+modular para construir los niveles, y cada tamaño tiene una función de juego.
+Unidad de medida: **1 B = la altura de Blizzard**. Las cifras son de partida y se
+ajustan al probar el prototipo.
+
+| Altura | Rocas de la lámina | Función |
+|---|---|---|
+| < 0,5 B | Montículo (1) | Decoración; se pasa por encima andando |
+| ≈ 1 B | Peñasco (2), grupo de peñascos (5) | Se sube con el salto normal |
+| ≈ 2 B | Gran bloque (3) | Necesita el impulso de viento en el salto |
+| 3–4 B | Pilar (4), bloque alto (6) | Necesita el ascenso sostenido; atalayas |
+| > 5 B | Aguja (7), acantilado (8) | Inalcanzables: puntos de referencia, muros del recorrido |
+
 ## 5. Capítulos y láminas (propuesta provisional)
 
 El autor está revisando el orden y cómo se conectan los paisajes. Esta tabla solo
