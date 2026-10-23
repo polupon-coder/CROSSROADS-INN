@@ -43,6 +43,10 @@ Cada sesión nueva debería empezar leyendo este archivo.
   vendas cruzadas hasta el tobillo y botas blandas de suela fina con punta. La punta,
   de largo medio y algo alzada; la curva muy larga de la tercera vista es la excepción.
   Las huellas en la nieve deberían tener esa forma apuntada, no redonda.
+- **Manos (lámina 77):** guantes oscuros facetados con el puño vendado. Cuatro poses
+  bastan para todo el juego: abierta (impulso, equilibrio), relajada (caminar,
+  rescate), agarre del bastón (vertical, horizontal, a dos manos) y pellizco de la
+  tela. Esta última sirve para quitarse la capucha en la escena final.
 - **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
   (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
 
