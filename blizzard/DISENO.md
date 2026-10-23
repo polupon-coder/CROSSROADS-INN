@@ -36,6 +36,9 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Acabado base:** facetado limpio (7, 11, 17, 19). La nieve pegada a la capa
   (4, 5, 18, 23) es un efecto de los capítulos nevados, no el modelo base.
 - **Capucha:** recta en reposo; la punta se dobla hacia atrás con el movimiento.
+  Vista completa en 8 ángulos en la lámina 75: abertura negra en forma de rombo y
+  pliegues que salen en abanico desde el cierre del cuello. Es la referencia para
+  modelarla.
 - **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
   (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
 
@@ -94,6 +97,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
   - Capítulos 3–4: solo grabados que anuncian lo que viene.
   - Capítulo 5: las mismas runas se vuelven interactivas.
   - De noche brillan en ámbar.
+  - Idea: la abertura de la capucha (75) también es un rombo; el símbolo de las runas
+    puede nacer de ella y ligar el alfabeto a Blizzard.
   - La 74 usa una letra de aspecto nórdico (parecida a la R del futhark). Pendiente de
     decidir: alfabeto propio, de la familia del rombo, o runas de estilo nórdico.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
