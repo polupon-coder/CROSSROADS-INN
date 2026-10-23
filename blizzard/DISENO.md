@@ -135,9 +135,17 @@ Cada sesión nueva debería empezar leyendo este archivo.
   juntas forman los rombos concéntricos (el mismo emblema del centro de la plataforma
   88). Blizzard alza el bastón (pose de la 10), el viento envuelve los bordes y las
   losas se separan, empujando la nieve a los lados.
-- **Jerarquía de puertas, propuesta:** las de rombo (90) abren los pasos entre zonas a
-  lo largo del viaje; la del círculo (72), que se cierra en vez de abrirse, queda
-  reservada para el templo. El rombo es el camino; el círculo, el destino.
+- **Puerta del círculo y el bastón (lámina 91):** dos losas altas e inclinadas, como
+  obeliscos, con el mismo mecanismo de raíles que la 90. Cerradas muestran un círculo
+  completo atravesado por una línea diagonal: el aro y el bastón, es decir, la llave.
+- **Jerarquía de puertas, propuesta:**
+  - Rombo (90): pasos entre zonas a lo largo del viaje.
+  - Semicírculos (72): las mitades se juntan; puertas importantes del ascenso final.
+  - Círculo con bastón (91): **las puertas del templo**. Blizzard encaja el bastón con
+    el círculo completo en el surco grabado y las losas se separan.
+  - El rombo es el camino; el círculo, el destino.
+  - Ojo: el círculo con una diagonal puede leerse como señal de prohibido. Mantener la
+    diagonal corta, dentro del círculo y con el remate del bastón visible.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
