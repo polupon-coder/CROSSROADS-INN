@@ -39,10 +39,10 @@ Cada sesión nueva debería empezar leyendo este archivo.
   Vista completa en 8 ángulos en la lámina 75: abertura negra en forma de rombo y
   pliegues que salen en abanico desde el cierre del cuello. Es la referencia para
   modelarla.
-- **Piernas y botas (lámina 76):** pantalones abombados recogidos bajo la rodilla,
-  vendas cruzadas hasta el tobillo y botas blandas de suela fina con punta. La punta,
-  de largo medio y algo alzada; la curva muy larga de la tercera vista es la excepción.
-  Las huellas en la nieve deberían tener esa forma apuntada, no redonda.
+- **Piernas y botas (lámina 78; la 76 queda descartada):** pantalones abombados
+  recogidos bajo la rodilla, vendas cruzadas hasta el tobillo y botas blandas de suela
+  fina con punta de largo medio, algo alzada. Las huellas en la nieve deberían tener
+  esa forma apuntada, no redonda.
 - **Manos (lámina 77):** guantes oscuros facetados con el puño vendado. Cuatro poses
   bastan para todo el juego: abierta (impulso, equilibrio), relajada (caminar,
   rescate), agarre del bastón (vertical, horizontal, a dos manos) y pellizco de la
