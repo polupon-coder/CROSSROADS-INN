@@ -268,6 +268,10 @@ Tercera persona, dirigida por el juego, sin control del jugador. Encuadres: segu
 por detrás (19, 73), plano general, plano cercano, lateral, tres cuartos, cenital (13, 43,
 60), contrapicado (44). Transiciones suaves; nada de giros bruscos en saltos precisos.
 
+### Elementos entre la cámara y Blizzard
+Decidido: un pilar o una roca puede tapar parcialmente y por un momento al personaje
+(vídeo de la carrera entre ruinas). No hace falta volver transparentes los objetos.
+
 ### 6.6 Día y noche
 Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 
