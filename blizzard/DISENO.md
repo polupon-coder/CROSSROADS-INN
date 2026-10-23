@@ -152,6 +152,12 @@ Cada sesión nueva debería empezar leyendo este archivo.
   - El rombo es el camino; el círculo, el destino.
   - Ojo: el círculo con una diagonal puede leerse como señal de prohibido. Mantener la
     diagonal corta, dentro del círculo y con el remate del bastón visible.
+- **La rueda de runas (lámina 95):** un gran disco tallado en la pared de roca, con
+  tres anillos concéntricos que llevan runas de la familia del rombo y un centro fijo.
+  Propuesta de prueba para el capítulo 5: cada anillo gira con una ráfaga dirigida
+  (un sentido u otro según el lado al que se sople) y hay que alinear las runas iguales
+  en el eje vertical; al alinearlas, la rueda se abre como puerta. Admite variantes:
+  anillos que giran juntos, un anillo roto que hay que completar moviendo una piedra.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
