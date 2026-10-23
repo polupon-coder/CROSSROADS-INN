@@ -145,9 +145,15 @@ pruebas completadas.
 ### 6.4 Límites del mundo
 Si Blizzard se aleja demasiado del recorrido en horizontal, el viento mágico le impide
 seguir. Es el mismo viento que lo rescata, así que el límite no rompe la ficción.
-Propuesta: un viento de cara que crece poco a poco, con la capa echada hacia atrás y
-nieve en contra, hasta frenarlo del todo; sin muros invisibles bruscos. Ilustración en
-preparación.
+Decidido:
+- **Gradual:** un viento de cara cada vez más fuerte lo frena hasta que deja de avanzar.
+  Nunca un tope en seco ni muros invisibles.
+- **Visible:** la capa se echa hacia atrás, la nieve va en contra y aparece la espiral
+  blanca del viento mágico delante de él. Sin texto.
+- **Amable:** si el jugador suelta los controles, el viento lo devuelve suavemente unos
+  pasos hacia el camino, como en el rescate.
+
+Ilustración en preparación.
 
 ### 6.5 Cámara
 Tercera persona, dirigida por el juego, sin control del jugador. Encuadres: seguimiento
