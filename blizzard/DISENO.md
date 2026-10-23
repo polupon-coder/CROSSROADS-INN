@@ -107,12 +107,16 @@ Cada sesión nueva debería empezar leyendo este archivo.
   - De noche brillan en ámbar.
   - Idea: la abertura de la capucha (75) también es un rombo; el símbolo de las runas
     puede nacer de ella y ligar el alfabeto a Blizzard.
-  - **Alfabeto (lámina 79), propuesta:** las ocho piedras de las dos primeras filas,
-    todas de la familia del rombo, forman el alfabeto de BLIZZARD. La sexta (rombo con
-    línea horizontal) es el símbolo ya visto en 48, 49, 50 y 70. Las dos con flechas
-    (doble chevrón y espiga) pueden indicar dirección del viento en los puzles. La
-    fila de abajo y la runa de la 74 son letras nórdicas reales: se descartan.
-    Pendiente de que el autor lo confirme.
+  - **Alfabeto (lámina 80, decidido; sustituye a la 79):** doce runas.
+    Fila 1: rombo alargado, rombo con línea vertical, Λ, rayo en zigzag con punta.
+    Fila 2: doble chevrón, rombo con línea horizontal (el símbolo de 48, 49, 50 y 70),
+    dos rombos apilados, espiga.
+    Fila 3: rombo con patas cruzadas, triángulo bajo una media luna, Λ con mástil y
+    travesaño, círculo abierto por arriba.
+    - La media luna y el círculo abierto repiten el bastón: candidatas a runas del
+      bastón y del templo.
+    - Las flechas (doble chevrón, espiga, rayo) pueden indicar dirección en los puzles.
+    - La runa de la 74 (letra nórdica) se sustituye por una de estas.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
@@ -195,7 +199,7 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 11. El rostro de Blizzard en la escena final.
 12. ¿Es la 36 (pirámide con puerta) el templo? Si lo es, la puerta necesita el círculo.
 13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
-14. Confirmar el alfabeto de runas propuesto (lámina 79).
+14. Qué runa lleva cada mecanismo (alfabeto: lámina 80).
 
 ## 8. Siguientes pasos
 
