@@ -272,6 +272,18 @@ por detrás (19, 73), plano general, plano cercano, lateral, tres cuartos, cenit
 Decidido: un pilar o una roca puede tapar parcialmente y por un momento al personaje
 (vídeo de la carrera entre ruinas). No hace falta volver transparentes los objetos.
 
+### Música y sonido (decidido por el autor)
+- **Estilo:** como Debussy, ralentizado. Armonías impresionistas: escalas de tonos
+  enteros y pentatónicas, acordes paralelos de novena, arpegios lentos, timbre de piano
+  suave con mucha reverberación.
+- **La magia acelera la música:** al usar el viento, el tempo sube y vuelve a bajar.
+- **El volumen sube y baja como el viento,** con las rachas.
+- **Blizzard emite notas** al saltar, caer, impulsarse, aterrizar, etc., siempre dentro
+  de la armonía que suena en ese momento, para que formen parte de la música.
+- Propuesta técnica: música generada en tiempo real (Web Audio) en lugar de una
+  grabación, para poder acelerarla, modular el volumen y encajar las notas del
+  personaje. Las obras de Debussy son de dominio público; muchas grabaciones no.
+
 ### 6.6 Día y noche
 Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 
@@ -286,7 +298,7 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 7. Guardado y continuación de partida (en el navegador).
 8. Controles de teclado, ratón, mando y táctil.
 9. Interfaz.
-10. Sonido y música.
+10. Sonido: pasos, viento y mecanismos (la música ya está definida).
 11. El rostro de Blizzard en la escena final.
 12. ¿Es la 36 (pirámide con puerta) el templo? Si lo es, la puerta necesita el círculo.
 13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
