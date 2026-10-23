@@ -100,6 +100,14 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Las plataformas arcanas** son discos de piedra oscura con losas en abanico y anillos
   concéntricos. Crecen en complejidad con el viaje: 69/60 (capítulo 1, la del bastón)
   → 68 (intermedios) → 67 (finales). La 61 es una gigante medio enterrada en nieve.
+  - **Hoja de modelado de la plataforma del capítulo 1: lámina 88** (tres cuartos,
+    planta, alzado y detalle). Disco de losas radiales con una runa en el centro,
+    anillo exterior de segmentos con runas alternas, base de dos gradas (≈ 0,5 B, se
+    sube andando), dos piedras en pie con runas y un tramo derrumbado.
+  - Propuesta: el tramo derrumbado hace del anillo un círculo incompleto, como el
+    bastón. Las plataformas de capítulos posteriores están cada vez más enteras.
+  - La runa del centro (rombos concéntricos) no está en el alfabeto de la 80:
+    tratarla como emblema de las plataformas o añadirla como decimotercera runa.
 - **Las runas:** el rombo con un triángulo dentro (48, 49, 50, 70) es el símbolo recurrente.
   El anillo de la 66 lleva un alfabeto completo grabado.
   - Capítulos 3–4: solo grabados que anuncian lo que viene.
