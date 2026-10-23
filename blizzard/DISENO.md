@@ -112,8 +112,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
     sube andando), dos piedras en pie con runas y un tramo derrumbado.
   - Propuesta: el tramo derrumbado hace del anillo un círculo incompleto, como el
     bastón. Las plataformas de capítulos posteriores están cada vez más enteras.
-  - La runa del centro (rombos concéntricos) no está en el alfabeto de la 80:
-    tratarla como emblema de las plataformas o añadirla como decimotercera runa.
+  - La runa del centro (rombos concéntricos) no está en el alfabeto de la 80: es el
+    emblema de las plataformas y de las puertas de paso (90).
 - **Las runas:** el rombo con un triángulo dentro (48, 49, 50, 70) es el símbolo recurrente.
   El anillo de la 66 lleva un alfabeto completo grabado.
   - Capítulos 3–4: solo grabados que anuncian lo que viene.
@@ -131,6 +131,13 @@ Cada sesión nueva debería empezar leyendo este archivo.
       bastón y del templo.
     - Las flechas (doble chevrón, espiga, rayo) pueden indicar dirección en los puzles.
     - La runa de la 74 (letra nórdica) se sustituye por una de estas.
+- **Las puertas de paso (lámina 90):** dos losas que se deslizan sobre raíles. Cerradas,
+  juntas forman los rombos concéntricos (el mismo emblema del centro de la plataforma
+  88). Blizzard alza el bastón (pose de la 10), el viento envuelve los bordes y las
+  losas se separan, empujando la nieve a los lados.
+- **Jerarquía de puertas, propuesta:** las de rombo (90) abren los pasos entre zonas a
+  lo largo del viaje; la del círculo (72), que se cierra en vez de abrirse, queda
+  reservada para el templo. El rombo es el camino; el círculo, el destino.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
