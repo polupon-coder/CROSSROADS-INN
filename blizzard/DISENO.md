@@ -161,7 +161,7 @@ rombo grabada. Complementan las rocas naturales: lo tallado indica camino o meca
 Regla de lectura para el jugador: **lo tallado se puede usar; lo natural es paisaje
 o reto de salto**.
 
-### Nieve: dos profundidades (láminas 83 y 84)
+### Nieve: dos profundidades (láminas 83 y 84 de espaldas, 85 y 86 de perfil)
 
 - **Nieve poco profunda (84):** deja huellas sueltas. Velocidad normal.
 - **Nieve profunda (83):** Blizzard se hunde hasta media pierna y abre un surco
@@ -170,7 +170,8 @@ o reto de salto**.
   despejar un camino es más rápido que vadearlo.
 - Las huellas deben ser estrechas y apuntadas, como las botas de la 78. En la 84 las
   botas salen romas y las huellas redondas: tomar de ella solo la profundidad y el
-  borde de nieve removida.
+  borde de nieve removida. En 85 y 86 las botas tienen tacón y caña de montar: tampoco
+  valen como referencia de botas; solo de cómo se aparta la nieve.
 - Técnica: las huellas, como marcas sobre la nieve (barato). El surco, deformando la
   superficie de nieve alrededor de Blizzard (más caro; probar en el prototipo).
 
