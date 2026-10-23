@@ -113,6 +113,11 @@ Cada sesión nueva debería empezar leyendo este archivo.
     sube andando), dos piedras en pie con runas y un tramo derrumbado.
   - Propuesta: el tramo derrumbado hace del anillo un círculo incompleto, como el
     bastón. Las plataformas de capítulos posteriores están cada vez más enteras.
+  - **Prueba de plataforma nevada (lámina 94, de noche):** la plataforma está cubierta
+    de nieve; Blizzard la aparta con el viento por sectores y van apareciendo runas
+    que brillan en ámbar. Idea de prueba para el capítulo 2: despejar los sectores
+    correctos (o en el orden correcto) activa la plataforma. Las runas de la 94 son
+    de aspecto nórdico; en el juego se usan las de la lámina 80.
   - La runa del centro (rombos concéntricos) no está en el alfabeto de la 80: es el
     emblema de las plataformas y de las puertas de paso (90).
 - **Las runas:** el rombo con un triángulo dentro (48, 49, 50, 70) es el símbolo recurrente.
