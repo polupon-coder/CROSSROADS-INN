@@ -83,6 +83,7 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Impulso de viento en el salto | 4 |
 | Ascenso sostenido (bastón girando como hélice) | 18 |
 | Cargar y dirigir la ráfaga | 1 |
+| Ráfaga dirigida en el aire, bastón al frente (vista lateral) | 93 |
 | Apartar nieve (barrido a ras de suelo) | 8, 13 (cenital) |
 | Mover piedras | 15 |
 | Equilibrar plataformas | 25 |
