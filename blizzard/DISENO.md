@@ -39,6 +39,10 @@ Cada sesión nueva debería empezar leyendo este archivo.
   Vista completa en 8 ángulos en la lámina 75: abertura negra en forma de rombo y
   pliegues que salen en abanico desde el cierre del cuello. Es la referencia para
   modelarla.
+- **Piernas y botas (lámina 76):** pantalones abombados recogidos bajo la rodilla,
+  vendas cruzadas hasta el tobillo y botas blandas de suela fina con punta. La punta,
+  de largo medio y algo alzada; la curva muy larga de la tercera vista es la excepción.
+  Las huellas en la nieve deberían tener esa forma apuntada, no redonda.
 - **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
   (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
 
