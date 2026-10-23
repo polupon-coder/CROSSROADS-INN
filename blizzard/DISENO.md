@@ -158,6 +158,12 @@ Cada sesión nueva debería empezar leyendo este archivo.
   (un sentido u otro según el lado al que se sople) y hay que alinear las runas iguales
   en el eje vertical; al alinearlas, la rueda se abre como puerta. Admite variantes:
   anillos que giran juntos, un anillo roto que hay que completar moviendo una piedra.
+- **Las columnas colgantes (lámina 96):** columnas hexagonales de basalto que cuelgan
+  del techo de una cueva a distintas alturas, con una runa en la cara inferior.
+  Propuesta para el capítulo 6 (ascenso interior): una ráfaga hacia arriba sube una
+  columna y una hacia abajo la baja; colocadas a las alturas correctas forman una
+  escalera hasta la salida iluminada. Cada columna suena con una nota al moverse, y
+  el orden de las runas es una pequeña melodía que guía la solución.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
