@@ -207,6 +207,14 @@ o reto de salto**.
 - Técnica: las huellas, como marcas sobre la nieve (barato). El surco, deformando la
   superficie de nieve alrededor de Blizzard (más caro; probar en el prototipo).
 
+### Fotograma objetivo del juego (lámina 92)
+
+Blizzard saltando de espaldas entre gradas de piedra cubiertas de nieve, con
+monolitos a los lados y un obelisco de luz al fondo como meta. Es exactamente lo
+que debe verse al jugar: cámara de seguimiento detrás y algo por encima, bloques de
+0,5–1 B como escalones, el camino subiendo hacia la luz. Sirve de referencia visual
+para el prototipo.
+
 ## 5. Capítulos y láminas (propuesta provisional)
 
 El autor está revisando el orden y cómo se conectan los paisajes. Esta tabla solo
