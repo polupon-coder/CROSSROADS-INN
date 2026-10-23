@@ -78,6 +78,7 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Correr | 20, 24 (espaldas, la vista principal del juego) |
 | Agacharse | 21 |
 | Arrodillarse (recoger el bastón, pausas, final) | 2 |
+| Subir un escalón (≈ 0,5 B, sin saltar) | 89 |
 | Saltar y caer | 3 |
 | Impulso de viento en el salto | 4 |
 | Ascenso sostenido (bastón girando como hélice) | 18 |
@@ -100,7 +101,12 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Las plataformas arcanas** son discos de piedra oscura con losas en abanico y anillos
   concéntricos. Crecen en complejidad con el viaje: 69/60 (capítulo 1, la del bastón)
   → 68 (intermedios) → 67 (finales). La 61 es una gigante medio enterrada en nieve.
-  - **Hoja de modelado de la plataforma del capítulo 1: lámina 88** (tres cuartos,
+  - **Plataforma del capítulo 1, la del bastón: lámina 89.** Disco liso de losas
+    rotas, sin runas ni piedras en pie, con un tramo derrumbado. El bastón está
+    clavado en vertical en el centro: un palo oscuro y sencillo (etapa 1; la muesca
+    solo se ve en el plano cercano). Blizzard, todavía sin bastón, sube el escalón
+    para llegar a él.
+  - **Hoja de modelado de una plataforma posterior: lámina 88** (tres cuartos,
     planta, alzado y detalle). Disco de losas radiales con una runa en el centro,
     anillo exterior de segmentos con runas alternas, base de dos gradas (≈ 0,5 B, se
     sube andando), dos piedras en pie con runas y un tramo derrumbado.
@@ -147,6 +153,7 @@ ajustan al probar el prototipo.
 | Altura | Rocas de la lámina | Función |
 |---|---|---|
 | < 0,5 B | Montículo (1) | Decoración; se pasa por encima andando |
+| ≈ 0,5 B | Gradas de las plataformas (89) | Se sube con un paso, sin saltar |
 | ≈ 1 B | Peñasco (2), grupo de peñascos (5) | Se sube con el salto normal |
 | ≈ 2 B | Gran bloque (3) | Necesita el impulso de viento en el salto |
 | 3–4 B | Pilar (4), bloque alto (6) | Necesita el ascenso sostenido; atalayas |
