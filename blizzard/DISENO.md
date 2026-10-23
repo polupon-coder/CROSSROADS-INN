@@ -142,12 +142,19 @@ Sin daño, vidas ni pantallas de muerte. El viento lo recoge en el aire y lo lle
 punto seguro con una curva suave, distinta de un salto (lámina 29). Se conservan las
 pruebas completadas.
 
-### 6.4 Cámara
+### 6.4 Límites del mundo
+Si Blizzard se aleja demasiado del recorrido en horizontal, el viento mágico le impide
+seguir. Es el mismo viento que lo rescata, así que el límite no rompe la ficción.
+Propuesta: un viento de cara que crece poco a poco, con la capa echada hacia atrás y
+nieve en contra, hasta frenarlo del todo; sin muros invisibles bruscos. Ilustración en
+preparación.
+
+### 6.5 Cámara
 Tercera persona, dirigida por el juego, sin control del jugador. Encuadres: seguimiento
 por detrás (19, 73), plano general, plano cercano, lateral, tres cuartos, cenital (13, 43,
 60), contrapicado (44). Transiciones suaves; nada de giros bruscos en saltos precisos.
 
-### 6.5 Día y noche
+### 6.6 Día y noche
 Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 
 ## 7. Preguntas abiertas
