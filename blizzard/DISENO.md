@@ -83,7 +83,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Impulso de viento en el salto | 4 |
 | Ascenso sostenido (bastón girando como hélice) | 18 |
 | Cargar y dirigir la ráfaga | 1 |
-| Ráfaga dirigida en el aire, bastón al frente (vista lateral) | 93 |
+| Ráfaga dirigida en el aire, bastón al frente (vista lateral) | 93, 98 |
+| Avanzar agachado contra la ventisca | 99 |
 | Apartar nieve (barrido a ras de suelo) | 8, 13 (cenital) |
 | Mover piedras | 15 |
 | Equilibrar plataformas | 25 |
@@ -290,6 +291,17 @@ Ilustración en preparación.
 Tercera persona, dirigida por el juego, sin control del jugador. Encuadres: seguimiento
 por detrás (19, 73), plano general, plano cercano, lateral, tres cuartos, cenital (13, 43,
 60), contrapicado (44). Transiciones suaves; nada de giros bruscos en saltos precisos.
+
+### Ventisca y refugio (lámina 99)
+Propuesta: en algunos tramos soplan rachas de ventisca que empujan a Blizzard hacia
+atrás. Agachado resiste mejor, y bajo losas o rocas (como la viga caída de la 99) no
+le afecta. Da sentido a agacharse y marca el ritmo: avanzar entre racha y racha, de
+refugio en refugio. La runa de la 99 (palo con medio triángulo) no está en la 80.
+
+### Estilo plano (láminas 98 y 99)
+Siluetas, degradados de cielo y niebla, casi sin textura. Es el estilo más fácil de
+conseguir en tiempo real en el navegador y encaja con el prototipo. Pendiente de que
+el autor diga si es la dirección visual o solo una exploración.
 
 ### Elementos entre la cámara y Blizzard
 Decidido: un pilar o una roca puede tapar parcialmente y por un momento al personaje
