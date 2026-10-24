@@ -255,12 +255,12 @@ casi todas partes como referencia:
 
 1. **Llanura** — planicie casi vacía con ruinas sueltas.
 2. **Dunas** — ondulaciones de nieve con pilares derruidos.
-3. **Formaciones rocosas** (sin rótulo en el mapa) — agujas de roca, arcos y el gran
+3. **Formaciones rocosas** (sin rótulo en el mapa; confirmado por el autor) — agujas de roca, arcos y el gran
    acueducto entre las dunas y las montañas.
 4. **Montañas** — cordillera a la izquierda del monte del templo; el camino sube y
    baja entre picos y torres en ruinas.
 5. **Cuevas** — entrada tallada al pie del monte del templo.
-6. **Ascenso interior** (no se ve en el mapa) — por dentro del monte, desde la cueva
+6. **Ascenso interior** (no se ve en el mapa; confirmado por el autor) — por dentro del monte, desde la cueva
    hasta la ladera alta.
 7. **Cumbre y templo** — sendero en zigzag con torres en ruinas hasta la torre.
 
