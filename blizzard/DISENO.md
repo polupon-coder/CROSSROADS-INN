@@ -149,11 +149,18 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Jerarquía de puertas, propuesta:**
   - Rombo (90): pasos entre zonas a lo largo del viaje.
   - Semicírculos (72): las mitades se juntan; puertas importantes del ascenso final.
-  - Círculo con bastón (91): **las puertas del templo**. Blizzard encaja el bastón con
-    el círculo completo en el surco grabado y las losas se separan.
+  - Círculo con bastón (91): última puerta del ascenso, antes de la cumbre.
+  - Rueda de runas (95): **la puerta del templo** (ver 104).
   - El rombo es el camino; el círculo, el destino.
   - Ojo: el círculo con una diagonal puede leerse como señal de prohibido. Mantener la
     diagonal corta, dentro del círculo y con el remate del bastón visible.
+- **El templo (lámina 104, decidido):** una torre colosal en la cumbre cuya parte de
+  arriba se pierde en las nubes; nunca se ve entera. Se llega por una escalinata entre
+  columnas de basalto. La puerta es una rueda de runas de tres anillos, como la 95.
+  Propuesta para el final: en el centro de la rueda hay un hueco vertical con la forma
+  del bastón. Blizzard lo encaja con el círculo ya cerrado, y los anillos giran solos
+  hasta alinearse, lo que en la 95 hizo a mano. La puerta se abre, Blizzard se quita
+  la capucha y el juego termina.
 - **La rueda de runas (lámina 95):** un gran disco tallado en la pared de roca, con
   tres anillos concéntricos que llevan runas de la familia del rombo y un centro fijo.
   Propuesta de prueba para el capítulo 5: cada anillo gira con una ráfaga dirigida
@@ -254,7 +261,7 @@ recoge dónde encaja cada lámina según su contenido.
 | 4 · Las montañas | Equilibrar plataformas | 31, 38, 39, 42, 44, 48, 52, 53, 59, 65, 73, 71; 51 (entrada a la montaña) |
 | 5 · Las cuevas | Manipular runas | 55, 70, 50 (gran prueba del anillo), 56 |
 | 6 · El ascenso interior | Combinar todo | Faltan láminas |
-| 7 · La cumbre y el templo | Pruebas finales | 54, 57, 36 (¿templo?), 66 (icono / título) |
+| 7 · La cumbre y el templo | Pruebas finales | 54, 57, 104 (el templo), 66 (icono / título) |
 
 **Lámina para la portada del portal:** 66 (el anillo de runas) o 9 (meditación).
 
@@ -352,7 +359,7 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 9. Interfaz.
 10. Sonido: pasos, viento y mecanismos (la música ya está definida).
 11. El rostro de Blizzard en la escena final.
-12. ¿Es la 36 (pirámide con puerta) el templo? Si lo es, la puerta necesita el círculo.
+12. Resuelto: el templo es la 104 (la 36 queda como ruina del camino).
 13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
 14. Qué runa lleva cada mecanismo (alfabeto: lámina 80).
 
