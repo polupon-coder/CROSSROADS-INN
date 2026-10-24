@@ -90,6 +90,7 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Equilibrar plataformas | 25 |
 | Alzar el bastón (activar, abrir puertas) | 10, 72 |
 | Meditar / punto seguro / pantalla de título | 9, 14 |
+| Meditar sentado en una plataforma (guardar) | 100–103 |
 | Rescate del viento | 29 (pasiva; mejor con la mano libre abierta) |
 | Sin bastón (inicio del capítulo 1) | 23 |
 | Nocturno | 16 |
@@ -302,6 +303,18 @@ refugio en refugio. La runa de la 99 (palo con medio triángulo) no está en la 
 Siluetas, degradados de cielo y niebla, casi sin textura. Es el estilo más fácil de
 conseguir en tiempo real en el navegador y encaja con el prototipo. Pendiente de que
 el autor diga si es la dirección visual o solo una exploración.
+
+### Meditar en las plataformas: guardar la partida (láminas 100–103)
+Blizzard sentado con las piernas cruzadas en el centro de una plataforma arcana, con la
+capa extendida en abanico sobre las losas; vista de espaldas, cenital y de frente.
+Propuesta:
+- Meditar en una plataforma **guarda la partida** y la convierte en punto de retorno.
+- La cámara sube despacio a la vista cenital: la capa abierta y el disco de piedra
+  forman un círculo. La música se calma.
+- Opcional: meditando se puede dejar pasar el tiempo (día ↔ noche), útil para las
+  pruebas que necesitan las runas encendidas.
+- Falta el bastón en estas láminas: debería estar apoyado sobre las piernas o clavado
+  a su lado.
 
 ### Elementos entre la cámara y Blizzard
 Decidido: un pilar o una roca puede tapar parcialmente y por un momento al personaje
