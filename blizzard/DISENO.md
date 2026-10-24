@@ -248,6 +248,25 @@ que debe verse al jugar: cámara de seguimiento detrás y algo por encima, bloqu
 0,5–1 B como escalones, el camino subiendo hacia la luz. Sirve de referencia visual
 para el prototipo.
 
+## 5a. Mapa del viaje (lámina 105, del autor)
+
+Un solo recorrido continuo, marcado en amarillo, con la torre del templo visible desde
+casi todas partes como referencia:
+
+1. **Llanura** — planicie casi vacía con ruinas sueltas.
+2. **Dunas** — ondulaciones de nieve con pilares derruidos.
+3. **Formaciones rocosas** (sin rótulo en el mapa) — agujas de roca, arcos y el gran
+   acueducto entre las dunas y las montañas.
+4. **Montañas** — cordillera a la izquierda del monte del templo; el camino sube y
+   baja entre picos y torres en ruinas.
+5. **Cuevas** — entrada tallada al pie del monte del templo.
+6. **Ascenso interior** (no se ve en el mapa) — por dentro del monte, desde la cueva
+   hasta la ladera alta.
+7. **Cumbre y templo** — sendero en zigzag con torres en ruinas hasta la torre.
+
+Idea opcional: este mapa, con la línea amarilla hasta el punto alcanzado, puede
+aparecer al meditar (guardar), como única pantalla de «progreso» del juego.
+
 ## 5. Capítulos y láminas (propuesta provisional)
 
 El autor está revisando el orden y cómo se conectan los paisajes. Esta tabla solo
