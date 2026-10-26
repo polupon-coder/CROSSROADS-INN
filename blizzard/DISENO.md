@@ -50,6 +50,13 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
   (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
 
+- **Hoja para el modelo 3D (lámina 121):** frente y espalda simétricos, con el bastón
+  vertical en el centro. Para generarlo con IA conviene además una versión sin bastón
+  y con los brazos separados del cuerpo (para ponerle esqueleto).
+- **Luz en el aro (lámina 122):** una pequeña luz blanca dentro del remate. Propuesta:
+  aparece y crece mientras se carga la ráfaga (mantener pulsado), como indicador de
+  carga sin interfaz; recuerda a la luna dentro del aro (120).
+
 ### 3.2 Capa: siete estados de desgaste (lámina 119; sustituye a 11/17/12)
 Un estado por capítulo, vistos de espaldas, que es como se ve casi siempre:
 1 intacta · 2 polvo de nieve en el bajo · 3 bajo gastado · 4 primeros rotos ·
@@ -374,6 +381,16 @@ Decidido por el autor: meditar es guardar, y **el juego empieza así**.
   pruebas que necesitan las runas encendidas.
 - Falta el bastón en estas láminas: debería estar apoyado sobre las piernas o clavado
   a su lado.
+
+### Ventisca a ras de suelo (láminas 123 y 124, guía de estilo del autor)
+Bancos de nieve levantada por el viento que barren el suelo:
+- **Forma:** cabeza alta y redondeada, cola larga que se afina en la dirección del
+  viento (124).
+- **Superposición:** varios bancos solapados.
+- **Profundidad:** los lejanos más claros y difusos, en capas.
+- En el juego: planos orientados a la cámara con la textura de la 124, que se
+  deslizan con el viento y se funden con la niebla. La 124 sirve directamente como
+  textura, y la 125 como textura de la nieve del suelo.
 
 ### Elementos entre la cámara y Blizzard
 Decidido: un pilar o una roca puede tapar parcialmente y por un momento al personaje
