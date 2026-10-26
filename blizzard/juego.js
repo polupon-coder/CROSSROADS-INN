@@ -6,12 +6,20 @@
 "use strict";
 
 // ─── Carga de modelos ──────────────────────────────────────────────────────
+if (!document.body) await new Promise(ok => addEventListener("DOMContentLoaded", ok));
 const aviso = document.createElement("p");
 aviso.textContent = "Cargando…";
 aviso.style.cssText = "position:fixed;inset:0;margin:0;display:grid;place-content:center;font:20px Georgia,serif;color:#1f2a3d;background:#c9d8ee;z-index:9";
 document.body.appendChild(aviso);
 const cargador = new THREE.GLTFLoader();
-const cargar = nombre => new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
+// En el artefacto de claude.ai los GLB van en JSON (base64), porque allí no se sirven archivos .glb.
+const cargar = nombre => window.BLIZZARD_MODELOS_JSON
+  ? fetch("modelos/" + nombre + ".json").then(r => r.json()).then(o => new Promise((ok, ko) => {
+      const bin = atob(o.glb), buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      cargador.parse(buf.buffer, "", ok, ko);
+    }))
+  : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 const [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas] = await Promise.all(["personaje", "capa", "plataforma", "rocas", "ruinas"].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 for (const g of [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas]) g.scene.traverse(o => {
