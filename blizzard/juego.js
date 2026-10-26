@@ -102,11 +102,12 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = CIELO;
-scene.fog = new THREE.Fog(CIELO, 30, 650);
+scene.fog = new THREE.Fog(CIELO, 10, 230);
 const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 
-scene.add(new THREE.HemisphereLight(0xe4ecff, 0x7f8fb4, 0.7));
-const sol = new THREE.DirectionalLight(0xfff1de, 0.55);
+// Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
+scene.add(new THREE.HemisphereLight(0xe9eff9, 0xa3b0cb, 0.95));
+const sol = new THREE.DirectionalLight(0xfff4e6, 0.28);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
 Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
@@ -139,10 +140,11 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
 
 // La montaña del templo, visible desde el principio (lámina 34).
 {
-  const monte = new THREE.Mesh(new THREE.ConeGeometry(130, 210, 5, 1), plano("#e6ecf6"));
+  // Sin niebla de la escena, pero con colores casi de cielo: se adivina entre la bruma.
+  const monte = new THREE.Mesh(new THREE.ConeGeometry(130, 210, 5, 1), plano("#d6deec", { fog: false }));
   monte.position.set(-30, 90, -470);
   monte.rotation.y = 0.4;
-  const pico = new THREE.Mesh(new THREE.ConeGeometry(70, 150, 4, 1), plano("#d9e2f0"));
+  const pico = new THREE.Mesh(new THREE.ConeGeometry(70, 150, 4, 1), plano("#cfd8e9", { fog: false }));
   pico.position.set(60, 60, -430);
   scene.add(monte, pico);
 }
@@ -242,7 +244,7 @@ monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 
   const plat = gPlataforma.scene, caja = new THREE.Box3().setFromObject(plat);
   const radio = Math.max(caja.max.x - caja.min.x, caja.max.z - caja.min.z) / 2;
   plat.scale.setScalar(PLATAFORMA.r / radio);
-  plat.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.05 - caja.min.y * plat.scale.y, PLATAFORMA.z);
+  plat.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.45 - caja.min.y * plat.scale.y, PLATAFORMA.z);   // algo hundida en la nieve
   plat.rotation.y = 2.4;      // el tramo roto hacia un lado del camino
   scene.add(plat);
   plat.updateMatrixWorld(true);
@@ -314,11 +316,22 @@ if (CON_CAPA) {
   capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
 }
 
-// El bastón va en la mano derecha, a lo largo del eje Z del hueso.
-const agarre = new THREE.Group();
-agarre.rotation.x = -Math.PI / 2;
-agarre.scale.setScalar(1 / ESC);
-hueso("RightHand").add(agarre);
+// El bastón no sigue el giro de la mano (las animaciones son de hacha): se coloca cada
+// fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
+let bastonEnMano = false, inclinacionBaston = 0.1;
+const _puno = new THREE.Vector3(), _dedos = new THREE.Vector3(), _eje = new THREE.Vector3();
+function colocarBaston(dt, v) {
+  if (!bastonEnMano) return;
+  blizzard.updateMatrixWorld(true);
+  hueso("RightHand").getWorldPosition(_puno);
+  hueso("RightHandMiddle1").getWorldPosition(_dedos);
+  _puno.lerp(_dedos, 0.6);                                    // centro del puño
+  const objetivo = clamp(0.08 + v / V_CORRER * 0.45, 0.08, 0.55) + (enSuelo ? 0 : 0.25);
+  inclinacionBaston = lerp(inclinacionBaston, objetivo, 1 - Math.exp(-dt * 8));
+  baston.rotation.set(inclinacionBaston, rumbo, 0, "YXZ");    // la punta hacia delante al correr
+  _eje.set(0, 1, 0).applyEuler(baston.rotation);
+  baston.position.copy(_puno).addScaledVector(_eje, -1.15);   // agarre a 1,15 del pie del bastón
+}
 
 // ─── Efectos: nieve que cae, espiral de viento, huellas ────────────────────
 const copos = (() => {
@@ -330,6 +343,24 @@ const copos = (() => {
   p.frustumCulled = false;
   scene.add(p);
   return p;
+})();
+
+// Bancos de niebla a ras de suelo (láminas 123 y 124): cabeza redondeada y cola que se
+// afina hacia donde sopla el viento. Se deslizan, se superponen y se apartan de delante de Blizzard.
+const bancos = (() => {
+  const tex = new THREE.TextureLoader().load("texturas/niebla.png"), lista = [];
+  for (let i = 0; i < 64; i++) {
+    const ancho = 10 + rnd() * 24, alto = ancho * 0.4 * (0.7 + rnd() * 0.6);
+    const geo = new THREE.PlaneGeometry(ancho, alto); geo.translate(0, alto / 2, 0);
+    const opacidad = 0.5 + rnd() * 0.45;
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: opacidad }));
+    const z = 12 - rnd() * 205, x = caminoX(z) + (rnd() - 0.5) * 90;
+    m.position.set(x, alturaTerreno(x, z) - 0.4, z);
+    m.userData = { opacidad, vel: 0.5 + rnd() * 1.1 };
+    m.renderOrder = 2;
+    scene.add(m); lista.push(m);
+  }
+  return lista;
 })();
 
 const espiral = (() => {
@@ -498,10 +529,8 @@ function actualizar(dt) {
     }
   } else if (estado === "arrodillado") {
     arrodillado += dt;
-    if (arrodillado > 1.5 && baston.parent !== agarre) {
-      agarre.add(baston);
-      baston.position.set(0, -1.1, 0);
-      baston.rotation.set(0, 0, 0);
+    if (arrodillado > 1.5 && !bastonEnMano) {
+      bastonEnMano = true;
       efectoEspiral = 1.2;
     }
     if (arrodillado > 3.2) {
@@ -575,6 +604,7 @@ function actualizar(dt) {
   blizzard.position.copy(pos);
   blizzard.rotation.y = rumbo;
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
+  colocarBaston(dt, Math.hypot(vel.x, vel.z));
   if (estado === "levantandose" || estado === "portada") { yawCamara = Math.PI; }
 
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
@@ -633,6 +663,17 @@ function efectos(dt, adelante) {
   }
   copos.geometry.attributes.position.needsUpdate = true;
   copos.position.set(camara.position.x, pos.y - 4, camara.position.z);
+
+  // Niebla: mira a la cámara, avanza con el viento y se desvanece si tapa a Blizzard.
+  for (const b of bancos) {
+    const cx = caminoX(b.position.z);
+    b.position.x -= b.userData.vel * (1 + rachaViento) * dt;
+    if (b.position.x < cx - 48) b.position.x += 96;
+    b.position.y = alturaTerreno(b.position.x, b.position.z) - 0.4;
+    b.rotation.y = Math.atan2(camara.position.x - b.position.x, camara.position.z - b.position.z);
+    const d = Math.hypot(b.position.x - pos.x, b.position.z - pos.z);
+    b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1);
+  }
 
   // Espiral blanca del viento mágico (impulso, rescate, límite del mundo).
   efectoEspiral = Math.max(0, efectoEspiral - dt);
