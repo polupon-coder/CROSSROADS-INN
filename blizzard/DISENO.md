@@ -206,6 +206,15 @@ capítulo, igual que crece el bastón al acabarlo.
   una ráfaga; hay que formar una fila horizontal de runas iguales (o una secuencia)
   entre las cuatro columnas. Complementa la rueda de runas (95): allí se gira en
   círculo, aquí en vertical.
+- **Hojas de modelado de las pruebas de runas:**
+  - 128: columna de bloques (prueba 107). Cubos que giran de 90 en 90 grados; vistas
+    alineada, girada y desgastada, detalle y giro en planta. Una cara lleva una «A»
+    latina: cambiarla por una runa de la 80.
+  - 129: prismas octogonales con la runa en el testero, enteros, rotos y tumbados
+    (columnas colgantes, 96). En la 96 eran hexagonales: quedan octogonales.
+  - 130: la rueda de runas en planta, **resuelta**: tres anillos con las doce runas, y
+    cada radio con la misma runa en los tres anillos. Pequeñas diferencias con la 80:
+    rombo con diagonal (en la 80, vertical) y círculo cerrado (en la 80, abierto).
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
@@ -381,6 +390,14 @@ Decidido por el autor: meditar es guardar, y **el juego empieza así**.
   pruebas que necesitan las runas encendidas.
 - Falta el bastón en estas láminas: debería estar apoyado sobre las piernas o clavado
   a su lado.
+
+### Dunas de nieve (láminas 126 y 127, guía del autor)
+Dunas en media luna (barjanes): ladera de barlovento larga y suave, cresta afilada que
+se curva, y cara de sotavento empinada y en sombra. Desde arriba (127, cenital) son
+una media luna, otra vez el círculo incompleto. Hojas con vista original, lateral,
+posterior y cenital: suficientes para modelarlas.
+- En el juego: la ladera suave se sube andando; la cresta es un camino natural; la
+  cara empinada no se sube sin impulso y se baja deslizándose.
 
 ### Ventisca a ras de suelo (láminas 123 y 124, guía de estilo del autor)
 Bancos de nieve levantada por el viento que barren el suelo:
