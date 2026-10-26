@@ -531,9 +531,10 @@ const espiral = (() => {
   // Textura: a lo ancho de la cinta, borde opaco y nítido y centro casi transparente.
   const lienzo = document.createElement("canvas"); lienzo.width = 4; lienzo.height = 64;
   const ctx = lienzo.getContext("2d"), grad = ctx.createLinearGradient(0, 0, 0, 64);
-  grad.addColorStop(0, "rgba(255,255,255,1)"); grad.addColorStop(0.1, "rgba(255,255,255,0.85)");
-  grad.addColorStop(0.3, "rgba(240,246,255,0.18)"); grad.addColorStop(0.5, "rgba(240,246,255,0.08)");
-  grad.addColorStop(0.7, "rgba(240,246,255,0.18)"); grad.addColorStop(0.9, "rgba(255,255,255,0.85)"); grad.addColorStop(1, "rgba(255,255,255,1)");
+  // Degradado suave: el borde sigue marcado, pero el centro conserva cuerpo y la cinta se lee como una sola.
+  grad.addColorStop(0, "rgba(255,255,255,1)"); grad.addColorStop(0.12, "rgba(255,255,255,0.9)");
+  grad.addColorStop(0.35, "rgba(244,248,255,0.62)"); grad.addColorStop(0.5, "rgba(244,248,255,0.52)");
+  grad.addColorStop(0.65, "rgba(244,248,255,0.62)"); grad.addColorStop(0.88, "rgba(255,255,255,0.9)"); grad.addColorStop(1, "rgba(255,255,255,1)");
   ctx.fillStyle = grad; ctx.fillRect(0, 0, 4, 64);
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(lienzo), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   m.frustumCulled = false; m.renderOrder = 3;
