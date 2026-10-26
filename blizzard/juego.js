@@ -27,7 +27,7 @@ const [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa] = await Promise.all(["pe
 for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
-  if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.needsUpdate = true; }
+  if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
 });
 aviso.remove();
 
@@ -36,7 +36,7 @@ const B = 1.6;
 const GRAVEDAD = 22;
 const V_SALTO = 8.9;          // salto normal: ≈ 1,1 B
 const V_IMPULSO = 7.8;        // impulso de viento en el aire: ≈ +0,9 B
-const V_ANDAR = 1.9, V_CORRER = 4.6, V_AGACHADO = 0.9;
+const V_ANDAR = 1.9, V_CORRER = 4.4, V_AGACHADO = 0.9;
 const PASO = 0.8;             // escalones de hasta 0,5 B se suben sin saltar
 const ANCHO_CAMINO = 13;      // a partir de aquí el viento frena
 
@@ -122,7 +122,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   const geo = new THREE.PlaneGeometry(320, 330, 110, 330);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, -85);
-  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#e3e8f0"), sombra = new THREE.Color("#cfd7e4"), pared = new THREE.Color("#8796b5");
+  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#eef1f6"), sombra = new THREE.Color("#dbe1eb"), pared = new THREE.Color("#8796b5");
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), h = alturaTerreno(x, z);
     pos.setY(i, h);
@@ -272,12 +272,12 @@ monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 
 const madera = plano("#3b3633");
 function crearBaston(etapa) {
   const g = new THREE.Group();
-  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 1.95, 5), madera);
-  fuste.position.y = 0.975;
+  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 1.5, 5), madera);
+  fuste.position.y = 0.75;
   const arco = Math.PI * 2 * (0.12 + (etapa - 1) / 6 * 0.88);
   const remate = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 4, 14, Math.min(arco, Math.PI * 2)), madera);
   remate.rotation.z = -Math.PI / 2 - arco / 2;
-  remate.position.y = 1.95 + 0.11;
+  remate.position.y = 1.5 + 0.11;
   g.add(fuste, remate);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;
@@ -379,13 +379,27 @@ const bancos = (() => {
   return lista;
 })();
 
+// Viento mágico (láminas 114 y 115): una sola cinta continua en espiral, fina en los extremos
+// y más ancha en el centro, con los bordes blancos y definidos y el interior transparente.
 const espiral = (() => {
-  const n = 70, geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.14, transparent: true, opacity: 0, depthWrite: false }));
-  p.frustumCulled = false;
-  scene.add(p);
-  return p;
+  const N = 90, geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
+  const uv = new Float32Array(N * 2 * 2), idx = [];
+  for (let i = 0; i < N; i++) { uv[i * 4] = i / (N - 1); uv[i * 4 + 1] = 0; uv[i * 4 + 2] = i / (N - 1); uv[i * 4 + 3] = 1; }
+  for (let i = 0; i < N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  // Textura: a lo ancho de la cinta, borde opaco y nítido y centro casi transparente.
+  const lienzo = document.createElement("canvas"); lienzo.width = 4; lienzo.height = 64;
+  const ctx = lienzo.getContext("2d"), grad = ctx.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0, "rgba(255,255,255,1)"); grad.addColorStop(0.1, "rgba(255,255,255,0.85)");
+  grad.addColorStop(0.3, "rgba(240,246,255,0.18)"); grad.addColorStop(0.5, "rgba(240,246,255,0.08)");
+  grad.addColorStop(0.7, "rgba(240,246,255,0.18)"); grad.addColorStop(0.9, "rgba(255,255,255,0.85)"); grad.addColorStop(1, "rgba(255,255,255,1)");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, 4, 64);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(lienzo), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  m.frustumCulled = false; m.renderOrder = 3;
+  scene.add(m);
+  m.userData.N = N;
+  return m;
 })();
 
 const huellas = (() => {
@@ -397,7 +411,7 @@ const huellas = (() => {
   forma.quadraticCurveTo(-0.05, 0.13, -0.055, 0.05);
   forma.quadraticCurveTo(-0.03, -0.02, -0.06, -0.06);
   forma.quadraticCurveTo(-0.07, -0.15, 0, -0.15);
-  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#c2cde0", transparent: true, opacity: 0.3, depthWrite: false });
+  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#a3b3cc", transparent: true, opacity: 0.38, depthWrite: false });
   const lista = [];
   for (let i = 0; i < 180; i++) { const m = new THREE.Mesh(geo, mat); m.visible = false; m.rotation.order = "YXZ"; scene.add(m); lista.push(m); }
   let siguiente = 0;
@@ -641,9 +655,22 @@ function actualizar(dt) {
 
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -7.2).add(new THREE.Vector3(0, 3.6, 0));
-  camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, 4).add(new THREE.Vector3(0, 1.1, 0));
-  camara.lookAt(mira);
+  if (estado === "portada" || estado === "levantandose") {
+    // Toma inicial completamente cenital sobre Blizzard tendido; mientras se levanta, la cámara
+    // baja describiendo un arco hasta quedar detrás de él. La niebla se aparta durante la toma.
+    const lev = acciones.levantarse, p = estado === "portada" ? 0 : suave(0.45, 0.95, lev.time / lev.getClip().duration);
+    const arriba = new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 12, 0.02));
+    camara.position.lerpVectors(arriba, ojo, p);
+    camara.position.y += Math.sin(Math.PI * p) * 2;
+    camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 0.3, 0)), mira, p));
+    const alto = camara.position.y - pos.y;
+    scene.fog.near = lerp(alto - 3, 2, p); scene.fog.far = lerp(alto + 14, 19, p);
+  } else {
+    camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
+    camara.lookAt(mira);
+    scene.fog.near = 2; scene.fog.far = 19;
+  }
 
   sol.position.set(pos.x - 18, pos.y + 30, pos.z + 12);
   sol.target.position.copy(pos);
@@ -654,7 +681,7 @@ function actualizar(dt) {
 
 // Elige la animación según lo que hace Blizzard y mueve la capa con la velocidad y el viento.
 // Velocidad a la que avanza cada animación en su ritmo normal (unidades por segundo).
-const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 2.46, correr_libre: 2.49, andar_agachado: 0.7 };
+const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 4.0, correr_libre: 4.0, andar_agachado: 0.7 };
 let enAireAntes = false;
 function animar(dt, v, agachado) {
   const libre = tieneBaston ? "" : "_libre";
@@ -714,12 +741,15 @@ function efectos(dt, adelante) {
   // Espiral blanca del viento mágico (impulso, rescate, límite del mundo).
   efectoEspiral = Math.max(0, efectoEspiral - dt);
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
-  espiral.material.opacity = intensidad * 0.9;
-  const e = espiral.geometry.attributes.position.array, n = e.length / 3;
+  espiral.material.opacity = intensidad;
+  const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
   const centro = espiralEn || (rachaViento > efectoEspiral ? new THREE.Vector3(pos.x + c.nx * 1.2, pos.y, pos.z + c.nz * 1.2) : pos);
   for (let i = 0; i < n; i++) {
-    const k = i / n, ang = reloj * 9 + k * Math.PI * 6, r = 0.55 + k * 0.35;
-    e[i * 3] = centro.x + Math.cos(ang) * r; e[i * 3 + 1] = centro.y + k * 2.1 - 0.1; e[i * 3 + 2] = centro.z + Math.sin(ang) * r;
+    const k = i / (n - 1), ang = reloj * 4 + k * Math.PI * 4.2, r = 0.62 + k * 0.18;
+    const ancho = Math.sin(Math.PI * k) * 0.26;                 // fina en los extremos, ancha en el centro
+    const x = centro.x + Math.cos(ang) * r, y = centro.y + 0.15 + k * 1.9, z = centro.z + Math.sin(ang) * r;
+    e[i * 6] = x; e[i * 6 + 1] = y - ancho / 2; e[i * 6 + 2] = z;
+    e[i * 6 + 3] = x; e[i * 6 + 4] = y + ancho / 2; e[i * 6 + 5] = z;
   }
   espiral.geometry.attributes.position.needsUpdate = true;
 }
@@ -745,7 +775,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "levantandose") { acciones.levantarse.time = acciones.levantarse.getClip().duration; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
   simular(segundos, mantenidas = [], alInicio = []) {
