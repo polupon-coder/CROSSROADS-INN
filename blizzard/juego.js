@@ -102,7 +102,7 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = CIELO;
-scene.fog = new THREE.Fog(CIELO, 10, 230);
+scene.fog = new THREE.Fog(CIELO, 6, 170);
 const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 
 // Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
@@ -138,16 +138,19 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   scene.add(suelo, lejos);
 }
 
-// La montaña del templo, visible desde el principio (lámina 34).
-{
-  // Sin niebla de la escena, pero con colores casi de cielo: se adivina entre la bruma.
-  const monte = new THREE.Mesh(new THREE.ConeGeometry(130, 210, 5, 1), plano("#d6deec", { fog: false }));
-  monte.position.set(-30, 90, -470);
-  monte.rotation.y = 0.4;
-  const pico = new THREE.Mesh(new THREE.ConeGeometry(70, 150, 4, 1), plano("#cfd8e9", { fog: false }));
-  pico.position.set(60, 60, -430);
-  scene.add(monte, pico);
-}
+// Fondo difuso: un cilindro lejano con un panorama hecho con las láminas 47, 34, 62 y 41,
+// desenfocado. La montaña del templo (34) queda delante, al final del recorrido.
+const fondo = (() => {
+  const R = 380, alto = 2 * Math.PI * R * 464 / 4096;
+  const tex = new THREE.TextureLoader().load("texturas/fondo.jpg");
+  tex.wrapS = THREE.RepeatWrapping;
+  const geo = new THREE.CylinderGeometry(R, R, alto, 64, 1, true, -0.24 * Math.PI, Math.PI * 2);
+  geo.translate(0, alto / 2 - alto * 0.14, 0);              // el horizonte de las láminas a ras de suelo
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  m.renderOrder = -1;
+  scene.add(m);
+  return m;
+})();
 
 // ─── Kit de rocas (lámina 81) y ruinas (82) ────────────────────────────────
 const colisiones = []; // { x, z, r, techo }
@@ -186,7 +189,7 @@ function separarKit(gltf) {
 const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas);
 
 // Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
-function colocar(pieza, x, z, alto, giro, hundir = 0.1) {
+function colocar(pieza, x, z, alto, giro, hundir = 0.22) {
   const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
   m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true;
   g.add(m); g.scale.setScalar(s); g.rotation.y = giro;
@@ -194,6 +197,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.1) {
   g.position.set(x, y, z);
   scene.add(g);
   colisiones.push({ x, z, r: pieza.ancho * s * 0.32, techo: y + alto * 0.97 });
+  return g;
 }
 
 // Roca del kit (lámina 81): pequeñas para alturas pequeñas, agujas para las grandes.
@@ -206,7 +210,7 @@ function roca(x, z, ancho, alto) {
 // Ruina tallada (lámina 82): las piezas más altas del kit.
 function monolito(x, z, alto, giro) {
   const n = kitRuinas.length, i = n - 1 - Math.floor(rnd() * Math.min(4, n));
-  colocar(kitRuinas[i], x, z, alto, giro + Math.PI, 0.05);
+  colocar(kitRuinas[i], x, z, alto, giro + Math.PI, 0.16);
 }
 
 // Colocación: rocas pequeñas cerca del camino, medianas a los lados, agujas y peñascos en los bordes.
@@ -349,10 +353,10 @@ const copos = (() => {
 // afina hacia donde sopla el viento. Se deslizan, se superponen y se apartan de delante de Blizzard.
 const bancos = (() => {
   const tex = new THREE.TextureLoader().load("texturas/niebla.png"), lista = [];
-  for (let i = 0; i < 64; i++) {
+  for (let i = 0; i < 110; i++) {
     const ancho = 10 + rnd() * 24, alto = ancho * 0.4 * (0.7 + rnd() * 0.6);
     const geo = new THREE.PlaneGeometry(ancho, alto); geo.translate(0, alto / 2, 0);
-    const opacidad = 0.5 + rnd() * 0.45;
+    const opacidad = 0.55 + rnd() * 0.45;
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: opacidad }));
     const z = 12 - rnd() * 205, x = caminoX(z) + (rnd() - 0.5) * 90;
     m.position.set(x, alturaTerreno(x, z) - 0.4, z);
@@ -408,6 +412,8 @@ estilo.textContent = `
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
   #rotulo { position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
+  #cerrar { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px; border: 1px solid rgba(31,42,61,.25); border-radius: 50%; background: rgba(240,245,252,.7); color: var(--tinta); font: 26px/1 Georgia, serif; cursor: pointer; pointer-events: auto; }
+  #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
   #ayuda { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(14px + env(safe-area-inset-top, 0px)); font-family: system-ui, sans-serif; font-size: 12px; color: var(--tinta-suave); opacity: .8; }
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
 `;
@@ -435,9 +441,11 @@ ui.innerHTML = `
     </div>`}
   </div>
   <div id="rotulo" aria-live="polite"></div>
-  <div id="ayuda" hidden>WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento</div>`;
+  <div id="ayuda" hidden>WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento</div>
+  <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" hidden>×</button>`;
 document.body.appendChild(ui);
-const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda");
+const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
+cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
 function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style.opacity = 1; rotuloHasta = reloj + segundos; }
 
@@ -452,9 +460,11 @@ function empezar() {
   portada.style.opacity = 0;
   setTimeout(() => portada.remove(), 1300);
   ayuda.hidden = false;
+  cerrar.hidden = false;
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+  if (e.code === "Escape" && estado !== "portada") { location.reload(); return; }
   if (estado === "portada") { empezar(); return; }
   if (!teclas.has(e.code)) pulsadas.add(e.code);
   teclas.add(e.code);
@@ -663,6 +673,7 @@ function efectos(dt, adelante) {
   }
   copos.geometry.attributes.position.needsUpdate = true;
   copos.position.set(camara.position.x, pos.y - 4, camara.position.z);
+  fondo.position.set(camara.position.x, 0, camara.position.z);
 
   // Niebla: mira a la cámara, avanza con el viento y se desvanece si tapa a Blizzard.
   for (const b of bancos) {
