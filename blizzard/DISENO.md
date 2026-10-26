@@ -453,6 +453,7 @@ Modelos en `blizzard/modelos/` (optimizados con gltfpack, unos 9 MB en total):
   correr con y sin bastón, saltar, aterrizar, agachado, andar agachado, arrodillarse,
   tambalearse, levantarse, alzar, lanzar). El avance de la cadera se quita: lo pone el juego.
 - `capa.glb`: capa sin capucha, colgada del pecho (Spine2) y movida por código.
+  **Desactivada por ahora** (`CON_CAPA = false` en `juego.js`): no queda bien sobre el cuerpo.
 - `plataforma.glb`, `rocas.glb` (kit 81), `ruinas.glb` (kit 82): los kits se separan en
   piezas al cargarlos.
 El bastón se hace por código y va en la mano derecha.

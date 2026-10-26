@@ -20,9 +20,11 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
       cargador.parse(buf.buffer, "", ok, ko);
     }))
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
-const [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas] = await Promise.all(["personaje", "capa", "plataforma", "rocas", "ruinas"].map(cargar));
+// La capa queda desactivada por ahora (decisión del autor): no encaja bien sobre el cuerpo.
+const CON_CAPA = false;
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
-for (const g of [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas]) g.scene.traverse(o => {
+for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
   if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.needsUpdate = true; }
@@ -300,16 +302,17 @@ poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
 const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
 figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
 blizzard.updateMatrixWorld(true);
-const capa = gCapa.scene;
-let capaMalla; capa.traverse(o => { if (o.isMesh) { capaMalla = o; o.material.side = THREE.DoubleSide; } });
-{
+let capaMalla = null, capaBase = null;
+if (CON_CAPA) {
+  const capa = gCapa.scene;
+  capa.traverse(o => { if (o.isMesh) { capaMalla = o; o.material.side = THREE.DoubleSide; } });
   const cuello = enMundo("Neck"), cadera = enMundo("Hips"), cm = 100 * ESC;
   capa.scale.set(1.28 * cm, cm, 1.28 * cm);
   capa.position.set(cadera.x, cuello.y - 0.856 * cm + 0.04 * cm, cadera.z);
   scene.add(capa); capa.updateMatrixWorld(true);
   hueso("Spine2").attach(capa);
+  capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
 }
-const capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
 
 // El bastón va en la mano derecha, a lo largo del eje Z del hueso.
 const agarre = new THREE.Group();
@@ -606,6 +609,7 @@ function animar(dt, v, agachado) {
   mixer.update(dt);
 
   // Capa: la parte baja se echa hacia atrás y se abre con la velocidad, el viento y el salto.
+  if (!capaMalla) return;
   const p = capaMalla.geometry.attributes.position;
   const empuje = clamp(v / V_CORRER, 0, 1) * 0.55 + rachaViento * 0.35 + (enSuelo ? 0 : 0.25) + (rescate ? 0.35 : 0);
   for (let i = 0; i < p.count; i++) {
