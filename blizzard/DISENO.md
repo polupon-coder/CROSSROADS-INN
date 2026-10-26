@@ -85,6 +85,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Cargar y dirigir la ráfaga | 1 |
 | Ráfaga dirigida en el aire, bastón al frente (vista lateral) | 93, 98 |
 | Avanzar agachado contra la ventisca | 99 |
+| Equilibrio sobre un pie en lo alto de un pilar, bastón horizontal | 108 |
+| Salto con el bastón alzado, vista trasera (capítulo 4) | 110 |
 | Apartar nieve (barrido a ras de suelo) | 8, 13 (cenital) |
 | Mover piedras | 15 |
 | Equilibrar plataformas | 25 |
@@ -179,6 +181,11 @@ Cada sesión nueva debería empezar leyendo este archivo.
   hasta encajarlo en un hueco y usarlo de puente o de escalón hacia la cornisa, o se
   camina sobre él mientras rueda. La runa de la 97 (palo con un rombo, parecida a
   la *wunjo* nórdica) se sustituye por una de la lámina 80.
+- **Las columnas de bloques (lámina 107):** cuatro columnas de bloques apilados con
+  runas en las caras. Propuesta para el capítulo 5: cada bloque gira sobre su eje con
+  una ráfaga; hay que formar una fila horizontal de runas iguales (o una secuencia)
+  entre las cuatro columnas. Complementa la rueda de runas (95): allí se gira en
+  círculo, aquí en vertical.
 - **La puerta del círculo (72):** dos monolitos con medio círculo cada uno y raíles en el
   suelo. El viento los junta y el círculo se completa. Mecanismo recurrente y prototipo de
   las puertas del templo, donde el centro espera el aro completo del bastón.
@@ -239,6 +246,12 @@ o reto de salto**.
   valen como referencia de botas; solo de cómo se aparta la nieve.
 - Técnica: las huellas, como marcas sobre la nieve (barato). El surco, deformando la
   superficie de nieve alrededor de Blizzard (más caro; probar en el prototipo).
+
+### Otras escenas de referencia (106, 109)
+- 106: avenida de arcos rotos con runas, hacia un arco iluminado al fondo. Transición
+  del capítulo 3 o aproximación al templo; la luz guía sin interfaz.
+- 109: plataforma de cristal ámbar de noche, con la runa del rombo cruzado y escalones
+  luminosos. Versión nocturna de una plataforma de los capítulos finales.
 
 ### Fotograma objetivo del juego (lámina 92)
 
