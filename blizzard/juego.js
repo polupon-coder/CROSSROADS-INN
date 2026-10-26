@@ -121,7 +121,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   const geo = new THREE.PlaneGeometry(320, 330, 110, 330);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, -85);
-  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#e9eef7"), sombra = new THREE.Color("#d3dcec"), pared = new THREE.Color("#7a89aa");
+  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#ffffff"), sombra = new THREE.Color("#e6ecf5"), pared = new THREE.Color("#8796b5");
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), h = alturaTerreno(x, z);
     pos.setY(i, h);
@@ -130,7 +130,12 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   geo.computeVertexNormals();
-  const suelo = new THREE.Mesh(geo, plano(0xffffff, { vertexColors: true }));
+  // Textura de nieve (lámina 144) repetida cada 9 unidades; en espejo para que no se noten las uniones.
+  const nieveTex = new THREE.TextureLoader().load("texturas/nieve.jpg");
+  nieveTex.wrapS = nieveTex.wrapT = THREE.MirroredRepeatWrapping;
+  nieveTex.repeat.set(320 / 9, 330 / 9);
+  nieveTex.anisotropy = 4;
+  const suelo = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: nieveTex, vertexColors: true, roughness: 0.95 }));
   suelo.receiveShadow = true;
   const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano("#eef2f9"));
   lejos.rotation.x = -Math.PI / 2;
