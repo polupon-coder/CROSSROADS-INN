@@ -255,7 +255,7 @@ monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 
   const plat = gPlataforma.scene, caja = new THREE.Box3().setFromObject(plat);
   const radio = Math.max(caja.max.x - caja.min.x, caja.max.z - caja.min.z) / 2;
   plat.scale.setScalar(PLATAFORMA.r / radio);
-  plat.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.45 - caja.min.y * plat.scale.y, PLATAFORMA.z);   // algo hundida en la nieve
+  plat.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.7 - caja.min.y * plat.scale.y, PLATAFORMA.z);   // algo hundida en la nieve
   plat.rotation.y = 2.4;      // el tramo roto hacia un lado del camino
   scene.add(plat);
   plat.updateMatrixWorld(true);
@@ -263,6 +263,8 @@ monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 
   const rayo = new THREE.Raycaster(new THREE.Vector3(PLATAFORMA.x + 0.3, 50, PLATAFORMA.z + 0.3), new THREE.Vector3(0, -1, 0));
   const golpe = rayo.intersectObject(plat, true)[0];
   PLATAFORMA.techo = golpe ? golpe.point.y : ALTURA_PLAT + PLATAFORMA.alto;
+  // Las gradas se suben andando: la colisión nunca queda más alta que un paso.
+  PLATAFORMA.techo = Math.min(PLATAFORMA.techo, ALTURA_PLAT + 0.5);
   colisiones.push({ x: PLATAFORMA.x, z: PLATAFORMA.z, r: PLATAFORMA.r * 0.82, techo: PLATAFORMA.techo, plataforma: true });
 }
 
@@ -329,19 +331,22 @@ if (CON_CAPA) {
 
 // El bastón no sigue el giro de la mano (las animaciones son de hacha): se coloca cada
 // fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
-let bastonEnMano = false, inclinacionBaston = 0.1;
+let bastonEnMano = false, inclinacionBaston = 0.1, vueloBaston = null, espiralEn = null;
 const _puno = new THREE.Vector3(), _dedos = new THREE.Vector3(), _eje = new THREE.Vector3();
+function centroDelPuno(destino) {
+  blizzard.updateMatrixWorld(true);
+  hueso("RightHand").getWorldPosition(destino);
+  hueso("RightHandMiddle1").getWorldPosition(_dedos);
+  return destino.lerp(_dedos, 0.6);
+}
 function colocarBaston(dt, v) {
   if (!bastonEnMano) return;
-  blizzard.updateMatrixWorld(true);
-  hueso("RightHand").getWorldPosition(_puno);
-  hueso("RightHandMiddle1").getWorldPosition(_dedos);
-  _puno.lerp(_dedos, 0.6);                                    // centro del puño
+  centroDelPuno(_puno);
   const objetivo = clamp(0.08 + v / V_CORRER * 0.45, 0.08, 0.55) + (enSuelo ? 0 : 0.25);
   inclinacionBaston = lerp(inclinacionBaston, objetivo, 1 - Math.exp(-dt * 8));
   baston.rotation.set(inclinacionBaston, rumbo, 0, "YXZ");    // la punta hacia delante al correr
   _eje.set(0, 1, 0).applyEuler(baston.rotation);
-  baston.position.copy(_puno).addScaledVector(_eje, -1.15);   // agarre a 1,15 del pie del bastón
+  baston.position.copy(_puno).addScaledVector(_eje, -0.85);   // agarre a 0,85 del pie del bastón
 }
 
 // ─── Efectos: nieve que cae, espiral de viento, huellas ────────────────────
@@ -350,7 +355,7 @@ const copos = (() => {
   for (let i = 0; i < n * 3; i += 3) { pos[i] = (rnd() - 0.5) * 50; pos[i + 1] = Math.pow(rnd(), 2) * 2.4; pos[i + 2] = (rnd() - 0.5) * 50; }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent: true, opacity: 0.7, depthWrite: false }));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.032, transparent: true, opacity: 0.45, depthWrite: false }));
   p.frustumCulled = false;
   scene.add(p);
   return p;
@@ -544,13 +549,23 @@ function actualizar(dt) {
       rotular("La llanura nevada", 4);
       setTimeout(() => !tieneBaston && rotular("Algo se alza a lo lejos, sobre la nieve.", 5), 5000);
     }
-  } else if (estado === "arrodillado") {
+  } else if (estado === "llamando") {
+    // Blizzard tiende la mano y el viento arranca el bastón de la piedra y lo trae, como un imán.
     arrodillado += dt;
-    if (arrodillado > 1.5 && !bastonEnMano) {
-      bastonEnMano = true;
-      efectoEspiral = 1.2;
+    const t = clamp((arrodillado - 0.5) / 1.1, 0, 1);
+    if (t > 0 && !bastonEnMano) {
+      if (!vueloBaston) vueloBaston = { desde: baston.position.clone() };
+      const subida = suave(0, 0.35, t), viaje = suave(0.3, 1, t);
+      const inicio = vueloBaston.desde.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03 * (1 - viaje), subida * 0.8, 0));
+      _eje.set(0, 1, 0).applyEuler(new THREE.Euler(0.08, rumbo, 0, "YXZ"));
+      const destino = centroDelPuno(new THREE.Vector3()).addScaledVector(_eje, -0.85);
+      baston.position.lerpVectors(inicio, destino, viaje);
+      baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
+      espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
+      efectoEspiral = 1;
+      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; }
     }
-    if (arrodillado > 3.2) {
+    if (arrodillado > 2.6) {
       estado = "juego"; tieneBaston = true;
       rotular("Has encontrado el bastón. En el aire, pulsa E: el viento te impulsa hacia arriba.", 7);
     }
@@ -596,8 +611,8 @@ function actualizar(dt) {
     if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - GRIETA.z) > GRIETA.media + 3 && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
-    if (!tieneBaston && s.sobre && s.sobre.plataforma && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 1.1) {
-      estado = "arrodillado"; arrodillado = 0; vel.set(0, 0, 0);
+    if (!tieneBaston && s.sobre && s.sobre.plataforma && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
+      estado = "llamando"; arrodillado = 0; vel.set(0, 0, 0);
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
@@ -645,7 +660,7 @@ function animar(dt, v, agachado) {
   const libre = tieneBaston ? "" : "_libre";
   if (estado === "portada") { poner("levantarse", 0); acciones.levantarse.paused = true; }
   else if (estado === "levantandose") acciones.levantarse.paused = false;
-  else if (estado === "arrodillado") poner("arrodillarse", 0.3);
+  else if (estado === "llamando") poner("llamar", 0.3);
   else if (rescate) poner("tambalearse", 0.2);
   else if (!enSuelo) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }
   else if (agachado) v > 0.25 ? poner("andar_agachado", 0.2, clamp(v / PASO_ANIM.andar_agachado, 0.5, 2)) : poner("agachado", 0.25);
@@ -701,7 +716,7 @@ function efectos(dt, adelante) {
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
   espiral.material.opacity = intensidad * 0.9;
   const e = espiral.geometry.attributes.position.array, n = e.length / 3;
-  const centro = rachaViento > efectoEspiral ? new THREE.Vector3(pos.x + c.nx * 1.2, pos.y, pos.z + c.nz * 1.2) : pos;
+  const centro = espiralEn || (rachaViento > efectoEspiral ? new THREE.Vector3(pos.x + c.nx * 1.2, pos.y, pos.z + c.nz * 1.2) : pos);
   for (let i = 0; i < n; i++) {
     const k = i / n, ang = reloj * 9 + k * Math.PI * 6, r = 0.55 + k * 0.35;
     e[i * 3] = centro.x + Math.cos(ang) * r; e[i * 3 + 1] = centro.y + k * 2.1 - 0.1; e[i * 3 + 2] = centro.z + Math.sin(ang) * r;
@@ -730,7 +745,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = {
+window.__blizzard = { baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "levantandose") { acciones.levantarse.time = acciones.levantarse.getClip().duration; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
   simular(segundos, mantenidas = [], alInicio = []) {
