@@ -388,7 +388,8 @@ el autor diga si es la dirección visual o solo una exploración.
   levantarse y la cámara baja hasta su espalda. El bastón está más adelante (89).
 - **Sin meditación (decidido por el autor):** Blizzard no se sienta a meditar. Las
   láminas 100–103 y 134 quedan como arte, no como animación del juego.
-- **Guardado: pendiente.** Sin meditar, falta decidir cómo se guarda la partida.
+- **Guardado automático (decidido por el autor, por ahora):** se guarda solo al llegar a
+  cada plataforma y al superar cada prueba, sin gesto ni menú. Se guarda en el navegador.
 
 ### Dunas de nieve (láminas 126 y 127, guía del autor)
 Dunas en media luna (barjanes): ladera de barlovento larga y suave, cresta afilada que
