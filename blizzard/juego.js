@@ -171,9 +171,9 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   };
   const suelo = new THREE.Mesh(geo, matSuelo);
   suelo.receiveShadow = true;
-  const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano("#eef2f9"));
+  const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano(TONO_NIEVE));
   lejos.rotation.x = -Math.PI / 2;
-  lejos.position.set(0, 0, -85);
+  lejos.position.set(0, -1.5, -85);
   scene.add(suelo, lejos);
 }
 
@@ -263,6 +263,7 @@ for (let i = 0; i < 150; i++) {
   else if (tipo < 0.65) { dist = 8 + rnd() * 10; ancho = 1.4 + rnd() * 1.2; alto = 1.6 + rnd() * 1.8; }   // 1–2 B
   else if (tipo < 0.85) { dist = 19 + rnd() * 10; ancho = 2 + rnd() * 2; alto = 4 + rnd() * 3; }          // 3–4 B
   else { dist = 24 + rnd() * 25; ancho = 3 + rnd() * 3; alto = 9 + rnd() * 9; }                           // > 5 B
+  if (z > -24) continue;                                       // salida despejada para la toma inicial
   const x = caminoX(z) + ladoSigno * dist;
   if (Math.abs(z - grietaZ(caminoX(z))) < grietaMedia(0) + ancho + 7) continue;
   if (Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z) < PLATAFORMA.r + ancho + 2) continue;
@@ -285,7 +286,7 @@ for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
   const tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
   tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(3, 3);
   const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1 });
-  const zonas = [[-9, -6], [10, -28], [-12, -64], [11, -78], [-10, -122], [9, -136], [-6, 2]];
+  const zonas = [[10, -30], [-12, -64], [11, -78], [-10, -122], [9, -136]];
   for (const [zx, zz] of zonas) for (let i = 0; i < 5; i++) {
     const x = caminoX(zz) + zx + (rnd() - 0.5) * 9, z = zz + (rnd() - 0.5) * 9;
     if (Math.abs(z - grietaZ(x)) < grietaMedia(x) + 4 || Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z) < PLATAFORMA.r + 3) continue;
@@ -301,7 +302,7 @@ for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
 }
 
 // Algunas rocas de 1 B en mitad del camino, para practicar el salto.
-[[1.5, -22], [-2, -58], [2.5, -84], [-1, -118], [1, -132]].forEach(([x, z]) => roca(x, z, 0.9, 1.2));
+[[-2, -58], [2.5, -84], [-1, -118], [1, -132]].forEach(([x, z]) => roca(x, z, 0.9, 1.2));
 // Monolitos tallados que anuncian el final del capítulo.
 monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 8, 0.15); monolito(8.5, -172, 6.5, -0.2);
 
@@ -556,11 +557,11 @@ function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style
 const musica = (() => {
   const URL_MUSICA = "musica/wandering-light.mp3";
   const NOTAS = { salto: [28.26, 0.9], impulso: [39.73, 1.4], baston: [19.99, 3.2], rescate: [52.43, 2.2], recoger: [62.69, 1.6] };
-  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 1;
+  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 0.68;
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
-      pista = new Audio(URL_MUSICA); pista.loop = true; pista.preservesPitch = true;
+      pista = new Audio(URL_MUSICA); pista.loop = true; pista.preservesPitch = true; pista.playbackRate = 0.68;
       ganancia = ctx.createGain(); ganancia.gain.value = 0;
       ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
       pista.addEventListener("timeupdate", () => { if (pista.currentTime > 124) pista.currentTime = 1; });   // el final es silencio
@@ -586,7 +587,7 @@ const musica = (() => {
   }
   function actualizar(dt, corriendo, viento) {
     if (!ctx) return;
-    ritmo = lerp(ritmo, corriendo ? 1.14 : 1, 1 - Math.exp(-dt * 1.5));
+    ritmo = lerp(ritmo, corriendo ? 0.8 : 0.68, 1 - Math.exp(-dt * 1.5));   // mucho más lenta que el original
     pista.playbackRate = ritmo;
     const respiro = 0.5 + 0.2 * Math.sin(reloj * 0.31) * Math.sin(reloj * 0.13 + 1) + 0.25 * viento;
     ganancia.gain.value = lerp(ganancia.gain.value, clamp(respiro, 0.2, 0.9), 1 - Math.exp(-dt * 1.2));
@@ -628,7 +629,7 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0;
-const INTRO_AVANCE = 7, INTRO_DURA = 12;
+const INTRO_DURA = 8;
 
 function sueloEn(x, z, pies) {
   let h = -Infinity, sobre = null;
@@ -792,16 +793,12 @@ function actualizar(dt) {
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(7.2, 3.6, cerca)).add(new THREE.Vector3(0, lerp(3.6, 1.7, cerca), 0));
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(4, 1.5, cerca)).add(new THREE.Vector3(0, lerp(1.1, 1.2, cerca), 0));
   if (estado === "portada" || estado === "intro") {
-    // Toma inicial: la cámara avanza sola entre la niebla, a la altura de los ojos, hasta
-    // encontrar a Blizzard de pie y de cara; luego gira alrededor de él hasta su espalda.
-    const t = estado === "portada" ? 0 : tIntro;
-    const acerca = suave(0, INTRO_AVANCE, t), gira = suave(INTRO_AVANCE + 1.2, INTRO_DURA, t);
-    const dist = lerp(34, 3.6, acerca), ang = Math.PI * gira;      // 0: de cara; π: detrás
-    const radio = lerp(dist, 7.2, gira), altura = lerp(1.5, 3.6, gira);
-    // «adelante» apunta hacia donde mira Blizzard; la cámara empieza delante de él.
-    camara.position.copy(pos).addScaledVector(adelante, Math.cos(ang) * radio).addScaledVector(new THREE.Vector3(-adelante.z, 0, adelante.x), Math.sin(ang) * radio);
-    camara.position.y = pos.y + altura;
-    camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 1.2, 0)), mira, gira));
+    // Toma inicial: la cámara avanza sola entre la niebla, por detrás de Blizzard, hasta
+    // quedar en su posición de juego a su espalda.
+    const t = estado === "portada" ? 0 : tIntro, k = suave(0, INTRO_DURA, t);
+    camara.position.copy(pos).addScaledVector(adelante, -lerp(36, 7.2, k));
+    camara.position.y = pos.y + lerp(1.4, 3.6, k);
+    camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 1.2, 0)), mira, k));
     scene.fog.near = 2; scene.fog.far = 19;
   } else {
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
