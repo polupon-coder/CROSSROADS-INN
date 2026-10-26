@@ -102,12 +102,13 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = CIELO;
-scene.fog = new THREE.Fog(CIELO, 6, 170);
+// Niebla muy densa (decisión del autor): apenas se ve a unos 10 m; el fondo desaparece.
+scene.fog = new THREE.Fog(CIELO, 2, 19);
 const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 
 // Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
-scene.add(new THREE.HemisphereLight(0xe9eff9, 0xa3b0cb, 0.95));
-const sol = new THREE.DirectionalLight(0xfff4e6, 0.28);
+scene.add(new THREE.HemisphereLight(0xdde4ef, 0xb2bdd3, 0.82));
+const sol = new THREE.DirectionalLight(0xf3f1ec, 0.16);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
 Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
@@ -121,7 +122,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   const geo = new THREE.PlaneGeometry(320, 330, 110, 330);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, -85);
-  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#ffffff"), sombra = new THREE.Color("#e6ecf5"), pared = new THREE.Color("#8796b5");
+  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#e3e8f0"), sombra = new THREE.Color("#cfd7e4"), pared = new THREE.Color("#8796b5");
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), h = alturaTerreno(x, z);
     pos.setY(i, h);
@@ -151,8 +152,9 @@ const fondo = (() => {
   tex.wrapS = THREE.RepeatWrapping;
   const geo = new THREE.CylinderGeometry(R, R, alto, 64, 1, true, -0.24 * Math.PI, Math.PI * 2);
   geo.translate(0, alto / 2 - alto * 0.14, 0);              // el horizonte de las láminas a ras de suelo
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, transparent: true, opacity: 0.6, depthWrite: false }));
   m.renderOrder = -1;
+  m.visible = false;                                          // oculto mientras la niebla lo tape todo
   scene.add(m);
   return m;
 })();
@@ -219,7 +221,7 @@ function monolito(x, z, alto, giro) {
 }
 
 // Colocación: rocas pequeñas cerca del camino, medianas a los lados, agujas y peñascos en los bordes.
-for (let i = 0; i < 110; i++) {
+for (let i = 0; i < 150; i++) {
   // Capítulo 1: casi vacío al principio, más denso hacia el final.
   const z = 8 - Math.sqrt(rnd()) * 190, ladoSigno = rnd() < 0.5 ? -1 : 1;
   const tipo = rnd();
@@ -344,11 +346,11 @@ function colocarBaston(dt, v) {
 
 // ─── Efectos: nieve que cae, espiral de viento, huellas ────────────────────
 const copos = (() => {
-  const n = 1600, pos = new Float32Array(n * 3);
-  for (let i = 0; i < n * 3; i += 3) { pos[i] = (rnd() - 0.5) * 50; pos[i + 1] = rnd() * 22; pos[i + 2] = (rnd() - 0.5) * 50; }
+  const n = 2600, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i += 3) { pos[i] = (rnd() - 0.5) * 50; pos[i + 1] = Math.pow(rnd(), 2) * 2.4; pos[i + 2] = (rnd() - 0.5) * 50; }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false }));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent: true, opacity: 0.7, depthWrite: false }));
   p.frustumCulled = false;
   scene.add(p);
   return p;
@@ -358,7 +360,7 @@ const copos = (() => {
 // afina hacia donde sopla el viento. Se deslizan, se superponen y se apartan de delante de Blizzard.
 const bancos = (() => {
   const tex = new THREE.TextureLoader().load("texturas/niebla.png"), lista = [];
-  for (let i = 0; i < 110; i++) {
+  for (let i = 0; i < 150; i++) {
     const ancho = 10 + rnd() * 24, alto = ancho * 0.4 * (0.7 + rnd() * 0.6);
     const geo = new THREE.PlaneGeometry(ancho, alto); geo.translate(0, alto / 2, 0);
     const opacidad = 0.55 + rnd() * 0.45;
@@ -390,7 +392,7 @@ const huellas = (() => {
   forma.quadraticCurveTo(-0.05, 0.13, -0.055, 0.05);
   forma.quadraticCurveTo(-0.03, -0.02, -0.06, -0.06);
   forma.quadraticCurveTo(-0.07, -0.15, 0, -0.15);
-  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#aebfdc", transparent: true, opacity: 0.75, depthWrite: false });
+  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#c2cde0", transparent: true, opacity: 0.3, depthWrite: false });
   const lista = [];
   for (let i = 0; i < 180; i++) { const m = new THREE.Mesh(geo, mat); m.visible = false; m.rotation.order = "YXZ"; scene.add(m); lista.push(m); }
   let siguiente = 0;
@@ -669,15 +671,18 @@ function animar(dt, v, agachado) {
 function efectos(dt, adelante) {
   // Copos alrededor de la cámara; el viento de cara los empuja hacia Blizzard.
   const c = enCamino(pos.x, pos.z), arr = copos.geometry.attributes.position.array;
-  const vx = -0.6 - c.nx * rachaViento * 9, vz = 0.3 - c.nz * rachaViento * 9;
+  // Copos que barren el suelo en horizontal: no caen, se deslizan con el viento.
+  const vx = -4.5 - c.nx * rachaViento * 9, vz = 0.6 - c.nz * rachaViento * 9;
   for (let i = 0; i < arr.length; i += 3) {
-    arr[i] += vx * dt; arr[i + 1] -= 1.1 * dt; arr[i + 2] += vz * dt;
-    if (arr[i + 1] < 0) arr[i + 1] += 22;
+    const k = 0.6 + (i % 7) / 7;                               // cada copo a su ritmo
+    arr[i] += vx * k * dt; arr[i + 2] += vz * k * dt;
+    arr[i + 1] += Math.sin(reloj * 3 + i) * 0.15 * dt;
+    if (arr[i + 1] < 0.02) arr[i + 1] = 0.02; else if (arr[i + 1] > 2.6) arr[i + 1] = 2.6;
     if (arr[i] < -25) arr[i] += 50; else if (arr[i] > 25) arr[i] -= 50;
     if (arr[i + 2] < -25) arr[i + 2] += 50; else if (arr[i + 2] > 25) arr[i + 2] -= 50;
   }
   copos.geometry.attributes.position.needsUpdate = true;
-  copos.position.set(camara.position.x, pos.y - 4, camara.position.z);
+  copos.position.set(camara.position.x, alturaTerreno(pos.x, pos.z), camara.position.z);
   fondo.position.set(camara.position.x, 0, camara.position.z);
 
   // Niebla: mira a la cámara, avanza con el viento y se desvanece si tapa a Blizzard.
