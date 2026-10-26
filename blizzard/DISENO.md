@@ -53,6 +53,8 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Hoja para el modelo 3D (lámina 121):** frente y espalda simétricos, con el bastón
   vertical en el centro. Para generarlo con IA conviene además una versión sin bastón
   y con los brazos separados del cuerpo (para ponerle esqueleto).
+- **Broche (lámina 134):** la capa se cierra en el cuello con un pequeño broche
+  redondo, de donde salen los pliegues en abanico.
 - **Luz en el aro (lámina 122):** una pequeña luz blanca dentro del remate. Propuesta:
   aparece y crece mientras se carga la ráfaga (mantener pulsado), como indicador de
   carga sin interfaz; recuerda a la luna dentro del aro (120).
@@ -99,7 +101,7 @@ capítulo, igual que crece el bastón al acabarlo.
 | Equilibrar plataformas | 25 |
 | Alzar el bastón (activar, abrir puertas) | 10, 72 |
 | Meditar / punto seguro / pantalla de título | 9, 14 |
-| Meditar sentado en una plataforma (guardar) | 100–103 |
+| Meditar sentado en una plataforma (guardar) | 100–103, 134 (de frente) |
 | Rescate del viento | 29 (pasiva; mejor con la mano libre abierta) |
 | Sin bastón (inicio del capítulo 1) | 23 |
 | Nocturno | 16 |
