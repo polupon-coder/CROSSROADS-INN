@@ -556,7 +556,7 @@ function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style
 const musica = (() => {
   const URL_MUSICA = "musica/wandering-light.mp3";
   const NOTAS = { salto: [28.26, 0.9], impulso: [39.73, 1.4], baston: [19.99, 3.2], rescate: [52.43, 2.2], recoger: [62.69, 1.6] };
-  let ctx = null, pista = null, ganancia = null, buffer = null, ritmo = 1;
+  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 1;
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -566,6 +566,7 @@ const musica = (() => {
       pista.addEventListener("timeupdate", () => { if (pista.currentTime > 124) pista.currentTime = 1; });   // el final es silencio
       pista.play().catch(() => {});
       fetch(URL_MUSICA).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { buffer = b; }).catch(() => {});
+      fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
     } catch (e) { ctx = null; }
   }
   function nota(nombre, volumen = 0.7) {
@@ -575,6 +576,14 @@ const musica = (() => {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(volumen, t + 0.03); g.gain.setValueAtTime(volumen, t + dura * 0.5); g.gain.linearRampToValueAtTime(0, t + dura);
     f.connect(g).connect(ctx.destination); f.start(t, inicio, dura);
   }
+  // Ráfaga de viento suave para la magia: volumen bajo, a veces algo más corta y aguda.
+  function viento(volumen = 0.3, ritmoRafaga = 1) {
+    if (!ctx || !rafaga) return;
+    const f = ctx.createBufferSource(), g = ctx.createGain();
+    f.buffer = rafaga; f.playbackRate.value = ritmoRafaga * (0.95 + Math.random() * 0.1);
+    g.gain.value = volumen;
+    f.connect(g).connect(ctx.destination); f.start();
+  }
   function actualizar(dt, corriendo, viento) {
     if (!ctx) return;
     ritmo = lerp(ritmo, corriendo ? 1.14 : 1, 1 - Math.exp(-dt * 1.5));
@@ -582,7 +591,7 @@ const musica = (() => {
     const respiro = 0.5 + 0.2 * Math.sin(reloj * 0.31) * Math.sin(reloj * 0.13 + 1) + 0.25 * viento;
     ganancia.gain.value = lerp(ganancia.gain.value, clamp(respiro, 0.2, 0.9), 1 - Math.exp(-dt * 1.2));
   }
-  return { empezar, nota, actualizar };
+  return { empezar, nota, viento, actualizar };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -650,7 +659,7 @@ function moverHorizontal(dx, dz) {
 }
 
 function empezarRescate() {
-  musica.nota("rescate", 0.6);
+  musica.nota("rescate", 0.6); musica.viento(0.35, 0.8);
   rescate = { t: 0, desde: pos.clone(), hacia: seguro.clone() };
   vel.set(0, 0, 0);
   efectoEspiral = 2;
@@ -696,7 +705,7 @@ function actualizar(dt) {
       baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
       espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
       efectoEspiral = 1;
-      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.nota("baston", 0.8); }
+      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.nota("baston", 0.8); musica.viento(0.25, 0.9); }
     }
     if (arrodillado > 2.6) {
       estado = "juego"; tieneBaston = true;
@@ -713,7 +722,9 @@ function actualizar(dt) {
     deseo.multiplyScalar(rapidez);
 
     // Límite del mundo: un viento de cara que crece poco a poco y devuelve al camino.
+    const rachaAntes = rachaViento;
     rachaViento = clamp((c.d - ANCHO_CAMINO) / 5, 0, 1);
+    if (rachaAntes < 0.15 && rachaViento >= 0.15) musica.viento(0.22, 1.1);     // el bumerán aparece
     if (rachaViento > 0) {
       const haciaFuera = deseo.x * c.nx + deseo.z * c.nz;
       if (haciaFuera > 0) { deseo.x -= c.nx * haciaFuera * rachaViento; deseo.z -= c.nz * haciaFuera * rachaViento; }
@@ -727,7 +738,7 @@ function actualizar(dt) {
     coyote = enSuelo ? 0.12 : Math.max(0, coyote - dt);
     if (pulsada("Space") && coyote > 0 && !agachado) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.nota("salto", 0.45); }
     if (pulsada("KeyE", "KeyJ") && !enSuelo && tieneBaston && !impulsoUsado) {
-      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.nota("impulso", 0.7);
+      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.nota("impulso", 0.7); musica.viento(0.3, 1.25);
     }
 
     moverHorizontal(vel.x * dt, vel.z * dt);
@@ -746,7 +757,7 @@ function actualizar(dt) {
     // Recoger el bastón.
     if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
       estado = "llamando"; arrodillado = 0; vel.set(0, 0, 0);
-      musica.nota("recoger", 0.6);
+      musica.nota("recoger", 0.6); musica.viento(0.2, 1);
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
