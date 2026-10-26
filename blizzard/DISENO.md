@@ -384,11 +384,13 @@ el autor diga si es la dirección visual o solo una exploración.
 ### Meditar en las plataformas: guardar la partida (láminas 100–103)
 Blizzard sentado con las piernas cruzadas en el centro de una plataforma arcana, con la
 capa extendida en abanico sobre las losas; vista de espaldas, cenital y de frente.
-Decidido por el autor: meditar es guardar, y **el juego empieza así**.
-- **Inicio:** pantalla de título en vista cenital (101) con Blizzard meditando, sin
-  bastón, en una plataforma vacía en mitad de la llanura. Al empezar, la cámara baja
-  hasta la espalda (100), Blizzard se levanta y el jugador toma el control. El bastón
-  está más adelante, en otra plataforma (89).
+Decidido por el autor: meditar es guardar.
+- **Inicio (cambiado por el autor):** el juego empieza con Blizzard **tendido boca abajo
+  en la nieve**, sin bastón, en mitad de la llanura. Se incorpora despacio (animación
+  *Standing Up* de Mixamo, 11 s: se apoya en las manos, se arrodilla y se pone de pie)
+  y el jugador toma el control. Propuesta: pantalla de título en vista cenital con
+  Blizzard tendido y medio cubierto de nieve; al empezar, la nieve se desprende al
+  levantarse y la cámara baja hasta su espalda. El bastón está más adelante (89).
 - Meditar en una plataforma **guarda la partida** y la convierte en punto de retorno.
 - La cámara sube despacio a la vista cenital: la capa abierta y el disco de piedra
   forman un círculo. La música se calma.
