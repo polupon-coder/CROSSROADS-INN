@@ -86,7 +86,7 @@ function alturaBase(x, z) {
 }
 const ALTURA_PLAT = alturaBase(PLATAFORMA.x, PLATAFORMA.z);
 function alturaTerreno(x, z) {
-  let h = alturaBase(x, z);
+  let h = lerp(alturaBase(x, z), alturaBase(0, 8), suave(-14, 4, z) * suave(30, 14, Math.abs(x)));
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
   h += RELLANO.alto * suave(RELLANO.z + 0.12, RELLANO.z - 0.12, z);
@@ -112,8 +112,9 @@ scene.fog = new THREE.Fog(CIELO, 2, 19);
 const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 
 // Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
-scene.add(new THREE.HemisphereLight(0xdde4ef, 0xb2bdd3, 0.82));
-const sol = new THREE.DirectionalLight(0xf3f1ec, 0.16);
+// Sombras apenas perceptibles: casi toda la luz llega del cielo y del suelo nevado por igual.
+scene.add(new THREE.HemisphereLight(0xe2e8f2, 0xd2dae7, 0.9));
+const sol = new THREE.DirectionalLight(0xf3f1ec, 0.07);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
 Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
@@ -126,23 +127,34 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
 
 // Suelo nevado, con más detalle a lo largo del recorrido para que la grieta y el rellano tengan paredes netas.
 {
-  const geo = new THREE.PlaneGeometry(320, 330, 240, 330);
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, 0, -85);
+  // Rejilla de densidad variable: muy fina en la franja de la grieta y cerca del camino,
+  // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
+  const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
+  const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.4), ...filas(40, 160, 2.4), 160];
+  const zs = [...filas(-250, GRIETA.z - 9, 1), ...filas(GRIETA.z - 9, GRIETA.z + 9, 0.18), ...filas(GRIETA.z + 9, 80, 1), 80];
+  const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
+  for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 330); }
+  for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
+    const a = j * xs.length + i, b = a + 1, c = a + xs.length, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idx);
   const pos = geo.attributes.position, colores = [], nieve = new THREE.Color(TONO_NIEVE);
   for (let i = 0; i < pos.count; i++) {
     // Los vértices cercanos al borde de la grieta se llevan justo al filo, para que el borde
     // siga la curva limpia en lugar de dibujar escalones.
     const x = pos.getX(i); let z = pos.getZ(i);
     const dg = z - grietaZ(x), mg = grietaMedia(x);
-    if (Math.abs(x) < 90 && Math.abs(dg) > mg - 1 && Math.abs(dg) < mg + 1) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
+    if (Math.abs(x) < 90 && Math.abs(dg) > mg - 0.1 && Math.abs(dg) < mg + 0.1) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
     // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
     let h = alturaTerreno(x, z);
     if (h < -1 && Math.abs(x) < 90) {
-      const borde = Math.abs(Math.abs(z - grietaZ(x)) - mg) < 0.05;
-      const ruido = Math.sin(x * 2.3 + z) * 0.5 + Math.sin(x * 5.1 - z * 2) * 0.3 + 0.8;
-      if (borde) { h = alturaBase(x, z) - 0.6 - ruido * 1.2; z -= Math.sign(dg) * ruido * 0.25; }
-      else z += Math.sin(x * 3.7 + z * 1.3) * 0.35;
+      // Bajo el filo, la pared baja con salientes suaves antes de perderse en el fondo.
+      const dentro = mg - Math.abs(z - grietaZ(x));
+      const ruido = 0.5 + Math.sin(x * 1.9) * 0.25 + Math.sin(x * 4.3 + 1) * 0.15;
+      if (dentro < 0.8) { h = alturaBase(x, z) - (0.25 + dentro * 2.2) * (0.8 + ruido); z -= Math.sign(dg) * Math.sin(x * 2.7) * 0.12 * (1 - dentro); }
     }
     pos.setZ(i, z);
     pos.setY(i, h);
@@ -346,7 +358,7 @@ const alturaSuelo = (x, z) => Math.max(alturaTerreno(x, z), alturaPlat(x, z));
 const madera = plano("#3b3633");
 function crearBaston(etapa) {
   const g = new THREE.Group();
-  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 1.5, 5), madera);
+  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 1.5, 8), new THREE.MeshStandardMaterial({ color: "#3b3633", roughness: 0.9 }));
   fuste.position.y = 0.75;
   const arco = Math.PI * 2 * (0.12 + (etapa - 1) / 6 * 0.88);
   const remate = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 4, 14, Math.min(arco, Math.PI * 2)), madera);
@@ -385,6 +397,8 @@ function poner(nombre, fundido = 0.25, ritmo = 1, desde = 0) {
   accion = a;
 }
 const hueso = n => figura.getObjectByName("mixamorig" + n);
+// Manos más pequeñas, para que asomen menos de las mangas (las animaciones no tocan la escala).
+for (const n of ["LeftHand", "RightHand"]) hueso(n).scale.setScalar(0.72);
 
 // Pies en el suelo y capa colocada, midiendo la pose de reposo con Blizzard en el origen.
 poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
@@ -411,14 +425,14 @@ function centroDelPuno(destino) {
   blizzard.updateMatrixWorld(true);
   hueso("RightHand").getWorldPosition(destino);
   hueso("RightHandMiddle1").getWorldPosition(_dedos);
-  return destino.lerp(_dedos, 0.6);
+  return destino.lerp(_dedos, 0.72);
 }
 function colocarBaston(dt, v) {
   if (!bastonEnMano) return;
   centroDelPuno(_puno);
-  const objetivo = clamp(0.08 + v / V_CORRER * 0.45, 0.08, 0.55) + (enSuelo ? 0 : 0.25);
+  const objetivo = clamp(0.2 + v / V_CORRER * 0.4, 0.2, 0.6) + (enSuelo ? 0 : 0.25);
   inclinacionBaston = lerp(inclinacionBaston, objetivo, 1 - Math.exp(-dt * 8));
-  baston.rotation.set(inclinacionBaston, rumbo, 0, "YXZ");    // la punta hacia delante al correr
+  baston.rotation.set(inclinacionBaston, rumbo, 0.14, "YXZ");  // punta hacia delante y algo hacia fuera
   _eje.set(0, 1, 0).applyEuler(baston.rotation);
   baston.position.copy(_puno).addScaledVector(_eje, -0.85);   // agarre a 0,85 del pie del bastón
 }
@@ -557,11 +571,11 @@ function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style
 const musica = (() => {
   const URL_MUSICA = "musica/wandering-light.mp3";
   const NOTAS = { salto: [28.26, 0.9], impulso: [39.73, 1.4], baston: [19.99, 3.2], rescate: [52.43, 2.2], recoger: [62.69, 1.6] };
-  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 0.68;
+  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 0.45;
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
-      pista = new Audio(URL_MUSICA); pista.loop = true; pista.preservesPitch = true; pista.playbackRate = 0.68;
+      pista = new Audio(URL_MUSICA); pista.loop = true; pista.preservesPitch = true; pista.playbackRate = 0.45;
       ganancia = ctx.createGain(); ganancia.gain.value = 0;
       ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
       pista.addEventListener("timeupdate", () => { if (pista.currentTime > 124) pista.currentTime = 1; });   // el final es silencio
@@ -587,7 +601,7 @@ const musica = (() => {
   }
   function actualizar(dt, corriendo, viento) {
     if (!ctx) return;
-    ritmo = lerp(ritmo, corriendo ? 0.8 : 0.68, 1 - Math.exp(-dt * 1.5));   // mucho más lenta que el original
+    ritmo = lerp(ritmo, corriendo ? 0.56 : 0.45, 1 - Math.exp(-dt * 1.5));   // mucho más lenta que el original
     pista.playbackRate = ritmo;
     const respiro = 0.5 + 0.2 * Math.sin(reloj * 0.31) * Math.sin(reloj * 0.13 + 1) + 0.25 * viento;
     ganancia.gain.value = lerp(ganancia.gain.value, clamp(respiro, 0.2, 0.9), 1 - Math.exp(-dt * 1.2));
@@ -628,7 +642,7 @@ let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBast
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
-let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0;
+let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 const INTRO_DURA = 8;
 
 function sueloEn(x, z, pies) {
@@ -746,6 +760,7 @@ function actualizar(dt) {
     vel.y -= GRAVEDAD * dt;
     pos.y += vel.y * dt;
     const s = sueloEn(pos.x, pos.z, pos.y);
+    if (enSuelo && s.h - pos.y > 0.12 && s.h - pos.y <= PASO) { escalon = 0.45; alturaVisual = pos.y; }
     if (pos.y <= s.h) { pos.y = s.h; vel.y = 0; enSuelo = true; }
     else enSuelo = pos.y - s.h < 0.05 && vel.y <= 0;
 
@@ -780,6 +795,8 @@ function actualizar(dt) {
   pulsadas.clear();
 
   blizzard.position.copy(pos);
+  // Al subir un escalón el cuerpo no salta de golpe: sube en un instante corto con la rodilla alta.
+  if (escalon > 0) { escalon = Math.max(0, escalon - dt); alturaVisual = lerp(alturaVisual, pos.y, 1 - Math.exp(-dt * 9)); blizzard.position.y = alturaVisual; }
   blizzard.rotation.y = rumbo;
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
   colocarBaston(dt, Math.hypot(vel.x, vel.z));
@@ -825,6 +842,16 @@ function girarHueso(nombre, eje, angulo) {
   _q.setFromAxisAngle(eje, angulo);
   h.quaternion.premultiply(_qp.clone().invert().multiply(_q).multiply(_qp));
 }
+function gestoEscalon() {
+  if (escalon <= 0) return;
+  const w = Math.sin(Math.PI * clamp(escalon / 0.45, 0, 1));    // sube y baja en 0,45 s
+  blizzard.updateMatrixWorld(true);
+  const lado = new THREE.Vector3(Math.cos(rumbo), 0, -Math.sin(rumbo));
+  girarHueso("RightUpLeg", lado, SIGNO_RODILLA * 1.0 * w);
+  girarHueso("RightLeg", lado, -SIGNO_RODILLA * 1.3 * w);
+  girarHueso("Spine1", lado, SIGNO_RODILLA * 0.18 * w);
+}
+const SIGNO_RODILLA = -1;
 function posturaReposo(dt) {
   const quieto = accion === acciones.quieto || accion === acciones.quieto_libre;
   pesoReposo = lerp(pesoReposo, quieto ? 1 : 0, 1 - Math.exp(-dt * 4));
@@ -854,6 +881,7 @@ function animar(dt, v, agachado) {
   enAireAntes = !enSuelo && !rescate;
   mixer.update(dt);
   posturaReposo(dt);
+  gestoEscalon();
 
   // Capa: la parte baja se echa hacia atrás y se abre con la velocidad, el viento y el salto.
   if (!capaMalla) return;
@@ -944,7 +972,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { probarRodilla: () => { escalon = 0.225; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
   simular(segundos, mantenidas = [], alInicio = []) {
