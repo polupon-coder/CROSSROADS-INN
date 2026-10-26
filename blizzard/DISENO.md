@@ -462,6 +462,10 @@ Incluye: Blizzard tendido en la portada que se levanta al empezar, la llanura, l
 con el bastón (arrodillarse y recogerlo), salto, correr, agacharse, impulso de viento (E),
 la grieta que solo se cruza con impulso y el rescate (tambaleo y viento), el rellano de
 1,8 B, huellas, nieve, el viento como límite del mundo y el anillo abierto como meta.
+Tras el rellano, una segunda plataforma (el mismo modelo, más pequeña) despierta el poder de
+mover piedras: en el suelo, junto a un peñasco, el botón de magia lo levanta y lo deja caer
+sobre la pared. Justo después, un desfiladero de paredes de roca queda cerrado por tres
+peñascos demasiado altos para saltarlos, incluso con impulso; hay que apartarlos para seguir.
 Falta: día y noche, música, controles táctiles y de mando, la cinta de viento, la ventisca
 a ras de suelo y ajustar el bastón en la mano en algunas animaciones.
 
