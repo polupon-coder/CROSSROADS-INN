@@ -650,7 +650,7 @@ ui.innerHTML = `
     <div id="palanca"><div id="pomo"></div></div>
     <div id="botones">
     <button type="button" class="boton" id="b-agachar" data-tecla="KeyC" aria-label="Agacharse"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 10 L12 14.5 L16.5 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button type="button" class="boton" id="b-viento" data-tecla="KeyE" aria-label="Viento" hidden><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3 L18 12 L12 21 L6 12 Z M6 12 L18 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" class="boton" id="b-viento" data-tecla="KeyE" aria-label="Viento" hidden><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3 L18 12 L12 21 L6 12 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button type="button" class="boton" id="b-saltar" data-tecla="Space" aria-label="Saltar"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 14 L12 9.5 L16.5 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
   </div>`;
