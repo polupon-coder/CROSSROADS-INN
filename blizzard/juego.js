@@ -46,7 +46,8 @@ const PLATAFORMA = { x: -4, z: -42, r: 5.4, alto: 0.7 };
 const GRIETA = { z: -100, media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
 const grietaZ = x => GRIETA.z + Math.sin(x * 0.11 + 0.7) * 2.4 + Math.sin(x * 0.37) * 0.7 - Math.sin(0.7) * 2.4;
-const grietaMedia = x => GRIETA.media + Math.max(0, Math.abs(x) - 4) * 0.03 * (1 + Math.sin(x * 0.23)) ;
+const grietaMedia = x => GRIETA.media + Math.max(0, Math.abs(x) - 4) * 0.03 * (1 + Math.sin(x * 0.23))
+  + suave(1.5, 4, Math.abs(x)) * (Math.sin(x * 1.7) * 0.28 + Math.sin(x * 4.1 + 1) * 0.14 + Math.sin(x * 9.3) * 0.06);
 const enGrieta = (x, z) => Math.abs(z - grietaZ(x)) < grietaMedia(x);
 const RELLANO = { z: -141, alto: 2.8 };
 const FIN_Z = -166;
@@ -119,6 +120,8 @@ Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, n
 sol.shadow.bias = -0.0008;
 scene.add(sol, sol.target);
 
+// Tono único de la nieve (suelo, montículos y nieve de rocas y ruinas): blanco algo azulado.
+const TONO_NIEVE = "#e4eaf3";
 const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.95, ...extra });
 
 // Suelo nevado, con más detalle a lo largo del recorrido para que la grieta y el rellano tengan paredes netas.
@@ -126,18 +129,24 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   const geo = new THREE.PlaneGeometry(320, 330, 240, 330);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, -85);
-  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#f6f8fb"), sombra = new THREE.Color("#e6ebf2"), pared = new THREE.Color("#8796b5");
+  const pos = geo.attributes.position, colores = [], nieve = new THREE.Color(TONO_NIEVE);
   for (let i = 0; i < pos.count; i++) {
     // Los vértices cercanos al borde de la grieta se llevan justo al filo, para que el borde
     // siga la curva limpia en lugar de dibujar escalones.
     const x = pos.getX(i); let z = pos.getZ(i);
     const dg = z - grietaZ(x), mg = grietaMedia(x);
     if (Math.abs(x) < 90 && Math.abs(dg) > mg - 1 && Math.abs(dg) < mg + 1) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
+    // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
+    let h = alturaTerreno(x, z);
+    if (h < -1 && Math.abs(x) < 90) {
+      const borde = Math.abs(Math.abs(z - grietaZ(x)) - mg) < 0.05;
+      const ruido = Math.sin(x * 2.3 + z) * 0.5 + Math.sin(x * 5.1 - z * 2) * 0.3 + 0.8;
+      if (borde) { h = alturaBase(x, z) - 0.6 - ruido * 1.2; z -= Math.sign(dg) * ruido * 0.25; }
+      else z += Math.sin(x * 3.7 + z * 1.3) * 0.35;
+    }
     pos.setZ(i, z);
-    const h = alturaTerreno(x, z);
     pos.setY(i, h);
-    const c = h < -1 ? pared : nieve.clone().lerp(sombra, clamp(0.5 - alturaBase(x, z), 0, 1));
-    colores.push(c.r, c.g, c.b);
+    colores.push(nieve.r, nieve.g, nieve.b);             // mismo tono también en las paredes: sin degradado
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   geo.computeVertexNormals();
@@ -220,11 +229,11 @@ function separarKit(gltf) {
 const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas);
 
 // Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
-function colocar(pieza, x, z, alto, giro, hundir = 0.22) {
+function colocar(pieza, x, z, alto, giro, hundir = 0.3) {
   const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
   m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true;
   g.add(m); g.scale.setScalar(s); g.rotation.y = giro;
-  const y = alturaTerreno(x, z) - hundir * alto;
+  const y = alturaTerreno(x, z) - hundir * alto - 0.15;     // la falda de nieve del modelo, enterrada
   g.position.set(x, y, z);
   scene.add(g);
   colisiones.push({ x, z, r: pieza.ancho * s * 0.32, techo: y + alto * 0.97 });
@@ -241,7 +250,7 @@ function roca(x, z, ancho, alto) {
 // Ruina tallada (lámina 82): las piezas más altas del kit.
 function monolito(x, z, alto, giro) {
   const n = kitRuinas.length, i = n - 1 - Math.floor(rnd() * Math.min(4, n));
-  colocar(kitRuinas[i], x, z, alto, giro + Math.PI, 0.16);
+  colocar(kitRuinas[i], x, z, alto, giro + Math.PI, 0.2);
 }
 
 // Colocación: rocas pequeñas cerca del camino, medianas a los lados, agujas y peñascos en los bordes.
@@ -275,17 +284,17 @@ for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
 {
   const tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
   tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(3, 3);
-  const mat = new THREE.MeshStandardMaterial({ map: tex, color: "#f2f5f9", roughness: 1 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1 });
   const zonas = [[-9, -6], [10, -28], [-12, -64], [11, -78], [-10, -122], [9, -136], [-6, 2]];
   for (const [zx, zz] of zonas) for (let i = 0; i < 5; i++) {
     const x = caminoX(zz) + zx + (rnd() - 0.5) * 9, z = zz + (rnd() - 0.5) * 9;
     if (Math.abs(z - grietaZ(x)) < grietaMedia(x) + 4 || Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z) < PLATAFORMA.r + 3) continue;
     const pieza = kitRocas[Math.floor(rnd() * kitRocas.length)];
-    const ancho = 2 + rnd() * 3.5, alto = 0.35 + rnd() * 0.9;
+    const ancho = 2.5 + rnd() * 3.5, alto = 0.8 + rnd() * 1.4;
     const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, mat);
     m.position.copy(pieza.desplaza); m.receiveShadow = m.castShadow = true;
     g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = rnd() * Math.PI * 2;
-    const y = alturaTerreno(x, z) - alto * 0.35;
+    const y = alturaTerreno(x, z) - alto * 0.6;
     g.position.set(x, y, z); scene.add(g);
     colisiones.push({ x, z, r: ancho * 0.3, techo: y + alto * 0.9 });
   }
@@ -540,6 +549,42 @@ cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
 function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style.opacity = 1; rotuloHasta = reloj + segundos; }
 
+// ─── Música ────────────────────────────────────────────────────────────────
+// «Wandering Light» de Kobi Lilian suena en bucle. Corriendo se acelera (sin cambiar el tono);
+// el volumen sube y baja como el viento. En los momentos especiales suenan notas sueltas
+// recortadas del propio tema.
+const musica = (() => {
+  const URL_MUSICA = "musica/wandering-light.mp3";
+  const NOTAS = { salto: [28.26, 0.9], impulso: [39.73, 1.4], baston: [19.99, 3.2], rescate: [52.43, 2.2], recoger: [62.69, 1.6] };
+  let ctx = null, pista = null, ganancia = null, buffer = null, ritmo = 1;
+  function empezar() {
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      pista = new Audio(URL_MUSICA); pista.loop = true; pista.preservesPitch = true;
+      ganancia = ctx.createGain(); ganancia.gain.value = 0;
+      ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
+      pista.addEventListener("timeupdate", () => { if (pista.currentTime > 124) pista.currentTime = 1; });   // el final es silencio
+      pista.play().catch(() => {});
+      fetch(URL_MUSICA).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { buffer = b; }).catch(() => {});
+    } catch (e) { ctx = null; }
+  }
+  function nota(nombre, volumen = 0.7) {
+    if (!ctx || !buffer) return;
+    const [inicio, dura] = NOTAS[nombre], f = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime;
+    f.buffer = buffer;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(volumen, t + 0.03); g.gain.setValueAtTime(volumen, t + dura * 0.5); g.gain.linearRampToValueAtTime(0, t + dura);
+    f.connect(g).connect(ctx.destination); f.start(t, inicio, dura);
+  }
+  function actualizar(dt, corriendo, viento) {
+    if (!ctx) return;
+    ritmo = lerp(ritmo, corriendo ? 1.14 : 1, 1 - Math.exp(-dt * 1.5));
+    pista.playbackRate = ritmo;
+    const respiro = 0.5 + 0.2 * Math.sin(reloj * 0.31) * Math.sin(reloj * 0.13 + 1) + 0.25 * viento;
+    ganancia.gain.value = lerp(ganancia.gain.value, clamp(respiro, 0.2, 0.9), 1 - Math.exp(-dt * 1.2));
+  }
+  return { empezar, nota, actualizar };
+})();
+
 // ─── Controles ─────────────────────────────────────────────────────────────
 const teclas = new Set();
 const pulsadas = new Set(); // solo el fotograma en que se pulsan
@@ -547,6 +592,7 @@ let estado = "portada";
 function empezar() {
   if (estado !== "portada" || tactil) return;
   estado = "intro"; tIntro = 0;
+  musica.empezar();
   portada.style.opacity = 0;
   setTimeout(() => portada.remove(), 1300);
   ayuda.hidden = false;
@@ -604,6 +650,7 @@ function moverHorizontal(dx, dz) {
 }
 
 function empezarRescate() {
+  musica.nota("rescate", 0.6);
   rescate = { t: 0, desde: pos.clone(), hacia: seguro.clone() };
   vel.set(0, 0, 0);
   efectoEspiral = 2;
@@ -649,7 +696,7 @@ function actualizar(dt) {
       baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
       espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
       efectoEspiral = 1;
-      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; }
+      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.nota("baston", 0.8); }
     }
     if (arrodillado > 2.6) {
       estado = "juego"; tieneBaston = true;
@@ -678,9 +725,9 @@ function actualizar(dt) {
     vel.z = lerp(vel.z, deseo.z, 1 - Math.exp(-dt * agarre));
 
     coyote = enSuelo ? 0.12 : Math.max(0, coyote - dt);
-    if (pulsada("Space") && coyote > 0 && !agachado) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; }
+    if (pulsada("Space") && coyote > 0 && !agachado) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.nota("salto", 0.45); }
     if (pulsada("KeyE", "KeyJ") && !enSuelo && tieneBaston && !impulsoUsado) {
-      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8;
+      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.nota("impulso", 0.7);
     }
 
     moverHorizontal(vel.x * dt, vel.z * dt);
@@ -699,6 +746,7 @@ function actualizar(dt) {
     // Recoger el bastón.
     if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
       estado = "llamando"; arrodillado = 0; vel.set(0, 0, 0);
+      musica.nota("recoger", 0.6);
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
@@ -754,6 +802,7 @@ function actualizar(dt) {
   sol.target.position.copy(pos);
 
   efectos(dt, adelante);
+  musica.actualizar(dt, Math.hypot(vel.x, vel.z) > (V_ANDAR + V_CORRER) / 2, rachaViento);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
 }
 
