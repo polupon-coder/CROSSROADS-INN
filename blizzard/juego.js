@@ -404,20 +404,21 @@ const alturaSuelo = (x, z) => Math.max(alturaTerreno(x, z), alturaPlat(x, z));
 
 // ─── Bastón (láminas 27 y 28) ──────────────────────────────────────────────
 const madera = plano("#3b3633");
+const LARGO_BASTON = 1.3, AGARRE_BASTON = 0.74;
 function crearBaston(etapa) {
   // Remate como la referencia: aro grueso y facetado, abierto por arriba, unido al fuste por una
   // horquilla en Y. Una luz flota sobre el aro mientras se hace magia.
   const g = new THREE.Group(), piedra = new THREE.MeshStandardMaterial({ color: "#3e3834", roughness: 0.85, flatShading: true });
-  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.022, 1.5, 6), piedra);
-  fuste.position.y = 0.75;
+  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.016, LARGO_BASTON, 6), piedra);
+  fuste.position.y = LARGO_BASTON / 2;
   // Etapa 1: apenas un gesto, un arco corto que sale de la base hacia un lado (lámina 27).
   // Con cada etapa el arco sube hasta cerrar el círculo.
-  const R = 0.12, arco = Math.PI * 2 * (0.22 + (etapa - 1) / 6 * 0.78);
-  const remate = new THREE.Mesh(new THREE.TorusGeometry(R, 0.034, 5, 11, arco), piedra);
+  const R = 0.105, arco = Math.PI * 2 * (0.22 + (etapa - 1) / 6 * 0.78);
+  const remate = new THREE.Mesh(new THREE.TorusGeometry(R, 0.025, 5, 11, arco), piedra);
   remate.rotation.z = -Math.PI / 2;                              // empieza abajo, en la unión con el fuste
-  remate.position.y = 1.5 + 0.07 + R;
-  const horquilla = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.09, 6), piedra);
-  horquilla.position.y = 1.5 + 0.045;
+  remate.position.y = LARGO_BASTON + 0.06 + R;
+  const horquilla = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.021, 0.08, 6), piedra);
+  horquilla.position.y = LARGO_BASTON + 0.04;
   const luz = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, fog: false }));
   luz.position.y = remate.position.y;                            // en el centro del futuro círculo
   g.add(fuste, remate, horquilla, luz);
@@ -501,7 +502,7 @@ function colocarBaston(dt, v) {
   inclinacionBaston = lerp(inclinacionBaston, objetivo, 1 - Math.exp(-dt * 8));
   baston.rotation.set(inclinacionBaston, rumbo, 0.14, "YXZ");  // punta hacia delante y algo hacia fuera
   _eje.set(0, 1, 0).applyEuler(baston.rotation);
-  baston.position.copy(_puno).addScaledVector(_eje, -0.85);   // agarre a 0,85 del pie del bastón
+  baston.position.copy(_puno).addScaledVector(_eje, -AGARRE_BASTON);   // agarre a 0,74 del pie del bastón
 }
 
 // ─── Efectos: nieve que cae, espiral de viento, huellas ────────────────────
@@ -602,7 +603,6 @@ estilo.textContent = `
   #mandos { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
   #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: rgba(240,245,252,.28); border: 1px solid rgba(31,42,61,.2); pointer-events: auto; touch-action: none; }
   #pomo { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
-  /* Botones del tamaño del pomo y a la altura del centro de la palanca. */
   /* Fila de botones a la derecha, a la altura del centro de la palanca; en vertical, columna. */
   #botones { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 18px; align-items: center; }
   @media (max-aspect-ratio: 1/1) { #botones { flex-direction: column; gap: 14px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); } }
@@ -611,6 +611,8 @@ estilo.textContent = `
   .boton.activo { background: rgba(255,255,255,.9); }
 
   #ayuda { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(14px + env(safe-area-inset-top, 0px)); font-family: system-ui, sans-serif; font-size: 12px; color: var(--tinta-suave); opacity: .8; }
+  /* En móvil los mensajes van arriba, bajo el botón de cerrar, lejos de los mandos. */
+  @media (pointer: coarse) { #rotulo { top: calc(62px + env(safe-area-inset-top, 0px)); bottom: auto; } }
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
 `;
 document.head.appendChild(estilo);
@@ -627,13 +629,7 @@ ui.innerHTML = `
     <h1>BLIZZARD</h1>
     <p class="sub">Prototipo · Capítulo 1 · La llanura nevada</p>
     ${tactil ? `
-    <p class="empezar">Toca para empezar</p>
-    <div class="teclas">
-      <b>Joystick (izquierda)</b><span>caminar · al fondo, correr</span>
-      <b>Λ</b><span>saltar</span>
-      <b>◇</b><span>viento, en el aire (aparece con el bastón)</span>
-      <b>V</b><span>agacharse (mantener)</span>
-    </div>` : `
+    <p class="empezar">Toca para empezar</p>` : `
     <p class="empezar">Pulsa cualquier tecla para empezar</p>
     <div class="teclas">
       <b>W A S D / flechas</b><span>caminar</span>
@@ -848,7 +844,7 @@ function actualizar(dt) {
       const subida = suave(0, 0.35, t), viaje = suave(0.3, 1, t);
       const inicio = vueloBaston.desde.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03 * (1 - viaje), subida * 0.8, 0));
       _eje.set(0, 1, 0).applyEuler(new THREE.Euler(0.08, rumbo, 0, "YXZ"));
-      const destino = centroDelPuno(new THREE.Vector3()).addScaledVector(_eje, -0.85);
+      const destino = centroDelPuno(new THREE.Vector3()).addScaledVector(_eje, -AGARRE_BASTON);
       baston.position.lerpVectors(inicio, destino, viaje);
       baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
       espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
