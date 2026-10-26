@@ -953,10 +953,19 @@ function actualizar(dt) {
     camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 1.2, 0)), mira, k));
     scene.fog.near = 2; scene.fog.far = NIEBLA_LEJOS;
   } else if (estado === "llamando") {
-    // Plano completamente lateral del gesto, desde el lado sin piedras delante.
-    const objetivo = new THREE.Vector3().copy(pos).addScaledVector(ladoLlamada, 4.4).add(new THREE.Vector3(0, 1.25, 0));
-    camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
-    camara.lookAt(pos.x, pos.y + 1.05, pos.z);
+    // Plano completamente lateral del gesto, desde el lado sin piedras delante. En móvil la
+    // pantalla es estrecha y el bastón se salía de plano: tres cuartos desde atrás, más lejos.
+    if (TACTIL) {
+      const dir = new THREE.Vector3().copy(ladoLlamada).multiplyScalar(0.6).addScaledVector(adelante, -1).normalize();
+      const lejos = camara.aspect < 1 ? 7.5 : 5.5;
+      const objetivo = new THREE.Vector3().copy(pos).addScaledVector(dir, lejos).add(new THREE.Vector3(0, 2.2, 0));
+      camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
+      camara.lookAt(new THREE.Vector3().copy(pos).addScaledVector(adelante, 1.2).add(new THREE.Vector3(0, 1.2, 0)));
+    } else {
+      const objetivo = new THREE.Vector3().copy(pos).addScaledVector(ladoLlamada, 4.4).add(new THREE.Vector3(0, 1.25, 0));
+      camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
+      camara.lookAt(pos.x, pos.y + 1.05, pos.z);
+    }
   } else {
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
