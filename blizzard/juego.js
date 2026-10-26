@@ -603,12 +603,13 @@ estilo.textContent = `
   #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: rgba(240,245,252,.28); border: 1px solid rgba(31,42,61,.2); pointer-events: auto; touch-action: none; }
   #pomo { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
   /* Botones del tamaño del pomo y a la altura del centro de la palanca. */
-  .boton { position: fixed; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(31,42,61,.3); background: rgba(240,245,252,.8); color: var(--tinta); pointer-events: auto; touch-action: none; }
+  /* Fila de botones a la derecha, a la altura del centro de la palanca; en vertical, columna. */
+  #botones { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 18px; align-items: center; }
+  @media (max-aspect-ratio: 1/1) { #botones { flex-direction: column; gap: 14px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); } }
+  .boton { position: relative; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(31,42,61,.3); background: rgba(240,245,252,.8); color: var(--tinta); pointer-events: auto; touch-action: none; }
   .boton[hidden] { display: none; }
   .boton.activo { background: rgba(255,255,255,.9); }
-  #b-saltar { right: calc(28px + env(safe-area-inset-right, 0px)); }
-  #b-viento { right: calc(100px + env(safe-area-inset-right, 0px)); }
-  #b-agachar { right: calc(172px + env(safe-area-inset-right, 0px)); }
+
   #ayuda { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(14px + env(safe-area-inset-top, 0px)); font-family: system-ui, sans-serif; font-size: 12px; color: var(--tinta-suave); opacity: .8; }
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
 `;
@@ -647,9 +648,11 @@ ui.innerHTML = `
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" hidden>×</button>
   <div id="mandos" hidden>
     <div id="palanca"><div id="pomo"></div></div>
-    <button type="button" class="boton" id="b-agachar" data-tecla="KeyC" aria-label="Agacharse"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M6 8 L12 17 L18 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button type="button" class="boton" id="b-viento" data-tecla="KeyE" aria-label="Viento" hidden><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3 L18 12 L12 21 L6 12 Z M6 12 L18 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button type="button" class="boton" id="b-saltar" data-tecla="Space" aria-label="Saltar"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M6 16 L12 7 L18 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div id="botones">
+    <button type="button" class="boton" id="b-agachar" data-tecla="KeyC" aria-label="Agacharse"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 10 L12 14.5 L16.5 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" class="boton" id="b-viento" data-tecla="KeyE" aria-label="Viento" hidden><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3 L18 12 L12 21 L6 12 Z M6 12 L18 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" class="boton" id="b-saltar" data-tecla="Space" aria-label="Saltar"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 14 L12 9.5 L16.5 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
   </div>`;
 document.body.appendChild(ui);
 // Mandos táctiles: palanca virtual (dirección y, al fondo, carrera) y botones que equivalen a teclas.
