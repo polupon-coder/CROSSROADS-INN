@@ -445,15 +445,24 @@ Ciclo continuo; la noche llega cada 20 minutos de juego. No interrumpe nada.
 13. Láminas que faltan: interiores del capítulo 6, las puertas del templo.
 14. Qué runa lleva cada mecanismo (alfabeto: lámina 80).
 
-## 8. Prototipo 0 (capítulo 1)
+## 8. Prototipo (capítulo 1)
 
-`blizzard/index.html` + `blizzard/juego.js`, en el navegador con three.js. Todo
-generado por código con formas facetadas. Incluye: la llanura casi vacía, la montaña
-al fondo, el kit de rocas, la plataforma 89 con el bastón clavado (arrodillarse y
-recogerlo), salto, correr, agacharse, impulso de viento en el aire (E), la grieta que
-solo se cruza con impulso y el rescate si se cae, el rellano de 1,8 B, huellas
-apuntadas, nieve que cae, el viento como límite del mundo y el anillo abierto como
-meta. Falta: día y noche, sonido, controles táctiles y de mando, modelo de verdad.
+`blizzard/index.html` + `blizzard/juego.js`, en el navegador con three.js r128 y GLTFLoader.
+Modelos en `blizzard/modelos/` (optimizados con gltfpack, unos 9 MB en total):
+- `personaje.glb`: cuerpo de Tripo con esqueleto de Mixamo y 15 animaciones (quieto, andar y
+  correr con y sin bastón, saltar, aterrizar, agachado, andar agachado, arrodillarse,
+  tambalearse, levantarse, alzar, lanzar). El avance de la cadera se quita: lo pone el juego.
+- `capa.glb`: capa sin capucha, colgada del pecho (Spine2) y movida por código.
+- `plataforma.glb`, `rocas.glb` (kit 81), `ruinas.glb` (kit 82): los kits se separan en
+  piezas al cargarlos.
+El bastón se hace por código y va en la mano derecha.
+
+Incluye: Blizzard tendido en la portada que se levanta al empezar, la llanura, la plataforma
+con el bastón (arrodillarse y recogerlo), salto, correr, agacharse, impulso de viento (E),
+la grieta que solo se cruza con impulso y el rescate (tambaleo y viento), el rellano de
+1,8 B, huellas, nieve, el viento como límite del mundo y el anillo abierto como meta.
+Falta: día y noche, música, controles táctiles y de mando, la cinta de viento, la ventisca
+a ras de suelo y ajustar el bastón en la mano en algunas animaciones.
 
 ## 9. Siguientes pasos
 

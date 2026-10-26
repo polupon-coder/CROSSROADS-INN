@@ -1,22 +1,39 @@
 // BLIZZARD · prototipo del capítulo 1 (La llanura nevada).
-// Todo se genera por código con formas facetadas; three.js (r128) llega como global THREE.
+// three.js (r128) y GLTFLoader llegan como globales. Los modelos están en modelos/:
+// el personaje con sus animaciones de Mixamo, la capa, la plataforma y los kits de rocas y ruinas.
 // Unidades: 1 B (la altura de Blizzard) = 1,6 unidades del mundo.
-(() => {
+(async () => {
 "use strict";
+
+// ─── Carga de modelos ──────────────────────────────────────────────────────
+const aviso = document.createElement("p");
+aviso.textContent = "Cargando…";
+aviso.style.cssText = "position:fixed;inset:0;margin:0;display:grid;place-content:center;font:20px Georgia,serif;color:#1f2a3d;background:#c9d8ee;z-index:9";
+document.body.appendChild(aviso);
+const cargador = new THREE.GLTFLoader();
+const cargar = nombre => new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
+const [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas] = await Promise.all(["personaje", "capa", "plataforma", "rocas", "ruinas"].map(cargar));
+// El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
+for (const g of [gPersonaje, gCapa, gPlataforma, gRocas, gRuinas]) g.scene.traverse(o => {
+  if (!o.isMesh) return;
+  o.castShadow = o.receiveShadow = true;
+  if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.needsUpdate = true; }
+});
+aviso.remove();
 
 // ─── Ajustes de juego ──────────────────────────────────────────────────────
 const B = 1.6;
 const GRAVEDAD = 22;
 const V_SALTO = 8.9;          // salto normal: ≈ 1,1 B
 const V_IMPULSO = 7.8;        // impulso de viento en el aire: ≈ +0,9 B
-const V_ANDAR = 3.4, V_CORRER = 6.5, V_AGACHADO = 1.6;
+const V_ANDAR = 1.9, V_CORRER = 4.6, V_AGACHADO = 0.9;
 const PASO = 0.8;             // escalones de hasta 0,5 B se suben sin saltar
 const ANCHO_CAMINO = 13;      // a partir de aquí el viento frena
 
 // Recorrido: el viento mantiene a Blizzard cerca de esta línea.
 const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180]];
 const PLATAFORMA = { x: -4, z: -42, r: 5.4, alto: 0.7 };
-const GRIETA = { z: -100, media: 3.3 };
+const GRIETA = { z: -100, media: 2.6 };
 const RELLANO = { z: -141, alto: 2.8 };
 const FIN_Z = -166;
 
@@ -123,57 +140,61 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
 // ─── Kit de rocas (lámina 81) y ruinas (82) ────────────────────────────────
 const colisiones = []; // { x, z, r, techo }
 
-function roca(x, z, ancho, alto) {
-  // Bloque facetado: un prisma de 5 a 7 caras con la base ancha y los vértices desplazados.
-  const lados = 5 + Math.floor(rnd() * 3);
-  const geo = new THREE.CylinderGeometry(0.55 + rnd() * 0.3, 1, 1, lados, 2).toNonIndexed();
-  geo.translate(0, 0.5, 0);
-  const p = geo.attributes.position, desv = new Map();
-  for (let i = 0; i < p.count; i++) {
-    const clave = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
-    if (!desv.has(clave)) desv.set(clave, [(rnd() - 0.5) * 0.3, (rnd() - 0.5) * 0.18, (rnd() - 0.5) * 0.3]);
-    const [dx, dy, dz] = desv.get(clave);
-    p.setXYZ(i, p.getX(i) + dx, Math.max(0, p.getY(i) + dy), p.getZ(i) + dz);
+// Separa un kit (varias piezas en una sola malla) en piezas sueltas, ordenadas por altura.
+// Los vértices que coinciden en posición se unen, para que las costuras de la textura no partan una pieza.
+function separarKit(gltf) {
+  let malla; gltf.scene.traverse(o => { if (o.isMesh && !malla) malla = o; });
+  gltf.scene.updateMatrixWorld(true);
+  const geo = malla.geometry.clone(); geo.applyMatrix4(malla.matrixWorld);
+  const pos = geo.attributes.position, idx = geo.index.array, padre = new Int32Array(pos.count).map((_, i) => i);
+  const raiz = i => { while (padre[i] !== i) i = padre[i] = padre[padre[i]]; return i; };
+  const unir = (a, b) => { a = raiz(a); b = raiz(b); if (a !== b) padre[a] = b; };
+  const visto = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const k = `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
+    if (visto.has(k)) unir(i, visto.get(k)); else visto.set(k, i);
   }
-  geo.computeVertexNormals();
-  const n = geo.attributes.normal, colores = [], piedra = new THREE.Color("#7b8496"), nieve = new THREE.Color("#eef3fa");
-  for (let i = 0; i < p.count; i += 3) {
-    const arriba = (n.getY(i) + n.getY(i + 1) + n.getY(i + 2)) / 3 > 0.55;
-    const c = arriba ? nieve : piedra.clone().offsetHSL(0, 0, (rnd() - 0.5) * 0.08);
-    for (let k = 0; k < 3; k++) colores.push(c.r, c.g, c.b);
+  for (let t = 0; t < idx.length; t += 3) { unir(idx[t], idx[t + 1]); unir(idx[t], idx[t + 2]); }
+  const grupos = new Map();
+  for (let t = 0; t < idx.length; t += 3) { const r = raiz(idx[t]); if (!grupos.has(r)) grupos.set(r, []); grupos.get(r).push(idx[t], idx[t + 1], idx[t + 2]); }
+  const piezas = [];
+  for (const lista of grupos.values()) {
+    if (lista.length < idx.length * 0.01) continue;            // migas sueltas
+    const caja = new THREE.Box3();
+    for (const v of lista) caja.expandByPoint(new THREE.Vector3(pos.getX(v), pos.getY(v), pos.getZ(v)));
+    const g = new THREE.BufferGeometry();
+    for (const n in geo.attributes) g.setAttribute(n, geo.attributes[n]);
+    g.setIndex(lista);
+    const centro = caja.getCenter(new THREE.Vector3()), tam = caja.getSize(new THREE.Vector3());
+    g.translate(0, 0, 0);
+    piezas.push({ geo: g, material: malla.material, desplaza: new THREE.Vector3(-centro.x, -caja.min.y, -centro.z), alto: tam.y, ancho: Math.min(tam.x, tam.z) });
   }
-  geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
-  const m = new THREE.Mesh(geo, plano(0xffffff, { vertexColors: true }));
-  const y = alturaTerreno(x, z);
-  m.scale.set(ancho, alto, ancho * (0.8 + rnd() * 0.4));
-  m.rotation.y = rnd() * Math.PI * 2;
-  m.position.set(x, y - 0.15, z);
-  m.rotation.x = (rnd() - 0.5) * 0.12;
-  m.castShadow = m.receiveShadow = true;
-  scene.add(m);
-  geo.computeBoundingBox();
-  colisiones.push({ x, z, r: ancho * 0.85, techo: y - 0.15 + geo.boundingBox.max.y * alto * 0.95 });
+  return piezas.sort((a, b) => a.alto - b.alto);
+}
+const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas);
+
+// Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
+function colocar(pieza, x, z, alto, giro, hundir = 0.1) {
+  const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
+  m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true;
+  g.add(m); g.scale.setScalar(s); g.rotation.y = giro;
+  const y = alturaTerreno(x, z) - hundir * alto;
+  g.position.set(x, y, z);
+  scene.add(g);
+  colisiones.push({ x, z, r: pieza.ancho * s * 0.32, techo: y + alto * 0.97 });
 }
 
+// Roca del kit (lámina 81): pequeñas para alturas pequeñas, agujas para las grandes.
+function roca(x, z, ancho, alto) {
+  const n = kitRocas.length, f = clamp(alto / 16, 0, 1);
+  const i = clamp(Math.round(f * (n - 1) + (rnd() - 0.5) * 1.2), 0, n - 1);
+  colocar(kitRocas[i], x, z, alto, rnd() * Math.PI * 2);
+}
+
+// Ruina tallada (lámina 82): las piezas más altas del kit.
 function monolito(x, z, alto, giro) {
-  const g = new THREE.Group();
-  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(1.6, alto, 1.1), plano("#7c8494"));
-  cuerpo.position.y = alto / 2;
-  const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.2, 1.2), plano("#f4f7fc"));
-  tapa.position.y = alto + 0.05;
-  // Runa del rombo con línea horizontal (lámina 80), grabada en la cara frontal.
-  const runa = new THREE.Group();
-  const trazo = (largo, x0, y0, ang) => { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.07, largo), new THREE.MeshBasicMaterial({ color: "#3d4352" })); t.position.set(x0, y0, 0); t.rotation.z = ang; runa.add(t); };
-  const a = 0.42, h = 0.8, lado = Math.hypot(a, h), ang = Math.atan2(a, h);
-  trazo(lado, -a / 2, h / 2, -ang); trazo(lado, a / 2, h / 2, ang); trazo(lado, -a / 2, -h / 2, ang); trazo(lado, a / 2, -h / 2, -ang);
-  trazo(a * 2, 0, 0, Math.PI / 2);
-  runa.position.set(0, alto * 0.6, 0.56);
-  g.add(cuerpo, tapa, runa);
-  g.position.set(x, alturaTerreno(x, z) - 0.2, z);
-  g.rotation.y = giro;
-  g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
-  scene.add(g);
-  colisiones.push({ x, z, r: 1.1, techo: g.position.y + alto });
+  const n = kitRuinas.length, i = n - 1 - Math.floor(rnd() * Math.min(4, n));
+  colocar(kitRuinas[i], x, z, alto, giro + Math.PI, 0.05);
 }
 
 // Colocación: rocas pequeñas cerca del camino, medianas a los lados, agujas y peñascos en los bordes.
@@ -206,28 +227,20 @@ monolito(-7, -150, 7.5, 0.3); monolito(7.5, -156, 9, -0.25); monolito(-8, -168, 
   scene.add(anillo);
 }
 
-// ─── Plataforma arcana del capítulo 1 (lámina 89) ─────────────────────────
+// ─── Plataforma arcana del capítulo 1 (láminas 88 y 89) ────────────────────
 {
-  const g = new THREE.Group(), piedra = plano("#767e8e"), losas = 10;
-  for (let i = 0; i < losas; i++) {
-    if (i === 3 || i === 4) continue; // tramo derrumbado
-    const ancho = Math.PI * 2 / losas;
-    const losa = new THREE.Mesh(new THREE.CylinderGeometry(PLATAFORMA.r, PLATAFORMA.r, PLATAFORMA.alto, 3, 1, false, i * ancho + 0.02, ancho - 0.04), piedra);
-    losa.position.y = PLATAFORMA.alto / 2 + (rnd() - 0.5) * 0.05;
-    g.add(losa);
-  }
-  // Losas caídas del tramo roto.
-  for (let k = 0; k < 4; k++) {
-    const a = 3.5 * Math.PI * 2 / losas + (rnd() - 0.5) * 0.6, d = PLATAFORMA.r * (0.6 + rnd() * 0.6);
-    const caida = new THREE.Mesh(new THREE.BoxGeometry(1.6 + rnd(), 0.6, 1.2 + rnd() * 0.6), piedra);
-    caida.position.set(Math.sin(a) * d, 0.2, Math.cos(a) * d);
-    caida.rotation.set((rnd() - 0.5) * 0.6, rnd() * 3, (rnd() - 0.5) * 0.6);
-    g.add(caida);
-  }
-  g.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.05, PLATAFORMA.z);
-  g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
-  scene.add(g);
-  colisiones.push({ x: PLATAFORMA.x, z: PLATAFORMA.z, r: PLATAFORMA.r, techo: ALTURA_PLAT - 0.05 + PLATAFORMA.alto, plataforma: true });
+  const plat = gPlataforma.scene, caja = new THREE.Box3().setFromObject(plat);
+  const radio = Math.max(caja.max.x - caja.min.x, caja.max.z - caja.min.z) / 2;
+  plat.scale.setScalar(PLATAFORMA.r / radio);
+  plat.position.set(PLATAFORMA.x, ALTURA_PLAT - 0.05 - caja.min.y * plat.scale.y, PLATAFORMA.z);
+  plat.rotation.y = 2.4;      // el tramo roto hacia un lado del camino
+  scene.add(plat);
+  plat.updateMatrixWorld(true);
+  // Altura de las losas: un rayo desde arriba, cerca del centro.
+  const rayo = new THREE.Raycaster(new THREE.Vector3(PLATAFORMA.x + 0.3, 50, PLATAFORMA.z + 0.3), new THREE.Vector3(0, -1, 0));
+  const golpe = rayo.intersectObject(plat, true)[0];
+  PLATAFORMA.techo = golpe ? golpe.point.y : ALTURA_PLAT + PLATAFORMA.alto;
+  colisiones.push({ x: PLATAFORMA.x, z: PLATAFORMA.z, r: PLATAFORMA.r * 0.82, techo: PLATAFORMA.techo, plataforma: true });
 }
 
 // ─── Bastón (láminas 27 y 28) ──────────────────────────────────────────────
@@ -245,42 +258,56 @@ function crearBaston(etapa) {
   return g;
 }
 const baston = crearBaston(1);
-baston.position.set(PLATAFORMA.x, ALTURA_PLAT + PLATAFORMA.alto - 0.35, PLATAFORMA.z);
+baston.position.set(PLATAFORMA.x, PLATAFORMA.techo - 0.35, PLATAFORMA.z);
 scene.add(baston);
 
 // ─── Blizzard ──────────────────────────────────────────────────────────────
-const oscuro = plano("#35312d"), tela = plano("#e2a514", { side: THREE.DoubleSide });
-const blizzard = new THREE.Group(), cuerpo = new THREE.Group();
-blizzard.add(cuerpo);
-const piernas = [-1, 1].map(lado => {
-  const pivote = new THREE.Group();
-  pivote.position.set(lado * 0.12, 0.62, 0);
-  const pierna = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.56, 5), oscuro);
-  pierna.position.y = -0.3;
-  const bota = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.34, 4), oscuro);
-  bota.rotation.x = Math.PI / 2;
-  bota.position.set(0, -0.58, 0.1);
-  pivote.add(pierna, bota);
-  cuerpo.add(pivote);
-  return pivote;
-});
-const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.25, 0.72, 6), oscuro);
-torso.position.y = 0.98;
-const capa = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.32, 9, 4, true, 0.38, Math.PI * 2 - 0.76), tela);
-capa.position.y = 0.86;
-const capaBase = Float32Array.from(capa.geometry.attributes.position.array);
-const capucha = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 6), tela);
-capucha.position.set(0, 1.64, -0.03);
-capucha.rotation.x = -0.22;
-const hueco = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), new THREE.MeshBasicMaterial({ color: "#08080a" }));
-hueco.rotation.z = Math.PI / 4;
-hueco.scale.y = 1.5;
-hueco.position.set(0, 1.55, 0.19);
-const mano = new THREE.Group();
-mano.position.set(0.4, 0.96, 0.14);
-cuerpo.add(torso, capa, capucha, hueco, mano);
-blizzard.traverse(o => { if (o.isMesh) o.castShadow = true; });
+// El modelo de Mixamo mide 97 cm; aquí mide 1 B.
+const ESC = B / 97;
+const blizzard = new THREE.Group(), figura = gPersonaje.scene;
+figura.scale.setScalar(ESC);
+blizzard.add(figura);
 scene.add(blizzard);
+figura.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+const mixer = new THREE.AnimationMixer(figura);
+const acciones = {};
+for (const clip of gPersonaje.animations) {
+  const a = mixer.clipAction(clip);
+  if (["saltar", "aterrizar", "arrodillarse", "levantarse", "tambalearse", "alzar", "lanzar"].includes(clip.name)) { a.setLoop(THREE.LoopOnce); a.clampWhenFinished = true; }
+  acciones[clip.name] = a;
+}
+let accion = null;
+function poner(nombre, fundido = 0.25, ritmo = 1, desde = 0) {
+  const a = acciones[nombre];
+  a.timeScale = ritmo;
+  if (accion === a) return;
+  a.reset(); a.time = desde; a.setEffectiveWeight(1); a.play();
+  if (accion) accion.crossFadeTo(a, fundido, false);
+  accion = a;
+}
+const hueso = n => figura.getObjectByName("mixamorig" + n);
+
+// Pies en el suelo y capa colocada, midiendo la pose de reposo con Blizzard en el origen.
+poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
+const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
+figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
+blizzard.updateMatrixWorld(true);
+const capa = gCapa.scene;
+let capaMalla; capa.traverse(o => { if (o.isMesh) { capaMalla = o; o.material.side = THREE.DoubleSide; } });
+{
+  const cuello = enMundo("Neck"), cadera = enMundo("Hips"), cm = 100 * ESC;
+  capa.scale.set(1.28 * cm, cm, 1.28 * cm);
+  capa.position.set(cadera.x, cuello.y - 0.856 * cm + 0.04 * cm, cadera.z);
+  scene.add(capa); capa.updateMatrixWorld(true);
+  hueso("Spine2").attach(capa);
+}
+const capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
+
+// El bastón va en la mano derecha, a lo largo del eje Z del hueso.
+const agarre = new THREE.Group();
+agarre.rotation.x = -Math.PI / 2;
+agarre.scale.setScalar(1 / ESC);
+hueso("RightHand").add(agarre);
 
 // ─── Efectos: nieve que cae, espiral de viento, huellas ────────────────────
 const copos = (() => {
@@ -378,12 +405,11 @@ const pulsadas = new Set(); // solo el fotograma en que se pulsan
 let estado = "portada";
 function empezar() {
   if (estado !== "portada" || tactil) return;
-  estado = "juego";
+  estado = "levantandose";
+  poner("levantarse", 0.1, 1.25);
   portada.style.opacity = 0;
   setTimeout(() => portada.remove(), 1300);
   ayuda.hidden = false;
-  rotular("La llanura nevada", 4);
-  setTimeout(() => !tieneBaston && rotular("Algo se alza a lo lejos, sobre la nieve.", 5), 5000);
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -415,7 +441,9 @@ function sueloEn(x, z, pies) {
 }
 
 function moverHorizontal(dx, dz) {
-  const prueba = (x, z) => alturaTerreno(x, z) <= pos.y + PASO;
+  // Se mira un poco por delante para que una pendiente muy empinada cuente como pared.
+  const l = Math.hypot(dx, dz) || 1, ax = dx / l * 0.35, az = dz / l * 0.35;
+  const prueba = (x, z) => alturaTerreno(x, z) <= pos.y + PASO && alturaTerreno(x + ax, z + az) <= pos.y + PASO + 0.1;
   if (prueba(pos.x + dx, pos.z + dz)) { pos.x += dx; pos.z += dz; }
   else if (prueba(pos.x + dx, pos.z)) { pos.x += dx; vel.z = 0; }
   else if (prueba(pos.x, pos.z + dz)) { pos.z += dz; vel.x = 0; }
@@ -451,15 +479,21 @@ function actualizar(dt) {
     pos.set(lerp(a.x, b.x, t), (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * alto + t * t * b.y, lerp(a.z, b.z, t));
     efectoEspiral = Math.max(efectoEspiral, 0.5);
     if (rescate.t >= 1) { rescate = null; enSuelo = true; }
+  } else if (estado === "levantandose") {
+    if (accion === acciones.levantarse && accion.time >= accion.getClip().duration - 0.15) {
+      estado = "juego";
+      rotular("La llanura nevada", 4);
+      setTimeout(() => !tieneBaston && rotular("Algo se alza a lo lejos, sobre la nieve.", 5), 5000);
+    }
   } else if (estado === "arrodillado") {
     arrodillado += dt;
-    if (arrodillado > 0.9 && baston.parent !== mano) {
-      mano.add(baston);
-      baston.position.set(0, -0.85, 0);
-      baston.rotation.set(0.12, 0, -0.08);
+    if (arrodillado > 1.5 && baston.parent !== agarre) {
+      agarre.add(baston);
+      baston.position.set(0, -1.1, 0);
+      baston.rotation.set(0, 0, 0);
       efectoEspiral = 1.2;
     }
-    if (arrodillado > 1.8) {
+    if (arrodillado > 3.2) {
       estado = "juego"; tieneBaston = true;
       rotular("Has encontrado el bastón. En el aire, pulsa E: el viento te impulsa hacia arriba.", 7);
     }
@@ -529,7 +563,8 @@ function actualizar(dt) {
 
   blizzard.position.copy(pos);
   blizzard.rotation.y = rumbo;
-  if (rescate || estado === "arrodillado") animar(dt, 0, false);
+  if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
+  if (estado === "levantandose" || estado === "portada") { yawCamara = Math.PI; }
 
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -7.2).add(new THREE.Vector3(0, 3.6, 0));
@@ -544,29 +579,34 @@ function actualizar(dt) {
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
 }
 
-// Postura del cuerpo y capa que ondea con la velocidad y el viento.
+// Elige la animación según lo que hace Blizzard y mueve la capa con la velocidad y el viento.
+// Velocidad a la que avanza cada animación en su ritmo normal (unidades por segundo).
+const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 2.46, correr_libre: 2.49, andar_agachado: 0.7 };
+let enAireAntes = false;
 function animar(dt, v, agachado) {
-  const paso = Math.sin(fase) * 0.55 * clamp(v / 3, 0, 1);
-  let alturaCuerpo = 0, inclinacion = 0, piernaA = paso, piernaB = -paso;
-  if (!enSuelo && !rescate) { piernaA = -0.7; piernaB = 0.3; }
-  if (agachado) { alturaCuerpo = -0.28; piernaA = piernaB = -0.9; inclinacion = 0.25; }
-  if (estado === "arrodillado") { alturaCuerpo = -0.42; piernaA = -1.4; piernaB = 0.2; inclinacion = 0.35; }
-  if (rescate) { piernaA = piernaB = 0.15; inclinacion = -0.1; }
-  cuerpo.position.y = lerp(cuerpo.position.y, alturaCuerpo, 1 - Math.exp(-dt * 12));
-  cuerpo.rotation.x = lerp(cuerpo.rotation.x, inclinacion + clamp(v / V_CORRER, 0, 1) * 0.12, 1 - Math.exp(-dt * 8));
-  piernas[0].rotation.x = lerp(piernas[0].rotation.x, piernaA, 1 - Math.exp(-dt * 14));
-  piernas[1].rotation.x = lerp(piernas[1].rotation.x, piernaB, 1 - Math.exp(-dt * 14));
+  const libre = tieneBaston ? "" : "_libre";
+  if (estado === "portada") { poner("levantarse", 0); acciones.levantarse.paused = true; }
+  else if (estado === "levantandose") acciones.levantarse.paused = false;
+  else if (estado === "arrodillado") poner("arrodillarse", 0.3);
+  else if (rescate) poner("tambalearse", 0.2);
+  else if (!enSuelo) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }
+  else if (agachado) v > 0.25 ? poner("andar_agachado", 0.2, clamp(v / PASO_ANIM.andar_agachado, 0.5, 2)) : poner("agachado", 0.25);
+  else if (v > (V_ANDAR + V_CORRER) / 2) poner("correr" + libre, 0.2, clamp(v / PASO_ANIM["correr" + libre], 0.7, 2));
+  else if (v > 0.25) poner("andar" + libre, 0.25, clamp(v / PASO_ANIM["andar" + libre], 0.6, 2));
+  else poner("quieto" + libre, 0.3);
+  enAireAntes = !enSuelo && !rescate;
+  mixer.update(dt);
 
-  const p = capa.geometry.attributes.position, alto = 1.32;
-  const empuje = clamp(v / V_CORRER, 0, 1) * 0.45 + rachaViento * 0.35 + (enSuelo ? 0 : 0.2) + (rescate ? 0.3 : 0);
+  // Capa: la parte baja se echa hacia atrás y se abre con la velocidad, el viento y el salto.
+  const p = capaMalla.geometry.attributes.position;
+  const empuje = clamp(v / V_CORRER, 0, 1) * 0.55 + rachaViento * 0.35 + (enSuelo ? 0 : 0.25) + (rescate ? 0.35 : 0);
   for (let i = 0; i < p.count; i++) {
     const bx = capaBase[i * 3], by = capaBase[i * 3 + 1], bz = capaBase[i * 3 + 2];
-    const t = clamp((alto / 2 - by) / alto, 0, 1), t2 = t * t;
-    const ola = Math.sin(reloj * 7 + Math.atan2(bx, bz) * 2) * 0.05 * t * (0.4 + empuje);
-    p.setXYZ(i, bx * (1 + t2 * empuje * 0.3), by + t2 * empuje * 0.35, bz - t2 * empuje * 0.75 + ola);
+    const t = clamp((0.66 - by) / 0.66, 0, 1), t2 = t * t;
+    const ola = Math.sin(reloj * 6 + Math.atan2(bx, bz) * 2 + by * 4) * 0.012 * t * (0.3 + empuje);
+    p.setXYZ(i, bx * (1 + t2 * empuje * 0.12), by + t2 * empuje * 0.08, bz - t2 * empuje * 0.28 + ola);
   }
   p.needsUpdate = true;
-  capa.geometry.computeVertexNormals();
 }
 
 function efectos(dt, adelante) {
@@ -617,7 +657,8 @@ function bucle(ahora) {
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
 window.__blizzard = {
-  pos, get estado() { return estado; }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
+  pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
+  saltarIntro() { if (estado === "levantandose") { acciones.levantarse.time = acciones.levantarse.getClip().duration; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
   simular(segundos, mantenidas = [], alInicio = []) {
     mantenidas.forEach(k => teclas.add(k)); alInicio.forEach(k => pulsadas.add(k));
     for (let t = 0; t < segundos; t += 1 / 60) {
