@@ -466,6 +466,13 @@ Los pilares del precipicio se hacen con piezas de los kits puestas en pie y apil
 de ruinas en los normales, un peñón de rocas (con piedras encima, metidas hacia dentro) y un
 bloque tallado de ruinas en los dos grandes. La pieza de arriba se recorta a la altura de la
 cima y la nieve de la cima sigue su contorno.
+Para aprender cada poder se resigue una figura con el dedo o el ratón antes de que la alcance
+una sombra que avanza detrás (como los hechizos de Hogwarts Legacy): la espiral para llamar al
+bastón y la runa del viento (el rombo ◇) para mover piedras. Si la sombra te alcanza, te sales o
+sueltas, se repite; se puede volver a empezar enseguida tocando el punto de inicio.
+El recorrido se ha alargado por tramos (función LARGO): la salida queda despejada (la primera
+roca, a 23 m, oculta en la niebla) y hay rocas y ruinas entre las zonas y entre los acantilados.
+Los bordes de la grieta y del precipicio tienen roturas anchas, sin dientes de sierra.
 Antes de la primera plataforma hay dos zonas para aprender: filas de rocas alternas, con nieve
 acumulada, que obligan a ir de un lado a otro, y dos pilastras caídas de través que hay que
 saltar. Los pilares del precipicio son anchos por ahora (más fácil) y el primero queda separado
