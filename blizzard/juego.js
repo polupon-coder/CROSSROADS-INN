@@ -329,6 +329,56 @@ if (CON_CAPA) {
   capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
 }
 
+// Manto de nieve: al empezar, Blizzard está tendido y casi enterrado; al levantarse, la nieve
+// se hunde y salta en polvo. Los montículos siguen la silueta de la pose tendida.
+const manto = (() => {
+  poner("levantarse", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
+  const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: "#f1f4f8", roughness: 1, flatShading: false });
+  const puntos = ["Head", "Spine2", "Spine", "Hips", "LeftLeg", "RightLeg", "LeftFoot", "RightFoot", "LeftForeArm", "RightForeArm", "LeftHand", "RightHand"];
+  const montones = [];
+  for (const n of puntos) {
+    const p = blizzard.worldToLocal(enMundo(n));
+    const geo = new THREE.IcosahedronGeometry(1, 2), v = geo.attributes.position;
+    for (let i = 0; i < v.count; i++) { const f = 1 + (rnd() - 0.5) * 0.25; v.setXYZ(i, v.getX(i) * f, Math.max(v.getY(i), -0.2) * f, v.getZ(i) * f); }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, mat), grande = /Spine|Hips/.test(n) ? 1.35 : 1;
+    const esc = new THREE.Vector3(0.36 * grande, 0.2 + rnd() * 0.06, 0.36 * grande);
+    m.scale.copy(esc); m.position.set(p.x, Math.max(0.05, p.y * 0.6), p.z);
+    m.receiveShadow = true; m.userData = { esc, y: m.position.y };
+    g.add(m); montones.push(m);
+  }
+  blizzard.add(g);
+  // Polvo de nieve que salta al deshacerse el manto.
+  const N = 500, pp = new Float32Array(N * 3), vel = new Float32Array(N * 3);
+  const geoP = new THREE.BufferGeometry(); geoP.setAttribute("position", new THREE.BufferAttribute(pp, 3));
+  const polvo = new THREE.Points(geoP, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0, depthWrite: false }));
+  polvo.frustumCulled = false; blizzard.add(polvo);
+  let soltado = false, vida = 0;
+  return {
+    actualizar(dt, k) {                                        // k: 0 enterrado, 1 deshecho
+      for (const m of montones) { m.scale.set(m.userData.esc.x * (1 + k * 0.3), m.userData.esc.y * (1 - k), m.userData.esc.z * (1 + k * 0.3)); m.position.y = m.userData.y * (1 - k); }
+      g.visible = k < 1;
+      if (k > 0.02 && !soltado) {
+        soltado = true; vida = 1.6;
+        for (let i = 0; i < N; i++) {
+          const m = montones[i % montones.length];
+          pp[i * 3] = m.position.x + (rnd() - 0.5) * 0.5; pp[i * 3 + 1] = m.position.y + rnd() * 0.2; pp[i * 3 + 2] = m.position.z + (rnd() - 0.5) * 0.5;
+          vel[i * 3] = (rnd() - 0.5) * 1.6; vel[i * 3 + 1] = 0.8 + rnd() * 2.2; vel[i * 3 + 2] = (rnd() - 0.5) * 1.6;
+        }
+      }
+      if (vida > 0) {
+        vida -= dt;
+        for (let i = 0; i < N; i++) {
+          vel[i * 3 + 1] -= 4 * dt; vel[i * 3] -= 1.2 * dt;          // gravedad suave y viento
+          pp[i * 3] += vel[i * 3] * dt; pp[i * 3 + 1] = Math.max(0, pp[i * 3 + 1] + vel[i * 3 + 1] * dt); pp[i * 3 + 2] += vel[i * 3 + 2] * dt;
+        }
+        geoP.attributes.position.needsUpdate = true;
+        polvo.material.opacity = clamp(vida / 1.6, 0, 1) * 0.8;
+      } else polvo.material.opacity = 0;
+    },
+  };
+})();
+
 // El bastón no sigue el giro de la mano (las animaciones son de hacha): se coloca cada
 // fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
 let bastonEnMano = false, inclinacionBaston = 0.1, vueloBaston = null, espiralEn = null;
@@ -656,6 +706,9 @@ function actualizar(dt) {
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -7.2).add(new THREE.Vector3(0, 3.6, 0));
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, 4).add(new THREE.Vector3(0, 1.1, 0));
+  if (estado === "portada") manto.actualizar(dt, 0);
+  else if (estado === "levantandose") manto.actualizar(dt, suave(0.4, 2.6, acciones.levantarse.time));
+  else manto.actualizar(dt, 1);
   if (estado === "portada" || estado === "levantandose") {
     // Toma inicial completamente cenital sobre Blizzard tendido; mientras se levanta, la cámara
     // baja describiendo un arco hasta quedar detrás de él. La niebla se aparta durante la toma.
