@@ -100,7 +100,13 @@ Cada sesión nueva debería empezar leyendo este archivo.
 
 ## 4. Lenguaje visual
 
-- **El viento mágico** es siempre una espiral blanca de partículas (9, 15, 26, 29).
+- **El viento mágico (láminas 114 y 115, guía de estilo del autor):** una única lámina
+  continua, fina en los extremos y más ancha en el centro, que se curva en espiral
+  alrededor de lo que mueve. Bordes blancos y centro transparente. No son partículas:
+  es una cinta. (Las espirales de nieve de 9, 15, 26 y 29 son anteriores.)
+- **La luna (láminas 112 y 113), propuesta:** de noche la luna repite el bastón. Su
+  fase coincide con la etapa del círculo: un creciente finísimo al principio (112) y
+  casi llena en los últimos capítulos (113); llena la noche del templo.
 - **Los anillos de piedra incompletos** del paisaje (32, 33, 47, 50, 66) riman con el bastón.
   Propuesta: la abertura de los anillos de cada capítulo coincide con la etapa del bastón.
 - **Las plataformas arcanas** son discos de piedra oscura con losas en abanico y anillos
@@ -252,6 +258,9 @@ o reto de salto**.
   del capítulo 3 o aproximación al templo; la luz guía sin interfaz.
 - 109: plataforma de cristal ámbar de noche, con la runa del rombo cruzado y escalones
   luminosos. Versión nocturna de una plataforma de los capítulos finales.
+
+- 111: camino de losas de cristal ámbar por una cresta, de noche, hacia una ciudadela
+  en la niebla. Aproximación nocturna en los capítulos 4 o 7.
 
 ### Fotograma objetivo del juego (lámina 92)
 
