@@ -462,6 +462,10 @@ Incluye: Blizzard tendido en la portada que se levanta al empezar, la llanura, l
 con el bastón (arrodillarse y recogerlo), salto, correr, agacharse, impulso de viento (E),
 la grieta que solo se cruza con impulso y el rescate (tambaleo y viento), el rellano de
 1,8 B, huellas, nieve, el viento como límite del mundo y el anillo abierto como meta.
+Los pilares del precipicio se hacen con piezas de los kits puestas en pie y apiladas: pilastras
+de ruinas en los normales, un peñón de rocas (con piedras encima, metidas hacia dentro) y un
+bloque tallado de ruinas en los dos grandes. La pieza de arriba se recorta a la altura de la
+cima y la nieve de la cima sigue su contorno.
 Tras el rellano, una segunda plataforma (el mismo modelo, más pequeña) despierta el poder de
 mover piedras: en el suelo, junto a un peñasco, el botón de magia lo levanta y lo deja caer
 sobre la pared. Justo después, un desfiladero de paredes de roca queda cerrado por tres
