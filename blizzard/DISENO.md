@@ -133,6 +133,10 @@ capítulo, igual que crece el bastón al acabarlo.
     clavado en vertical en el centro: un palo oscuro y sencillo (etapa 1; la muesca
     solo se ve en el plano cercano). Blizzard, todavía sin bastón, sube el escalón
     para llegar a él.
+  - **El momento de recoger el bastón (lámina 139):** Blizzard agarra el palo clavado
+    en el centro de la plataforma, con surcos concéntricos tallados alrededor, y al
+    fondo la torre del templo brilla entre la niebla. Es la referencia de esa escena:
+    el destino se ve en el mismo instante en que empieza el poder.
   - **Hoja de modelado de una plataforma posterior: lámina 88** (tres cuartos,
     planta, alzado y detalle). Disco de losas radiales con una runa en el centro,
     anillo exterior de segmentos con runas alternas, base de dos gradas (≈ 0,5 B, se
