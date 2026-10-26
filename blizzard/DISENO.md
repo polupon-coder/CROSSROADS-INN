@@ -50,12 +50,12 @@ Cada sesión nueva debería empezar leyendo este archivo.
 - **Bastón:** madera muy oscura, gris pardo, facetada, que se estrecha hacia abajo
   (lámina 27). Se descarta el marrón claro de 21 y 25 y el fuste con nudos de 67–69.
 
-### 3.2 Capa: tres estados de desgaste
-| Estado | Lámina | Cuándo |
-|---|---|---|
-| Intacta | 11 | Capítulos 1–2 |
-| Bordes deshilachados | 17 | Capítulos 3–5 |
-| Maltrecha | 12 | Capítulos 6–7 |
+### 3.2 Capa: siete estados de desgaste (lámina 119; sustituye a 11/17/12)
+Un estado por capítulo, vistos de espaldas, que es como se ve casi siempre:
+1 intacta · 2 polvo de nieve en el bajo · 3 bajo gastado · 4 primeros rotos ·
+5 agujeros y jirones · 6 bajo hecho tiras · 7 maltrecha, con huecos que dejan ver el
+pantalón. La silueta y el amarillo se mantienen en todos. Cambia al empezar cada
+capítulo, igual que crece el bastón al acabarlo.
 
 ### 3.3 Bastón: siete etapas (láminas 27 de día y 28 de noche)
 | Etapa | Momento |
@@ -80,7 +80,7 @@ Cada sesión nueva debería empezar leyendo este archivo.
 | Arrodillarse (recoger el bastón, pausas, final) | 2 |
 | Subir un escalón (≈ 0,5 B, sin saltar) | 89 |
 | Saltar y caer | 3 |
-| Impulso de viento en el salto | 4 |
+| Impulso de viento en el salto | 4, 117 (con la cinta de viento) |
 | Ascenso sostenido (bastón girando como hélice) | 18 |
 | Cargar y dirigir la ráfaga | 1 |
 | Ráfaga dirigida en el aire, bastón al frente (vista lateral) | 93, 98 |
@@ -104,6 +104,13 @@ Cada sesión nueva debería empezar leyendo este archivo.
   continua, fina en los extremos y más ancha en el centro, que se curva en espiral
   alrededor de lo que mueve. Bordes blancos y centro transparente. No son partículas:
   es una cinta. (Las espirales de nieve de 9, 15, 26 y 29 son anteriores.)
+  - Su tamaño se adapta a lo que envuelve: dos vueltas cortas en una piedra pequeña,
+    más vueltas y más largas en un monolito (116).
+  - Impulso en el salto: la cinta se enrosca en las piernas (117).
+  - En reposo o caminando, una sola cinta fina sale del bastón y se arrastra detrás
+    de la capa (118): el viento acompaña siempre a Blizzard.
+  - La 120 (la luna vista dentro del aro del bastón) confirma la relación entre luna y
+    bastón; sirve también como imagen de cartel.
 - **La luna (láminas 112 y 113), propuesta:** de noche la luna repite el bastón. Su
   fase coincide con la etapa del círculo: un creciente finísimo al principio (112) y
   casi llena en los últimos capítulos (113); llena la noche del templo.
