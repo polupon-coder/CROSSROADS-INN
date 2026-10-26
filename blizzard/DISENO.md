@@ -100,9 +100,7 @@ capítulo, igual que crece el bastón al acabarlo.
 | Mover piedras | 15 |
 | Equilibrar plataformas | 25 |
 | Alzar el bastón (activar, abrir puertas) | 10, 72 |
-| Meditar / punto seguro / pantalla de título | 9, 14 |
-| Meditar sentado en una plataforma (guardar) | 100–103, 134 (de frente) |
-| Rescate del viento | 29 (pasiva; mejor con la mano libre abierta) |
+| Rescate del viento | 29; empieza con *Teeter* (Mixamo): se tambalea en el borde y el viento lo recoge |
 | Sin bastón (inicio del capítulo 1) | 23 |
 | Nocturno | 16 |
 | Manipular runas (piedra con runa alzada y girada por el viento, vista de espaldas) | 74 |
@@ -316,7 +314,7 @@ casi todas partes como referencia:
 7. **Cumbre y templo** — sendero en zigzag con torres en ruinas hasta la torre.
 
 Idea opcional: este mapa, con la línea amarilla hasta el punto alcanzado, puede
-aparecer al meditar (guardar), como única pantalla de «progreso» del juego.
+aparecer al guardar, como única pantalla de «progreso» del juego.
 
 ## 5. Capítulos y láminas (propuesta provisional)
 
@@ -381,23 +379,16 @@ Siluetas, degradados de cielo y niebla, casi sin textura. Es el estilo más fác
 conseguir en tiempo real en el navegador y encaja con el prototipo. Pendiente de que
 el autor diga si es la dirección visual o solo una exploración.
 
-### Meditar en las plataformas: guardar la partida (láminas 100–103)
-Blizzard sentado con las piernas cruzadas en el centro de una plataforma arcana, con la
-capa extendida en abanico sobre las losas; vista de espaldas, cenital y de frente.
-Decidido por el autor: meditar es guardar.
-- **Inicio (cambiado por el autor):** el juego empieza con Blizzard **tendido boca abajo
+### Inicio del juego y guardado
+- **Inicio (decidido por el autor):** el juego empieza con Blizzard **tendido boca abajo
   en la nieve**, sin bastón, en mitad de la llanura. Se incorpora despacio (animación
   *Standing Up* de Mixamo, 11 s: se apoya en las manos, se arrodilla y se pone de pie)
   y el jugador toma el control. Propuesta: pantalla de título en vista cenital con
   Blizzard tendido y medio cubierto de nieve; al empezar, la nieve se desprende al
   levantarse y la cámara baja hasta su espalda. El bastón está más adelante (89).
-- Meditar en una plataforma **guarda la partida** y la convierte en punto de retorno.
-- La cámara sube despacio a la vista cenital: la capa abierta y el disco de piedra
-  forman un círculo. La música se calma.
-- Opcional: meditando se puede dejar pasar el tiempo (día ↔ noche), útil para las
-  pruebas que necesitan las runas encendidas.
-- Falta el bastón en estas láminas: debería estar apoyado sobre las piernas o clavado
-  a su lado.
+- **Sin meditación (decidido por el autor):** Blizzard no se sienta a meditar. Las
+  láminas 100–103 y 134 quedan como arte, no como animación del juego.
+- **Guardado: pendiente.** Sin meditar, falta decidir cómo se guarda la partida.
 
 ### Dunas de nieve (láminas 126 y 127, guía del autor)
 Dunas en media luna (barjanes): ladera de barlovento larga y suave, cresta afilada que
