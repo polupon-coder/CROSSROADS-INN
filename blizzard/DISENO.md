@@ -466,12 +466,17 @@ Los pilares del precipicio se hacen con piezas de los kits puestas en pie y apil
 de ruinas en los normales, un peñón de rocas (con piedras encima, metidas hacia dentro) y un
 bloque tallado de ruinas en los dos grandes. La pieza de arriba se recorta a la altura de la
 cima y la nieve de la cima sigue su contorno.
+Antes de la primera plataforma hay dos zonas para aprender: filas de rocas alternas, con nieve
+acumulada, que obligan a ir de un lado a otro, y dos pilastras caídas de través que hay que
+saltar. Los pilares del precipicio son anchos por ahora (más fácil) y el primero queda separado
+del borde.
 Tras el rellano, una segunda plataforma (el mismo modelo, más pequeña) despierta el poder de
-mover piedras: en el suelo, junto a un peñasco, el botón de magia lo levanta y lo deja caer
-sobre la pared. Justo después, un desfiladero de paredes de roca queda cerrado por tres
-peñascos demasiado altos para saltarlos, incluso con impulso; hay que apartarlos para seguir.
-Falta: día y noche, música, controles táctiles y de mando, la cinta de viento, la ventisca
-a ras de suelo y ajustar el bastón en la mano en algunas animaciones.
+mover piedras: junto a una roca, el botón de magia la alza envuelta en la espiral; Blizzard la
+lleva delante mientras anda (despacio, sin saltar) y la suelta pulsando otra vez, donde quiera.
+Justo después, un desfiladero de paredes de roca queda cerrado por tres rocas de unos 2,3 m;
+son de hielo y no se puede subir a ellas, así que hay que apartarlas.
+En reposo, Blizzard mira alrededor («idle looking», paquetes de Mixamo). Al subir un escalón
+alto sube una pierna y luego la otra (gesto hecho por código: no hay animación de subir).
 
 ## 9. Siguientes pasos
 
