@@ -36,14 +36,18 @@ const B = 1.6;
 const GRAVEDAD = 22;
 const V_SALTO = 8.9;          // salto normal: ≈ 1,1 B
 const V_IMPULSO = 7.8;        // impulso de viento en el aire: ≈ +0,9 B
-const V_ANDAR = 1.9, V_CORRER = 4.4, V_AGACHADO = 0.9;
+const V_ANDAR = 1.9, V_CORRER = 4.6, V_AGACHADO = 0.9;
 const PASO = 0.8;             // escalones de hasta 0,5 B se suben sin saltar
 const ANCHO_CAMINO = 13;      // a partir de aquí el viento frena
 
 // Recorrido: el viento mantiene a Blizzard cerca de esta línea.
 const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180]];
 const PLATAFORMA = { x: -4, z: -42, r: 5.4, alto: 0.7 };
-const GRIETA = { z: -100, media: 2.6 };
+const GRIETA = { z: -100, media: 2.45 };
+// La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
+const grietaZ = x => GRIETA.z + Math.sin(x * 0.11 + 0.7) * 2.4 + Math.sin(x * 0.37) * 0.7 - Math.sin(0.7) * 2.4;
+const grietaMedia = x => GRIETA.media + Math.max(0, Math.abs(x) - 4) * 0.03 * (1 + Math.sin(x * 0.23)) ;
+const enGrieta = (x, z) => Math.abs(z - grietaZ(x)) < grietaMedia(x);
 const RELLANO = { z: -141, alto: 2.8 };
 const FIN_Z = -166;
 
@@ -84,10 +88,10 @@ function alturaTerreno(x, z) {
   let h = alturaBase(x, z);
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
-  h += RELLANO.alto * suave(RELLANO.z + 0.4, RELLANO.z - 0.4, z);
+  h += RELLANO.alto * suave(RELLANO.z + 0.12, RELLANO.z - 0.12, z);
   const lado = enCamino(x, z).d;
   h += Math.max(0, lado - 20) * 0.35;                         // laderas fuera del recorrido
-  if (Math.abs(z - GRIETA.z) < GRIETA.media && Math.abs(x) < 90) h = -14;
+  if (enGrieta(x, z) && Math.abs(x) < 90) h = -14;
   return h;
 }
 
@@ -119,12 +123,18 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
 
 // Suelo nevado, con más detalle a lo largo del recorrido para que la grieta y el rellano tengan paredes netas.
 {
-  const geo = new THREE.PlaneGeometry(320, 330, 110, 330);
+  const geo = new THREE.PlaneGeometry(320, 330, 240, 330);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, -85);
   const pos = geo.attributes.position, colores = [], nieve = new THREE.Color("#f6f8fb"), sombra = new THREE.Color("#e6ebf2"), pared = new THREE.Color("#8796b5");
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i), h = alturaTerreno(x, z);
+    // Los vértices cercanos al borde de la grieta se llevan justo al filo, para que el borde
+    // siga la curva limpia en lugar de dibujar escalones.
+    const x = pos.getX(i); let z = pos.getZ(i);
+    const dg = z - grietaZ(x), mg = grietaMedia(x);
+    if (Math.abs(x) < 90 && Math.abs(dg) > mg - 1 && Math.abs(dg) < mg + 1) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
+    pos.setZ(i, z);
+    const h = alturaTerreno(x, z);
     pos.setY(i, h);
     const c = h < -1 ? pared : nieve.clone().lerp(sombra, clamp(0.5 - alturaBase(x, z), 0, 1));
     colores.push(c.r, c.g, c.b);
@@ -136,7 +146,21 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   nieveTex.wrapS = nieveTex.wrapT = THREE.MirroredRepeatWrapping;
   nieveTex.repeat.set(320 / 9, 330 / 9);
   nieveTex.anisotropy = 4;
-  const suelo = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: nieveTex, vertexColors: true, roughness: 0.95 }));
+  // Segunda nieve (lámina 146) en manchas grandes e irregulares, para dar variedad.
+  const nieve2 = new THREE.TextureLoader().load("texturas/nieve2.jpg");
+  nieve2.wrapS = nieve2.wrapT = THREE.MirroredRepeatWrapping; nieve2.anisotropy = 4;
+  const matSuelo = new THREE.MeshStandardMaterial({ map: nieveTex, vertexColors: true, roughness: 0.95 });
+  matSuelo.onBeforeCompile = sh => {
+    sh.uniforms.nieve2 = { value: nieve2 };
+    sh.vertexShader = "varying vec3 vMundo;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vMundo = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = "uniform sampler2D nieve2;\nvarying vec3 vMundo;\n" + sh.fragmentShader.replace("#include <map_fragment>", `
+      vec4 n1 = texture2D(map, vUv);
+      vec4 n2 = texture2D(nieve2, vUv * 0.77 + vec2(0.31, 0.17));
+      float m = sin(vMundo.x * 0.071 + sin(vMundo.z * 0.043) * 2.3) * sin(vMundo.z * 0.083 + cos(vMundo.x * 0.037) * 1.9);
+      m = smoothstep(0.05, 0.55, m);
+      diffuseColor *= mix(n1, n2, m);`);
+  };
+  const suelo = new THREE.Mesh(geo, matSuelo);
   suelo.receiveShadow = true;
   const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano("#eef2f9"));
   lejos.rotation.x = -Math.PI / 2;
@@ -231,7 +255,7 @@ for (let i = 0; i < 150; i++) {
   else if (tipo < 0.85) { dist = 19 + rnd() * 10; ancho = 2 + rnd() * 2; alto = 4 + rnd() * 3; }          // 3–4 B
   else { dist = 24 + rnd() * 25; ancho = 3 + rnd() * 3; alto = 9 + rnd() * 9; }                           // > 5 B
   const x = caminoX(z) + ladoSigno * dist;
-  if (Math.abs(z - GRIETA.z) < GRIETA.media + ancho + 1) continue;
+  if (Math.abs(z - grietaZ(caminoX(z))) < grietaMedia(0) + ancho + 7) continue;
   if (Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z) < PLATAFORMA.r + ancho + 2) continue;
   if (Math.abs(z - RELLANO.z) < ancho + 1.5) continue;
   roca(x + (rnd() - 0.5) * 3, z, ancho, alto);
@@ -241,9 +265,30 @@ for (let i = 0; i < 150; i++) {
 for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
   const pieza = kitRocas[Math.floor(rnd() * Math.min(5, kitRocas.length))];
   const alto = 0.5 + rnd() * 1.6, esc = alto / pieza.alto;
-  let dx = (rnd() < 0.5 ? -1 : 1) * (3.5 + rnd() * 22);
-  const z = GRIETA.z + lado * (GRIETA.media + pieza.radio * esc + 0.3 + rnd() * 1.5);
-  colocar(pieza, caminoX(z) + dx, z, alto, rnd() * Math.PI * 2, 0.25);
+  const x = caminoX(GRIETA.z) + (rnd() < 0.5 ? -1 : 1) * (3.5 + rnd() * 22);
+  const z = grietaZ(x) + lado * (grietaMedia(x) + pieza.radio * esc + 0.4 + rnd() * 1.5);
+  colocar(pieza, x, z, alto, rnd() * Math.PI * 2, 0.25);
+}
+
+// Montículos de nieve: las formas del kit de rocas, aplastadas, hundidas y cubiertas con la
+// textura de nieve, agrupadas en algunas zonas de la llanura.
+{
+  const tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
+  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(3, 3);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, color: "#f2f5f9", roughness: 1 });
+  const zonas = [[-9, -6], [10, -28], [-12, -64], [11, -78], [-10, -122], [9, -136], [-6, 2]];
+  for (const [zx, zz] of zonas) for (let i = 0; i < 5; i++) {
+    const x = caminoX(zz) + zx + (rnd() - 0.5) * 9, z = zz + (rnd() - 0.5) * 9;
+    if (Math.abs(z - grietaZ(x)) < grietaMedia(x) + 4 || Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z) < PLATAFORMA.r + 3) continue;
+    const pieza = kitRocas[Math.floor(rnd() * kitRocas.length)];
+    const ancho = 2 + rnd() * 3.5, alto = 0.35 + rnd() * 0.9;
+    const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, mat);
+    m.position.copy(pieza.desplaza); m.receiveShadow = m.castShadow = true;
+    g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = rnd() * Math.PI * 2;
+    const y = alturaTerreno(x, z) - alto * 0.35;
+    g.position.set(x, y, z); scene.add(g);
+    colisiones.push({ x, z, r: ancho * 0.3, techo: y + alto * 0.9 });
+  }
 }
 
 // Algunas rocas de 1 B en mitad del camino, para practicar el salto.
@@ -347,58 +392,6 @@ if (CON_CAPA) {
   hueso("Spine2").attach(capa);
   capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
 }
-
-// Manto de nieve: al empezar, Blizzard está tendido y casi enterrado; al levantarse, la nieve
-// se hunde y salta en polvo. Los montículos siguen la silueta de la pose tendida.
-const manto = (() => {
-  poner("levantarse", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
-  const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: "#f1f4f8", roughness: 1, flatShading: false });
-  const puntos = ["Head", "Spine2", "Spine", "Hips", "LeftLeg", "RightLeg", "LeftFoot", "RightFoot", "LeftForeArm", "RightForeArm", "LeftHand", "RightHand"];
-  const montones = [];
-  for (const n of puntos) {
-    const p = blizzard.worldToLocal(enMundo(n));
-    const geo = new THREE.IcosahedronGeometry(1, 2), v = geo.attributes.position;
-    for (let i = 0; i < v.count; i++) { const f = 1 + (rnd() - 0.5) * 0.25; v.setXYZ(i, v.getX(i) * f, Math.max(v.getY(i), -0.2) * f, v.getZ(i) * f); }
-    geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, mat), grande = /Spine|Hips/.test(n) ? 1.5 : 1.1;
-    const esc = new THREE.Vector3(0.5 * grande, 0.3 + rnd() * 0.08, 0.5 * grande);
-    m.scale.copy(esc); m.position.set(p.x, Math.max(0.05, p.y * 0.6), p.z);
-    m.receiveShadow = true; m.userData = { esc, y: m.position.y };
-    g.add(m); montones.push(m);
-  }
-  blizzard.add(g);
-  // Terrones de nieve que saltan y se deshacen al levantarse.
-  const N = 46, terrones = [], geoT = new THREE.IcosahedronGeometry(1, 0);
-  const matT = new THREE.MeshStandardMaterial({ color: "#f1f4f8", roughness: 1, flatShading: true, transparent: true });
-  for (let i = 0; i < N; i++) { const t = new THREE.Mesh(geoT, matT); t.visible = false; t.userData.v = new THREE.Vector3(); blizzard.add(t); terrones.push(t); }
-  let soltado = false, vida = 0;
-  return {
-    actualizar(dt, k) {                                        // k: 0 enterrado, 1 deshecho
-      for (const m of montones) { m.scale.set(m.userData.esc.x * (1 + k * 0.3), m.userData.esc.y * (1 - k), m.userData.esc.z * (1 + k * 0.3)); m.position.y = m.userData.y * (1 - k); }
-      g.visible = k < 1;
-      if (k > 0.02 && !soltado) {
-        soltado = true; vida = 1.8;
-        terrones.forEach((t, i) => {
-          const m = montones[i % montones.length];
-          t.position.set(m.position.x + (rnd() - 0.5) * 0.4, m.position.y + 0.1, m.position.z + (rnd() - 0.5) * 0.4);
-          t.scale.setScalar(0.05 + rnd() * 0.09); t.rotation.set(rnd() * 3, rnd() * 3, 0);
-          t.userData.v.set((rnd() - 0.5) * 1.8, 1 + rnd() * 2.2, (rnd() - 0.5) * 1.8); t.visible = true;
-        });
-      }
-      if (vida > 0) {
-        vida -= dt;
-        for (const t of terrones) {
-          t.userData.v.y -= 6 * dt;
-          t.position.addScaledVector(t.userData.v, dt);
-          if (t.position.y < 0) { t.position.y = 0; t.userData.v.set(t.userData.v.x * 0.4, 0, t.userData.v.z * 0.4); }
-          t.rotation.x += dt * 3;
-        }
-        matT.opacity = clamp(vida / 0.8, 0, 1);
-        if (vida <= 0) terrones.forEach(t => { t.visible = false; });
-      }
-    },
-  };
-})();
 
 // El bastón no sigue el giro de la mano (las animaciones son de hacha): se coloca cada
 // fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
@@ -553,8 +546,7 @@ const pulsadas = new Set(); // solo el fotograma en que se pulsan
 let estado = "portada";
 function empezar() {
   if (estado !== "portada" || tactil) return;
-  estado = "levantandose";
-  poner("levantarse", 0.1, 1.25);
+  estado = "intro"; tIntro = 0;
   portada.style.opacity = 0;
   setTimeout(() => portada.remove(), 1300);
   ayuda.hidden = false;
@@ -580,13 +572,14 @@ let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBast
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
-let yawCamara = Math.PI;
+let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0;
+const INTRO_AVANCE = 7, INTRO_DURA = 12;
 
 function sueloEn(x, z, pies) {
   let h = -Infinity, sobre = null;
   for (const [dx, dz] of [[0, 0], [0.16, 0], [-0.16, 0], [0, 0.16], [0, -0.16]]) {
-    const t = alturaTerreno(x + dx, z + dz), p = alturaPlat(x + dx, z + dz);
-    h = Math.max(h, t, p <= pies + PASO ? p : -Infinity);
+    const t = alturaTerreno(x + dx, z + dz), p = alturaPlat(x + dx, z + dz), centro = dx === 0 && dz === 0;
+    h = Math.max(h, centro || t <= pies + 0.15 ? t : -Infinity, p <= pies + PASO ? p : -Infinity);
     if (p > t && p <= pies + PASO && dx === 0 && dz === 0) sobre = PLATAFORMA;
   }
   for (const c of colisiones) {
@@ -598,7 +591,8 @@ function sueloEn(x, z, pies) {
 function moverHorizontal(dx, dz) {
   // Se mira un poco por delante para que una pendiente muy empinada cuente como pared.
   const l = Math.hypot(dx, dz) || 1, ax = dx / l * 0.35, az = dz / l * 0.35;
-  const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + PASO && alturaSuelo(x + ax, z + az) <= pos.y + PASO + 0.1;
+  const paso = enSuelo ? PASO : 0.55;                         // en el aire no se «sube» un escalón
+  const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + paso && alturaSuelo(x + ax, z + az) <= pos.y + paso + 0.1;
   if (prueba(pos.x + dx, pos.z + dz)) { pos.x += dx; pos.z += dz; }
   else if (prueba(pos.x + dx, pos.z)) { pos.x += dx; vel.z = 0; }
   else if (prueba(pos.x, pos.z + dz)) { pos.z += dz; vel.x = 0; }
@@ -628,14 +622,15 @@ function actualizar(dt) {
 
   if (rescate) {
     // El viento lo lleva en una curva suave hasta el último punto seguro (lámina 29).
-    rescate.t = Math.min(1, rescate.t + dt / 1.9);
-    const t = suave(0, 1, rescate.t), alto = Math.max(rescate.desde.y, rescate.hacia.y) + 5;
+    rescate.t = Math.min(1, rescate.t + dt / 1.4);
+    const t = suave(0, 1, rescate.t), alto = Math.max(rescate.desde.y, rescate.hacia.y) + 1.6;
     const a = rescate.desde, b = rescate.hacia;
     pos.set(lerp(a.x, b.x, t), (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * alto + t * t * b.y, lerp(a.z, b.z, t));
-    efectoEspiral = Math.max(efectoEspiral, 0.5);
+    efectoEspiral = Math.max(efectoEspiral, 1);
     if (rescate.t >= 1) { rescate = null; enSuelo = true; }
-  } else if (estado === "levantandose") {
-    if (accion === acciones.levantarse && accion.time >= accion.getClip().duration - 0.15) {
+  } else if (estado === "intro") {
+    tIntro += dt;
+    if (tIntro >= INTRO_DURA) {
       estado = "juego";
       rotular("La llanura nevada", 4);
       setTimeout(() => !tieneBaston && rotular("Algo se alza a lo lejos, sobre la nieve.", 5), 5000);
@@ -699,7 +694,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - GRIETA.z) > GRIETA.media + 3 && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -728,24 +723,27 @@ function actualizar(dt) {
   blizzard.rotation.y = rumbo;
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
   colocarBaston(dt, Math.hypot(vel.x, vel.z));
-  if (estado === "levantandose" || estado === "portada") { yawCamara = Math.PI; }
+  if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
-  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -7.2).add(new THREE.Vector3(0, 3.6, 0));
-  const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, 4).add(new THREE.Vector3(0, 1.1, 0));
-  if (estado === "portada") manto.actualizar(dt, 0);
-  else if (estado === "levantandose") manto.actualizar(dt, suave(0.4, 2.6, acciones.levantarse.time));
-  else manto.actualizar(dt, 1);
-  if (estado === "portada" || estado === "levantandose") {
-    // Toma inicial completamente cenital sobre Blizzard tendido; mientras se levanta, la cámara
-    // baja describiendo un arco hasta quedar detrás de él. La niebla se aparta durante la toma.
-    const lev = acciones.levantarse, p = estado === "portada" ? 0 : suave(0.45, 0.95, lev.time / lev.getClip().duration);
-    const arriba = new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 12, 0.02));
-    camara.position.lerpVectors(arriba, ojo, p);
-    camara.position.y += Math.sin(Math.PI * p) * 2;
-    camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 0.3, 0)), mira, p));
-    const alto = camara.position.y - pos.y;
-    scene.fog.near = lerp(alto - 3, 2, p); scene.fog.far = lerp(alto + 14, 19, p);
+  // Plano cercano: tras unos segundos quieto, o al llamar al bastón, la cámara se acerca.
+  quietoDesde = Math.hypot(vel.x, vel.z) < 0.2 && enSuelo ? quietoDesde + dt : 0;
+  const quiereCerca = estado === "llamando" || (estado === "juego" && quietoDesde > 2.5) ? 1 : 0;
+  cerca = lerp(cerca, quiereCerca, 1 - Math.exp(-dt * (quiereCerca ? 0.8 : 2.5)));
+  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(7.2, 3.6, cerca)).add(new THREE.Vector3(0, lerp(3.6, 1.7, cerca), 0));
+  const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(4, 1.5, cerca)).add(new THREE.Vector3(0, lerp(1.1, 1.2, cerca), 0));
+  if (estado === "portada" || estado === "intro") {
+    // Toma inicial: la cámara avanza sola entre la niebla, a la altura de los ojos, hasta
+    // encontrar a Blizzard de pie y de cara; luego gira alrededor de él hasta su espalda.
+    const t = estado === "portada" ? 0 : tIntro;
+    const acerca = suave(0, INTRO_AVANCE, t), gira = suave(INTRO_AVANCE + 1.2, INTRO_DURA, t);
+    const dist = lerp(34, 3.6, acerca), ang = Math.PI * gira;      // 0: de cara; π: detrás
+    const radio = lerp(dist, 7.2, gira), altura = lerp(1.5, 3.6, gira);
+    // «adelante» apunta hacia donde mira Blizzard; la cámara empieza delante de él.
+    camara.position.copy(pos).addScaledVector(adelante, Math.cos(ang) * radio).addScaledVector(new THREE.Vector3(-adelante.z, 0, adelante.x), Math.sin(ang) * radio);
+    camara.position.y = pos.y + altura;
+    camara.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3().copy(pos).add(new THREE.Vector3(0, 1.2, 0)), mira, gira));
+    scene.fog.near = 2; scene.fog.far = 19;
   } else {
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
@@ -788,8 +786,7 @@ const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 4.0, correr_libre: 5
 let enAireAntes = false;
 function animar(dt, v, agachado) {
   const libre = tieneBaston ? "" : "_libre";
-  if (estado === "portada") { poner("levantarse", 0); acciones.levantarse.paused = true; }
-  else if (estado === "levantandose") acciones.levantarse.paused = false;
+  if (estado === "portada" || estado === "intro") poner("quieto_libre", 0.3);
   else if (estado === "llamando") poner("llamar", 0.3);
   else if (rescate) poner("tambalearse", 0.2);
   else if (!enSuelo) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }
@@ -849,14 +846,14 @@ function efectos(dt, adelante) {
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
   espiral.material.opacity = intensidad;
   const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
-  const centro = espiralEn || (rachaViento > efectoEspiral ? new THREE.Vector3(pos.x + c.nx * 0.6, pos.y, pos.z + c.nz * 0.6) : pos);
+  const centro = espiralEn || pos;
   for (let i = 0; i < n; i++) {
     const k = i / (n - 1), ancho = Math.sin(Math.PI * k) * 0.24;   // fina en los extremos, ancha en el centro
     let x, y, z;
     if (!espiralEn && rachaViento > efectoEspiral) {
-      // Bumerán: un arco horizontal en el lado del límite, con la parte cóncava hacia Blizzard,
+      // Bumerán: un arco horizontal en el lado del límite (hacia fuera del camino), con la parte cóncava hacia Blizzard,
       // que gira sobre sí mismo y empuja hacia el camino.
-      const base = Math.atan2(-c.nz, -c.nx), a = base + (k - 0.5) * 2.4 + Math.sin(reloj * 3) * 0.25;
+      const base = Math.atan2(c.nz, c.nx), a = base + (k - 0.5) * 2.4 + Math.sin(reloj * 3) * 0.25;
       const r = 1.1 + Math.sin(Math.PI * k) * 0.35 - Math.sin(reloj * 5) * 0.15;
       x = centro.x + Math.cos(a) * r; y = centro.y + 1.0 + Math.sin(reloj * 6 + k * 3) * 0.12; z = centro.z + Math.sin(a) * r;
     } else {
@@ -892,7 +889,7 @@ requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
 window.__blizzard = { manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
-  saltarIntro() { if (estado === "levantandose") { acciones.levantarse.time = acciones.levantarse.getClip().duration; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
+  saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get rescatando() { return !!rescate; },
   simular(segundos, mantenidas = [], alInicio = []) {
     mantenidas.forEach(k => teclas.add(k)); alInicio.forEach(k => pulsadas.add(k));
     for (let t = 0; t < segundos; t += 1 / 60) {
