@@ -22,9 +22,9 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa queda desactivada por ahora (decisión del autor): no encaja bien sobre el cuerpo.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
-for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gCapa]) if (g) g.scene.traverse(o => {
+for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
   if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
@@ -60,6 +60,11 @@ const grietaMedia = x => GRIETA.media + Math.max(0, Math.abs(x) - 4) * 0.03 * (1
   + suave(1.5, 4, Math.abs(x)) * (Math.sin(x * 0.45) * 0.35 + Math.sin(x * 1.1 + 1) * 0.12);   // roturas anchas, sin dientes
 const enGrieta = (x, z) => Math.abs(z - grietaZ(x)) < grietaMedia(x);
 const RELLANO = { z: LARGO(-141), alto: 2.8 };
+// El borde del rellano no es una línea recta: ondula hacia delante y hacia atrás lejos del camino
+// (junto al camino queda casi recto, para que el salto no cambie).
+const rellanoZ = x => RELLANO.z + (Math.sin(x * 0.33) * 0.7 + Math.sin(x * 0.12 + 1) * 1.6) * suave(3, 12, Math.abs(x - caminoX(RELLANO.z)));
+// Y su altura también varía lejos del camino: el borde de arriba no es una línea horizontal.
+const altoRellano = x => RELLANO.alto + (Math.sin(x * 0.21) * 0.9 + Math.sin(x * 0.07 + 2) * 1.2 + 0.6) * suave(4, 14, Math.abs(x - caminoX(RELLANO.z)));
 // Precipicio: un tajo ancho que solo se cruza saltando de pilar en pilar. Si caes, vuelves al inicio.
 const PRECIPICIO = { desde: LARGO(-110), hasta: LARGO(-133) };
 // [desvío lateral, z, radio, tipo]: anchos, para que sea fácil por ahora, y el primero algo separado del borde. Los normales son pilastras
@@ -122,7 +127,7 @@ function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
-  h += RELLANO.alto * suave(RELLANO.z + 0.12, RELLANO.z - 0.12, z);
+  h += altoRellano(x) * suave(rellanoZ(x) + 0.12, rellanoZ(x) - 0.12, z);
   h = lerp(PLATAFORMA2.base, h, suave(PLATAFORMA2.r + 0.8, PLATAFORMA2.r + 4.5, Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z)));
   // Desfiladero: paredes de roca de 7 m a los lados; el paso queda en el centro.
   const enDesf = suave(CANON_DESDE + 1.5, CANON_DESDE - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
@@ -174,7 +179,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-370, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
+  const zs = [...filas(-370, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 330); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -294,6 +299,10 @@ function separarKit(gltf) {
   return piezas.sort((a, b) => a.alto - b.alto);
 }
 const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas);
+// Kit de piedra tallada: tres bloques (0-2) y tres pilares limpios (3-5), el 5 el más alto.
+const kitPilares = separarKit(gPilares), PILAR_ALTO = kitPilares[kitPilares.length - 1];
+// Su textura es gris neutro y más clara: se tiñe al azul oscuro del resto de la roca.
+kitPilares[0].material.color.setRGB(0.5, 0.56, 0.7); kitPilares[0].material.roughness = 1; kitPilares[0].material.metalness = 0;
 // Sección de una pieza a una altura (fracción de su alto): centro y radio del fuste, con la pieza
 // ya colocada (base en y = 0). Las pilastras no tienen el fuste en el centro de su caja.
 const _secciones = new Map();
@@ -379,7 +388,7 @@ function nieveAlPie(x, z, R, suelo) {
   }
 }
 // Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
-function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x, z)) {
+function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x, z), falda = true) {
   const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
   m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true;
   g.add(m); g.scale.setScalar(s); g.rotation.y = giro;
@@ -388,7 +397,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   g.position.set(x, y, z);
   scene.add(g);
   colisiones.push({ x, z, r: pieza.radio * s * 0.8, techo: y + alto * 0.97 });   // del tamaño que se ve: no se entra en la roca
-  nieveAlPie(x, z, pieza.radio * s, suelo);
+  if (falda) nieveAlPie(x, z, pieza.radio * s, suelo);
   return g;
 }
 
@@ -491,24 +500,12 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - lado * 7, z + 1.5, 2.8, 0.9, rndA() * 6);
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
-  const nieveTapa = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, emissive: 0x6a6f78, roughness: 1, side: THREE.DoubleSide });   // blanca aunque le dé de lado
   const pilastraCaida = (x, z, largo, grueso, giro) => {
     const pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)], suelo = alturaTerreno(x, z), g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
     m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
     g.add(m); g.scale.set(grueso / pieza.ancho, largo / pieza.alto, grueso / pieza.ancho);
     g.rotation.set(rndA() * 6, giro, Math.PI / 2, "YXZ");
     g.position.set(x, suelo + grueso * 0.35, z); scene.add(g);
-    // La base de la pilastra es una cara plana gris: se tapa con nieve de borde irregular.
-    g.updateMatrixWorld(true);
-    const extremo = g.localToWorld(new THREE.Vector3(0, -pieza.alto / 2, 0)), eje = g.localToWorld(new THREE.Vector3(0, 1, 0)).sub(g.position).normalize();
-    const forma = new THREE.Shape();
-    for (let k = 0; k < 14; k++) {
-      const a = k / 14 * Math.PI * 2, r = grueso * (0.46 + rndA() * 0.08);
-      k ? forma.lineTo(Math.cos(a) * r, Math.sin(a) * r) : forma.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    const tapa = new THREE.Mesh(new THREE.ShapeGeometry(forma), nieveTapa);
-    tapa.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), eje.clone().negate());
-    tapa.position.copy(extremo).addScaledVector(eje, -0.03); tapa.receiveShadow = true; scene.add(tapa);
     const techo = suelo + grueso * 0.85;
     for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo });
   };
@@ -649,19 +646,29 @@ const pilarDeKit = (() => {
   for (let i = 0; i < 11; i++) rnd();                          // lo que gastaban los pilares de antes
 }
 
-// Desnivel de rocas: la pared del rellano queda cubierta por bloques del kit.
+// Desnivel de rocas: la pared del rellano queda cubierta por bloques del kit, delante del escalón y a
+// ras de su borde, siguiéndolo en todo lo que se ve (sin faldas de nieve, que harían una repisa).
+// Su colisión, de su tamaño, llega a la altura del rellano: no se entra en ellas y encima se pisa.
+const rocaRellano = (pieza, xr, giro) => {
+  // La base del modelo trae su falda de nieve: estirada en horizontal sería una repisa. Se entierra
+  // (un 30 % de la roca bajo el suelo) y la roca se arrima al escalón.
+  const R = 1.7, hundir = 0.3, alto = (altoRellano(xr) + 0.35) / (1 - hundir), zr = rellanoZ(xr), suelo = alturaTerreno(xr, zr + R + 0.5);
+  const g = colocar(pieza, xr, zr + R * 0.3, alto, giro, hundir, suelo, false);
+  g.scale.x = g.scale.z = R / pieza.radio;
+  const c = colisiones[colisiones.length - 1];
+  c.r = R * 0.92; c.techo = suelo + altoRellano(xr);
+};
 for (let x = -18; x <= 18; x += 2.2) {
   const xr0 = caminoX(RELLANO.z) + x, pieza = distinta(kitRocas, kitRocas[2 + Math.floor(rnd() * 3)], xr0, RELLANO.z, 4.5);
   const xr = xr0 + (rnd() - 0.5); rnd();
-  // A caballo del escalón y a ras de arriba; su colisión llega a la altura del rellano: no se
-  // puede entrar en ellas, y encima se pisa como el propio rellano.
-  // Delante del escalón y a ras de su borde, tapándolo entero (sin repisa de nieve a la vista); su
-  // colisión, de su tamaño, llega a la altura del rellano: no se entra en ellas y encima se pisa.
-  const R = 1.7, alto = RELLANO.alto + 0.2, suelo = alturaTerreno(xr, RELLANO.z + R + 0.5);
-  const g = colocar(pieza, xr, RELLANO.z + R * 0.55, alto, rnd() * Math.PI * 2, 0.05, suelo);
-  g.scale.x = g.scale.z = R / pieza.radio;
-  const c = colisiones[colisiones.length - 1];
-  c.r = R * 0.92; c.techo = suelo + RELLANO.alto;
+  rocaRellano(pieza, xr, rnd() * Math.PI * 2);
+}
+{
+  const rndL = generador(6061);                                  // más allá, con su propia semilla
+  for (const lado of [-1, 1]) for (let x = 20.2; x <= 44; x += 2.2) {
+    const xr = caminoX(RELLANO.z) + lado * x + (rndL() - 0.5);
+    rocaRellano(distinta(kitRocas, kitRocas[2 + Math.floor(rndL() * 3)], xr, RELLANO.z, 4.5), xr, rndL() * Math.PI * 2);
+  }
 }
 
 // Algunas rocas de 1 B en mitad del camino, para practicar el salto.
@@ -669,20 +676,55 @@ for (let x = -18; x <= 18; x += 2.2) {
 // Monolitos tallados que anuncian el final del capítulo.
 monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolito(-8, LARGO(-184), 8, 0.15); monolito(8.5, LARGO(-188), 6.5, -0.2);
 
-// ─── Peñones sobre el abismo ───────────────────────────────────────────────
-// Abismo antes de la primera plataforma: se cruza saltando de peñón en peñón (roca natural).
+// ─── Puente sobre el abismo ────────────────────────────────────────────────
+// Antes de la primera plataforma. Todo es el pilar más alto del kit, cada elemento una sola pieza:
+// una columna que sube desde el fondo, dos pasarelas (sube a la columna y baja al otro lado), dos
+// puntales que salen de dentro del acantilado y acaban dentro de su pasarela, y columnas de adorno.
 {
-  const rndB = generador(4711);
-  // Pasarela entre dos puntos de su cara de arriba; se camina por encima.
-  // Se cruza de peñón en peñón: rocas naturales, como las de los pilares del precipicio, que se
-  // pierden en la niebla del fondo. Casi juntas, con saltos cortos; la del medio, mayor y algo más alta.
-  const suelo0 = alturaTerreno(caminoX(PUENTE.desde + 1.5), PUENTE.desde + 1.5);
-  for (const [dx, z, rp, sube] of [[0.5, -101.0, 1.65, 0.3], [-0.6, -104.7, 2.1, 0.8], [0.4, -108.6, 1.7, 0.35]])
-    pilarDeKit(caminoX(z) + dx, z, rp, "rocas", suelo0 + sube, rndB, false);
-  // Más peñones de roca natural, de adorno, que se alzan desde la niebla a distintas alturas.
-  for (const [dx, z, ancho, cima] of [[-6.5, -101.2, 3.4, -1.5], [8, -103.5, 4.4, 3.2], [-10.5, -107.8, 3.9, 1.2], [13, -100.6, 3.1, -3.5], [-16.5, -104.5, 4.9, 4.5], [17, -108.4, 3.6, -0.5],
-    [6.5, -109.2, 2.6, -4.5], [-5.5, -107.6, 2.4, -6], [21, -104, 4.2, 6], [-22, -100.8, 3.8, 1.5]])
-    pilarDeKit(caminoX(z) + dx, z, ancho / 2, "rocas", cima, rndB, false);
+  const rndB = generador(4711), P = PILAR_ALTO;
+  // El pilar con su eje de a (pie) a b (cabeza) y una sección de «ancho»; gira sobre su eje.
+  const barra = (a, b, ancho, giro = 0) => {
+    const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
+    const ref = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const lado = new THREE.Vector3().crossVectors(dir, ref).normalize().applyAxisAngle(dir, giro), frente = new THREE.Vector3().crossVectors(lado, dir);
+    const s = ancho / P.ancho, g = new THREE.Group(), m = new THREE.Mesh(P.geo, P.material);
+    m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
+    g.matrixAutoUpdate = false;
+    g.matrix.makeBasis(lado.multiplyScalar(s), dir.clone().multiplyScalar(largo / P.alto), frente.multiplyScalar(s)).setPosition(a.clone().add(b).multiplyScalar(0.5));
+    scene.add(g);
+  };
+  // Pasarela tumbada: su cara de arriba va de A a B; se alarga «antes» por detrás de A y «despues» tras B.
+  const pasarela = (A, B, ancho, antes = 0, despues = 0) => {
+    const dir = B.clone().sub(A).normalize(), lado = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+    const arriba = new THREE.Vector3().crossVectors(lado, dir), baja = arriba.multiplyScalar(-ancho * 0.48);
+    barra(A.clone().addScaledVector(dir, -antes).add(baja), B.clone().addScaledVector(dir, despues).add(baja), ancho, Math.PI / 2);
+    colisiones.push({ x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + ancho, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: ancho * 0.45 } });
+  };
+  const FONDO = alturaTerreno(caminoX(-104.6), -104.6) - 1;
+  const zA = puenteDesde(caminoX(PUENTE.desde)) + 1.2, zD = puenteHasta(caminoX(PUENTE.hasta)) - 1.2;
+  const A = new THREE.Vector3(caminoX(zA), alturaTerreno(caminoX(zA), zA) + 0.05, zA);
+  const M = { x: caminoX(-104.6) + 0.5, z: -104.6, r: 2.3 }; M.y = A.y + 1.2;
+  const D = new THREE.Vector3(caminoX(zD) + 1.6, 0, zD); D.y = alturaTerreno(D.x, D.z) + 0.05;
+  // Columna: de una pieza desde el fondo hasta la cima plana por la que se pasa.
+  barra(new THREE.Vector3(M.x, FONDO, M.z), new THREE.Vector3(M.x, M.y, M.z), M.r * 2, 0.4);
+  colisiones.push({ x: M.x, z: M.z, r: M.r * 0.95, techo: M.y - 0.05 });
+  const B = new THREE.Vector3(M.x - 0.3, M.y, M.z + M.r - 0.4), C = new THREE.Vector3(M.x + 0.5, M.y, M.z - M.r + 0.4);
+  pasarela(A, B, 2.4, 1.6);                                      // el pie, enterrado en el borde
+  pasarela(C, D, 2.4, 0, 1.6);
+  // Puntales: del acantilado (por dentro de su pared) a la mitad de la pasarela, cruzados en planta.
+  const puntal = (pie, A, B, t) => {
+    const q = A.clone().lerp(B, t), dir = B.clone().sub(A).normalize(), lado = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+    barra(pie, q.addScaledVector(new THREE.Vector3().crossVectors(lado, dir), -1.2), 1.9, rndB() * 6);
+  };
+  puntal(new THREE.Vector3(A.x + 1.4, A.y - 7, puenteDesde(A.x + 1.4) + 1.4), A, B, 0.55);
+  puntal(new THREE.Vector3(D.x - 1.5, D.y - 7, puenteHasta(D.x - 1.5) - 1.4), D, C, 0.5);
+  // Columnas de adorno desde la niebla del fondo, de alturas y gruesos distintos, algo ladeadas.
+  for (const [dx, z, cima] of [[-6.5, -101.2, -1.5], [8, -103.5, 3.2], [-10.5, -107.8, 1.2], [13, -100.6, -3.5], [-16.5, -104.5, 4.5], [17, -108.4, -0.5],
+    [6.5, -109.2, -4.5], [-5.5, -107.6, -6], [21, -104, 6], [-22, -100.8, 1.5]]) {
+    const x = caminoX(z) + dx, alto = cima - FONDO, ancho = Math.min(4.8, alto / (P.alto / P.ancho) * (0.6 + rndB() * 0.25));
+    const ladeo = new THREE.Vector3((rndB() - 0.5) * 0.12, 1, (rndB() - 0.5) * 0.12).normalize().multiplyScalar(alto);
+    barra(new THREE.Vector3(x, FONDO, z), new THREE.Vector3(x, FONDO, z).add(ladeo), ancho, rndB() * 6);
+  }
 }
 
 // Pequeñas formaciones de nieve sueltas, en grupos, a los lados del camino.
@@ -717,7 +759,7 @@ const SUELO_DESF = alturaTerreno(caminoX(DESFILADERO.penascos), DESFILADERO.pena
 for (const lado of [-1, 1]) for (let z = CANON_DESDE - 0.6; z > DESFILADERO.hasta - 0.6; z -= 1.5 + rndD() * 0.6) {
   const pieza = kitRocas[Math.min(kitRocas.length - 1, 2 + Math.floor(rndD() * 4))], alto = 6.5 + rndD() * 2.5, esc = alto / pieza.alto;
   const R = pieza.radio * esc, x = caminoX(z) + lado * (anchoCanon(z) + R * 0.95);
-  colocar(pieza, x, z, alto, rndD() * Math.PI * 2, 0.08, SUELO_DESF);
+  colocar(pieza, x, z, alto, rndD() * Math.PI * 2, 0.22, SUELO_DESF, false);   // la falda del modelo, bien enterrada
   colisiones[colisiones.length - 1].r = R * 0.9;                // la cara de la roca hace de pared: no se entra en ella
 }
 // Peñascos que cierran el paso. Son de hielo y roca: no se puede subir a ellos (su colisión
@@ -731,8 +773,16 @@ function dejarHueco(x, z, R) {
 }
 // Rocas de tamaños y formas distintas; a partir de cierto tamaño el viento ya no puede con ellas.
 const ROCA_MOVIBLE = { alto: 2.6, ancho: 2.3 };
+const _qRoca = new THREE.Quaternion();
+// Gira la roca sobre el eje horizontal perpendicular a su avance (rodar o inclinarse).
+const rodar = (p, ang) => { if (ang) { p.g.quaternion.premultiply(_qRoca.setFromAxisAngle(p.eje, ang)); p.rodado += ang; } };
+// Del suelo al centro según cómo esté volcada: de pie, su alto; tumbada, su ancho.
+const medioDe = p => lerp(p.alto0 / 2, p.R, Math.abs(Math.sin(p.rodado + p.volcada))) - 0.2;
+const fijarEje = (p, x, z) => { const l = Math.hypot(x, z); if (l > 1e-3) { p.volcada = (p.volcada + p.rodado) % Math.PI; p.eje.set(z / l, 0, -x / l); p.rodado = 0; } };
 const nuevoPenasco = (x, z, alto, ancho) => {
-  const pieza = distinta(kitRocas, kitRocas[Math.min(kitRocas.length - 1, 1 + Math.floor(rndD() * (kitRocas.length - 1)))], x, z, 4);
+  // Las que se pueden mover son bloques de piedra tallada (los tres del kit de pilares); las grandes, roca.
+  const movible = alto <= ROCA_MOVIBLE.alto && ancho <= ROCA_MOVIBLE.ancho, n = rndD();
+  const pieza = movible ? distinta(kitPilares, kitPilares[Math.floor(n * 3)], x, z, 4) : distinta(kitRocas, kitRocas[Math.min(kitRocas.length - 1, 1 + Math.floor(n * (kitRocas.length - 1)))], x, z, 4);
   puestas.push({ pieza, x, z });
   const SUELO_DESF = alturaTerreno(x, z);
   const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
@@ -740,9 +790,9 @@ const nuevoPenasco = (x, z, alto, ancho) => {
   g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = rndD() * Math.PI * 2;
   const medio = alto / 2 - 0.2;                                 // del suelo al centro de la roca
   g.position.set(x, SUELO_DESF + medio, z); scene.add(g);
-  const col = { x, z, r: ancho / 2 * 1.02, techo: SUELO_DESF + alto + 1.6 };
+  const col = { x, z, r: ancho / 2 * 1.02, techo: SUELO_DESF + alto + 1.6, deRoca: true };
   colisiones.push(col);
-  return { g, col, alto, medio, R: ancho / 2, estado: "suelo", vy: 0, movible: alto <= ROCA_MOVIBLE.alto && ancho <= ROCA_MOVIBLE.ancho };
+  return { g, col, alto, medio, R: ancho / 2, estado: "suelo", vy: 0, vx: 0, vz: 0, eje: new THREE.Vector3(1, 0, 0), rodado: 0, volcada: 0, alto0: alto, movible };
 };
 // Desfiladero: una roca grande que no se mueve y dos que sí.
 const penascos = [[-1.6, -0.3, 3.3, 2.7], [0.55, 0.2, 2.3, 1.9], [2.1, 0.6, 1.8, 1.6]]
@@ -1454,7 +1504,7 @@ function actualizar(dt) {
     if (pulsada("Space") && coyote > 0 && !agachado && !llevando) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; }
     if (pulsada("KeyE", "KeyJ") && enSuelo && llevando) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
-      llevando.estado = "cayendo"; llevando.vy = 0; llevando = null;
+      llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
       musica.viento(0.25, 0.7);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado) {
       // Alzar la roca más cercana: el viento la envuelve y la sostiene delante de Blizzard.
@@ -1513,7 +1563,7 @@ function actualizar(dt) {
       musica.viento(0.3, 0.9);
     }
     if (!avisoRocas && pos.z < ZONA_ROCAS[0] + 4) { avisoRocas = true; rotular("Rodea las rocas.", 3); }
-    if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Salta de roca en roca.", 3); }
+    if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
@@ -1538,12 +1588,19 @@ function actualizar(dt) {
   }
   pulsadas.clear();
 
-  // Altura sobre la que descansa una roca: el suelo u otra roca que tenga debajo.
-  function apoyo(p) {
-    let h = alturaSuelo(p.g.position.x, p.g.position.z);
-    for (const q of penascos) if (q !== p && q.estado === "suelo" && Math.hypot(q.g.position.x - p.g.position.x, q.g.position.z - p.g.position.z) < (p.R + q.R) * 0.7)
-      h = Math.max(h, q.g.position.y - q.medio + q.alto - 0.3);
-    return h;
+  // Física sencilla de las rocas. Solo descansan en el suelo: la que cae sobre otra se apoya en su
+  // canto, resbala hacia fuera inclinándose, cae al suelo y rueda un poco hasta asentarse en una cara.
+  // La roca de debajo más metida bajo p: hacia dónde sale p y a qué altura queda el canto que la sostiene.
+  function cantoDebajo(p) {
+    let mejor = null;
+    for (const q of penascos) {
+      if (q === p || q.estado !== "suelo") continue;
+      const dx = p.g.position.x - q.g.position.x, dz = p.g.position.z - q.g.position.z, d = Math.hypot(dx, dz), lim = (p.R + q.R) * 0.92;
+      if (d >= lim) continue;
+      const f = d / lim, alto = q.g.position.y - q.medio + q.alto * (1 - 0.85 * f * f);
+      if (!mejor || alto > mejor.alto) mejor = { alto, pendiente: Math.max(0.5, 1.7 * q.alto * f / lim), x: d > 1e-3 ? dx / d : Math.cos(p.R * 9), z: d > 1e-3 ? dz / d : Math.sin(p.R * 9) };
+    }
+    return mejor;
   }
   // Rocas movidas por el viento: la llevada flota delante de Blizzard, envuelta en la espiral;
   // la soltada cae y vuelve a ser un obstáculo donde quede.
@@ -1555,18 +1612,53 @@ function actualizar(dt) {
       const hy = Math.max(alturaSuelo(hx, hz), pos.y) + p.medio + 0.9 + Math.sin(reloj * 2.2) * 0.12;
       p.g.position.lerp(_v2.set(hx, hy, hz), 1 - Math.exp(-dt * 5));
       p.g.rotation.y += dt * 0.6; p.g.rotation.x = Math.sin(reloj * 1.3) * 0.08;
+      p.vx = p.vz = 0;
       espiralEn = p.g.position; espiralTam = { r: p.R * 1.25, alto: p.alto * 1.2 };
       efectoEspiral = Math.max(efectoEspiral, 1);
-    } else if (p.estado === "suelo" && p.g.position.y - p.medio > apoyo(p) + 0.15) {
+    } else if (p.estado === "suelo" && p.g.position.y - p.medio > alturaSuelo(p.g.position.x, p.g.position.z) + 0.15) {
       // Se le ha quitado lo que tenía debajo: cae.
       colisiones.splice(colisiones.indexOf(p.col), 1); p.estado = "cayendo"; p.vy = 0;
     } else if (p.estado === "cayendo") {
-      p.vy -= GRAVEDAD * dt; p.g.position.y += p.vy * dt; p.g.rotation.x *= 0.9;
-      const suelo = apoyo(p) + p.medio;
-      if (p.g.position.y <= suelo) {
-        p.g.position.y = suelo; p.estado = "suelo";
-        Object.assign(p.col, { x: p.g.position.x, z: p.g.position.z, techo: suelo - p.medio + p.alto + 1.6 });
-        colisiones.push(p.col);
+      const g = p.g.position, rapidez = Math.hypot(p.vx, p.vz);
+      if (rapidez > 4) { p.vx *= 4 / rapidez; p.vz *= 4 / rapidez; }
+      p.vy -= GRAVEDAD * dt; g.y += p.vy * dt;
+      // Avance horizontal, sin meterse en paredes ni en rocas fijas más altas que su base.
+      const nx = g.x + p.vx * dt, nz = g.z + p.vz * dt;
+      const choca = colisiones.find(c => { if (c.rampa || c.deRoca || c.techo <= g.y - p.medio + 0.3) return false; const d = Math.hypot(nx - c.x, nz - c.z); return d < (c.borde ? radioBorde(c, nx, nz) : c.r) + p.R * 0.8 && d < Math.hypot(g.x - c.x, g.z - c.z); });
+      if (choca) {
+        // Contra una pared: pierde lo que iba hacia ella y sigue a lo largo, hacia el lado al que ya iba.
+        const ex = g.x - choca.x, ez = g.z - choca.z, l = Math.hypot(ex, ez) || 1, n = { x: ex / l, z: ez / l };
+        const vn = p.vx * n.x + p.vz * n.z, lado = (p.vx * -n.z + p.vz * n.x) >= 0 ? 1 : -1;
+        if (vn < 0) { p.vx -= vn * n.x; p.vz -= vn * n.z; }
+        if (p.enCanto) { p.vx += -n.z * lado * dt * GRAVEDAD * 0.45; p.vz += n.x * lado * dt * GRAVEDAD * 0.45; }
+      } else { g.x = nx; g.z = nz; }
+      p.medio = medioDe(p);
+      const suelo = alturaSuelo(g.x, g.z) + p.medio, canto = cantoDebajo(p);
+      if (canto && g.y - p.medio <= canto.alto) {
+        // Sobre el canto de otra roca: no se queda, resbala hacia fuera y se inclina con la pendiente.
+        g.y = canto.alto + p.medio; p.vy = 0;
+        if (!p.enCanto) { p.enCanto = true; fijarEje(p, canto.x, canto.z); }
+        const a = GRAVEDAD * clamp(canto.pendiente, 0.5, 1.5) * 0.45;
+        p.vx += canto.x * a * dt; p.vz += canto.z * a * dt;
+        rodar(p, (Math.min(0.75, Math.atan(canto.pendiente)) - p.rodado) * (1 - Math.exp(-dt * 6)));
+      } else if (g.y <= suelo) {
+        g.y = suelo; p.enCanto = false;
+        const v = Math.hypot(p.vx, p.vz);
+        if (p.vy < -1 && v > 0.3) { p.vx *= 1.1; p.vz *= 1.1; }   // al dar en el suelo, sigue rodando
+        p.vy = 0;
+        // Rueda sobre el suelo con rozamiento; al frenar vuelca sobre la cara más cercana y para.
+        const fr = Math.max(0, v - 2.6 * dt), k = v > 1e-3 ? fr / v : 0;
+        p.vx *= k; p.vz *= k;
+        if (fr > 0.35) rodar(p, fr / Math.max(0.6, p.R) * dt);
+        else {
+          const cara = Math.round(p.rodado / (Math.PI / 2)) * (Math.PI / 2), falta = cara - p.rodado;
+          rodar(p, falta * (1 - Math.exp(-dt * 7)));
+          if (Math.abs(falta) < 0.02 && fr < 0.05) {
+            p.vx = p.vz = 0; p.estado = "suelo"; p.medio = medioDe(p); p.alto = 2 * (p.medio + 0.2);
+            Object.assign(p.col, { x: g.x, z: g.z, techo: suelo - p.medio + p.alto + 1.6 });
+            colisiones.push(p.col);
+          }
+        }
       }
     }
   }
@@ -1731,12 +1823,15 @@ function efectos(dt, adelante) {
     const cx = caminoX(b.position.z);
     b.position.x -= b.userData.vel * (1 + rachaViento) * dt;
     if (b.position.x < cx - 48) b.position.x += 96;
-    let base = -Infinity;
-    for (let k = -2; k <= 2; k++) base = Math.max(base, Math.max(alturaTerreno(b.position.x + k * b.userData.ancho / 4, b.position.z), alturaBase(b.position.x, b.position.z) * 0.3));   // sobre grietas, a ras del suelo
-    b.position.y = base - 0.35;                                   // la base, ya transparente, bajo el suelo
+    // A ras del suelo de su centro. Si bajo el banco hay un desnivel (rellano, acantilado), se
+    // apaga: elevado al borde de arriba, flotaría como una lámina horizontal delante de las rocas.
+    let alto = -Infinity, bajo = Infinity;
+    for (let k = -2; k <= 2; k++) { const h = Math.max(alturaTerreno(b.position.x + k * b.userData.ancho / 4, b.position.z), alturaBase(b.position.x, b.position.z) * 0.3); alto = Math.max(alto, h); bajo = Math.min(bajo, h); }
+    b.position.y = Math.max(alturaTerreno(b.position.x, b.position.z), alturaBase(b.position.x, b.position.z) * 0.3) - 0.35;
     b.rotation.y = Math.atan2(camara.position.x - b.position.x, camara.position.z - b.position.z);
     const d = Math.hypot(b.position.x - pos.x, b.position.z - pos.z);
-    b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1);
+    b.userData.llano = lerp(b.userData.llano ?? 1, alto - bajo > 1 ? 0 : 1, 1 - Math.exp(-dt * 2));
+    b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1) * b.userData.llano;
   }
 
   // Espiral blanca del viento mágico (impulso, rescate, límite del mundo).
@@ -1799,6 +1894,8 @@ window.__blizzard = { niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: 
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
   bordes: () => colisiones.filter(c => c.borde).map(c => [c.z, c.borde.map(v => +v.toFixed(2)).join(" ")]),
   alturasPenascos: () => penascos.map(p => +p.g.position.y.toFixed(2)),
+  soltarSobre: (i, j, dx = 0.3) => { const p = penascos[i], q = penascos[j]; if (p.estado === "suelo") colisiones.splice(colisiones.indexOf(p.col), 1); p.g.position.set(q.g.position.x + dx, q.g.position.y + q.alto + 1, q.g.position.z); p.estado = "cayendo"; p.vy = p.vx = p.vz = 0; p.enCanto = false; },
+  inclinacion: () => penascos.map(p => +(Math.acos(clamp(new THREE.Vector3(0, 1, 0).applyQuaternion(p.g.quaternion).y, -1, 1)) * 57.3).toFixed(0)),
   alzarPenasco: i => { const p = penascos[i]; colisiones.splice(colisiones.indexOf(p.col), 1); p.estado = "llevada"; llevando = p; },
   autoTrazo: false, completarTrazo: () => trazo.completar(), LARGO, caminoX, get trazando() { return trazo.activo; }, get faseTrazo() { return trazo.fase; },
   simular(segundos, mantenidas = [], alInicio = []) {
