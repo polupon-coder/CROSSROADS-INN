@@ -163,38 +163,14 @@ scene.add(sol, sol.target);
 
 // Tono único de la nieve (suelo, montículos y nieve de rocas y ruinas): blanco algo azulado.
 const TONO_NIEVE = "#e4eaf3";
-// Texturas pintadas aquí: piedra agrietada (para el puente) y el hueco que deja en la nieve una
-// roca levantada. Se generan en un lienzo; sirven hasta tener las definitivas en archivo.
+// Texturas del autor: piedra agrietada (puente y columnas) y el hueco que deja en la nieve una
+// roca levantada (con el borde transparente, para fundirse con el suelo).
 function texturaPiedra() {
-  const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"), aleat = generador(99);
-  g.fillStyle = "#8e9198"; g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 260; i++) {                                // manchas de piedra más clara y más oscura
-    const x = aleat() * 256, y = aleat() * 256, r = 6 + aleat() * 26, v = 120 + aleat() * 50 | 0;
-    g.fillStyle = `rgba(${v},${v + 2},${v + 6},${0.18 + aleat() * 0.2})`;
-    for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); }
-  }
-  g.strokeStyle = "rgba(70,72,78,.55)"; g.lineWidth = 1.1;
-  for (let i = 0; i < 14; i++) {                                 // grietas finas
-    let x = aleat() * 256, y = aleat() * 256, a = aleat() * Math.PI * 2; g.beginPath(); g.moveTo(x, y);
-    for (let k = 0; k < 18; k++) { a += (aleat() - 0.5) * 0.9; x += Math.cos(a) * 6; y += Math.sin(a) * 6; g.lineTo(x, y); }
-    g.stroke();
-  }
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new THREE.TextureLoader().load("texturas/piedra.jpg");
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
   return t;
 }
-function texturaHueco() {
-  const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"), aleat = generador(7);
-  const borde = Array.from({ length: 48 }, (_, i) => 82 + Math.sin(i * 0.9) * 8 + (aleat() - 0.5) * 14);
-  const forma = esc => { g.beginPath(); borde.forEach((r, i) => { const a = i / 48 * Math.PI * 2, x = 128 + Math.cos(a) * r * esc, y = 128 + Math.sin(a) * r * esc; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
-  const halo = g.createRadialGradient(128, 128, 60, 128, 128, 124);
-  halo.addColorStop(0, "rgba(255,255,255,.5)"); halo.addColorStop(1, "rgba(255,255,255,0)");
-  g.fillStyle = halo; forma(1.4); g.fill();                     // nieve removida alrededor
-  const fondo = g.createRadialGradient(140, 140, 10, 128, 128, 95);
-  fondo.addColorStop(0, "rgba(176,192,216,.95)"); fondo.addColorStop(0.75, "rgba(150,170,201,.9)"); fondo.addColorStop(1, "rgba(198,212,232,.85)");
-  g.fillStyle = fondo; forma(1); g.fill();
-  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 5; forma(1.02); g.stroke();   // labio de nieve
-  return new THREE.CanvasTexture(c);
-}
+const texturaHueco = () => new THREE.TextureLoader().load("texturas/hueco.png");
 const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.95, ...extra });
 
 // Suelo nevado, con más detalle a lo largo del recorrido para que la grieta y el rellano tengan paredes netas.
@@ -349,7 +325,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   const y = suelo - hundir * alto - 0.15;                    // la falda de nieve del modelo, enterrada
   g.position.set(x, y, z);
   scene.add(g);
-  colisiones.push({ x, z, r: pieza.ancho * s * 0.32, techo: y + alto * 0.97 });
+  colisiones.push({ x, z, r: pieza.radio * s * 0.8, techo: y + alto * 0.97 });   // del tamaño que se ve: no se entra en la roca
   return g;
 }
 
@@ -412,7 +388,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
   g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = giro;
   const y = alturaTerreno(x, z) - alto * 0.6;
   g.position.set(x, y, z); scene.add(g);
-  colisiones.push({ x, z, r: ancho * 0.3, techo: y + alto * 0.9 });
+  colisiones.push({ x, z, r: ancho * 0.42, techo: y + alto * 0.9 });
 }
 {
   const zonas = [[10, -30], [-12, -64], [11, -78], [9, -150]].map(([x, z]) => [x, LARGO(z)]);
@@ -441,9 +417,9 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
   // Cada fila tapa un lado del camino; la siguiente, el otro.
   ZONA_ROCAS.forEach((z, i) => {
     const lado = i % 2 ? -1 : 1, cx = caminoX(z);
-    for (let k = 0; k < 4; k++) {
-      const pieza = kitRocas[Math.min(kitRocas.length - 1, 4 + Math.floor(rndA() * 2))];   // las esbeltas
-      rocaEntera(pieza, cx + lado * (0.9 + k * 1.7) + (rndA() - 0.5) * 0.3, z + (rndA() - 0.5) * 0.6, 1.6 + rndA() * 0.7);
+    for (let k = 0; k < 2; k++) {                               // pocas y grandes
+      const pieza = kitRocas[Math.min(kitRocas.length - 1, 4 + Math.floor(rndA() * 2))];
+      rocaEntera(pieza, cx + lado * (1.4 + k * 2.7) + (rndA() - 0.5) * 0.3, z + (rndA() - 0.5) * 0.6, 2.7 + rndA() * 0.7);
     }
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx + lado * 7.5, z - 1, 3.5, 1.2, rndA() * 6);
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - lado * 7, z + 1.5, 2.8, 0.9, rndA() * 6);
@@ -616,30 +592,40 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   // Pilastra tumbada entre dos puntos de su cara de arriba; se camina por encima. Es un bloque
   // de piedra hecho aquí (las del kit traen base y capitel, que escalados parecerían losas), con
   // las caras algo irregulares y nieve encima: lo que se ve es exactamente donde se pisa.
-  const piedraViga = new THREE.MeshStandardMaterial({ map: texturaPiedra(), color: "#aab0bb", roughness: 0.95, flatShading: true });
+  const piedraViga = new THREE.MeshStandardMaterial({ map: texturaPiedra(), color: "#9ea4ae", roughness: 0.95, flatShading: true });   // algo oscura: destaca en la niebla
   // La textura, a escala del mundo (unos 2 m por repetición) en cualquier tamaño de pieza.
   const escalarUV = (geo, su, sv) => { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv); };
   const nieveViga = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1, flatShading: true });
   const viga = (a, b, grueso, conColision = true) => {
+    // Varios tramos rotos, algo girados entre sí y de grosor distinto; nieve solo a trozos.
     const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
     const X = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), Z = new THREE.Vector3().crossVectors(X, dir);
-    const geo = new THREE.BoxGeometry(grueso, largo + 0.6, grueso, 2, Math.max(3, Math.round(largo / 0.7)), 2), p = geo.attributes.position;
-    escalarUV(geo, Math.max(1, grueso / 2), Math.max(1, largo / 2));
-    for (let i = 0; i < p.count; i++) {
-      // Aristas gastadas: las esquinas se meten un poco; nada sobresale por encima de la cara de arriba.
-      const ex = Math.abs(p.getX(i)) > grueso * 0.49, ez = Math.abs(p.getZ(i)) > grueso * 0.49, k = Math.sin(p.getY(i) * 3.1 + i) * 0.5 + 0.5;
-      if (ex && ez) { p.setX(i, p.getX(i) * (0.86 + k * 0.08)); p.setZ(i, p.getZ(i) * (0.86 + k * 0.08)); }
-      else if (p.getZ(i) < -grueso * 0.49) p.setZ(i, p.getZ(i) * (0.9 + k * 0.12));
+    const n = Math.max(2, Math.round(largo / 2.2));
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n, tramo = largo / n + 0.35, g0 = grueso * (0.9 + rndB() * 0.22);
+      const geo = new THREE.BoxGeometry(g0, tramo, g0, 2, 3, 2), p = geo.attributes.position;
+      escalarUV(geo, Math.max(1, g0 / 2), Math.max(1, tramo / 2));
+      const sesgo = (rndB() - 0.5) * 0.5;                           // un extremo, roto en diagonal
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), zz = p.getZ(i), e = Math.sin(i * 2.3 + k) * 0.5 + 0.5;
+        if (Math.abs(x) > g0 * 0.49 && Math.abs(zz) > g0 * 0.49) { p.setX(i, x * (0.8 + e * 0.12)); p.setZ(i, zz * (0.8 + e * 0.12)); }   // aristas gastadas
+        else if (zz < g0 * 0.49) p.setX(i, x * (0.92 + e * 0.12));
+        if (y > tramo * 0.49) p.setY(i, y + x / g0 * sesgo);
+      }
+      geo.computeVertexNormals();
+      const g = new THREE.Group(), piedra = new THREE.Mesh(geo, piedraViga);
+      piedra.castShadow = piedra.receiveShadow = true; g.add(piedra);
+      if (rndB() < 0.75) {
+        const nieve = new THREE.Mesh(new THREE.BoxGeometry(g0 * (0.5 + rndB() * 0.3), tramo * (0.4 + rndB() * 0.4), 0.09), nieveViga);
+        nieve.position.set((rndB() - 0.5) * g0 * 0.2, (rndB() - 0.5) * tramo * 0.3, g0 / 2 + 0.02); nieve.receiveShadow = true; g.add(nieve);
+      }
+      // Cada tramo, girado un poco sobre su eje y en planta, sin que la cara de arriba se levante.
+      const giro = new THREE.Matrix4().makeRotationAxis(dir, (rndB() - 0.5) * 0.12).multiply(new THREE.Matrix4().makeRotationAxis(Z, (rndB() - 0.5) * 0.08));
+      const Xr = X.clone().applyMatrix4(giro), Yr = dir.clone().applyMatrix4(giro), Zr = Z.clone().applyMatrix4(giro);
+      const centro = a.clone().lerp(b, (t0 + t1) / 2).addScaledVector(Z, -g0 / 2 - 0.03);
+      g.matrixAutoUpdate = false; g.matrix.makeBasis(Xr, Yr, Zr).setPosition(centro);
+      scene.add(g);
     }
-    geo.computeVertexNormals();
-    const g = new THREE.Group(), piedra = new THREE.Mesh(geo, piedraViga);
-    const nieve = new THREE.Mesh(new THREE.BoxGeometry(grueso * 0.82, largo + 0.3, 0.1), nieveViga);
-    nieve.position.z = grueso / 2 + 0.03;
-    piedra.castShadow = piedra.receiveShadow = nieve.receiveShadow = true;
-    g.add(piedra, nieve);
-    g.matrixAutoUpdate = false;
-    g.matrix.makeBasis(X, dir, Z).setPosition(a.clone().add(b).multiplyScalar(0.5).addScaledVector(Z, -grueso / 2 - 0.02));
-    scene.add(g);
     if (conColision) for (let t = 0; t <= 1.0001; t += 0.4 / largo) { const q = a.clone().lerp(b, t); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.56, techo: q.y }); }
   };
   // Columna de tambores de piedra apilados desde el fondo, cada uno algo más estrecho que el de
@@ -675,7 +661,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   const M = new THREE.Vector3(caminoX(-104.6) + 0.6, A.y + 1.5, -104.6), RM = 2.3;   // plataforma de en medio
   const B = new THREE.Vector3(M.x - 0.2, M.y, M.z + RM * 0.9 - 0.3), C = new THREE.Vector3(M.x + 0.9, M.y, M.z - RM * 0.9 + 0.4);
   const D2 = new THREE.Vector3(D.x - 2.6, alturaTerreno(D.x - 2.6, D.z) + 0.35, D.z);
-  viga(A, B, 1.8); viga(C, D2, 1.8);
+  viga(A, B, 1.8); viga(C, D2, 2.0);
   columna(M.x, M.z, RM * 2.2, M.y - 0.12, true);                // la piedra, más ancha que la nieve de encima
   const tapa = new THREE.Mesh(new THREE.CylinderGeometry(RM * 0.9, RM * 0.92, 0.16, 11), new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1, flatShading: true }));
   tapa.position.set(M.x, M.y - 0.06, M.z); tapa.receiveShadow = true; scene.add(tapa);
@@ -715,9 +701,9 @@ for (const lado of [-1, 1]) for (let z = CANON_DESDE - 0.6; z > DESFILADERO.hast
 // Peñascos que cierran el paso. Son de hielo y roca: no se puede subir a ellos (su colisión
 // llega más alto de lo que se ve), así que hay que apartarlos con el viento.
 // Hueco que queda en la nieve donde estaba una roca levantada; de su tamaño, algo variado.
-const matHueco = new THREE.MeshStandardMaterial({ map: texturaHueco(), transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
+const matHueco = new THREE.MeshStandardMaterial({ map: texturaHueco(), color: TONO_NIEVE, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
 function dejarHueco(x, z, R) {
-  const tam = R * 2.6 * (0.9 + Math.random() * 0.3), m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), matHueco);
+  const tam = R * 3.4 * (0.85 + Math.random() * 0.35), m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), matHueco);
   m.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
   m.position.set(x, alturaSuelo(x, z) + 0.03, z); m.receiveShadow = true; scene.add(m);
 }
@@ -787,7 +773,7 @@ const LARGO_BASTON = 1.3, AGARRE_BASTON = 0.74;
 function crearBaston(etapa) {
   // Remate como la referencia: aro grueso y facetado, abierto por arriba, unido al fuste por una
   // horquilla en Y. Una luz flota sobre el aro mientras se hace magia.
-  const g = new THREE.Group(), piedra = new THREE.MeshStandardMaterial({ color: "#3e3834", roughness: 0.85, flatShading: true });
+  const g = new THREE.Group(), piedra = new THREE.MeshStandardMaterial({ color: "#3e3834", roughness: 0.85, flatShading: true, fog: false });   // sin niebla: se ve siempre
   const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.016, LARGO_BASTON, 6), piedra);
   fuste.position.y = LARGO_BASTON / 2;
   // Etapa 1: apenas un gesto, un arco corto que sale de la base hacia un lado (lámina 27).
@@ -981,13 +967,16 @@ estilo.textContent = `
   #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
   #mandos { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
   /* La palanca: el pomo se ve siempre; al tocar la mitad izquierda, el aro aparece donde se pone el dedo. */
-  #zona-palanca { position: fixed; left: 0; top: 70px; bottom: 0; width: 55%; pointer-events: auto; touch-action: none; }
+  #zona-palanca { position: fixed; left: 0; top: 70px; bottom: 0; width: 40%; pointer-events: auto; touch-action: none; }
   #palanca.activa { background: rgba(240,245,252,.28); border-color: rgba(31,42,61,.2); }   /* el aro, solo al tocar; el pomo, siempre */
   #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: transparent; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
   #pomo { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
-  /* Fila de botones a la derecha, a la altura del centro de la palanca; en vertical, columna. */
-  #botones { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 18px; align-items: center; }
-  @media (max-aspect-ratio: 1/1) { #botones { flex-direction: column; gap: 14px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); } }
+  /* A la derecha, otra bola alineada con la de movimiento: arriba salta, abajo agacha. La magia, en el centro. */
+  #zona-accion { position: fixed; right: 0; top: 70px; bottom: 0; width: 40%; pointer-events: auto; touch-action: none; }
+  #accion { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
+  #accion.activa { background: rgba(240,245,252,.28); border-color: rgba(31,42,61,.2); }
+  #pomo-accion { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
+  #b-viento { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
   .boton { position: relative; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(31,42,61,.3); background: rgba(240,245,252,.8); color: var(--tinta); pointer-events: auto; touch-action: none; }
   .boton[hidden] { display: none; }
   .boton.activo { background: rgba(255,255,255,.9); }
@@ -997,9 +986,11 @@ estilo.textContent = `
   @media (pointer: coarse) { #rotulo { top: calc(62px + env(safe-area-inset-top, 0px)); bottom: auto; } }
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
   /* Trazo de runas: la figura en el centro; se resigue con el dedo o el ratón. */
-  #trazo { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(214, 226, 243, .28); pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
+  /* La figura, apartada de Blizzard y del bastón: arriba en vertical, a la izquierda en horizontal. */
+  #trazo { position: fixed; inset: 0; display: grid; place-items: start center; padding-top: calc(120px + env(safe-area-inset-top, 0px)); background: rgba(214, 226, 243, .28); pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
   #trazo[hidden] { display: none; }
-  #trazo svg { width: min(78vw, 70vh); height: min(78vw, 70vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
+  @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
+  #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
   #trazo .guia { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 5; }
   #trazo .hecho { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
   #trazo .inicio { fill: rgba(255,255,255,.9); animation: latido 1.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -1036,11 +1027,9 @@ ui.innerHTML = `
   <div id="mandos" hidden>
     <div id="zona-palanca"></div>
     <div id="palanca"><div id="pomo"></div></div>
-    <div id="botones">
-    <button type="button" class="boton" id="b-agachar" data-tecla="KeyC" aria-label="Agacharse"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 10 L12 14.5 L16.5 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div id="zona-accion"></div>
+    <div id="accion"><div id="pomo-accion"></div></div>
     <button type="button" class="boton" id="b-viento" data-tecla="KeyE" aria-label="Viento" hidden><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3 L18 12 L12 21 L6 12 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button type="button" class="boton" id="b-saltar" data-tecla="Space" aria-label="Saltar"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 14 L12 9.5 L16.5 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    </div>
   </div>`;
 document.body.appendChild(ui);
 // Mandos táctiles: palanca virtual (dirección y, al fondo, carrera) y botones que equivalen a teclas.
@@ -1067,6 +1056,30 @@ const soltarPalanca = e => { for (const t of e.changedTouches) if (t.identifier 
   palanca.style.left = palanca.style.top = palanca.style.bottom = "";           // de vuelta a su sitio
 } };
 zonaPalanca.addEventListener("touchend", soltarPalanca); zonaPalanca.addEventListener("touchcancel", soltarPalanca);
+// Bola de acción: arrastrar hacia arriba salta (una vez por gesto); hacia abajo, agacharse mientras dure.
+const bolaAccion = ui.querySelector("#accion"), pomoAccion = ui.querySelector("#pomo-accion"), zonaAccion = ui.querySelector("#zona-accion");
+const acc = { id: null, y0: 0, saltado: false };
+zonaAccion.addEventListener("touchstart", e => {
+  e.preventDefault(); if (acc.id !== null) return;
+  const t = e.changedTouches[0]; Object.assign(acc, { id: t.identifier, y0: t.clientY, saltado: false });
+  bolaAccion.style.left = t.clientX - 65 + "px"; bolaAccion.style.top = t.clientY - 65 + "px"; bolaAccion.style.right = bolaAccion.style.bottom = "auto";
+  bolaAccion.classList.add("activa");
+}, { passive: false });
+zonaAccion.addEventListener("touchmove", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) if (t.identifier === acc.id) {
+    const dy = clamp(t.clientY - acc.y0, -40, 40);
+    pomoAccion.style.transform = `translateY(${dy}px)`;
+    if (dy < -24 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
+    if (dy > -10) acc.saltado = false;                              // volver al centro permite otro salto
+    if (dy > 24) teclas.add("KeyC"); else teclas.delete("KeyC");
+  }
+}, { passive: false });
+const soltarAccion = e => { for (const t of e.changedTouches) if (t.identifier === acc.id) {
+  acc.id = null; teclas.delete("KeyC"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
+  bolaAccion.style.left = bolaAccion.style.top = bolaAccion.style.right = bolaAccion.style.bottom = "";
+} };
+zonaAccion.addEventListener("touchend", soltarAccion); zonaAccion.addEventListener("touchcancel", soltarAccion);
 for (const b of ui.querySelectorAll(".boton")) {
   const k = b.dataset.tecla;
   b.addEventListener("touchstart", e => { e.preventDefault(); if (!teclas.has(k)) pulsadas.add(k); teclas.add(k); b.classList.add("activo"); }, { passive: false });
@@ -1119,7 +1132,7 @@ const trazo = (() => {
   }
   function reiniciar() { fase = "esperando"; progreso = 0; cazador = 0; dedo.style.opacity = 0; dibujar(); }
   function fallar(texto) { fase = "fallo"; espera = 1.1; rotular(texto + " Otra vez.", 2.5); dibujar(); }
-  function acabar() { fase = "hecho"; progreso = L; espera = 0.5; dibujar(); musica.nota("baston", 0.5); }
+  function acabar() { fase = "hecho"; progreso = L; espera = 0.5; dibujar(); }
   const aSvg = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
   capa.addEventListener("pointerdown", e => {
     if (fase !== "esperando" && fase !== "fallo") return;          // tras un fallo se puede volver a empezar enseguida
@@ -1170,27 +1183,19 @@ const trazo = (() => {
 // recortadas del propio tema.
 const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
-  // la ensuciaba. Las notas sueltas salen del tema original.
-  const URL_MUSICA = "musica/wandering-light-lenta.mp3", URL_NOTAS = "musica/wandering-light.mp3";
-  const NOTAS = { salto: [28.26, 0.9], impulso: [39.73, 1.4], baston: [19.99, 3.2], rescate: [52.43, 2.2], recoger: [62.69, 1.6] };
-  let ctx = null, pista = null, ganancia = null, buffer = null, rafaga = null, ritmo = 0.45;
+  // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
+  const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
+  let ctx = null, pista = null, ganancia = null, rafaga = null;
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       pista = new Audio(URL_MUSICA); pista.loop = true;
       ganancia = ctx.createGain(); ganancia.gain.value = 0;
+      ganancia.gain.linearRampToValueAtTime(VOLUMEN, ctx.currentTime + 3);   // entra suave al empezar
       ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
       pista.play().catch(() => {});
-      fetch(URL_NOTAS).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { buffer = b; }).catch(() => {});
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
     } catch (e) { ctx = null; }
-  }
-  function nota(nombre, volumen = 0.7) {
-    if (!ctx || !buffer) return;
-    const [inicio, dura] = NOTAS[nombre], f = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime;
-    f.buffer = buffer;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(volumen, t + 0.03); g.gain.setValueAtTime(volumen, t + dura * 0.5); g.gain.linearRampToValueAtTime(0, t + dura);
-    f.connect(g).connect(ctx.destination); f.start(t, inicio, dura);
   }
   // Ráfaga de viento suave para la magia: volumen bajo, a veces algo más corta y aguda.
   function viento(volumen = 0.3, ritmoRafaga = 1) {
@@ -1200,12 +1205,7 @@ const musica = (() => {
     g.gain.value = volumen;
     f.connect(g).connect(ctx.destination); f.start();
   }
-  function actualizar(dt, corriendo, viento) {
-    if (!ctx) return;
-    const respiro = 0.25 + 0.1 * Math.sin(reloj * 0.31) * Math.sin(reloj * 0.13 + 1) + 0.12 * viento;
-    ganancia.gain.value = lerp(ganancia.gain.value, clamp(respiro, 0.1, 0.45), 1 - Math.exp(-dt * 1.2));
-  }
-  return { empezar, nota, viento, actualizar };
+  return { empezar, viento };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -1297,7 +1297,7 @@ function elegirLado() {
 }
 
 function empezarRescate() {
-  musica.nota("rescate", 0.6); musica.viento(0.35, 0.8);
+  musica.viento(0.35, 0.8);
   const enPrecipicio = pos.z < PRECIPICIO.desde + 0.5 && pos.z > PRECIPICIO.hasta - 0.5;
   const inicio = new THREE.Vector3(caminoX(PRECIPICIO.desde + 2), 0, PRECIPICIO.desde + 2);
   inicio.y = alturaTerreno(inicio.x, inicio.z);
@@ -1346,7 +1346,7 @@ function actualizar(dt) {
       baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
       espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
       efectoEspiral = 1;
-      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.nota("baston", 0.8); musica.viento(0.25, 0.9); }
+      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.viento(0.25, 0.9); }
     }
     if (arrodillado > 2.6) {
       if (tactil) ui.querySelector("#b-viento").hidden = false;
@@ -1362,7 +1362,6 @@ function actualizar(dt) {
     efectoEspiral = Math.max(efectoEspiral, arrodillado < 2.2 ? 1 : 0);
     if (arrodillado > 2.8) {
       estado = "juego"; muevePiedras = true;
-      musica.nota("baston", 0.7);
       rotular(tactil ? "◇ alza una roca. ◇ otra vez la suelta." : "E alza una roca. E otra vez la suelta.", 6);
     }
   } else if (estado === "empujando") {
@@ -1396,7 +1395,7 @@ function actualizar(dt) {
     vel.z = lerp(vel.z, deseo.z, 1 - Math.exp(-dt * agarre));
 
     coyote = enSuelo ? 0.12 : Math.max(0, coyote - dt);
-    if (pulsada("Space") && coyote > 0 && !agachado && !llevando) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.nota("salto", 0.45); }
+    if (pulsada("Space") && coyote > 0 && !agachado && !llevando) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; }
     if (pulsada("KeyE", "KeyJ") && enSuelo && llevando) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando = null;
@@ -1415,11 +1414,11 @@ function actualizar(dt) {
         elegido.estado = "llevada"; llevando = elegido;
         rumbo = Math.atan2(elegido.col.x - pos.x, elegido.col.z - pos.z);
         vel.set(0, 0, 0); estado = "empujando"; gesto = 0.7;
-        musica.nota("impulso", 0.7); musica.viento(0.4, 0.8);
+        musica.viento(0.4, 0.8);
       }
     }
     if (pulsada("KeyE", "KeyJ") && !enSuelo && tieneBaston && !impulsoUsado) {
-      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.nota("impulso", 0.7); musica.viento(0.3, 1.25);
+      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.viento(0.3, 1.25);
     }
 
     moverHorizontal(vel.x * dt, vel.z * dt);
@@ -1445,7 +1444,7 @@ function actualizar(dt) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       trazo.empezar("espiral", () => { estado = "llamando"; arrodillado = 0; });
       ladoLlamada = elegirLado();
-      musica.nota("recoger", 0.6); musica.viento(0.2, 1);
+      musica.viento(0.2, 1);
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
@@ -1453,12 +1452,12 @@ function actualizar(dt) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; });
-      musica.nota("recoger", 0.6); musica.viento(0.3, 0.9);
+      musica.viento(0.3, 0.9);
     }
     if (!avisoRocas && pos.z < ZONA_ROCAS[0] + 4) { avisoRocas = true; rotular("Rodea las rocas.", 3); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
-    if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Salta con Λ." : "Salta con Espacio.", 3); }
+    if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
     if (!avisoPenascos && pos.z < DESFILADERO.desde + 2 && penascos.some(p => p.estado === "suelo")) {
       avisoPenascos = true;
@@ -1503,7 +1502,6 @@ function actualizar(dt) {
         p.g.position.y = suelo; p.estado = "suelo";
         Object.assign(p.col, { x: p.g.position.x, z: p.g.position.z, techo: suelo - p.medio + p.alto + 1.6 });
         colisiones.push(p.col);
-        musica.nota("salto", 0.35);
       }
     }
   }
@@ -1564,7 +1562,6 @@ function actualizar(dt) {
   sol.target.position.copy(pos);
 
   efectos(dt, adelante);
-  musica.actualizar(dt, Math.hypot(vel.x, vel.z) > (V_ANDAR + V_CORRER) / 2, rachaViento);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
 }
 
