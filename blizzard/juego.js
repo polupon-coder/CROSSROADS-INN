@@ -56,7 +56,7 @@ const LARGO = z => {
   return z;
 };
 // Recorrido: el viento mantiene a Blizzard cerca de esta línea.
-const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [0, -215], [1.5, -250], [-1.2, -285], [0, -330]].map(([x, z]) => [x, LARGO(z)]);
+const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [0, -215], [1.5, -250], [-1.2, -285], [0, -330], [0, -345]].map(([x, z]) => [x, LARGO(z)]);
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -81,10 +81,15 @@ const precDesde = x => bordePrec(x, PRECIPICIO.desde, 0), precHasta = x => borde
 // Abismo antes de la primera plataforma: se cruza saltando de peñón en peñón.
 const PUENTE = { desde: TRAS(-99), hasta: TRAS(-110.5) };
 const puenteDesde = x => bordePrec(x, PUENTE.desde, 1.1), puenteHasta = x => bordePrec(x, PUENTE.hasta, 3.3);
-const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta]];
+// Grieta del túnel de los arcos: se cruza por una pilastra caída que hace de pasarela.
+const ZANJA = { desde: -357.5, hasta: -363.5 };
+const zanjaDesde = x => bordePrec(x, ZANJA.desde, 0.6), zanjaHasta = x => bordePrec(x, ZANJA.hasta, 2.7);
+const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta], [zanjaDesde, zanjaHasta]];
 // Segunda plataforma, ya sobre el rellano: allí el bastón aprende a mover piedras.
 const PLATAFORMA2 = { x: 0, z: LARGO(-154), r: 4.6, alto: 0.7 };
-const PLATAFORMAS = [PLATAFORMA, PLATAFORMA2];
+// Tercera plataforma, al final del paso de los arcos: allí se aprende a abrir la puerta arcana.
+const PLATAFORMA3 = { x: 0, z: -425, r: 4.2, alto: 0.7 };
+const PLATAFORMAS = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3];
 // Desfiladero cerrado por peñascos: solo se pasa apartándolos con el viento.
 const DESFILADERO = { desde: LARGO(-165), hasta: LARGO(-177), media: 2.8, penascos: LARGO(-171) };
 // El desfiladero empieza tras el rellano y se abre en una sala redonda alrededor de la segunda
@@ -92,7 +97,7 @@ const DESFILADERO = { desde: LARGO(-165), hasta: LARGO(-177), media: 2.8, penasc
 const CANON_DESDE = RELLANO.z - 2, CAMARA_R = 8.5, ANILLO_R = 7.3;
 const anchoCanon = z => Math.max(DESFILADERO.media, Math.sqrt(Math.max(0, CAMARA_R * CAMARA_R - (z - PLATAFORMA2.z) ** 2)));
 // Desfiladero de los arcos (lámina de los arcos en ruinas), tras el desfiladero de los peñascos; al final, el anillo.
-const ARCOS = { desde: -322, hasta: -425 }, ANILLO_Z = -442;
+const ARCOS = { desde: -322, hasta: -446 }, ANILLO_Z = -458, PUERTA_Z = -376, PUERTA_ARCANA_Z = -436;   // puerta de rocas que hay que apartar
 const FIN_Z = ANILLO_Z + 6;
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
@@ -130,18 +135,21 @@ function alturaBase(x, z) {
 }
 const ALTURA_PLAT = PLATAFORMA.base = alturaBase(PLATAFORMA.x, PLATAFORMA.z) * 0.3;
 PLATAFORMA2.base = alturaBase(PLATAFORMA2.x, PLATAFORMA2.z) * 0.3 + RELLANO.alto;
+PLATAFORMA3.x = caminoX(PLATAFORMA3.z);
+PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto;
 function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
   h += altoRellano(x) * suave(rellanoZ(x) + 0.12, rellanoZ(x) - 0.12, z);
   h = lerp(PLATAFORMA2.base, h, suave(PLATAFORMA2.r + 0.8, PLATAFORMA2.r + 4.5, Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z)));
+  h = lerp(PLATAFORMA3.base, h, suave(PLATAFORMA3.r + 0.8, PLATAFORMA3.r + 3.5, Math.hypot(x - PLATAFORMA3.x, z - PLATAFORMA3.z)));
   // Desfiladero: paredes de roca de 7 m a los lados; el paso queda en el centro.
   const enDesf = suave(CANON_DESDE + 1.5, CANON_DESDE - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
   if (enDesf > 0) { const w = anchoCanon(z); h += 7 * enDesf * suave(w + 1.4, w + 3, Math.abs(x - caminoX(z))); }   // detrás de las rocas de la pared
   // Desfiladero de los arcos: paredes altas e irregulares a ambos lados (la pendiente las vuelve roca).
   const enArcos = suave(ARCOS.desde + 3, ARCOS.desde - 6, z) * suave(ARCOS.hasta - 10, ARCOS.hasta + 2, z);
-  if (enArcos > 0) { const w = 11 + Math.sin(z * 0.09) * 2 + Math.sin(z * 0.23 + x * 0.1) * 0.8; h += 15 * enArcos * suave(w, w + 6, Math.abs(x - caminoX(z))); }
+  if (enArcos > 0) { const w = 8.6 + Math.sin(z * 0.09) * 0.7 + Math.sin(z * 0.23 + x * 0.1) * 0.4; h += 16 * enArcos * suave(w, w + 5, Math.abs(x - caminoX(z))); }
   const lado = enCamino(x, z).d;
   h += Math.max(0, lado - 20) * 0.35;                         // laderas fuera del recorrido
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -14;
@@ -189,7 +197,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-480, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
+  const zs = [...filas(-480, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -559,6 +567,27 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
   for (const [dx, z] of [[-7, -73], [7.5, -79], [-7.5, -86], [6.5, -90]].map(([dx, z]) => [dx, TRAS(z)])) monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], caminoX(z) + dx, z, 3.4, 1.4, rndA() * 6);
 }
 
+// ─── Runas (lámina 80) ─────────────────────────────────────────────────────
+// Las doce runas de la lámina, como trazos grabados claros sobre la piedra, cada una en su textura.
+const RUNAS = [
+  "M50 8 L64 52 L50 92 L36 52 Z", "M50 8 L70 50 L50 92 L30 50 Z M50 8 L50 92", "M30 92 L50 10 L70 92",
+  "M66 8 L34 62 L68 62 M68 62 L48 92 M40 80 L48 92 L58 84", "M30 22 L50 44 L70 22 M30 54 L50 76 L70 54", "M50 8 L68 55 L50 92 L32 55 Z M32 55 L68 55",
+  "M50 10 L64 31 L50 52 L36 31 Z M50 52 L66 72 L50 92 L34 72 Z", "M50 6 L50 94 M32 36 L50 54 L68 36 M32 56 L50 74 L68 56 M32 76 L50 94 L68 76",
+  "M50 12 L68 38 L34 84 M50 12 L32 38 L66 84", "M30 14 Q50 44 70 14 M28 40 L72 40 L50 84 Z", "M34 16 L66 16 M50 16 L50 48 L28 90 M50 48 L72 90",
+  "M42 30 A24 24 0 1 0 58 30"];
+const materialRuna = (() => {
+  const cache = [];
+  return i => {
+    i = ((i % RUNAS.length) + RUNAS.length) % RUNAS.length;
+    if (cache[i]) return cache[i];
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const g = c.getContext("2d"); g.scale(1.28, 1.28); g.strokeStyle = "rgba(226,236,250,1)"; g.lineWidth = 5; g.lineJoin = g.lineCap = "round";
+    g.stroke(new Path2D(RUNAS[i]));
+    return cache[i] = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.5, depthWrite: false, color: 0xc8d8ee });
+  };
+})();
+const geoRuna = new THREE.PlaneGeometry(1, 1);
+
 // ─── Piedra tallada de una pieza (kit de pilares) ──────────────────────────
 // Nieve fina, sin volumen: solo en la textura, en las caras que miran hacia arriba, con el borde
 // irregular. Normal en el mundo con la escala de cada eje corregida (las piezas se estiran).
@@ -865,12 +894,13 @@ const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
   for (const [desde, hasta] of ABISMOS) for (const [borde, haciaVacio] of [[desde, -1], [hasta, 1]]) {
     const xc = caminoX(borde(caminoX(0)));
     for (let x = xc - 34; x < xc + 34; x += 3.2 + rndW() * 2.4) {
-      const esPuente = desde === puenteDesde, nivel = rndW();
+      const esPuente = desde === puenteDesde || desde === zanjaDesde, nivel = rndW();
       if (esPuente && Math.abs(x - caminoX(borde(x))) < 4) continue;
-      const pieza = kitRocas[2 + Math.floor(rndW() * (kitRocas.length - 2))], alto = 2.6 + rndW() * 3.5, R = pieza.radio * alto / pieza.alto;
+      // Piedra tallada, sin falda de nieve: colgada en la pared, la falda sería un plano horizontal.
+      const pieza = kitPilares[Math.floor(rndW() * kitPilares.length)], alto = 2.6 + rndW() * 3.5, R = pieza.ancho / 2 * alto / pieza.alto;
       const zb = borde(x), arriba = alturaTerreno(x, zb - haciaVacio * 1.5);
       const tope = arriba - 1.4 - (nivel < 0.5 ? rndW() * 1.5 : 4 + rndW() * 4);
-      colocar(pieza, x, zb - haciaVacio * R * 0.3, alto, rndW() * Math.PI * 2, 0, tope - alto * 0.97 + 0.15, false);
+      colocar(pieza, x, zb - haciaVacio * R * 0.3, alto, rndW() * Math.PI * 2, 0, tope - alto * 0.97 + 0.15, false).children[0].material = nieveFina;
       colisiones.pop();
     }
   }
@@ -965,66 +995,137 @@ for (let k = 0, n = Math.round(Math.PI * 2 * ANILLO_R / 1.85); k < n; k++) {
   penascos.push(nuevoPenasco(PLATAFORMA2.x + Math.cos(a) * ANILLO_R, PLATAFORMA2.z + Math.sin(a) * ANILLO_R, alto, ancho));
 }
 
-// ─── Desfiladero de los arcos ──────────────────────────────────────────────
-// Arcos de piedra en ruinas a lo largo del paso, entre paredes de roca: unos enteros, otros rotos o
-// solo con sus pilastras, con runas grabadas y bloques caídos en la nieve. Piezas del kit de pilares.
+// ─── Túnel de los arcos ────────────────────────────────────────────────────
+// Desfiladero estrecho bajo arcos de piedra en ruinas, muy grandes (lámina de los arcos), con un
+// paso que obliga a todo lo aprendido: saltar una pilastra caída, agacharse bajo otra, cruzar una
+// grieta por una pilastra tumbada, apartar las rocas de una puerta, saltar con el viento una pilastra
+// gruesa y agacharse otra vez. Piezas del kit de pilares, con runas grabadas en las pilastras.
+// Puerta arcana del túnel: con el viento se abre por la mitad y cada hoja se aparta a su lado.
+const puertaArcana = { hojas: [], colisiones: [], t: -1, cintas: null };
+const AVISOS_TUNEL = [
+  { z: PLATAFORMA3.z + 9, texto: "Una puerta sellada.\nSube a la plataforma." },
+  { z: ZANJA.desde + 6, texto: "Cruza por la pilastra." },
+  { z: PUERTA_Z + 7, texto: "E alza las rocas.", tactil: "◇ alza las rocas." },
+  { z: -385, texto: "Muy alta. Salta y usa el viento." },
+];
 {
   const rndK = generador(5353);
-  // Runa en rombo (como las de la lámina), clara y algo transparente, grabada en la cara de la pilastra.
-  const matRuna = (() => {
-    const c = document.createElement("canvas"); c.width = 64; c.height = 128;
-    const g = c.getContext("2d"); g.strokeStyle = "rgba(225,236,250,1)"; g.lineWidth = 3.2; g.lineJoin = g.lineCap = "round";
-    g.beginPath(); g.moveTo(32, 14); g.lineTo(52, 54); g.lineTo(32, 94); g.lineTo(12, 54); g.closePath();
-    g.moveTo(32, 30); g.lineTo(42, 54); g.lineTo(32, 78); g.lineTo(22, 54); g.closePath();
-    g.moveTo(32, 94); g.lineTo(32, 118); g.moveTo(22, 108); g.lineTo(32, 118); g.lineTo(42, 108); g.stroke();
-    return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.45, depthWrite: false, color: 0xc8d8ee });
-  })();
-  const geoRuna = new THREE.PlaneGeometry(1, 2);
-  // span: luz entre ejes de las pilastras; alto: de las pilastras; estado: entero, rotoIzq, rotoDer, solo.
+  const eje = giro => new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro));
+  const sobre = (z, giro, t, y) => { const d = eje(giro), cx = caminoX(z); return new THREE.Vector3(cx + d.x * t, alturaTerreno(cx, z) + y, z + d.z * t); };
+  // Arco: dos pilastras al pie de las paredes y la curva de dovelas encima (las que faltan, caídas).
   const arco = (z, span, alto, ancho, estado, giro) => {
-    const cx = caminoX(z), suelo = alturaTerreno(cx, z), R = span / 2;
-    const dir = new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro)), frente = new THREE.Vector3(Math.sin(giro), 0, Math.cos(giro));
-    const punto = (t, y) => new THREE.Vector3(cx + dir.x * t, suelo + y, z + dir.z * t);
+    const R = span / 2, frente = new THREE.Vector3(Math.sin(giro), 0, Math.cos(giro));
     const altoDe = lado => (estado === "rotoIzq" && lado < 0) || (estado === "rotoDer" && lado > 0) || (estado === "solo" && lado > 0) ? alto * (0.45 + rndK() * 0.2) : alto;
     for (const lado of [-1, 1]) {
-      const h = altoDe(lado), pie = punto(lado * R, -1.2), cabeza = punto(lado * R, h);
-      pilarTallado(kitPilares[5], pie, cabeza, ancho, rndK() * 0.3);
-      colisiones.push({ x: pie.x, z: pie.z, r: ancho * 0.55, techo: suelo + h, obj: pilarTallado.ultimo });
-      if (rndK() < 0.7) {                                         // runa en la cara que mira al camino
-        const m = new THREE.Mesh(geoRuna, matRuna), en = punto(lado * R, Math.min(h * 0.5, 3.2)).addScaledVector(frente, ancho * 0.52);
-        m.scale.setScalar(ancho * 0.42); m.position.copy(en); m.rotation.y = giro; scene.add(m);
+      const h = altoDe(lado), pie = sobre(z, giro, lado * R, -1.5);
+      pilarTallado(kitPilares[5], pie, sobre(z, giro, lado * R, h), ancho, rndK() * 0.3);
+      colisiones.push({ x: pie.x, z: pie.z, r: ancho * 0.55, techo: pie.y + 1.5 + h, obj: pilarTallado.ultimo });
+      if (rndK() < 0.75) {
+        const m = new THREE.Mesh(geoRuna, materialRuna(Math.floor(rndK() * RUNAS.length)));
+        m.scale.setScalar(ancho * 0.55); m.position.copy(sobre(z, giro, lado * R, Math.min(h * 0.45, 3.4)).addScaledVector(frente, ancho * 0.52)); m.rotation.y = giro; scene.add(m);
       }
     }
     if (estado === "solo") return;
-    // Dovelas del arco: piezas cortas a lo largo de la curva, de pilastra a pilastra (las que faltan, caídas).
-    const N = 7, arcoPt = a => punto(Math.cos(a) * R, alto + Math.sin(a) * R * 0.9);
+    const N = 8, arcoPt = a => sobre(z, giro, Math.cos(a) * R, alto + Math.sin(a) * R * 0.85);
     for (let k = 0; k < N; k++) {
-      const falta = (estado === "rotoIzq" && k < 4) || (estado === "rotoDer" && k >= 3);
-      if (falta) continue;
-      const a0 = Math.PI - k * Math.PI / N, a1 = Math.PI - (k + 1) * Math.PI / N;
-      const p0 = arcoPt(a0), p1 = arcoPt(a1), m = p0.clone().lerp(p1, 0.5);
-      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.12), m.clone().lerp(p1, 1.12), ancho * 0.9, rndK() * 0.4);
+      if ((estado === "rotoIzq" && k < 4) || (estado === "rotoDer" && k >= 4)) continue;
+      const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
+      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.12), m.clone().lerp(p1, 1.12), ancho * 0.95, rndK() * 0.4);
     }
   };
-  // Bloque caído (dovela o sillar), algo ladeado, a un lado del paso.
+  // Pilastra caída de pared a pared, en el suelo: se salta (o, si es gruesa, se salta con el viento).
+  const tumbada = (z, grueso, giro) => {
+    const a = sobre(z, giro, -9.5, grueso * 0.42), b = sobre(z, giro, 9.5, grueso * 0.42);
+    pilarTallado(kitPilares[5], a, b, grueso, rndK() * 6);
+    const g = pilarTallado.ultimo;
+    for (let t = 0.3; t < 18.7; t += 0.45) { const q = a.clone().lerp(b, t / 19); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.5, techo: q.y + grueso * 0.5, obj: g }); }
+  };
+  // Paso bajo: pilastra de pared a pared sobre dos bloques; debajo, techo bajo (solo agachado).
+  const bajo = (z, grueso, giro, libreIzq, libreDer) => {
+    for (const [lado, libre] of [[-1, libreIzq], [1, libreDer]]) {
+      const p = sobre(z, giro, lado * 6.6, 0), pieza = kitPilares[lado > 0 ? 2 : 1];
+      colocar(pieza, p.x, p.z, libre + 0.25, giro + rndK(), 0.12, alturaTerreno(p.x, p.z), false).children[0].material = nieveFina;
+      colisiones[colisiones.length - 1].r = pieza.ancho / 2 * (libre + 0.25) / pieza.alto;
+    }
+    const a = sobre(z, giro, -9.5, libreIzq + grueso / 2), b = sobre(z, giro, 9.5, libreDer + grueso / 2);
+    pilarTallado(kitPilares[4], a, b, grueso, rndK() * 6);
+    for (let t = 0.3; t < 18.7; t += 0.45) { const q = a.clone().lerp(b, t / 19); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.55, techo: q.y + grueso / 2, bajo: q.y - grueso / 2 }); }
+  };
+  // Pasarela sobre la grieta: una pilastra tumbada a lo largo del camino, con los extremos enterrados.
+  const pasarela = (zA, zB, ancho) => {
+    const A = new THREE.Vector3(caminoX(zA), alturaTerreno(caminoX(zA), zA) + 0.05, zA), B = new THREE.Vector3(caminoX(zB), alturaTerreno(caminoX(zB), zB) + 0.05, zB);
+    const dir = B.clone().sub(A).normalize(), baja = new THREE.Vector3(0, -ancho * 0.48, 0);
+    pilarTallado(kitPilares[5], A.clone().addScaledVector(dir, -1.5).add(baja), B.clone().addScaledVector(dir, 1.5).add(baja), ancho, Math.PI / 2);
+    colisiones.push({ x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + ancho, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: ancho * 0.45 } });
+  };
+  // Bloque caído, algo ladeado, junto a las paredes.
   const caido = (z, dx, tam) => {
     const x = caminoX(z) + dx, pieza = kitPilares[Math.floor(rndK() * 3)];
     const g = colocar(pieza, x, z, tam, rndK() * 6, 0.2, alturaTerreno(x, z), true);
     g.children[0].material = nieveFina; g.rotation.x = (rndK() - 0.5) * 0.5; g.rotation.z = (rndK() - 0.5) * 0.5;
     colisiones[colisiones.length - 1].r = pieza.ancho / 2 * tam / pieza.alto;
+    if (rndK() < 0.5) {                                          // runa en la cara que mira al camino
+      const m = new THREE.Mesh(geoRuna, materialRuna(Math.floor(rndK() * RUNAS.length))), r = pieza.ancho / 2 * tam / pieza.alto;
+      m.scale.setScalar(tam * 0.45); m.position.set(x - Math.sign(dx) * (r + 0.03), alturaTerreno(x, z) + tam * 0.45, z); m.rotation.y = -Math.sign(dx) * Math.PI / 2; scene.add(m);
+    }
   };
-  for (const [z, span, alto, ancho, estado, giro] of [
-    [-329, 13, 11, 2.7, "entero", 0.05], [-343, 9.5, 8, 2.0, "rotoDer", -0.14], [-357, 10.5, 9, 2.3, "entero", 0.1],
-    [-371, 9, 7.5, 2.0, "rotoIzq", -0.06], [-385, 10, 8.5, 2.2, "solo", 0.16], [-399, 9.5, 8, 2.1, "entero", -0.1], [-413, 8.5, 7, 1.9, "rotoDer", 0.06]]) {
-    arco(z, span, alto, ancho, estado, giro);
-    if (estado !== "entero") for (let i = 0; i < 3; i++) caido(z - 2 - rndK() * 4, (rndK() < 0.5 ? -1 : 1) * (3.6 + rndK() * 3), 1.1 + rndK() * 1.2);
+
+  // Arcos, de la entrada al anillo: muy grandes, con las pilastras al pie de las paredes.
+  for (const [z, alto, ancho, estado, giro] of [[-326, 15, 3.4, "entero", 0.04], [-340, 13, 3.0, "rotoIzq", -0.08], [-351, 14, 3.2, "entero", 0.06],
+    [-368, 12, 3.0, "rotoDer", -0.05], [-383, 13, 3.1, "solo", 0.08], [-405, 14, 3.2, "entero", -0.06], [-415, 12.5, 3.0, "rotoDer", 0.05],
+    [PUERTA_ARCANA_Z, 15, 3.4, "entero", 0]]) {
+    arco(z, 15, alto, ancho, estado, giro);
+    if (estado !== "entero") for (let i = 0; i < 2; i++) caido(z - 2 - rndK() * 3, (rndK() < 0.5 ? -1 : 1) * (5 + rndK() * 1.5), 1.2 + rndK());
   }
-  // Paredes: agujas y rocas grandes al pie de las laderas, y alguna pilastra suelta en pie.
+  // Junto al segundo arco, a la derecha: sillares caídos y una pilastra apoyada en la pared, en diagonal.
+  caido(-343, 5.4, 2.2); caido(-345.5, 4.6, 1.6);
+  pilarTallado(kitPilares[4], sobre(-344, 0, 4.4, -0.3), sobre(-348.5, 0, 7.8, 4.2), 1.9, 0.7);
+  colisiones.push({ ...(p => ({ x: p.x, z: p.z }))(sobre(-344, 0, 4.6, 0)), r: 1.2, techo: alturaTerreno(caminoX(-344), -344) + 1.5 });
+  // Puerta arcana bajo el último arco: dos hojas de piedra con una runa partida por la mitad.
+  {
+    const cx = caminoX(PUERTA_ARCANA_Z), suelo = alturaTerreno(cx, PUERTA_ARCANA_Z), pieza = kitPilares[1], W = 5.9, H = 9, D = 1.3;
+    const geoMitad = lado => {                                    // media runa: la de su lado de la junta
+      const g = new THREE.PlaneGeometry(1.7, 3.4), uv = g.attributes.uv, pos = g.attributes.position;
+      for (let i = 0; i < uv.count; i++) { uv.setX(i, lado < 0 ? uv.getX(i) * 0.5 : 0.5 + uv.getX(i) * 0.5); pos.setX(i, pos.getX(i) + (lado < 0 ? 0.85 : -0.85)); }
+      return g;
+    };
+    const runa = materialRuna(6).clone(); runa.opacity = 0.75; runa.color.set(0xdbe8fb);   // la de los dos rombos, la que se aprende
+    for (const lado of [-1, 1]) {
+      const hoja = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, nieveFina);
+      m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
+      cuerpo.add(m); cuerpo.scale.set(W / (pieza.radio * 2), H / pieza.alto, D / (pieza.radio * 2)); hoja.add(cuerpo);
+      const r = new THREE.Mesh(geoMitad(lado), runa); r.position.set(-lado * W / 2, 0.6, D / 2 + 0.04); r.scale.setScalar(1.25); hoja.add(r);
+      hoja.position.set(cx + lado * W / 2, suelo + H / 2 - 0.3, PUERTA_ARCANA_Z); scene.add(hoja);
+      puertaArcana.hojas.push({ g: hoja, x0: hoja.position.x, lado });
+    }
+    puertaArcana.runa = runa; puertaArcana.x = cx; puertaArcana.y = suelo; puertaArcana.z = PUERTA_ARCANA_Z;
+    for (let x = -2 * W + 0.4; x <= 2 * W - 0.4; x += 0.5) {
+      const c = { x: cx + x / 2 * 1, z: PUERTA_ARCANA_Z, r: 0.8, techo: suelo + H };
+      c.x = cx + x * 0.5; colisiones.push(c); puertaArcana.colisiones.push(c);
+    }
+  }
+  tumbada(-334, 1.2, 0.1);                                       // se salta
+  bajo(-345, 1.4, -0.12, 1.3, 1.4);                              // se pasa agachado
+  pasarela(ZANJA.desde + 2, ZANJA.hasta - 2, 2.2);               // se cruza la grieta por encima
+  // Una pilastra rota cae dentro de la grieta, de adorno.
+  pilarTallado(kitPilares[3], sobre(ZANJA.desde - 1, 0.3, -6, -9), sobre(ZANJA.desde - 2.5, 0.3, -3.5, 0.6), 1.8, 1.2);
+  // Puerta: dos bloques grandes a cada lado y, en el hueco del centro, dos rocas que hay que apartar.
+  for (const lado of [-1, 1]) for (const [t, alto] of [[3.4, 4.2], [6.6, 4.8]]) {
+    const p = sobre(PUERTA_Z, 0, lado * t, 0), pieza = kitPilares[1 + (t > 5 ? 1 : 0)];
+    colocar(pieza, p.x, p.z, alto, rndK() * 0.4 + (lado > 0 ? 0 : Math.PI), 0.1, alturaTerreno(p.x, p.z), false).children[0].material = nieveFina;
+    colisiones[colisiones.length - 1].r = pieza.ancho / 2 * alto / pieza.alto;
+  }
+  for (const [dx, dz, alto, ancho] of [[-0.85, 0.2, 2.0, 1.7], [0.9, -0.3, 1.8, 1.6]])
+    penascos.push(nuevoPenasco(caminoX(PUERTA_Z) + dx, PUERTA_Z + dz, alto, ancho));
+  tumbada(-391, 2.1, -0.08);                                     // gruesa: hay que saltar y usar el viento
+  bajo(-398, 1.5, 0.15, 1.25, 1.4);                              // otra vez agachado
+  // Rocas y agujas en lo alto de las paredes, y alguna pilastra en pie.
   for (const lado of [-1, 1]) for (let z = ARCOS.desde - 2; z > ARCOS.hasta - 8; z -= 4.5 + rndK() * 3) {
-    const dx = 10.5 + rndK() * 3.5, x = caminoX(z) + lado * dx;
-    if (rndK() < 0.55) colocar(kitRocas[4 + Math.floor(rndK() * 2)], x + lado * 2, z, 10 + rndK() * 9, rndK() * 6, 0.2);
-    else colocar(kitRocas[2 + Math.floor(rndK() * 2)], x, z, 4 + rndK() * 3, rndK() * 6, 0.25);
-    if (rndK() < 0.25) pilarTallado(kitPilares[5], new THREE.Vector3(x - lado * 1.5, alturaTerreno(x, z) - 1, z - 2), new THREE.Vector3(x - lado * 1.2, alturaTerreno(x, z) + 6 + rndK() * 4, z - 2.3), 1.8, rndK() * 6);
+    if (z < ZANJA.desde + 2 && z > ZANJA.hasta - 2) continue;
+    // Al pie de las paredes, piedra tallada (sin faldas de nieve, que en la ladera serían planos horizontales).
+    const x = caminoX(z) + lado * (9.4 + rndK() * 1.2), pieza = kitPilares[3 + Math.floor(rndK() * 3)], alto = 7 + rndK() * 7;
+    colocar(pieza, x, z, alto, rndK() * 6, 0.15, alturaTerreno(x, z), false).children[0].material = nieveFina;
+    rndK();
   }
 }
 
@@ -1066,6 +1167,7 @@ function montarPlataforma(P, plat, giro) {
   P.techo = alturaPlatDe(P, P.x + 0.3, P.z + 0.3);
 }
 montarPlataforma(PLATAFORMA2, gPlataforma.scene.clone(), 2.4);
+montarPlataforma(PLATAFORMA3, gPlataforma.scene.clone(), 0.9);
 montarPlataforma(PLATAFORMA, gPlataforma.scene, 4.0);    // los pilares altos, detrás del bastón al llegar
 
 // ─── Bastón (láminas 27 y 28) ──────────────────────────────────────────────
@@ -1282,7 +1384,7 @@ estilo.textContent = `
   #portada .teclas { margin: 6px auto 0; display: grid; grid-template-columns: auto auto; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
-  #rotulo { white-space: pre-line; position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
+  #rotulo { white-space: pre-line; position: fixed; z-index: 4; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
   #cerrar { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px; border: 1px solid rgba(31,42,61,.25); border-radius: 50%; background: rgba(240,245,252,.7); color: var(--tinta); font: 26px/1 Georgia, serif; cursor: pointer; pointer-events: auto; }
   #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
   #mandos { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
@@ -1309,7 +1411,7 @@ estilo.textContent = `
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
   /* Trazo de runas: la figura en el centro; se resigue con el dedo o el ratón. */
   /* La figura, apartada de Blizzard y del bastón: arriba en vertical, a la izquierda en horizontal. */
-  #trazo { position: fixed; inset: 0; display: grid; place-items: start center; padding-top: calc(120px + env(safe-area-inset-top, 0px)); background: rgba(28, 38, 58, .42); -webkit-backdrop-filter: blur(3px) saturate(.7); backdrop-filter: blur(3px) saturate(.7); animation: velo .6s ease-out; pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
+  #trazo { position: fixed; inset: 0; display: grid; place-items: start center; padding-top: calc(120px + env(safe-area-inset-top, 0px)); background: rgba(40, 52, 76, .2); -webkit-backdrop-filter: blur(2px) saturate(.8); backdrop-filter: blur(2px) saturate(.8); animation: velo .6s ease-out; pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
   /* Veladura: mientras se traza, el resto de la escena queda apagada y algo desenfocada. */
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
@@ -1420,6 +1522,8 @@ const FIGURAS = {
   espiral: { velocidad: 34, puntos: Array.from({ length: 241 }, (_, i) => { const t = i / 240, a = -Math.PI / 2 + t * Math.PI * 5, r = 44 - t * 38 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
   // La runa del viento: el rombo del botón ◇ en un sentido y otro rombo dentro en el contrario.
   runa: { velocidad: 40, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
+  // La runa de la puerta (lámina 80): dos rombos apilados, en un solo trazo, como un ocho.
+  puerta: { velocidad: 40, puntos: [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 8]] },
 };
 const trazo = (() => {
   const capa = document.createElement("div");
@@ -1562,8 +1666,9 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
+let abrePuertas = false, aprende = "";
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
-let NIEBLA_LEJOS = 19;
+let NIEBLA_LEJOS = 19, enTunel = 0;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0;
 const INTRO_DURA = 8;
@@ -1619,7 +1724,7 @@ let agachadoAhora = false;
 // Magia retentiva: en los pasos que no se pueden rodear, entrar en su franja por fuera del paso (por
 // encima de las rocas, saltando…) devuelve a donde se estaba, con el viento en bumerán. hw: medio
 // ancho del paso; m: media franja a lo largo del camino.
-const RETENCIONES = [...ZONA_PILASTRAS.map(z => ({ z, hw: 4.3, m: 1.2 })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 4.5, m: 2.3 }))];
+const RETENCIONES = [...ZONA_PILASTRAS.map(z => ({ z, hw: 4.3, m: 1.2 })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 4.5, m: 2.3 })), { z: PUERTA_Z, hw: 2.2, m: 1.6 }];
 const retenido = (x, z) => RETENCIONES.some(R => Math.abs(z - R.z) < R.m && Math.abs(x - caminoX(R.z)) > R.hw && Math.abs(x - caminoX(R.z)) < 40);
 let retencion = 0;
 // Ya sobre la piedra (casi a la altura de su malla bajo los pies). Si el rayo no la toca, no lo está.
@@ -1727,7 +1832,10 @@ function actualizar(dt) {
     // En el centro de la segunda plataforma el viento se enrosca en el bastón: desde aquí puede mover piedras.
     arrodillado += dt;
     efectoEspiral = Math.max(efectoEspiral, arrodillado < 2.2 ? 1 : 0);
-    if (arrodillado > 2.8) {
+    if (arrodillado > 2.8 && aprende === "puerta") {
+      estado = "juego"; abrePuertas = true;
+      rotular(tactil ? "Desde la plataforma,\n◇ abre la puerta." : "Desde la plataforma,\nE abre la puerta.", 6);
+    } else if (arrodillado > 2.8) {
       estado = "juego"; muevePiedras = true;
       rotular(tactil ? "◇ alza una roca. ◇ otra vez la suelta." : "E alza una roca. E otra vez la suelta.", 6);
     }
@@ -1771,11 +1879,16 @@ function actualizar(dt) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
       musica.viento(0.25, 0.7);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
+      // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
+      puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
+      vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado) {
       // Alzar la roca más cercana: el viento la envuelve y la sostiene delante de Blizzard.
-      let elegido = null, mejor = 2.4;
+      // Recién aprendido el poder, la que se alza es la marcada por la espiral.
+      let elegido = !yaAlzada && rocaMarcada && rocaMarcada.estado === "suelo" && Math.hypot(rocaMarcada.col.x - pos.x, rocaMarcada.col.z - pos.z) < 22 ? rocaMarcada : null, mejor = 2.4;
       for (const p of penascos) {
-        if (p.estado !== "suelo") continue;
+        if (elegido || p.estado !== "suelo") continue;
         const d = Math.hypot(p.col.x - pos.x, p.col.z - pos.z) - p.col.r;
         if (d < mejor) { mejor = d; elegido = p; }
       }
@@ -1826,7 +1939,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -1838,16 +1951,22 @@ function actualizar(dt) {
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
+    if (muevePiedras && !abrePuertas && s.sobre === PLATAFORMA3 && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < 2.4 && estado === "juego") {
+      // Tercera plataforma: la runa de los dos rombos, la de la puerta.
+      estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
+      ladoLlamada = elegirLado();
+      trazo.empezar("puerta", () => { estado = "despertando"; arrodillado = 0; aprende = "puerta"; });
+      musica.viento(0.3, 0.8);
+    }
     if (tieneBaston && !muevePiedras && s.sobre === PLATAFORMA2 && Math.hypot(pos.x - PLATAFORMA2.x, pos.z - PLATAFORMA2.z) < 2.6) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
-      trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; });
+      trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
-    if (!avisoRocas && pos.z < ZONA_ROCAS[0] + 4) { avisoRocas = true; rotular("Rodea las rocas.", 3); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
-    if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
+    for (const a of AVISOS_TUNEL) if (!a.visto && pos.z < a.z) { a.visto = true; rotular(tactil && a.tactil ? a.tactil : a.texto, 3.5); }
     if (!avisoAgacharse && pos.z < ZONA_AGACHARSE[0] + 3.5) { avisoAgacharse = true; rotular(tactil ? "Desliza abajo para agacharte." : "Agáchate con C.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
     if (!avisoPenascos && pos.z < DESFILADERO.desde + 2 && penascos.some(p => p.estado === "suelo")) {
@@ -1992,8 +2111,11 @@ function actualizar(dt) {
   quietoDesde = Math.hypot(vel.x, vel.z) < 0.2 && enSuelo ? quietoDesde + dt : 0;
   const quiereCerca = estado === "llamando" || estado === "despertando" || estado === "trazando" || (estado === "juego" && quietoDesde > 2.5) ? 1 : 0;
   cerca = lerp(cerca, quiereCerca, 1 - Math.exp(-dt * (quiereCerca ? 0.8 : 2.5)));
-  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(7.2, 3.6, cerca)).add(new THREE.Vector3(0, lerp(3.6, 1.7, cerca), 0));
-  const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(4, 1.5, cerca)).add(new THREE.Vector3(0, lerp(1.1, 1.2, cerca), 0));
+  // En el túnel de los arcos, plano bajo que mira hacia arriba y a lo lejos (como en la lámina de los
+  // arcos): los arcos enmarcan el paso y se ven los siguientes en la niebla.
+  enTunel = lerp(enTunel, suave(ARCOS.desde + 6, ARCOS.desde - 1, pos.z) * suave(ARCOS.hasta - 12, ARCOS.hasta - 2, pos.z), 1 - Math.exp(-dt * 1.5));
+  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(7.2, 6.2, enTunel), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(3.6, 1.9, enTunel), 1.7, cerca), 0));
+  const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
   // Cerca del bastón (aún sin cogerlo) la cámara lo encuadra junto a Blizzard.
   const haciaBaston = !tieneBaston && estado === "juego" ? suave(10, 5, Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z)) : 0;
   if (haciaBaston > 0) mira.lerp(new THREE.Vector3().copy(baston.position).add(new THREE.Vector3(0, 1.2, 0)), haciaBaston * 0.6);
@@ -2034,7 +2156,7 @@ function actualizar(dt) {
   } else {
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
-    scene.fog.near = 2; scene.fog.far = NIEBLA_LEJOS;
+    scene.fog.near = 2; scene.fog.far = lerp(NIEBLA_LEJOS, 36, enTunel);
   }
 
   sol.position.set(pos.x - 18, pos.y + 30, pos.z + 12);
@@ -2178,6 +2300,31 @@ function efectos(dt, adelante) {
     e[i * 6 + 3] = x; e[i * 6 + 4] = y + ancho / 2; e[i * 6 + 5] = z;
   }
   espiral.geometry.attributes.position.needsUpdate = true;
+  animarPuerta(dt);
+}
+
+// Puerta arcana: las hojas se deslizan a los lados; dentro de cada una, un bumerán de viento que gira.
+function animarPuerta(dt) {
+  const P = puertaArcana;
+  if (!P.hojas.length) return;
+  if (P.runa) P.runa.opacity = P.t < 0 ? 0.6 + Math.sin(reloj * 2.4) * 0.15 : Math.max(0, 0.75 * (1 - P.t * 2));
+  if (P.t < 0 || P.t >= 1.2) return;
+  if (!P.cintas) P.cintas = P.hojas.map(() => { const m = espiral.clone(); m.geometry = espiral.geometry.clone(); m.material = espiral.material.clone(); scene.add(m); return m; });
+  P.t += dt / 2.6;
+  const k = suave(0.1, 1, P.t);
+  if (P.t > 0.15 && P.colisiones.length) { for (const c of P.colisiones) colisiones.splice(colisiones.indexOf(c), 1); P.colisiones.length = 0; }
+  P.hojas.forEach((h, i) => {
+    h.g.position.x = h.x0 + h.lado * k * 5.6;
+    const cinta = P.cintas[i], e = cinta.geometry.attributes.position.array, n = cinta.userData.N;
+    cinta.material.opacity = Math.sin(Math.PI * clamp(P.t, 0, 1)) * 0.9;
+    for (let j = 0; j < n; j++) {
+      const q = j / (n - 1), ancho = Math.sin(Math.PI * q) * 0.32;
+      const a = reloj * 5 * -h.lado + (q - 0.5) * 2.6, r = 2.2 + Math.sin(Math.PI * q) * 0.6;
+      const x = h.g.position.x + Math.cos(a) * r, y = h.g.position.y - 1 + Math.sin(reloj * 4 + q * 3) * 0.3 + q * 1.5, z = h.g.position.z + Math.sin(a) * r * 0.55;
+      e[j * 6] = x; e[j * 6 + 1] = y - ancho / 2; e[j * 6 + 2] = z; e[j * 6 + 3] = x; e[j * 6 + 4] = y + ancho / 2; e[j * 6 + 5] = z;
+    }
+    cinta.geometry.attributes.position.needsUpdate = true;
+  });
 }
 
 // ─── Bucle ─────────────────────────────────────────────────────────────────
@@ -2202,7 +2349,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
