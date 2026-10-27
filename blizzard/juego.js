@@ -329,11 +329,14 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   return g;
 }
 
+// ¿Hay ya una roca (o montículo, columna…) que ocupe buena parte de ese sitio?
+const solapa = (x, z, r) => colisiones.some(c => !c.rampa && !c.borde && Math.hypot(c.x - x, c.z - z) < (c.r + r) * 0.7);
 // Roca del kit (lámina 81): pequeñas para alturas pequeñas, agujas para las grandes.
 function roca(x, z, ancho, alto) {
   const n = kitRocas.length, f = clamp(alto / 16, 0, 1);
-  const i = clamp(Math.round(f * (n - 1) + (rnd() - 0.5) * 1.2), 0, n - 1);
-  colocar(kitRocas[i], x, z, alto, rnd() * Math.PI * 2);
+  const i = clamp(Math.round(f * (n - 1) + (rnd() - 0.5) * 1.2), 0, n - 1), giro = rnd() * Math.PI * 2;
+  if (solapa(x, z, kitRocas[i].radio * alto / kitRocas[i].alto * 0.8)) return;   // no dos rocas en el mismo sitio
+  colocar(kitRocas[i], x, z, alto, giro);
 }
 
 // Ruina tallada (lámina 82): las piezas más altas del kit.
@@ -615,9 +618,15 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
       geo.computeVertexNormals();
       const g = new THREE.Group(), piedra = new THREE.Mesh(geo, piedraViga);
       piedra.castShadow = piedra.receiveShadow = true; g.add(piedra);
-      if (rndB() < 0.75) {
-        const nieve = new THREE.Mesh(new THREE.BoxGeometry(g0 * (0.5 + rndB() * 0.3), tramo * (0.4 + rndB() * 0.4), 0.09), nieveViga);
-        nieve.position.set((rndB() - 0.5) * g0 * 0.2, (rndB() - 0.5) * tramo * 0.3, g0 / 2 + 0.02); nieve.receiveShadow = true; g.add(nieve);
+      for (let m = 0, n = Math.floor(rndB() * 3.2); m < n; m++) {   // manchas de nieve de borde irregular
+        const ax = g0 * (0.18 + rndB() * 0.2), ay = tramo * (0.12 + rndB() * 0.22), forma = new THREE.Shape();
+        for (let k2 = 0; k2 < 12; k2++) {
+          const an = k2 / 12 * Math.PI * 2, f = 0.7 + rndB() * 0.45, px = Math.cos(an) * ax * f, py = Math.sin(an) * ay * f;
+          k2 ? forma.lineTo(px, py) : forma.moveTo(px, py);
+        }
+        const nieve = new THREE.Mesh(new THREE.ExtrudeGeometry(forma, { depth: 0.07, bevelEnabled: false }), nieveViga);
+        nieve.position.set((rndB() - 0.5) * (g0 - 2 * ax) * 0.8, (rndB() - 0.5) * (tramo - 2 * ay), g0 / 2 - 0.02);
+        nieve.receiveShadow = true; g.add(nieve);
       }
       // Cada tramo, girado un poco sobre su eje y en planta, sin que la cara de arriba se levante.
       const giro = new THREE.Matrix4().makeRotationAxis(dir, (rndB() - 0.5) * 0.12).multiply(new THREE.Matrix4().makeRotationAxis(Z, (rndB() - 0.5) * 0.08));
@@ -626,7 +635,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
       g.matrixAutoUpdate = false; g.matrix.makeBasis(Xr, Yr, Zr).setPosition(centro);
       scene.add(g);
     }
-    if (conColision) for (let t = 0; t <= 1.0001; t += 0.4 / largo) { const q = a.clone().lerp(b, t); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.56, techo: q.y }); }
+    if (conColision) colisiones.push({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, r: largo / 2 + grueso, techo: Math.max(a.y, b.y), rampa: { a, b, ancho: grueso * 0.5 } });
   };
   // Columna de tambores de piedra apilados desde el fondo, cada uno algo más estrecho que el de
   // debajo (el de arriba nunca es mayor). Arriba, plana a la altura «cima» si sostiene algo, o
@@ -681,7 +690,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
     const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1, x = caminoX(z) + lado * (3.5 + rndR() * 6);
     const ruina = rndR() < 0.45, kit = ruina ? kitRuinas : kitRocas;
     const pieza = kit[Math.floor(rndR() * (ruina ? 5 : kit.length))], alto = ruina ? 1 + rndR() * 2.2 : 0.6 + rndR() * 1.8;
-    if (PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3)) continue;
+    if (PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3) || solapa(x, z, pieza.radio * alto / pieza.alto * 0.85)) continue;
     colocar(pieza, x, z, alto, rndR() * Math.PI * 2, ruina ? 0.12 : 0.25);
     colisiones[colisiones.length - 1].r = pieza.radio * alto / pieza.alto * 0.85;
     if (rndR() < 0.35) monticulo(kitRocas[Math.floor(rndR() * kitRocas.length)], x + lado * 2.5, z + (rndR() - 0.5) * 3, 2.5 + rndR() * 2, 0.7 + rndR() * 0.8, rndR() * 6);
@@ -773,7 +782,7 @@ const LARGO_BASTON = 1.3, AGARRE_BASTON = 0.74;
 function crearBaston(etapa) {
   // Remate como la referencia: aro grueso y facetado, abierto por arriba, unido al fuste por una
   // horquilla en Y. Una luz flota sobre el aro mientras se hace magia.
-  const g = new THREE.Group(), piedra = new THREE.MeshStandardMaterial({ color: "#3e3834", roughness: 0.85, flatShading: true, fog: false });   // sin niebla: se ve siempre
+  const g = new THREE.Group(), piedra = new THREE.MeshStandardMaterial({ color: "#3e3834", roughness: 0.85, flatShading: true });
   const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.016, LARGO_BASTON, 6), piedra);
   fuste.position.y = LARGO_BASTON / 2;
   // Etapa 1: apenas un gesto, un arco corto que sale de la base hacia un lado (lámina 27).
@@ -969,14 +978,16 @@ estilo.textContent = `
   /* La palanca: el pomo se ve siempre; al tocar la mitad izquierda, el aro aparece donde se pone el dedo. */
   #zona-palanca { position: fixed; left: 0; top: 70px; bottom: 0; width: 40%; pointer-events: auto; touch-action: none; }
   #palanca.activa { background: rgba(240,245,252,.28); border-color: rgba(31,42,61,.2); }   /* el aro, solo al tocar; el pomo, siempre */
-  #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: transparent; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
-  #pomo { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
+  /* Tres círculos iguales (pomo, pomo y ◇), a la misma altura; el aro de cada bola sale en su sitio al pulsar. */
+  #palanca, #accion, #pomo, #pomo-accion, #b-viento { box-sizing: border-box; }
+  #palanca { position: fixed; left: calc(24px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 116px; height: 116px; border-radius: 50%; background: transparent; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
+  #pomo { position: absolute; left: 30px; top: 30px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
   /* A la derecha, otra bola alineada con la de movimiento: arriba salta, abajo agacha. La magia, en el centro. */
   #zona-accion { position: fixed; right: 0; top: 70px; bottom: 0; width: 40%; pointer-events: auto; touch-action: none; }
-  #accion { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
+  #accion { position: fixed; right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 116px; height: 116px; border-radius: 50%; border: 1px solid transparent; pointer-events: none; transition: background-color .2s ease, border-color .2s ease; }
   #accion.activa { background: rgba(240,245,252,.28); border-color: rgba(31,42,61,.2); }
-  #pomo-accion { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
-  #b-viento { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+  #pomo-accion { position: absolute; left: 30px; top: 30px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
+  #b-viento { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(59px + env(safe-area-inset-bottom, 0px)); color: #b9c2cf; }   /* ◇ en gris clarito */
   .boton { position: relative; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(31,42,61,.3); background: rgba(240,245,252,.8); color: var(--tinta); pointer-events: auto; touch-action: none; }
   .boton[hidden] { display: none; }
   .boton.activo { background: rgba(255,255,255,.9); }
@@ -1034,26 +1045,23 @@ ui.innerHTML = `
 document.body.appendChild(ui);
 // Mandos táctiles: palanca virtual (dirección y, al fondo, carrera) y botones que equivalen a teclas.
 const mandos = ui.querySelector("#mandos"), palanca = ui.querySelector("#palanca"), pomo = ui.querySelector("#pomo");
-const joy = { x: 0, y: 0, id: null };
+const joy = { x: 0, y: 0, id: null, x0: 0, y0: 0 };
 function moverPalanca(t) {
-  const r = palanca.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  let dx = (t.clientX - cx) / 55, dy = (t.clientY - cy) / 55; const m = Math.hypot(dx, dy);
+  // Cuenta desde donde se puso el dedo; el aro y el pomo no se mueven de su sitio.
+  let dx = (t.clientX - joy.x0) / 50, dy = (t.clientY - joy.y0) / 50; const m = Math.hypot(dx, dy);
   if (m > 1) { dx /= m; dy /= m; }
   joy.x = dx; joy.y = -dy;
-  pomo.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
+  pomo.style.transform = `translate(${dx * 32}px, ${dy * 32}px)`;
 }
 const zonaPalanca = ui.querySelector("#zona-palanca");
 zonaPalanca.addEventListener("touchstart", e => {
   e.preventDefault(); if (joy.id !== null) return;
-  const t = e.changedTouches[0]; joy.id = t.identifier;
-  // La palanca se centra donde cae el dedo.
-  palanca.style.left = t.clientX - 65 + "px"; palanca.style.top = t.clientY - 65 + "px"; palanca.style.bottom = "auto";
+  const t = e.changedTouches[0]; Object.assign(joy, { id: t.identifier, x0: t.clientX, y0: t.clientY });
   palanca.classList.add("activa"); moverPalanca(t);
 }, { passive: false });
 zonaPalanca.addEventListener("touchmove", e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joy.id) moverPalanca(t); }, { passive: false });
 const soltarPalanca = e => { for (const t of e.changedTouches) if (t.identifier === joy.id) {
   joy.id = null; joy.x = joy.y = 0; pomo.style.transform = ""; palanca.classList.remove("activa");
-  palanca.style.left = palanca.style.top = palanca.style.bottom = "";           // de vuelta a su sitio
 } };
 zonaPalanca.addEventListener("touchend", soltarPalanca); zonaPalanca.addEventListener("touchcancel", soltarPalanca);
 // Bola de acción: arrastrar hacia arriba salta (una vez por gesto); hacia abajo, agacharse mientras dure.
@@ -1062,22 +1070,20 @@ const acc = { id: null, y0: 0, saltado: false };
 zonaAccion.addEventListener("touchstart", e => {
   e.preventDefault(); if (acc.id !== null) return;
   const t = e.changedTouches[0]; Object.assign(acc, { id: t.identifier, y0: t.clientY, saltado: false });
-  bolaAccion.style.left = t.clientX - 65 + "px"; bolaAccion.style.top = t.clientY - 65 + "px"; bolaAccion.style.right = bolaAccion.style.bottom = "auto";
   bolaAccion.classList.add("activa");
 }, { passive: false });
 zonaAccion.addEventListener("touchmove", e => {
   e.preventDefault();
   for (const t of e.changedTouches) if (t.identifier === acc.id) {
-    const dy = clamp(t.clientY - acc.y0, -40, 40);
+    const dy = clamp(t.clientY - acc.y0, -32, 32);
     pomoAccion.style.transform = `translateY(${dy}px)`;
-    if (dy < -24 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
+    if (dy < -20 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
     if (dy > -10) acc.saltado = false;                              // volver al centro permite otro salto
-    if (dy > 24) teclas.add("KeyC"); else teclas.delete("KeyC");
+    if (dy > 20) teclas.add("KeyC"); else teclas.delete("KeyC");
   }
 }, { passive: false });
 const soltarAccion = e => { for (const t of e.changedTouches) if (t.identifier === acc.id) {
   acc.id = null; teclas.delete("KeyC"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
-  bolaAccion.style.left = bolaAccion.style.top = bolaAccion.style.right = bolaAccion.style.bottom = "";
 } };
 zonaAccion.addEventListener("touchend", soltarAccion); zonaAccion.addEventListener("touchcancel", soltarAccion);
 for (const b of ui.querySelectorAll(".boton")) {
@@ -1249,6 +1255,12 @@ let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, al
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0;
 const INTRO_DURA = 8;
 
+// Rampa (pilastra tumbada): punto más cercano del eje, su altura y la distancia en planta.
+function enRampa(c, x, z) {
+  const { a, b } = c.rampa, vx = b.x - a.x, vz = b.z - a.z, l2 = vx * vx + vz * vz;
+  const t = clamp(((x - a.x) * vx + (z - a.z) * vz) / l2, 0, 1), px = a.x + vx * t, pz = a.z + vz * t;
+  return { d: Math.hypot(x - px, z - pz), y: lerp(a.y, b.y, t), px, pz };
+}
 // Radio de la cima de un pilar en la dirección del punto (x, z).
 const radioBorde = (c, x, z) => c.borde[Math.floor((Math.atan2(z - c.z, x - c.x) + Math.PI) / (Math.PI * 2) * c.borde.length) % c.borde.length];
 function sueloEn(x, z, pies) {
@@ -1262,6 +1274,11 @@ function sueloEn(x, z, pies) {
     }
   }
   for (const c of colisiones) {
+    if (c.rampa) {                                                  // altura continua a lo largo de la pilastra
+      const q = enRampa(c, x, z);
+      if (q.d < c.rampa.ancho + 0.1 && q.y <= pies + PASO && q.y > h) { h = q.y; sobre = c; }
+      continue;
+    }
     if (c.techo <= pies + PASO && c.techo > h && Math.hypot(x - c.x, z - c.z) < (c.borde ? radioBorde(c, x, z) + 0.12 : c.r * (c.plataforma ? 1 : 0.8))) { h = c.techo; sobre = c; }
   }
   return { h, sobre };
@@ -1277,6 +1294,11 @@ function moverHorizontal(dx, dz) {
   else if (prueba(pos.x, pos.z + dz)) { pos.z += dz; vel.x = 0; }
   else { vel.x = vel.z = 0; }
   for (const c of colisiones) {
+    if (c.rampa) {                                                  // por debajo de la pilastra, empuja hacia fuera de su eje
+      const q = enRampa(c, pos.x, pos.z), rr = c.rampa.ancho + 0.25;
+      if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }
+      continue;
+    }
     const ex = pos.x - c.x, ez = pos.z - c.z, d = Math.hypot(ex, ez), r = (c.borde ? radioBorde(c, pos.x, pos.z) : c.r) + 0.25;
     if (d < r && pos.y < c.techo - PASO && d > 0.001) { pos.x = c.x + ex / d * r; pos.z = c.z + ez / d * r; }
   }
@@ -1425,11 +1447,12 @@ function actualizar(dt) {
     vel.y -= GRAVEDAD * dt;
     pos.y += vel.y * dt;
     const s = sueloEn(pos.x, pos.z, pos.y);
-    if (enSuelo && s.h - pos.y > 0.12 && s.h - pos.y <= PASO) {
+    if (enSuelo && s.h - pos.y > 0.25 && s.h - pos.y <= PASO) {
       // Subida: cuanto más alto el escalón, más dura y más se levantan las piernas.
       escalonAlto = s.h - pos.y; escalonDura = 0.3 + escalonAlto * 0.6; escalon = escalonDura; escalonDesde = alturaVisual = pos.y;
     }
     if (pos.y <= s.h) { pos.y = s.h; vel.y = 0; enSuelo = true; }
+    else if (enSuelo && vel.y <= 0 && pos.y - s.h < 0.45) { pos.y = s.h; vel.y = 0; }    // bajando una pendiente o un escalón bajo: pegado al suelo
     else enSuelo = pos.y - s.h < 0.05 && vel.y <= 0;
 
     if (pos.y < -3) empezarRescate();
@@ -1525,6 +1548,9 @@ function actualizar(dt) {
   cerca = lerp(cerca, quiereCerca, 1 - Math.exp(-dt * (quiereCerca ? 0.8 : 2.5)));
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(7.2, 3.6, cerca)).add(new THREE.Vector3(0, lerp(3.6, 1.7, cerca), 0));
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(4, 1.5, cerca)).add(new THREE.Vector3(0, lerp(1.1, 1.2, cerca), 0));
+  // Cerca del bastón (aún sin cogerlo) la cámara lo encuadra junto a Blizzard.
+  const haciaBaston = !tieneBaston && estado === "juego" ? suave(10, 5, Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z)) : 0;
+  if (haciaBaston > 0) mira.lerp(new THREE.Vector3().copy(baston.position).add(new THREE.Vector3(0, 1.2, 0)), haciaBaston * 0.6);
   if (estado === "portada" || estado === "intro") {
     // Toma inicial: la cámara avanza sola entre la niebla, por detrás de Blizzard, hasta
     // quedar en su posición de juego a su espalda.
@@ -1537,7 +1563,14 @@ function actualizar(dt) {
     // Plano completamente lateral del gesto, desde el lado sin piedras delante. En móvil la
     // pantalla es estrecha y el bastón se salía de plano: tres cuartos desde atrás, más lejos.
     // En la sala de la segunda plataforma, el anillo de rocas taparía: plano alto desde atrás.
-    if (tieneBaston) {
+    if (!tieneBaston && !bastonEnMano) {
+      // En la primera plataforma: Blizzard y el bastón en el mismo plano, desde un lado y algo atrás.
+      const medio = new THREE.Vector3().copy(pos).lerp(baston.position, 0.5), separa = Math.hypot(pos.x - baston.position.x, pos.z - baston.position.z);
+      const dir = new THREE.Vector3().copy(ladoLlamada).multiplyScalar(0.8).addScaledVector(adelante, -0.6).normalize();
+      const lejos = (camara.aspect < 1 ? 7.5 : 5.5) + separa * 0.8;
+      camara.position.lerp(new THREE.Vector3().copy(medio).addScaledVector(dir, lejos).add(new THREE.Vector3(0, 2.4, 0)), 1 - Math.exp(-dt * 3));
+      camara.lookAt(medio.x, medio.y + 1.2, medio.z);
+    } else if (tieneBaston) {
       const objetivo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -3.2).add(new THREE.Vector3(0, 5.5, 0));
       camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
       camara.lookAt(new THREE.Vector3().copy(pos).addScaledVector(adelante, 1.5).add(new THREE.Vector3(0, 0.6, 0)));
