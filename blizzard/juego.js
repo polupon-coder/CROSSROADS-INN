@@ -404,6 +404,9 @@ function nieveAlPie(x, z, R, suelo) {
 }
 // Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
 function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x, z), falda = true) {
+  // Las agujas del kit (las dos más altas) solo en grande: pequeñas parecen de juguete. Por debajo
+  // de 7 m se pone en su lugar una roca maciza del kit.
+  if (alto < 7 && kitRocas.indexOf(pieza) >= kitRocas.length - 2) pieza = kitRocas[2 + Math.round(alto * 10) % 2];
   const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
   m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true;
   g.add(m); g.scale.setScalar(s); g.rotation.y = giro;
@@ -417,6 +420,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   scene.add(g);
   colisiones.push({ x, z, r: pieza.radio * s * 0.8, techo: y + alto * 0.97, obj: g });   // del tamaño que se ve: no se entra en la roca
   if (falda) nieveAlPie(x, z, pieza.radio * s, suelo);
+  g.userData.pieza = pieza;
   return g;
 }
 
@@ -504,7 +508,7 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
   const rocaEntera = (pieza, x, z, alto, radio) => {
     pieza = distinta(kitRocas, pieza, x, z);
     const esc = alto / pieza.alto, g = colocar(pieza, x, z, alto, rndA() * Math.PI * 2, 0.15);
-    if (radio) g.scale.x = g.scale.z = radio / pieza.radio;
+    if (radio) g.scale.x = g.scale.z = radio / g.userData.pieza.radio;
     colisiones[colisiones.length - 1].r = (radio || pieza.radio * esc) * 0.85;
     return g;
   };
@@ -716,7 +720,7 @@ const rocaRellano = (pieza, xr, giro) => {
   // (un 30 % de la roca bajo el suelo) y la roca se arrima al escalón.
   const R = 1.7, hundir = 0.3, alto = (altoRellano(xr) + 0.35) / (1 - hundir), zr = rellanoZ(xr), suelo = alturaTerreno(xr, zr + R + 0.5);
   const g = colocar(pieza, xr, zr + R * 0.3, alto, giro, hundir, suelo, false);
-  g.scale.x = g.scale.z = R / pieza.radio;
+  g.scale.x = g.scale.z = R / g.userData.pieza.radio;
   const c = colisiones[colisiones.length - 1];
   c.r = R * 0.92; c.techo = suelo + altoRellano(xr);
 };
@@ -731,6 +735,12 @@ for (let x = -18; x <= 18; x += 2.2) {
     const xr = caminoX(RELLANO.z) + lado * x + (rndL() - 0.5);
     rocaRellano(distinta(kitRocas, kitRocas[2 + Math.floor(rndL() * 3)], xr, RELLANO.z, 4.5), xr, rndL() * Math.PI * 2);
   }
+}
+
+// Agujas muy altas en la zona inicial, a los lados: siluetas que se alzan en la niebla.
+for (const [x, z, alto, k, giro] of [[-17, -15, 24, 5, 0.4], [19, -20, 19, 4, 2.1], [-23, -27, 17, 5, 4.2]]) {
+  colocar(kitRocas[k], x, z, alto, giro, 0.12);
+  colisiones[colisiones.length - 1].r = kitRocas[k].ancho / 2 * alto / kitRocas[k].alto;
 }
 
 // Algunas rocas de 1 B en mitad del camino, para practicar el salto.
