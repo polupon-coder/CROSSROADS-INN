@@ -324,6 +324,59 @@ function distinta(kit, pieza, x, z, dist = 9) {
   for (let n = 0; n < kit.length && puestas.some(q => q.pieza === kit[i] && Math.hypot(q.x - x, q.z - z) < dist); n++) i = Math.max(kit === kitRocas ? 1 : 0, (i + 1) % kit.length);
   return kit[i];
 }
+// Nieve con textura para montículos, faldas al pie de las rocas y pequeñas formaciones.
+const matMonticulo = (() => {
+  const tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
+  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(3, 3);
+  return new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1 });
+})();
+// La forma de una pieza del kit con pocos triángulos: los vértices se agrupan en una rejilla de
+// celdas y cada grupo queda en su punto medio. Para nieve medio enterrada basta y pesa muy poco.
+const _simples = new Map();
+function simplificada(pieza, celdas = 9) {
+  const nombre = pieza.geo.id + ":" + celdas;
+  if (_simples.has(nombre)) return _simples.get(nombre);
+  const pos = pieza.geo.attributes.position, uv = pieza.geo.attributes.uv, idx = pieza.geo.index.array, caja = new THREE.Box3(), v = new THREE.Vector3();
+  for (const i of idx) caja.expandByPoint(v.fromBufferAttribute(pos, i));
+  const tam = caja.getSize(new THREE.Vector3()), celda = Math.max(tam.x, tam.y, tam.z) / celdas, grupo = new Map(), suma = [], uvs = [], nuevo = [];
+  const clave = i => { v.fromBufferAttribute(pos, i); return `${Math.floor((v.x - caja.min.x) / celda)},${Math.floor((v.y - caja.min.y) / celda)},${Math.floor((v.z - caja.min.z) / celda)}`; };
+  const indice = i => {
+    const k = clave(i);
+    if (!grupo.has(k)) { grupo.set(k, suma.length); suma.push([0, 0, 0, 0]); uvs.push(uv ? [uv.getX(i), uv.getY(i)] : [0, 0]); }
+    const g = grupo.get(k), s = suma[g]; v.fromBufferAttribute(pos, i); s[0] += v.x; s[1] += v.y; s[2] += v.z; s[3]++;
+    return g;
+  };
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = indice(idx[t]), b = indice(idx[t + 1]), c = indice(idx[t + 2]);
+    if (a !== b && b !== c && a !== c) nuevo.push(a, b, c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(suma.flatMap(s => [s[0] / s[3], s[1] / s[3], s[2] / s[3]]), 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs.flat(), 2));
+  geo.setIndex(nuevo); geo.computeVertexNormals();
+  _simples.set(nombre, geo);
+  return geo;
+}
+// Montón de nieve sin colisión: una forma del kit aplastada y hundida (apenas asoma un palmo).
+function monton(pieza, x, z, ancho, alto, giro, suelo = alturaTerreno(x, z)) {
+  const g = new THREE.Group(), m = new THREE.Mesh(simplificada(pieza), matMonticulo);
+  m.position.copy(pieza.desplaza); m.receiveShadow = true;
+  g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = giro;
+  g.position.set(x, suelo - alto * 0.55, z); scene.add(g);
+}
+// ¿Hay suelo firme (no un abismo) en todo el círculo?
+const firme = (x, z, r, suelo) => [0, 1.57, 3.14, 4.71].every(a => alturaTerreno(x + Math.cos(a) * r, z + Math.sin(a) * r) > suelo - 0.8);
+// Al pie de cada roca, una falda de nieve que la funde con el suelo; a veces, algún montoncito cerca.
+const rndF = generador(4242);
+function nieveAlPie(x, z, R, suelo) {
+  const ancho = R * (2.3 + rndF() * 0.5), alto = Math.min(0.9, 0.25 + R * 0.22), pieza = kitRocas[1 + Math.floor(rndF() * (kitRocas.length - 1))];
+  if (firme(x, z, ancho / 2, suelo)) monton(pieza, x + (rndF() - 0.5) * R * 0.3, z + (rndF() - 0.5) * R * 0.3, ancho, alto, rndF() * 6.28, suelo);
+  if (rndF() < 0.55) for (let k = 0, n = rndF() < 0.4 ? 2 : 1; k < n; k++) {
+    const a = rndF() * Math.PI * 2, d = R * (1.2 + rndF()), px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d, w = 0.7 + rndF() * 1.6;
+    const h = alturaTerreno(px, pz);
+    if (firme(px, pz, w / 2, h)) monton(kitRocas[1 + Math.floor(rndF() * (kitRocas.length - 1))], px, pz, w, 0.2 + rndF() * 0.4, rndF() * 6.28, h);
+  }
+}
 // Coloca una pieza de un kit con la altura pedida; devuelve su colisión.
 function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x, z)) {
   const s = alto / pieza.alto, g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
@@ -334,6 +387,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   g.position.set(x, y, z);
   scene.add(g);
   colisiones.push({ x, z, r: pieza.radio * s * 0.8, techo: y + alto * 0.97 });   // del tamaño que se ve: no se entra en la roca
+  nieveAlPie(x, z, pieza.radio * s, suelo);
   return g;
 }
 
@@ -389,13 +443,8 @@ for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
 
 // Montículos de nieve: las formas del kit de rocas, aplastadas, hundidas y cubiertas con la
 // textura de nieve, agrupadas en algunas zonas de la llanura.
-const matMonticulo = (() => {
-  const tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
-  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(3, 3);
-  return new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1 });
-})();
 function monticulo(pieza, x, z, ancho, alto, giro) {
-  const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, matMonticulo);
+  const g = new THREE.Group(), m = new THREE.Mesh(simplificada(pieza, 14), matMonticulo);
   m.position.copy(pieza.desplaza); m.receiveShadow = m.castShadow = true;
   g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = giro;
   const y = alturaTerreno(x, z) - alto * 0.6;
@@ -643,6 +692,16 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   viga(new THREE.Vector3(caminoX(-103) + 9.5, -7, -103), new THREE.Vector3(caminoX(-110) + 10.5, 0.2, puenteHasta(caminoX(-110) + 10.5) + 0.2), 1.9, kitRuinas[1], false);
 }
 
+// Pequeñas formaciones de nieve sueltas, en grupos, a los lados del camino.
+for (let i = 0; i < 34; i++) {
+  const z = -26 - rndF() * (-FIN_Z - 26), lado = rndF() < 0.5 ? -1 : 1, cx = caminoX(z) + lado * (3 + rndF() * 11);
+  if (PLATAFORMAS.some(P => Math.hypot(cx - P.x, z - P.z) < P.r + 3) || (z < CANON_DESDE + 2 && z > DESFILADERO.hasta - 2)) continue;
+  for (let k = 0, n = 2 + Math.floor(rndF() * 3); k < n; k++) {
+    const x = cx + (rndF() - 0.5) * 4, zz = z + (rndF() - 0.5) * 4, w = 0.8 + rndF() * 2.2, h = alturaTerreno(x, zz);
+    if (h > -1 && firme(x, zz, w / 2, h)) monton(kitRocas[1 + Math.floor(rndF() * (kitRocas.length - 1))], x, zz, w, 0.25 + rndF() * 0.55, rndF() * 6.28, h);
+  }
+}
+
 // Tramos entre zonas: rocas y ruinas a los lados del camino, dejando libre el paso.
 {
   const rndR = generador(2718);
@@ -866,11 +925,23 @@ const copos = (() => {
 // afina hacia donde sopla el viento. Se deslizan, se superponen y se apartan de delante de Blizzard.
 const bancos = (() => {
   const tex = new THREE.TextureLoader().load("texturas/niebla.png"), lista = [];
+  // Transparencia que se diluye hacia abajo, arriba y los lados: donde el banco corta con el suelo
+  // no queda ninguna línea recta.
+  const difumino = (() => {
+    const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), d = g.createImageData(64, 64);
+    const s = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      const u = x / 63, v = 1 - y / 63, a = s(0, 0.45, v) * s(1, 0.6, v) * s(0, 0.25, u) * s(1, 0.75, u);
+      const k = (y * 64 + x) * 4; d.data[k] = d.data[k + 1] = d.data[k + 2] = a * 255; d.data[k + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+    return new THREE.CanvasTexture(c);
+  })();
   for (let i = 0; i < 150; i++) {
     const ancho = 10 + rnd() * 24, alto = ancho * 0.18 * (0.7 + rnd() * 0.6);   // bancos bajos, a ras de suelo
     const geo = new THREE.PlaneGeometry(ancho, alto); geo.translate(0, alto / 2, 0);
     const opacidad = 0.35 + rnd() * 0.3;
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: opacidad }));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaMap: difumino, transparent: true, depthWrite: false, opacity: opacidad }));
     let z = LARGO(12 - rnd() * 205);
     // Fuera de la grieta y del precipicio, para que no tapen los pilares ni el borde.
     while ((z < PRECIPICIO.desde + 6 && z > PRECIPICIO.hasta - 6) || (z < PUENTE.desde + 5 && z > PUENTE.hasta - 5) || Math.abs(z - GRIETA.z) < 8) z = LARGO(12 - rnd() * 205);
@@ -1669,7 +1740,7 @@ function efectos(dt, adelante) {
     if (b.position.x < cx - 48) b.position.x += 96;
     let base = -Infinity;
     for (let k = -2; k <= 2; k++) base = Math.max(base, Math.max(alturaTerreno(b.position.x + k * b.userData.ancho / 4, b.position.z), alturaBase(b.position.x, b.position.z) * 0.3));   // sobre grietas, a ras del suelo
-    b.position.y = base - 0.05;
+    b.position.y = base - 0.35;                                   // la base, ya transparente, bajo el suelo
     b.rotation.y = Math.atan2(camara.position.x - b.position.x, camara.position.z - b.position.z);
     const d = Math.hypot(b.position.x - pos.x, b.position.z - pos.z);
     b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1);
