@@ -56,7 +56,7 @@ const LARGO = z => {
   return z;
 };
 // Recorrido: el viento mantiene a Blizzard cerca de esta línea.
-const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [0, -215]].map(([x, z]) => [x, LARGO(z)]);
+const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [0, -215], [1.5, -250], [-1.2, -285], [0, -330]].map(([x, z]) => [x, LARGO(z)]);
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -91,7 +91,9 @@ const DESFILADERO = { desde: LARGO(-165), hasta: LARGO(-177), media: 2.8, penasc
 // plataforma; un anillo de rocas la cierra, salvo la entrada.
 const CANON_DESDE = RELLANO.z - 2, CAMARA_R = 8.5, ANILLO_R = 7.3;
 const anchoCanon = z => Math.max(DESFILADERO.media, Math.sqrt(Math.max(0, CAMARA_R * CAMARA_R - (z - PLATAFORMA2.z) ** 2)));
-const FIN_Z = LARGO(-188);
+// Desfiladero de los arcos (lámina de los arcos en ruinas), tras el desfiladero de los peñascos; al final, el anillo.
+const ARCOS = { desde: -322, hasta: -425 }, ANILLO_Z = -442;
+const FIN_Z = ANILLO_Z + 6;
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
 const generador = semilla => { let a = semilla; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
@@ -137,6 +139,9 @@ function alturaTerreno(x, z) {
   // Desfiladero: paredes de roca de 7 m a los lados; el paso queda en el centro.
   const enDesf = suave(CANON_DESDE + 1.5, CANON_DESDE - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
   if (enDesf > 0) { const w = anchoCanon(z); h += 7 * enDesf * suave(w + 1.4, w + 3, Math.abs(x - caminoX(z))); }   // detrás de las rocas de la pared
+  // Desfiladero de los arcos: paredes altas e irregulares a ambos lados (la pendiente las vuelve roca).
+  const enArcos = suave(ARCOS.desde + 3, ARCOS.desde - 6, z) * suave(ARCOS.hasta - 10, ARCOS.hasta + 2, z);
+  if (enArcos > 0) { const w = 11 + Math.sin(z * 0.09) * 2 + Math.sin(z * 0.23 + x * 0.1) * 0.8; h += 15 * enArcos * suave(w, w + 6, Math.abs(x - caminoX(z))); }
   const lado = enCamino(x, z).d;
   h += Math.max(0, lado - 20) * 0.35;                         // laderas fuera del recorrido
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -14;
@@ -184,9 +189,9 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-370, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
+  const zs = [...filas(-480, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
-  for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 330); }
+  for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
   geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
   const pos = geo.attributes.position, colores = [], nieve = new THREE.Color(TONO_NIEVE);
@@ -230,7 +235,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   // Textura de nieve (lámina 144) repetida cada 9 unidades; en espejo para que no se noten las uniones.
   const nieveTex = new THREE.TextureLoader().load("texturas/nieve.jpg");
   nieveTex.wrapS = nieveTex.wrapT = THREE.MirroredRepeatWrapping;
-  nieveTex.repeat.set(320 / 9, 330 / 9);
+  nieveTex.repeat.set(320 / 9, 560 / 9);
   nieveTex.anisotropy = 4;
   // Segunda nieve (lámina 146) en manchas grandes e irregulares, para dar variedad.
   const nieve2 = new THREE.TextureLoader().load("texturas/nieve2.jpg");
@@ -960,11 +965,74 @@ for (let k = 0, n = Math.round(Math.PI * 2 * ANILLO_R / 1.85); k < n; k++) {
   penascos.push(nuevoPenasco(PLATAFORMA2.x + Math.cos(a) * ANILLO_R, PLATAFORMA2.z + Math.sin(a) * ANILLO_R, alto, ancho));
 }
 
+// ─── Desfiladero de los arcos ──────────────────────────────────────────────
+// Arcos de piedra en ruinas a lo largo del paso, entre paredes de roca: unos enteros, otros rotos o
+// solo con sus pilastras, con runas grabadas y bloques caídos en la nieve. Piezas del kit de pilares.
+{
+  const rndK = generador(5353);
+  // Runa en rombo (como las de la lámina), clara y algo transparente, grabada en la cara de la pilastra.
+  const matRuna = (() => {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 128;
+    const g = c.getContext("2d"); g.strokeStyle = "rgba(225,236,250,1)"; g.lineWidth = 3.2; g.lineJoin = g.lineCap = "round";
+    g.beginPath(); g.moveTo(32, 14); g.lineTo(52, 54); g.lineTo(32, 94); g.lineTo(12, 54); g.closePath();
+    g.moveTo(32, 30); g.lineTo(42, 54); g.lineTo(32, 78); g.lineTo(22, 54); g.closePath();
+    g.moveTo(32, 94); g.lineTo(32, 118); g.moveTo(22, 108); g.lineTo(32, 118); g.lineTo(42, 108); g.stroke();
+    return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.45, depthWrite: false, color: 0xc8d8ee });
+  })();
+  const geoRuna = new THREE.PlaneGeometry(1, 2);
+  // span: luz entre ejes de las pilastras; alto: de las pilastras; estado: entero, rotoIzq, rotoDer, solo.
+  const arco = (z, span, alto, ancho, estado, giro) => {
+    const cx = caminoX(z), suelo = alturaTerreno(cx, z), R = span / 2;
+    const dir = new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro)), frente = new THREE.Vector3(Math.sin(giro), 0, Math.cos(giro));
+    const punto = (t, y) => new THREE.Vector3(cx + dir.x * t, suelo + y, z + dir.z * t);
+    const altoDe = lado => (estado === "rotoIzq" && lado < 0) || (estado === "rotoDer" && lado > 0) || (estado === "solo" && lado > 0) ? alto * (0.45 + rndK() * 0.2) : alto;
+    for (const lado of [-1, 1]) {
+      const h = altoDe(lado), pie = punto(lado * R, -1.2), cabeza = punto(lado * R, h);
+      pilarTallado(kitPilares[5], pie, cabeza, ancho, rndK() * 0.3);
+      colisiones.push({ x: pie.x, z: pie.z, r: ancho * 0.55, techo: suelo + h, obj: pilarTallado.ultimo });
+      if (rndK() < 0.7) {                                         // runa en la cara que mira al camino
+        const m = new THREE.Mesh(geoRuna, matRuna), en = punto(lado * R, Math.min(h * 0.5, 3.2)).addScaledVector(frente, ancho * 0.52);
+        m.scale.setScalar(ancho * 0.42); m.position.copy(en); m.rotation.y = giro; scene.add(m);
+      }
+    }
+    if (estado === "solo") return;
+    // Dovelas del arco: piezas cortas a lo largo de la curva, de pilastra a pilastra (las que faltan, caídas).
+    const N = 7, arcoPt = a => punto(Math.cos(a) * R, alto + Math.sin(a) * R * 0.9);
+    for (let k = 0; k < N; k++) {
+      const falta = (estado === "rotoIzq" && k < 4) || (estado === "rotoDer" && k >= 3);
+      if (falta) continue;
+      const a0 = Math.PI - k * Math.PI / N, a1 = Math.PI - (k + 1) * Math.PI / N;
+      const p0 = arcoPt(a0), p1 = arcoPt(a1), m = p0.clone().lerp(p1, 0.5);
+      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.12), m.clone().lerp(p1, 1.12), ancho * 0.9, rndK() * 0.4);
+    }
+  };
+  // Bloque caído (dovela o sillar), algo ladeado, a un lado del paso.
+  const caido = (z, dx, tam) => {
+    const x = caminoX(z) + dx, pieza = kitPilares[Math.floor(rndK() * 3)];
+    const g = colocar(pieza, x, z, tam, rndK() * 6, 0.2, alturaTerreno(x, z), true);
+    g.children[0].material = nieveFina; g.rotation.x = (rndK() - 0.5) * 0.5; g.rotation.z = (rndK() - 0.5) * 0.5;
+    colisiones[colisiones.length - 1].r = pieza.ancho / 2 * tam / pieza.alto;
+  };
+  for (const [z, span, alto, ancho, estado, giro] of [
+    [-329, 13, 11, 2.7, "entero", 0.05], [-343, 9.5, 8, 2.0, "rotoDer", -0.14], [-357, 10.5, 9, 2.3, "entero", 0.1],
+    [-371, 9, 7.5, 2.0, "rotoIzq", -0.06], [-385, 10, 8.5, 2.2, "solo", 0.16], [-399, 9.5, 8, 2.1, "entero", -0.1], [-413, 8.5, 7, 1.9, "rotoDer", 0.06]]) {
+    arco(z, span, alto, ancho, estado, giro);
+    if (estado !== "entero") for (let i = 0; i < 3; i++) caido(z - 2 - rndK() * 4, (rndK() < 0.5 ? -1 : 1) * (3.6 + rndK() * 3), 1.1 + rndK() * 1.2);
+  }
+  // Paredes: agujas y rocas grandes al pie de las laderas, y alguna pilastra suelta en pie.
+  for (const lado of [-1, 1]) for (let z = ARCOS.desde - 2; z > ARCOS.hasta - 8; z -= 4.5 + rndK() * 3) {
+    const dx = 10.5 + rndK() * 3.5, x = caminoX(z) + lado * dx;
+    if (rndK() < 0.55) colocar(kitRocas[4 + Math.floor(rndK() * 2)], x + lado * 2, z, 10 + rndK() * 9, rndK() * 6, 0.2);
+    else colocar(kitRocas[2 + Math.floor(rndK() * 2)], x, z, 4 + rndK() * 3, rndK() * 6, 0.25);
+    if (rndK() < 0.25) pilarTallado(kitPilares[5], new THREE.Vector3(x - lado * 1.5, alturaTerreno(x, z) - 1, z - 2), new THREE.Vector3(x - lado * 1.2, alturaTerreno(x, z) + 6 + rndK() * 4, z - 2.3), 1.8, rndK() * 6);
+  }
+}
+
 // Anillo de piedra abierto por arriba (lámina 32): la meta del prototipo.
 {
   const anillo = new THREE.Mesh(new THREE.TorusGeometry(5.5, 1, 5, 20, Math.PI * 2 * 0.86), plano("#8a93a5"));
   anillo.rotation.z = Math.PI / 2 + Math.PI * 0.07;
-  anillo.position.set(0, alturaTerreno(0, LARGO(-198)) + 5.6, LARGO(-198));
+  anillo.position.set(caminoX(ANILLO_Z), alturaTerreno(caminoX(ANILLO_Z), ANILLO_Z) + 5.6, ANILLO_Z);
   anillo.castShadow = true;
   scene.add(anillo);
 }
