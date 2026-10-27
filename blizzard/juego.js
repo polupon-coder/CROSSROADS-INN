@@ -572,7 +572,7 @@ const RUNAS = [
   "M66 8 L34 62 L68 62 M68 62 L48 92 M40 80 L48 92 L58 84", "M30 22 L50 44 L70 22 M30 54 L50 76 L70 54", "M50 8 L68 55 L50 92 L32 55 Z M32 55 L68 55",
   "M50 10 L64 31 L50 52 L36 31 Z M50 52 L66 72 L50 92 L34 72 Z", "M50 6 L50 94 M32 36 L50 54 L68 36 M32 56 L50 74 L68 56 M32 76 L50 94 L68 76",
   "M50 12 L68 38 L34 84 M50 12 L32 38 L66 84", "M30 14 Q50 44 70 14 M28 40 L72 40 L50 84 Z", "M34 16 L66 16 M50 16 L50 48 L28 90 M50 48 L72 90",
-  "M42 30 A24 24 0 1 0 58 30"];
+  "M42 30 A24 24 0 1 0 58 30", "M76 50 A26 26 0 1 1 24 50 A26 26 0 1 1 76 50"];   // la última: círculo entero (puerta)
 const materialRuna = (() => {
   const cache = [];
   return i => {
@@ -825,7 +825,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
+const ZONA_AGACHARSE = [-71, -76.5, -82];
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -850,8 +850,7 @@ const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
     const libre = t => 1.3 + sube * t, eje = t => enLinea(cx, z, giro, t, suelo + libre(t) + g / 2);
     for (const t of [-4.6, 4.6]) {
       const p = enLinea(cx, z, giro, t, 0), alto = libre(t) + 0.25;
-      if (alto < 1) colocar(kitRocas[2 + i % 2], p.x, p.z, 1.6, rndG() * 6, 0.45);
-      else bloque(kitPilares[t * sube > 0 ? 2 : 1], p.x, p.z, alto, giro + rndG());
+      rndG(); bloque(kitPilares[t * sube > 0 ? 2 : 0], p.x, p.z, alto, giro + rndG());   // bloque tallado, sin falda
     }
     viga(pieza, eje(-5.4), eje(5.4), g);
     // Cierran los lados, para que haya que pasar por debajo.
@@ -863,34 +862,11 @@ const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
 // Tras los pasos bajos: columnas de roca muy altas, juntas, que hay que sortear por un camino que
 // serpentea entre ellas; alguna tumbada de través, que se salta. Bordes cerrados por más columnas.
 const RUTA_BOSQUE = [], SALTOS_BOSQUE = [];
-{
-  const rndB = generador(6262), z0 = ZONA_MIXTA[0] + 1, z1 = ZONA_MIXTA[1] - 2;
-  for (let z = z0, k = 0; z >= z1; z -= 2.6, k++) RUTA_BOSQUE.push([caminoX(z) + Math.sin(k * 0.9 + 0.4) * 4.2 + (rndB() - 0.5) * 1.2, z]);
-  const dRuta = (x, z) => { let d = Infinity; for (let i = 0; i < RUTA_BOSQUE.length - 1; i++) {
-    const [ax, az] = RUTA_BOSQUE[i], [bx, bz] = RUTA_BOSQUE[i + 1], vx = bx - ax, vz = bz - az, t = clamp(((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz), 0, 1);
-    d = Math.min(d, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return d; };
-  const puestas = [];
-  const columna = (x, z, R, alto) => {
-    const suelo = alturaTerreno(x, z), ladeo = new THREE.Vector3((rndB() - 0.5) * 0.08, 1, (rndB() - 0.5) * 0.08).normalize();
-    pilarTallado(kitPilares[3 + Math.floor(rndB() * 3)], new THREE.Vector3(x, suelo - 1, z), new THREE.Vector3(x, suelo - 1, z).addScaledVector(ladeo, alto + 1), R * 2, rndB() * 6);
-    colisiones.push({ x, z, r: R * 0.95, techo: suelo + alto, obj: pilarTallado.ultimo }); puestas.push([x, z, R]);
-  };
-  // Dentro: muchas columnas, sin tocar el camino ni entre sí.
-  for (let n = 0, intentos = 0; n < 34 && intentos < 900; intentos++) {
-    const z = lerp(z0, z1, rndB()), x = caminoX(z) + (rndB() - 0.5) * 20, R = 0.8 + rndB() * 0.8;
-    if (dRuta(x, z) < R + 1.6 || puestas.some(([px, pz, pr]) => Math.hypot(x - px, z - pz) < R + pr + 0.7)) continue;
-    columna(x, z, R, 9 + rndB() * 10); n++;
-  }
-  // Bordes: columnas juntas a ambos lados.
-  for (const lado of [-1, 1]) for (let z = z0 + 1; z >= z1 - 1; z -= 2.2 + rndB() * 0.6) columna(caminoX(z) + lado * (10.8 + rndB() * 1.2), z, 1.1 + rndB() * 0.5, 10 + rndB() * 8);
-  // Dos tumbadas de través sobre el camino: se saltan.
-  for (const k of [3, 7]) {
-    const [x, z] = RUTA_BOSQUE[k], giro = (rndB() - 0.5) * 0.6, g = 1.1, suelo = alturaTerreno(x, z);
-    const a = new THREE.Vector3(x - Math.cos(giro) * 3.2, suelo + g * 0.42, z + Math.sin(giro) * 3.2), b = new THREE.Vector3(x + Math.cos(giro) * 3.2, suelo + g * 0.42, z - Math.sin(giro) * 3.2);
-    pilarTallado(kitPilares[5], a, b, g, rndB() * 6); const o = pilarTallado.ultimo;
-    for (let t = 0.3; t < 6.1; t += 0.45) { const q = a.clone().lerp(b, t / 6.4); colisiones.push({ x: q.x, z: q.z, r: g * 0.5, techo: q.y + g * 0.5, obj: o }); }
-    SALTOS_BOSQUE.push(z);
-  }
+// Tras los pasos bajos, solo un par de columnas altas de roca, a un lado.
+for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MIXTA[0] - 9, 1.1, 11]]) {
+  const x = caminoX(z) + dx, suelo = alturaTerreno(x, z);
+  pilarTallado(kitPilares[5], new THREE.Vector3(x, suelo - 1, z), new THREE.Vector3(x + 0.3, suelo + alto, z - 0.2), R * 2, z);
+  colisiones.push({ x, z, r: R * 0.95, techo: suelo + alto, obj: pilarTallado.ultimo });
 }
 
 // Paredes de roca a los lados de las pilastras de salto y de los pasos bajos: no se pueden rodear,
@@ -907,10 +883,10 @@ const RUTA_BOSQUE = [], SALTOS_BOSQUE = [];
   // Pilastras de salto: rocas en toda la fila menos en el tramo de la pilastra, a un lado.
   ZONA_PILASTRAS.forEach((z, i) => {
     const cx = caminoX(z);
-    for (let t = -25; t < 25; t += 1.7 + rndC() * 0.4) {
-      if (Math.abs(t - PASO_SALTO[i]) < 5.2) continue;
+    for (let t = -25; t < 25; t += 3.6 + rndC() * 0.8) {             // pocos sillares, espaciados: la retentiva cierra
+      if (Math.abs(t - PASO_SALTO[i]) < 5.6) continue;
       // Algo apartadas hacia fuera del pasillo entre las dos filas, para que se pueda ir de un paso al otro.
-      sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 2.4 + rndC() * 0.6, rndC() * Math.PI * 2);
+      sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 2.0 + rndC() * 0.5, rndC() * Math.PI * 2);
     }
   });
   for (const [z, desde] of ZONA_AGACHARSE.map(z => [z, 6.2])) {
@@ -1044,7 +1020,7 @@ const AVISOS_TUNEL = [
   { z: ZANJA.desde + 6, texto: "Cruza por la pilastra." },
   { z: PUERTA_Z + 7, texto: "E alza las rocas.", tactil: "◇ alza las rocas." },
   { z: -385, texto: "Muy alta. Salta y usa el viento." },
-  { z: QUIEBRA.desde + 2, texto: "Se rompe. ¡Corre!", tactil: "Se rompe. ¡Corre!" },
+  { z: QUIEBRA.desde + 2, texto: "Se rompe. ¡Corre y salta!" },
 ];
 {
   const rndK = generador(5353);
@@ -1066,9 +1042,9 @@ const AVISOS_TUNEL = [
       }
     }
     if (estado === "solo") return;
-    const N = 6, arcoPt = a => sobre(z, giro, Math.cos(a) * R, alto + Math.sin(a) * R * 0.85);
+    const N = 5, arcoPt = a => sobre(z, giro, Math.cos(a) * R, alto + Math.sin(a) * R * 0.85);
     for (let k = 0; k < N; k++) {
-      if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 3)) continue;
+      if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 2)) continue;
       const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
       pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.12), m.clone().lerp(p1, 1.12), ancho * 0.95, rndK() * 0.4);
     }
@@ -1113,16 +1089,16 @@ const AVISOS_TUNEL = [
 
   // Arcos, de la entrada al anillo: muy grandes, con las pilastras al pie de las paredes.
   // Muchos arcos y seguidos (cada ~5 m), sin pisar los obstáculos, la grieta ni la plataforma.
-  const listaArcos = [[-326, 15, 3.4, "entero", 0.04]];
+  const listaArcos = [[-326, 9.5, 2.4, "entero", 0.04]];
   const libres = [-334, BAJOS_TUNEL[0], PUERTA_Z, -391, BAJOS_TUNEL[1]];
-  for (let z = -331.5; z > PLATAFORMA3.z + PLATAFORMA3.r + 3; z -= 4.6 + rndK() * 1.4) {
+  for (let z = -329; z > PLATAFORMA3.z + PLATAFORMA3.r + 3; z -= 2.4 + rndK() * 0.8) {
     if (libres.some(o => Math.abs(z - o) < 2.6) || (z < ZANJA.desde + 3 && z > ZANJA.hasta - 3)) continue;
     const r = rndK(), estado = r < 0.45 ? "entero" : r < 0.65 ? "rotoIzq" : r < 0.85 ? "rotoDer" : "solo";
-    listaArcos.push([z, 11.5 + rndK() * 4, 2.7 + rndK() * 0.7, estado, (rndK() - 0.5) * 0.18]);
+    listaArcos.push([z, 6.5 + rndK() * 2, 1.9 + rndK() * 0.5, estado, (rndK() - 0.5) * 0.18]);
   }
-  listaArcos.push([PUERTA_ARCANA_Z, 15, 3.4, "entero", 0]);
-  for (const [z, alto, ancho, estado, giro] of listaArcos) {
-    arco(z, 15, alto, ancho, estado, giro);
+  listaArcos.push([PUERTA_ARCANA_Z, 15, 3.4, "entero", 0, 15]);
+  for (const [z, alto, ancho, estado, giro, span = 9 + rndK() * 1.4] of listaArcos) {
+    arco(z, span, alto, ancho, estado, giro);
     if (estado !== "entero") for (let i = 0; i < 2; i++) caido(z - 2 - rndK() * 3, (rndK() < 0.5 ? -1 : 1) * (5 + rndK() * 1.5), 1.2 + rndK());
   }
   // Junto al segundo arco, a la derecha: sillares caídos y una pilastra apoyada en la pared, en diagonal.
@@ -1134,10 +1110,10 @@ const AVISOS_TUNEL = [
     const cx = caminoX(PUERTA_ARCANA_Z), suelo = alturaTerreno(cx, PUERTA_ARCANA_Z), pieza = kitPilares[1], W = 5.9, H = 9, D = 1.3;
     const geoMitad = lado => {                                    // media runa: la de su lado de la junta
       const g = new THREE.PlaneGeometry(1.7, 3.4), uv = g.attributes.uv, pos = g.attributes.position;
-      for (let i = 0; i < uv.count; i++) { uv.setX(i, lado < 0 ? uv.getX(i) * 0.5 : 0.5 + uv.getX(i) * 0.5); pos.setX(i, pos.getX(i) + (lado < 0 ? 0.85 : -0.85)); }
+      for (let i = 0; i < uv.count; i++) { uv.setX(i, lado < 0 ? uv.getX(i) * 0.5 : 0.5 + uv.getX(i) * 0.5); pos.setX(i, pos.getX(i) + (lado < 0 ? -0.85 : 0.85)); }
       return g;
     };
-    const runa = materialRuna(11).clone(); runa.opacity = 0.75; runa.color.set(0xdbe8fb);  // el círculo de la lámina, partido por la junta
+    const runa = materialRuna(12).clone(); runa.opacity = 0.75; runa.color.set(0xdbe8fb);  // el círculo de la lámina, partido por la junta
     for (const lado of [-1, 1]) {
       const hoja = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, nieveFina);
       m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
@@ -1186,25 +1162,30 @@ const AVISOS_TUNEL = [
 // enseguida; andando no da tiempo, corriendo sí. Si se cae, el viento recompone las losas.
 const losas = [];
 let losasTrasRescate = false;
+// Piedras sin nieve, de distinto tamaño: seis juntas (se corre) y tres separadas (se salta entre ellas).
+const SALTOS_LOSAS = [];
 {
-  const pieza = kitPilares[1], N = 10, largo = (QUIEBRA.desde + 1.2) - (QUIEBRA.hasta - 1.2), paso = largo / N;
-  for (let i = 0; i < N; i++) {
-    const z = QUIEBRA.desde + 1.2 - paso * (i + 0.5), x = caminoX(z), y = alturaTerreno(x, QUIEBRA.desde + 2.5) - 0.02;
-    const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, nieveFina);
+  const z0 = QUIEBRA.desde + 1.2, y0 = alturaTerreno(caminoX(z0 + 1.3), z0 + 1.3) - 0.02;
+  // [distancia desde el borde, tamaño]: cinco juntas y dos grandes donde cae un salto corriendo (~3,7 m).
+  [[0.85, 1.8], [2.55, 1.8], [4.25, 1.8], [5.95, 1.8], [7.65, 1.8], [11.2, 2.4], [14.9, 2.4]].forEach(([d, tam], i) => {
+    const z = z0 - d, x = caminoX(z) + (Math.random() - 0.5) * 0.3, pieza = kitPilares[i % 3];
+    const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, kitPilares[0].material);
     m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto, 0)); m.castShadow = m.receiveShadow = true;
-    cuerpo.add(m); cuerpo.scale.set(2.3 / (pieza.radio * 2), 0.75 / pieza.alto, (paso + 0.08) / (pieza.radio * 2)); g.add(cuerpo);
-    g.position.set(x, y, z); g.rotation.y = (i % 2 ? 1 : -1) * 0.03; scene.add(g);
-    const col = { x, z, r: 1.3, techo: y };
+    cuerpo.add(m); cuerpo.scale.set(tam / pieza.ancho, 1.4 / pieza.alto, tam / pieza.ancho); g.add(cuerpo);
+    const y = y0;
+    g.position.set(x, y, z); g.rotation.y = i * 1.7; scene.add(g);
+    const col = { x, z, r: tam * 0.62, techo: y };
     colisiones.push(col);
+    if (i > 4) SALTOS_LOSAS.push(z0 - [0, 0, 0, 0, 0, 8.2, 12.05][i]);           // donde hay que saltar: al final de la anterior
     losas.push({ g, col, x, y, z, estado: "firme", t: 0, vy: 0, giro: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2) });
-  }
+  });
 }
 function animarLosas(dt) {
   for (const L of losas) {
-    if (L.estado === "firme" && Math.hypot(pos.x - L.x, pos.z - L.z) < 1.15 && Math.abs(pos.y - L.y) < 0.4) { L.estado = "tiembla"; L.t = 0; musica.viento(0.08, 1.6); }
+    if (L.estado === "firme" && Math.hypot(pos.x - L.x, pos.z - L.z) < L.col.r && Math.abs(pos.y - L.y) < 0.4) { L.estado = "tiembla"; L.t = 0; musica.viento(0.08, 1.6); }
     else if (L.estado === "tiembla") {
       L.t += dt; L.g.position.x = L.x + Math.sin(L.t * 60) * 0.04;
-      if (L.t > 0.3) { L.estado = "cae"; L.vy = 0; colisiones.splice(colisiones.indexOf(L.col), 1); }
+      if (L.t > 0.45) { L.estado = "cae"; L.vy = 0; colisiones.splice(colisiones.indexOf(L.col), 1); }
     } else if (L.estado === "cae") {
       L.vy -= GRAVEDAD * dt; L.g.position.y += L.vy * dt;
       L.g.rotation.x += L.giro.x * dt; L.g.rotation.z += L.giro.z * dt;
@@ -1474,7 +1455,7 @@ estilo.textContent = `
   :root { --tinta: #1f2a3d; --tinta-suave: #4a5a75; --oro: #efb11c; --velo: rgba(225, 234, 247, .78); }
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   #lienzo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-  .capa-ui { position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
+  .capa-ui { z-index: 4; position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; cursor: pointer; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
@@ -1615,10 +1596,10 @@ function rotular(texto, segundos = 5) { rotulo.textContent = texto.replace(/([.!
 // que lo trazado se borre: la línea blanca se va borrando desde el principio. Si el borrado te
 // alcanza, te sales o sueltas, se repite.
 const FIGURAS = {
-  // Espiral ondulada de fuera adentro, dos vueltas y media: para llamar al bastón.
-  espiral: { velocidad: 34, puntos: Array.from({ length: 241 }, (_, i) => { const t = i / 240, a = -Math.PI / 2 + t * Math.PI * 5, r = 44 - t * 38 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
-  // La runa del viento: el rombo del botón ◇ en un sentido y otro rombo dentro en el contrario.
-  runa: { velocidad: 40, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
+  // Espiral ondulada de fuera adentro, vuelta y media: para llamar al bastón.
+  espiral: { velocidad: 34, puntos: Array.from({ length: 151 }, (_, i) => { const t = i / 150, a = -Math.PI / 2 + t * Math.PI * 3.2, r = 44 - t * 28 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
+  // La runa del viento: el rombo del botón ◇.
+  runa: { velocidad: 40, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10]] },
   // La runa de la puerta (lámina 80): dos rombos apilados, en un solo trazo, como un ocho.
   puerta: { velocidad: 40, puntos: [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 8]] },
 };
@@ -2255,6 +2236,10 @@ function actualizar(dt) {
       camara.lookAt(pos.x, pos.y + 1.05, pos.z);
     }
   } else {
+    // Al abrirse la puerta arcana, la cámara se aparta, atrás y centrada, para verla entera.
+    if (puertaArcana.t >= 0 && puertaArcana.t < 1.3) {
+      const P = puertaArcana; ojo.set(P.x, P.y + 4.2, P.z + 17); mira.set(P.x, P.y + 4.2, P.z);
+    }
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
     scene.fog.near = 2; scene.fog.far = lerp(NIEBLA_LEJOS, 36, enTunel);
@@ -2451,7 +2436,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
