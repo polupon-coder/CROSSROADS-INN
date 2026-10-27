@@ -158,12 +158,12 @@ const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 
 // Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
 // Sombras apenas perceptibles: casi toda la luz llega del cielo y del suelo nevado por igual.
-scene.add(new THREE.HemisphereLight(0xe2e8f2, 0xd2dae7, 0.9));
-const sol = new THREE.DirectionalLight(0xf3f1ec, 0.07);
+scene.add(new THREE.HemisphereLight(0xe4eaf3, 0xdbe1ec, 0.92));
+const sol = new THREE.DirectionalLight(0xf3f1ec, 0.035);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
 Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
-sol.shadow.bias = -0.0008;
+sol.shadow.bias = -0.0008; sol.shadow.radius = 4;
 scene.add(sol, sol.target);
 
 // Tono único de la nieve (suelo, montículos y nieve de rocas y ruinas): blanco algo azulado.
@@ -522,7 +522,8 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
     g.rotation.set(rndA() * 6, giro, Math.PI / 2, "YXZ");
     g.position.set(x, suelo + grueso * 0.35, z); scene.add(g);
     const techo = suelo + grueso * 0.85;
-    for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo });
+    g.updateMatrixWorld(true);
+    for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo, obj: g });
   };
   // Pilastras caídas de través: más altas que un paso, más bajas que un salto.
   for (const z of ZONA_PILASTRAS) {
@@ -771,6 +772,30 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
     const ladeo = new THREE.Vector3((rndB() - 0.5) * 0.12, 1, (rndB() - 0.5) * 0.12).normalize().multiplyScalar(alto);
     barra(new THREE.Vector3(x, FONDO, z), new THREE.Vector3(x, FONDO, z).add(ladeo), ancho, rndB() * 6);
   }
+}
+
+// ─── Zona de agacharse ─────────────────────────────────────────────────────
+// Tras las pilastras de salto: dos pilastras tumbadas sobre bloques, a poca altura. De pie no se
+// pasa; agachado, sí. Debajo, un techo bajo que empuja hacia fuera si no se va agachado.
+const ZONA_AGACHARSE = [-66.6, -68.6];
+{
+  const rndG = generador(3131), LIBRE = 1.3;                     // altura libre bajo la pilastra
+  ZONA_AGACHARSE.forEach((z, i) => {
+    const cx = caminoX(z), giro = (rndG() - 0.5) * 0.25, suelo = alturaTerreno(cx, z);
+    const ex = Math.cos(giro), ez = -Math.sin(giro), grueso = 0.95, largo = 7.5;
+    // Bloques que la sostienen, uno a cada lado del paso, distintos.
+    for (const lado of [-1, 1]) {
+      const bx = cx + ex * lado * 2.5, bz = z + ez * lado * 2.5, pieza = kitPilares[(i + (lado > 0 ? 1 : 0)) % 3];
+      colocar(pieza, bx, bz, LIBRE + 0.15, giro + rndG() * 0.4, 0.1, alturaTerreno(bx, bz), false).children[0].material = nieveFina;
+      const c = colisiones[colisiones.length - 1]; c.r = pieza.ancho / 2 * (LIBRE + 0.15) / pieza.alto;
+    }
+    // La pilastra, tumbada encima de los dos bloques.
+    const y = suelo + LIBRE + grueso / 2 + 0.05;
+    pilarTallado(kitPilares[i ? 4 : 5], new THREE.Vector3(cx - ex * largo / 2, y, z - ez * largo / 2), new THREE.Vector3(cx + ex * largo / 2, y + (rndG() - 0.5) * 0.2, z + ez * largo / 2), grueso, rndG() * 6);
+    for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.45)
+      colisiones.push({ x: cx + ex * t, z: z + ez * t, r: grueso * 0.55, techo: y + grueso / 2, bajo: suelo + LIBRE });
+    for (const lado of [-1, 1]) monticulo(kitRocas[Math.floor(rndG() * kitRocas.length)], cx + ex * lado * (largo / 2 + 1.6), z + ez * lado * (largo / 2 + 1.6), 3.4, 1.7, rndG() * 6);
+  });
 }
 
 // Rocas incrustadas en las paredes de los abismos (precipicio y puente), en dos alturas, sobresaliendo
@@ -1029,7 +1054,12 @@ const copos = (() => {
   for (let i = 0; i < n * 3; i += 3) { pos[i] = (rnd() - 0.5) * 50; pos[i + 1] = Math.pow(rnd(), 2) * 2.4; pos[i + 2] = (rnd() - 0.5) * 50; }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.032, transparent: true, opacity: 0.45, depthWrite: false }));
+  // Copo redondo y difuminado (no un cuadrado): un punto con el borde que se desvanece.
+  const c = document.createElement("canvas"); c.width = c.height = 32;
+  const g = c.getContext("2d"), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,255,255,0.75)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.5, depthWrite: false }));
   p.frustumCulled = false;
   scene.add(p);
   return p;
@@ -1403,7 +1433,7 @@ let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBast
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
-let avisoRocas = false, avisoSalto = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
+let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
@@ -1457,6 +1487,7 @@ function sueloEn(x, z, pies) {
   return { h, sobre };
 }
 
+let agachadoAhora = false;
 function moverHorizontal(dx, dz) {
   // Se mira un poco por delante para que una pendiente muy empinada cuente como pared.
   const l = Math.hypot(dx, dz) || 1, ax = dx / l * 0.35, az = dz / l * 0.35;
@@ -1472,6 +1503,7 @@ function moverHorizontal(dx, dz) {
       if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }
       continue;
     }
+    if (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo) continue;   // por debajo, agachado, se pasa
     const ex = pos.x - c.x, ez = pos.z - c.z, d = Math.hypot(ex, ez), r = (c.borde ? radioBorde(c, pos.x, pos.z) : c.r) + 0.25;
     if (d < r && pos.y < c.techo - PASO && d > 0.001 && !(c.obj && d < c.r && pos.y >= alturaObjPies(c, pos.x, pos.z) - PASO)) { pos.x = c.x + ex / d * r; pos.z = c.z + ez / d * r; }
   }
@@ -1569,7 +1601,10 @@ function actualizar(dt) {
     const iz = clamp((tecla("KeyW", "ArrowUp") ? 1 : 0) - (tecla("KeyS", "ArrowDown") ? 1 : 0) + joy.y, -1, 1);
     const deseo = new THREE.Vector3().addScaledVector(adelante, iz).addScaledVector(derecha, ix);
     if (deseo.lengthSq() > 1) deseo.normalize();
-    const agachado = tecla("KeyC", "ControlLeft") && enSuelo;
+    // Bajo un techo bajo se sigue agachado aunque se suelte la tecla, para no quedar dentro de la piedra.
+    const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.2 && pos.y < c.techo);
+    const agachado = (tecla("KeyC", "ControlLeft") || bajoTecho) && enSuelo;
+    agachadoAhora = agachado;
     const rapidez = agachado ? V_AGACHADO : tecla("ShiftLeft", "ShiftRight") || Math.hypot(joy.x, joy.y) > 0.85 ? V_CORRER : V_ANDAR;
     deseo.multiplyScalar(rapidez);
 
@@ -1655,6 +1690,7 @@ function actualizar(dt) {
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
+    if (!avisoAgacharse && pos.z < ZONA_AGACHARSE[0] + 2.5) { avisoAgacharse = true; rotular(tactil ? "Desliza abajo para agacharte." : "Agáchate con C.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
     if (!avisoPenascos && pos.z < DESFILADERO.desde + 2 && penascos.some(p => p.estado === "suelo")) {
       avisoPenascos = true;
@@ -1694,8 +1730,8 @@ function actualizar(dt) {
   // Rocas movidas por el viento: la llevada flota delante de Blizzard, envuelta en la espiral;
   // la soltada cae y vuelve a ser un obstáculo donde quede.
   espiralTam = null; if (!llevando && estado !== "llamando") espiralEn = null;
-  // Desde que se ve, y mientras se traza, el viento ya ronda el bastón clavado en la piedra.
-  if (!tieneBaston && !bastonEnMano && !rescate && !llevando && estado !== "llamando" && Math.hypot(baston.position.x - pos.x, baston.position.z - pos.z) < 70) {
+  // Ya cerca, y mientras se traza, el viento ya ronda el bastón clavado en la piedra.
+  if (!tieneBaston && !bastonEnMano && !rescate && !llevando && estado !== "llamando" && Math.hypot(baston.position.x - pos.x, baston.position.z - pos.z) < 18) {
     espiralEn = _espBaston.copy(baston.position); espiralEn.y += 0.25;
     efectoEspiral = Math.max(efectoEspiral, estado === "trazando" ? 1 : 0.7);
   }
@@ -1775,7 +1811,9 @@ function actualizar(dt) {
   // Recién aprendido a mover piedras: la espiral marca la roca movible más cercana, hasta alzar una.
   if (muevePiedras && !yaAlzada && !llevando && estado === "juego" && !rescate) {
     let marca = null, mejor = 25;
-    for (const p of penascos) { const d = Math.hypot(p.g.position.x - pos.x, p.g.position.z - pos.z); if (p.movible && p.estado === "suelo" && d < mejor) { mejor = d; marca = p; } }
+    // La de delante: la movible más cercana a la salida del anillo, la que hay que apartar para seguir.
+    const sx = PLATAFORMA2.x, sz = PLATAFORMA2.z - ANILLO_R;
+    for (const p of penascos) { const d = Math.hypot(p.g.position.x - sx, p.g.position.z - sz); if (p.movible && p.estado === "suelo" && d < mejor) { mejor = d; marca = p; } }
     if (marca) { espiralEn = marca.g.position; espiralTam = { r: marca.R * 1.25, alto: marca.alto * 1.1 }; efectoEspiral = Math.max(efectoEspiral, 0.75); }
   }
   blizzard.position.copy(pos);
