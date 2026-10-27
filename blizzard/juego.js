@@ -838,6 +838,21 @@ const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
   });
 }
 
+// Paredes de roca a los lados de las pilastras de salto y de los pasos bajos: no se pueden rodear,
+// hay que saltar o agacharse. Rocas macizas grandes, juntas, desde el extremo del obstáculo hasta
+// donde el viento ya devuelve al camino.
+{
+  const rndC = generador(2727);
+  for (const [z, desde] of [[ZONA_PILASTRAS[0], 6.4], [ZONA_PILASTRAS[1], 6.4], ...ZONA_AGACHARSE.map(z => [z, 6.2])]) {
+    const cx = caminoX(z);
+    for (const lado of [-1, 1]) for (let t = desde; t < 25; t += 1.7 + rndC() * 0.4) {
+      const x = cx + lado * t, zz = z + (rndC() - 0.5) * 0.8, alto = 3.4 + rndC() * 1.2;
+      colocar(kitRocas[2 + Math.floor(rndC() * 2)], x, zz, alto, rndC() * Math.PI * 2, 0.25);
+    }
+
+  }
+}
+
 // Rocas incrustadas en las paredes de los abismos (precipicio y puente), en dos alturas, sobresaliendo
 // metidas en la pared (asoman poco). Sin colisión: son pared, no apoyo. Lejos de los extremos de las pasarelas.
 {
@@ -1533,11 +1548,23 @@ function sueloEn(x, z, pies) {
 }
 
 let agachadoAhora = false;
+// Magia retentiva: en los pasos que no se pueden rodear, entrar en su franja por fuera del paso (por
+// encima de las rocas, saltando…) devuelve a donde se estaba, con el viento en bumerán. hw: medio
+// ancho del paso; m: media franja a lo largo del camino.
+const RETENCIONES = [...ZONA_PILASTRAS.map(z => ({ z, hw: 4.3, m: 1.2 })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 4.5, m: 2.3 }))];
+const retenido = (x, z) => RETENCIONES.some(R => Math.abs(z - R.z) < R.m && Math.abs(x - caminoX(R.z)) > R.hw && Math.abs(x - caminoX(R.z)) < 40);
+let retencion = 0;
+// Ya sobre la piedra (casi a la altura de su malla bajo los pies). Si el rayo no la toca, no lo está.
+const encima = c => { const h = alturaObjPies(c, pos.x, pos.z); return h > -Infinity && pos.y >= h - 0.35; };
 function moverHorizontal(dx, dz) {
   // Se mira un poco por delante para que una pendiente muy empinada cuente como pared.
   const l = Math.hypot(dx, dz) || 1, ax = dx / l * 0.35, az = dz / l * 0.35;
   const paso = enSuelo ? PASO : 0.55;                         // en el aire no se «sube» un escalón
-  const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + paso && alturaSuelo(x + ax, z + az) <= pos.y + paso + 0.1;
+  // Piedras con malla: su cara, 35 cm por delante, no puede subir más de 0,35 m sobre los pies (no se
+  // trepa por las faldas inclinadas de las rocas; lo que es más alto se salta).
+  const cerca = colisiones.filter(c => c.obj && c.techo > pos.y + 0.35 && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.8);
+  const piedra = (x, z) => cerca.every(c => Math.hypot(x - c.x, z - c.z) >= c.r || alturaObj(c, x, z) <= pos.y + 0.35);
+  const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + paso && alturaSuelo(x + ax, z + az) <= pos.y + paso + 0.1 && piedra(x + ax, z + az);
   if (prueba(pos.x + dx, pos.z + dz)) { pos.x += dx; pos.z += dz; }
   else if (prueba(pos.x + dx, pos.z)) { pos.x += dx; vel.z = 0; }
   else if (prueba(pos.x, pos.z + dz)) { pos.z += dz; vel.x = 0; }
@@ -1550,7 +1577,7 @@ function moverHorizontal(dx, dz) {
     }
     if (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo) continue;   // por debajo, agachado, se pasa
     const ex = pos.x - c.x, ez = pos.z - c.z, d = Math.hypot(ex, ez), r = (c.borde ? radioBorde(c, pos.x, pos.z) : c.r) + 0.25;
-    if (d < r && pos.y < c.techo - PASO && d > 0.001 && !(c.obj && d < c.r && pos.y >= alturaObjPies(c, pos.x, pos.z) - PASO)) { pos.x = c.x + ex / d * r; pos.z = c.z + ez / d * r; }
+    if (d < r && pos.y < c.techo - PASO && d > 0.001 && !(c.obj && d < c.r && encima(c))) { pos.x = c.x + ex / d * r; pos.z = c.z + ez / d * r; }
   }
 }
 
@@ -1655,7 +1682,8 @@ function actualizar(dt) {
 
     // Límite del mundo: un viento de cara que crece poco a poco y devuelve al camino.
     const rachaAntes = rachaViento;
-    rachaViento = clamp((c.d - ANCHO_CAMINO) / 5, 0, 1);
+    retencion = Math.max(0, retencion - dt * 1.2);
+    rachaViento = Math.max(clamp((c.d - ANCHO_CAMINO) / 5, 0, 1), retencion * 0.8);
     if (rachaAntes < 0.15 && rachaViento >= 0.15) musica.viento(0.22, 1.1);     // el bumerán aparece
     if (rachaViento > 0) {
       const haciaFuera = deseo.x * c.nx + deseo.z * c.nz;
@@ -1708,7 +1736,13 @@ function actualizar(dt) {
       vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.viento(0.3, 1.25);
     }
 
+    const xAntes = pos.x, zAntes = pos.z;
     moverHorizontal(vel.x * dt, vel.z * dt);
+    if (retenido(pos.x, pos.z) && !retenido(xAntes, zAntes)) {
+      pos.x = xAntes; pos.z = zAntes; vel.x = vel.z = 0;
+      if (retencion < 0.3) musica.viento(0.22, 1.1);
+      retencion = 1;
+    }
     vel.y -= GRAVEDAD * dt;
     pos.y += vel.y * dt;
     const s = sueloEn(pos.x, pos.z, pos.y);
