@@ -68,7 +68,7 @@ const PILARES = [[0.5, -113.4, 2.0], [-0.6, -118.0, 1.8], [0.4, -122.9, 2.3, "ro
 // Bordes del precipicio irregulares, como los de la grieta.
 const bordePrec = (x, base, fase) => base + Math.sin(x * 0.32 + fase) * 0.5 + Math.sin(x * 0.8 + fase * 2) * 0.15 + Math.sin(x * 0.21 + fase) * 1.4 * suave(3, 10, Math.abs(x));
 const precDesde = x => bordePrec(x, PRECIPICIO.desde, 0), precHasta = x => bordePrec(x, PRECIPICIO.hasta, 2.1);
-// Abismo antes de la primera plataforma: se cruza por un puente de pilastras caídas.
+// Abismo antes de la primera plataforma: se cruza saltando de peñón en peñón.
 const PUENTE = { desde: -99, hasta: -110.5 };
 const puenteDesde = x => bordePrec(x, PUENTE.desde, 1.1), puenteHasta = x => bordePrec(x, PUENTE.hasta, 3.3);
 const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta]];
@@ -336,13 +336,13 @@ const _simples = new Map();
 function simplificada(pieza, celdas = 9) {
   const nombre = pieza.geo.id + ":" + celdas;
   if (_simples.has(nombre)) return _simples.get(nombre);
-  const pos = pieza.geo.attributes.position, uv = pieza.geo.attributes.uv, idx = pieza.geo.index.array, caja = new THREE.Box3(), v = new THREE.Vector3();
+  const pos = pieza.geo.attributes.position, idx = pieza.geo.index.array, caja = new THREE.Box3(), v = new THREE.Vector3();
   for (const i of idx) caja.expandByPoint(v.fromBufferAttribute(pos, i));
-  const tam = caja.getSize(new THREE.Vector3()), celda = Math.max(tam.x, tam.y, tam.z) / celdas, grupo = new Map(), suma = [], uvs = [], nuevo = [];
+  const tam = caja.getSize(new THREE.Vector3()), celda = Math.max(tam.x, tam.y, tam.z) / celdas, grupo = new Map(), suma = [], nuevo = [];
   const clave = i => { v.fromBufferAttribute(pos, i); return `${Math.floor((v.x - caja.min.x) / celda)},${Math.floor((v.y - caja.min.y) / celda)},${Math.floor((v.z - caja.min.z) / celda)}`; };
   const indice = i => {
     const k = clave(i);
-    if (!grupo.has(k)) { grupo.set(k, suma.length); suma.push([0, 0, 0, 0]); uvs.push(uv ? [uv.getX(i), uv.getY(i)] : [0, 0]); }
+    if (!grupo.has(k)) { grupo.set(k, suma.length); suma.push([0, 0, 0, 0]); }
     const g = grupo.get(k), s = suma[g]; v.fromBufferAttribute(pos, i); s[0] += v.x; s[1] += v.y; s[2] += v.z; s[3]++;
     return g;
   };
@@ -350,9 +350,10 @@ function simplificada(pieza, celdas = 9) {
     const a = indice(idx[t]), b = indice(idx[t + 1]), c = indice(idx[t + 2]);
     if (a !== b && b !== c && a !== c) nuevo.push(a, b, c);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(suma.flatMap(s => [s[0] / s[3], s[1] / s[3], s[2] / s[3]]), 3));
-  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs.flat(), 2));
+  const geo = new THREE.BufferGeometry(), puntos = suma.map(s => [s[0] / s[3], s[1] / s[3], s[2] / s[3]]), lado = Math.max(tam.x, tam.z);
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(puntos.flat(), 3));
+  // Textura proyectada desde arriba: la nieve se ve igual por todo el montón, sin rayas ni zigzags.
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(puntos.flatMap(p => [(p[0] - caja.min.x) / lado, (p[2] - caja.min.z) / lado]), 2));
   geo.setIndex(nuevo); geo.computeVertexNormals();
   _simples.set(nombre, geo);
   return geo;
@@ -490,12 +491,24 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - lado * 7, z + 1.5, 2.8, 0.9, rndA() * 6);
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
+  const nieveTapa = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, emissive: 0x6a6f78, roughness: 1, side: THREE.DoubleSide });   // blanca aunque le dé de lado
   const pilastraCaida = (x, z, largo, grueso, giro) => {
     const pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)], suelo = alturaTerreno(x, z), g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
     m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
     g.add(m); g.scale.set(grueso / pieza.ancho, largo / pieza.alto, grueso / pieza.ancho);
     g.rotation.set(rndA() * 6, giro, Math.PI / 2, "YXZ");
     g.position.set(x, suelo + grueso * 0.35, z); scene.add(g);
+    // La base de la pilastra es una cara plana gris: se tapa con nieve de borde irregular.
+    g.updateMatrixWorld(true);
+    const extremo = g.localToWorld(new THREE.Vector3(0, -pieza.alto / 2, 0)), eje = g.localToWorld(new THREE.Vector3(0, 1, 0)).sub(g.position).normalize();
+    const forma = new THREE.Shape();
+    for (let k = 0; k < 14; k++) {
+      const a = k / 14 * Math.PI * 2, r = grueso * (0.46 + rndA() * 0.08);
+      k ? forma.lineTo(Math.cos(a) * r, Math.sin(a) * r) : forma.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    const tapa = new THREE.Mesh(new THREE.ShapeGeometry(forma), nieveTapa);
+    tapa.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), eje.clone().negate());
+    tapa.position.copy(extremo).addScaledVector(eje, -0.03); tapa.receiveShadow = true; scene.add(tapa);
     const techo = suelo + grueso * 0.85;
     for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo });
   };
@@ -656,46 +669,20 @@ for (let x = -18; x <= 18; x += 2.2) {
 // Monolitos tallados que anuncian el final del capítulo.
 monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolito(-8, LARGO(-184), 8, 0.15); monolito(8.5, LARGO(-188), 6.5, -0.2);
 
-// ─── Puente de pilastras sobre el abismo ───────────────────────────────────
-// Dos pasarelas de roca natural: suben del borde a un peñón en medio del abismo y bajan en diagonal
-// al otro lado. Otros pilares, como los del precipicio, se alzan desde la niebla del fondo.
+// ─── Peñones sobre el abismo ───────────────────────────────────────────────
+// Abismo antes de la primera plataforma: se cruza saltando de peñón en peñón (roca natural).
 {
   const rndB = generador(4711);
   // Pasarela entre dos puntos de su cara de arriba; se camina por encima.
-  const viga = (a, b, grueso, pieza, conColision = true) => {
-    // Una sola pieza grande, estirada a lo largo del tramo e inclinada con él, con la cara de arriba
-    // a la altura por donde se camina.
-    const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
-    const lado = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), arriba = new THREE.Vector3().crossVectors(lado, dir);
-    const ancho = grueso * 1.35, alto = grueso * 1.7, sx = ancho / (pieza.radio * 2), sz = (largo + 1.2) / (pieza.radio * 2), sy = alto / pieza.alto;
-    const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
-    m.position.copy(pieza.desplaza); m.castShadow = m.receiveShadow = true; g.add(m);
-    g.matrixAutoUpdate = false;
-    g.matrix.makeBasis(lado.clone().multiplyScalar(-sx), arriba.clone().multiplyScalar(sy), dir.clone().multiplyScalar(sz))   // base sin reflejar
-      .setPosition(a.clone().add(b).multiplyScalar(0.5).addScaledVector(arriba, 0.04 - alto));
-    scene.add(g);
-    if (conColision) colisiones.push({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, r: largo / 2 + grueso, techo: Math.max(a.y, b.y), rampa: { a, b, ancho: grueso * 0.5 } });
-  };
-  const zA = puenteDesde(caminoX(PUENTE.desde)) + 1.0, zB = puenteHasta(caminoX(PUENTE.hasta)) - 1.0;
-  const xA = caminoX(zA), xB = caminoX(zB);
-  const A = new THREE.Vector3(xA, alturaTerreno(xA, zA) + 0.35, zA), D = new THREE.Vector3(xB, alturaTerreno(xB, zB) + 0.35, zB);
-  // Sube hasta una plataforma sobre una columna maciza y baja en diagonal al otro lado.
-  const M = new THREE.Vector3(caminoX(-104.6) + 0.6, A.y + 1.5, -104.6), RM = 2.3;   // plataforma de en medio
-  const B = new THREE.Vector3(M.x - 0.2, M.y, M.z + RM * 0.9 - 0.3), C = new THREE.Vector3(M.x + 0.9, M.y, M.z - RM * 0.9 + 0.4);
-  const D2 = new THREE.Vector3(D.x - 2.6, alturaTerreno(D.x - 2.6, D.z) + 0.35, D.z);
-  // Cada tramo es una pilastra tallada (como la apoyada en la pared de la derecha); otra pilastra
-  // igual sale de debajo del borde, desde dentro del abismo, y se mete en ella, sosteniéndola.
-  const pilastra = kitRuinas[Math.min(kitRuinas.length - 1, 1)];
-  viga(A, B, 1.8, pilastra); viga(C, D2, 1.9, pilastra);
-  const bajoBorde = (p, z) => new THREE.Vector3(p.x, p.y - 5.5, z);
-  viga(bajoBorde(A.clone().add(new THREE.Vector3(0.7, 0, 0)), puenteDesde(A.x) - 0.6), A.clone().lerp(B, 0.6).add(new THREE.Vector3(0, -0.55, 0)), 1.5, pilastra, false);
-  viga(bajoBorde(D2.clone().add(new THREE.Vector3(-0.6, 0, 0)), puenteHasta(D2.x) + 0.6), C.clone().lerp(D2, 0.4).add(new THREE.Vector3(0, -0.6, 0)), 1.6, pilastra, false);
-  pilarDeKit(M.x, M.z, RM, "losa", M.y - 0.1, rndB, false);     // bloque tallado de cima plana, con su nieve
-  // Columnas de adorno, gruesas, que se alzan desde la niebla del fondo, y una pilastra apoyada contra la pared.
+  // Se cruza de peñón en peñón: rocas naturales, como las de los pilares del precipicio, que se
+  // pierden en la niebla del fondo. Casi juntas, con saltos cortos; la del medio, mayor y algo más alta.
+  const suelo0 = alturaTerreno(caminoX(PUENTE.desde + 1.5), PUENTE.desde + 1.5);
+  for (const [dx, z, rp, sube] of [[0.5, -101.0, 1.65, 0.3], [-0.6, -104.7, 2.1, 0.8], [0.4, -108.6, 1.7, 0.35]])
+    pilarDeKit(caminoX(z) + dx, z, rp, "rocas", suelo0 + sube, rndB, false);
+  // Más peñones de roca natural, de adorno, que se alzan desde la niebla a distintas alturas.
   for (const [dx, z, ancho, cima] of [[-6.5, -101.2, 3.4, -1.5], [8, -103.5, 4.4, 3.2], [-10.5, -107.8, 3.9, 1.2], [13, -100.6, 3.1, -3.5], [-16.5, -104.5, 4.9, 4.5], [17, -108.4, 3.6, -0.5],
-    [4.5, -108.6, 2.6, -4.5], [-3.5, -106.9, 2.4, -6], [21, -104, 4.2, 6], [-22, -100.8, 3.8, 1.5]])
-    pilarDeKit(caminoX(z) + dx, z, ancho / 2, rndB() < 0.6 ? "" : "losa", cima, rndB, false);
-  viga(new THREE.Vector3(caminoX(-103) + 9.5, -7, -103), new THREE.Vector3(caminoX(-110) + 10.5, 0.2, puenteHasta(caminoX(-110) + 10.5) + 0.2), 1.9, kitRuinas[1], false);
+    [6.5, -109.2, 2.6, -4.5], [-5.5, -107.6, 2.4, -6], [21, -104, 4.2, 6], [-22, -100.8, 3.8, 1.5]])
+    pilarDeKit(caminoX(z) + dx, z, ancho / 2, "rocas", cima, rndB, false);
 }
 
 // Pequeñas formaciones de nieve sueltas, en grupos, a los lados del camino.
@@ -1526,7 +1513,7 @@ function actualizar(dt) {
       musica.viento(0.3, 0.9);
     }
     if (!avisoRocas && pos.z < ZONA_ROCAS[0] + 4) { avisoRocas = true; rotular("Rodea las rocas.", 3); }
-    if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
+    if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Salta de roca en roca.", 3); }
     if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
