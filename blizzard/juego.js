@@ -42,7 +42,7 @@ const ANCHO_CAMINO = 13;      // a partir de aquí el viento frena
 
 // Plano por tramos: las medidas de abajo se escribieron para un recorrido más corto. LARGO las
 // estira: de la salida a la plataforma (para las zonas de aprender) y entre los acantilados.
-const TRAMOS = [[12, 12], [-4, -4], [-42, -86], [-100, -144], [-110, -166], [-133, -189], [-141, -207], [-400, -466]];
+const TRAMOS = [[12, 12], [-4, -4], [-42, -130], [-100, -188], [-110, -210], [-133, -233], [-141, -251], [-400, -510]];
 const LARGO = z => {
   for (let i = 0; i < TRAMOS.length - 1; i++) {
     const [a, na] = TRAMOS[i], [b, nb] = TRAMOS[i + 1];
@@ -68,11 +68,19 @@ const PILARES = [[0.5, -113.4, 2.0], [-0.6, -118.0, 1.8], [0.4, -122.9, 2.3, "ro
 // Bordes del precipicio irregulares, como los de la grieta.
 const bordePrec = (x, base, fase) => base + Math.sin(x * 0.32 + fase) * 0.5 + Math.sin(x * 0.8 + fase * 2) * 0.15 + Math.sin(x * 0.21 + fase) * 1.4 * suave(3, 10, Math.abs(x));
 const precDesde = x => bordePrec(x, PRECIPICIO.desde, 0), precHasta = x => bordePrec(x, PRECIPICIO.hasta, 2.1);
+// Abismo antes de la primera plataforma: se cruza por un puente de pilastras caídas.
+const PUENTE = { desde: -99, hasta: -110.5 };
+const puenteDesde = x => bordePrec(x, PUENTE.desde, 1.1), puenteHasta = x => bordePrec(x, PUENTE.hasta, 3.3);
+const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta]];
 // Segunda plataforma, ya sobre el rellano: allí el bastón aprende a mover piedras.
 const PLATAFORMA2 = { x: 0, z: LARGO(-154), r: 4.6, alto: 0.7 };
 const PLATAFORMAS = [PLATAFORMA, PLATAFORMA2];
 // Desfiladero cerrado por peñascos: solo se pasa apartándolos con el viento.
 const DESFILADERO = { desde: LARGO(-165), hasta: LARGO(-177), media: 2.8, penascos: LARGO(-171) };
+// El desfiladero empieza tras el rellano y se abre en una sala redonda alrededor de la segunda
+// plataforma; un anillo de rocas la cierra, salvo la entrada.
+const CANON_DESDE = RELLANO.z - 2, CAMARA_R = 8.5, ANILLO_R = 7.3;
+const anchoCanon = z => Math.max(DESFILADERO.media, Math.sqrt(Math.max(0, CAMARA_R * CAMARA_R - (z - PLATAFORMA2.z) ** 2)));
 const FIN_Z = LARGO(-188);
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
@@ -117,12 +125,12 @@ function alturaTerreno(x, z) {
   h += RELLANO.alto * suave(RELLANO.z + 0.12, RELLANO.z - 0.12, z);
   h = lerp(PLATAFORMA2.base, h, suave(PLATAFORMA2.r + 0.8, PLATAFORMA2.r + 4.5, Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z)));
   // Desfiladero: paredes de roca de 7 m a los lados; el paso queda en el centro.
-  const enDesf = suave(DESFILADERO.desde + 1.5, DESFILADERO.desde - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
-  if (enDesf > 0) h += 7 * enDesf * suave(DESFILADERO.media + 1.4, DESFILADERO.media + 3, Math.abs(x - caminoX(z)));   // detrás de las rocas de la pared
+  const enDesf = suave(CANON_DESDE + 1.5, CANON_DESDE - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
+  if (enDesf > 0) { const w = anchoCanon(z); h += 7 * enDesf * suave(w + 1.4, w + 3, Math.abs(x - caminoX(z))); }   // detrás de las rocas de la pared
   const lado = enCamino(x, z).d;
   h += Math.max(0, lado - 20) * 0.35;                         // laderas fuera del recorrido
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -14;
-  if (z < precDesde(x) && z > precHasta(x) && Math.abs(x) < 90) h = -14;
+  for (const [d, a] of ABISMOS) if (z < d(x) && z > a(x) && Math.abs(x) < 90) h = -14;
   return h;
 }
 
@@ -163,7 +171,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-340, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, 80, 1), 80];
+  const zs = [...filas(-370, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 80, 1), 80];
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 330); }
   for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
@@ -181,11 +189,11 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
     const dg = z - grietaZ(x), mg = grietaMedia(x);
     if (Math.abs(x) < 90 && Math.abs(dg) > mg - 0.1 && Math.abs(dg) < mg + 0.1) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
     // Lo mismo en los dos bordes del precipicio.
-    for (const borde of [precDesde(x), precHasta(x)]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.13) z = borde + (z < borde ? -0.02 : 0.02);
+    for (const [d, a] of ABISMOS) for (const borde of [d(x), a(x)]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.13) z = borde + (z < borde ? -0.02 : 0.02);
     // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
     let h = alturaTerreno(x, z);
-    if (h < -1 && Math.abs(x) < 90 && z < precDesde(x) && z > precHasta(x)) {
-      const dentro = Math.min(precDesde(x) - z, z - precHasta(x)), ruido = 0.5 + Math.sin(x * 0.6 + 2) * 0.25 + Math.sin(x * 1.4) * 0.1;
+    for (const [d, a] of ABISMOS) if (h < -1 && Math.abs(x) < 90 && z < d(x) && z > a(x)) {
+      const dentro = Math.min(d(x) - z, z - a(x)), ruido = 0.5 + Math.sin(x * 0.6 + 2) * 0.25 + Math.sin(x * 1.4) * 0.1;
       if (dentro < 0.8) h = alturaBase(x, z) * 0.3 - (0.25 + dentro * 2.2) * (0.8 + ruido);
     }
     if (h < -1 && Math.abs(x) < 90) {
@@ -315,6 +323,7 @@ for (let i = 0; i < 150; i++) {
   else { dist = 24 + rnd() * 25; ancho = 3 + rnd() * 3; alto = 9 + rnd() * 9; }                           // > 5 B
   if (z > -24) continue;                                       // salida despejada para la toma inicial
   if (z < PRECIPICIO.desde + 4 && z > LARGO(-133.5)) continue;
+  if (z < PUENTE.desde + 3 && z > PUENTE.hasta - 3) { rnd(); rnd(); rnd(); continue; }   // el abismo del puente
   if (z < PRECIPICIO.desde + 4 && z > PRECIPICIO.hasta - 4) { rnd(); rnd(); rnd(); continue; }   // tramo alargado, sin mover el resto
   const x = caminoX(z) + ladoSigno * dist;
   if (Math.abs(z - grietaZ(caminoX(z))) < grietaMedia(0) + ancho + 7) continue;
@@ -365,7 +374,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // ─── Antes de la primera plataforma: dos zonas para aprender ───────────────
 // Rocas y nieve acumulada que obligan a ir de un lado a otro, y luego pilastras caídas que hay
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
-const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64];      // ya en el plano estirado
+const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-70, -91];      // ya en el plano estirado
 {
   const rndA = generador(808);
   // Roca con colisión del tamaño que se ve, para no meterse dentro.
@@ -384,20 +393,34 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64];      // ya en e
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx + lado * 7.5, z - 1, 3.5, 1.2, rndA() * 6);
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - lado * 7, z + 1.5, 2.8, 0.9, rndA() * 6);
   });
-  // Pilastras de ruinas caídas de través: más altas que un paso, más bajas que un salto.
-  for (const z of ZONA_PILASTRAS) {
-    const pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)], largo = 6.5, grueso = 1.35, cx = caminoX(z);
-    const suelo = alturaTerreno(cx, z), g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
+  // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
+  const pilastraCaida = (x, z, largo, grueso, giro) => {
+    const pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)], suelo = alturaTerreno(x, z), g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
     m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
     g.add(m); g.scale.set(grueso / pieza.ancho, largo / pieza.alto, grueso / pieza.ancho);
-    const giro = (rndA() - 0.5) * 0.3;
     g.rotation.set(rndA() * 6, giro, Math.PI / 2, "YXZ");
-    g.position.set(cx + (rndA() - 0.5), suelo + grueso * 0.35, z); scene.add(g);
+    g.position.set(x, suelo + grueso * 0.35, z); scene.add(g);
     const techo = suelo + grueso * 0.85;
-    for (let t = -largo / 2 + 0.4; t <= largo / 2 - 0.4; t += 0.6) colisiones.push({ x: g.position.x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: 0.6, techo });
+    for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo });
+  };
+  // Pilastras caídas de través: más altas que un paso, más bajas que un salto.
+  for (const z of ZONA_PILASTRAS) {
+    const largo = 6.5, cx = caminoX(z), giro = (rndA() - 0.5) * 0.3;
+    pilastraCaida(cx + (rndA() - 0.5), z, largo, 1.35, giro);
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx + largo / 2 + 1.5, z, 3.2, 1.6, rndA() * 6);
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - largo / 2 - 1.5, z, 3.2, 1.6, rndA() * 6);
   }
+  // Zona mixta: rocas y pilastras de tamaños y posiciones distintas; unas se rodean, otras se saltan.
+  const roca = (k, dx, z, alto) => rocaEntera(kitRocas[Math.min(kitRocas.length - 1, k)], caminoX(z) + dx, z, alto);
+  const pil = (dx, z, largo, grueso, giro) => pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro);
+  roca(4, 1.6, -71, 2.2); roca(5, 3.1, -71.6, 1.9); roca(2, -4.2, -70.5, 1.0);
+  pil(-1.8, -74.5, 3.6, 1.15, 0.25);                            // corta, a la izquierda: se rodea por la derecha o se salta
+  roca(1, -0.3, -77.2, 0.95); roca(1, 1.4, -77.8, 1.0); roca(3, -2.6, -78, 1.3);
+  pil(0.4, -81, 7.5, 1.5, -0.45);                               // larga y gruesa, en diagonal: hay que saltarla
+  roca(4, -1.65, -84.2, 2.4); roca(4, 1.65, -84.5, 2.1);        // puerta estrecha entre dos rocas altas
+  pil(2.6, -87.5, 4.4, 1.0, 0.6); roca(2, -2.4, -87.8, 1.4);
+  monticulo(kitRocas[0], caminoX(-89.5) - 1.2, -89.5, 3.0, 1.0, 1.2);
+  for (const [dx, z] of [[-7, -73], [7.5, -79], [-7.5, -86], [6.5, -90]]) monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], caminoX(z) + dx, z, 3.4, 1.4, rndA() * 6);
 }
 
 // Pilares del precipicio: piezas de los kits puestas en pie y apiladas, cada una algo girada y
@@ -526,10 +549,58 @@ for (let x = -18; x <= 18; x += 2.2) {
 // Monolitos tallados que anuncian el final del capítulo.
 monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolito(-8, LARGO(-184), 8, 0.15); monolito(8.5, LARGO(-188), 6.5, -0.2);
 
+// ─── Puente de pilastras sobre el abismo ───────────────────────────────────
+// Tres pilastras caídas, inclinadas, que bajan del borde, cruzan y suben al otro lado. En las
+// uniones las sostienen columnas que salen del fondo; otras columnas se alzan solo de adorno.
+{
+  const rndB = generador(4711), pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)];
+  const piezasColumna = [3, 4, 6].filter(i => i < kitRuinas.length).map(i => kitRuinas[i]);
+  // Columna de pilastras apiladas desde el fondo; si se recorta, queda plana a la altura «cima».
+  const columna = (x, z, ancho, cima, recortar) => {
+    let y = -15;
+    while (y < cima - 0.5) {
+      const p = piezasColumna[Math.floor(rndB() * piezasColumna.length)], s0 = ancho / (p.radio * 2), alto = p.alto * s0 * 1.4;
+      const g = new THREE.Group(), m = new THREE.Mesh(p.geo, p.material.clone());
+      m.position.copy(p.desplaza); m.castShadow = m.receiveShadow = true; g.add(m);
+      m.material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, 1, 0), -(y + alto * 0.16)), ...(recortar ? [new THREE.Plane(new THREE.Vector3(0, -1, 0), cima)] : [])];
+      m.material.clipShadows = true;
+      g.scale.set(s0, s0 * 1.4, s0); g.rotation.y = rndB() * 6;
+      g.position.set(x + (rndB() - 0.5) * 0.12, y - alto * 0.16, z + (rndB() - 0.5) * 0.12); scene.add(g);
+      y += alto * 0.5;                                            // muy solapadas: las puntas rotas no dejan huecos
+    }
+  };
+  // Pilastra tumbada entre dos puntos de su cara de arriba; se camina por encima.
+  const viga = (a, b, grueso, conColision = true) => {
+    const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
+    const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
+    m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
+    g.add(m); g.scale.set(grueso / pieza.ancho, (largo + 0.5) / pieza.alto, grueso / pieza.ancho);
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndB() * 6));
+    g.position.copy(a).add(b).multiplyScalar(0.5); g.position.y -= grueso * 0.45; scene.add(g);
+    if (conColision) for (let t = 0; t <= 1.0001; t += 0.4 / largo) { const q = a.clone().lerp(b, t); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.55, techo: q.y }); }
+  };
+  const zA = puenteDesde(caminoX(PUENTE.desde)) + 1.0, zB = puenteHasta(caminoX(PUENTE.hasta)) - 1.0;
+  const xA = caminoX(zA), xB = caminoX(zB);
+  const A = new THREE.Vector3(xA, alturaTerreno(xA, zA) + 0.35, zA), D = new THREE.Vector3(xB, alturaTerreno(xB, zB) + 0.35, zB);
+  // Sube hasta una plataforma sobre una columna maciza y baja en diagonal al otro lado.
+  const M = new THREE.Vector3(caminoX(-104.6) + 0.6, A.y + 1.5, -104.6), RM = 2.3;   // plataforma de en medio
+  const B = new THREE.Vector3(M.x - 0.2, M.y, M.z + RM - 0.3), C = new THREE.Vector3(M.x + 0.9, M.y, M.z - RM + 0.4);
+  const D2 = new THREE.Vector3(D.x - 2.6, alturaTerreno(D.x - 2.6, D.z) + 0.35, D.z);
+  viga(A, B, 1.8); viga(C, D2, 1.8);
+  columna(M.x, M.z, RM * 2.1, M.y - 0.12, true);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(RM * 1.04, RM * 1.04, 0.16, 11), new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1, flatShading: true }));
+  tapa.position.set(M.x, M.y - 0.06, M.z); tapa.receiveShadow = true; scene.add(tapa);
+  colisiones.push({ x: M.x, z: M.z, r: RM / 0.8, techo: M.y });
+  // Columnas de adorno, gruesas, que se alzan desde la niebla del fondo, y una pilastra apoyada contra la pared.
+  for (const [dx, z, ancho, cima] of [[-6, -101.2, 2.6, -1.5], [7.5, -103.5, 3.4, 3.2], [-10, -107.8, 3.0, 1.2], [12.5, -100.8, 2.4, -3.5], [-15.5, -104.5, 3.8, 4.5], [16, -108.6, 2.8, -0.5]])
+    columna(caminoX(z) + dx, z, ancho, cima, false);
+  viga(new THREE.Vector3(caminoX(-103) + 9.5, -7, -103), new THREE.Vector3(caminoX(-110) + 10.5, 0.2, puenteHasta(caminoX(-110) + 10.5) + 0.2), 1.9, false);
+}
+
 // Tramos entre zonas: rocas y ruinas a los lados del camino, dejando libre el paso.
 {
   const rndR = generador(2718);
-  const tramos = [[-43, -53, 10], [-67, -78, 10], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
+  const tramos = [[-43, -53, 10], [-114, -123, 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
   for (const [desde, hasta, n] of tramos) for (let i = 0; i < n; i++) {
     const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1, x = caminoX(z) + lado * (3.5 + rndR() * 6);
     const ruina = rndR() < 0.45, kit = ruina ? kitRuinas : kitRocas;
@@ -545,17 +616,17 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // Tiene su propia semilla, para no mover lo que se coloca después.
 const rndD = generador(1771);
 const SUELO_DESF = alturaTerreno(caminoX(DESFILADERO.penascos), DESFILADERO.penascos);
-for (const lado of [-1, 1]) for (let z = DESFILADERO.desde + 0.6; z > DESFILADERO.hasta - 0.6; z -= 1.5 + rndD() * 0.6) {
+for (const lado of [-1, 1]) for (let z = CANON_DESDE - 0.6; z > DESFILADERO.hasta - 0.6; z -= 1.5 + rndD() * 0.6) {
   const pieza = kitRocas[Math.min(kitRocas.length - 1, 2 + Math.floor(rndD() * 4))], alto = 6.5 + rndD() * 2.5, esc = alto / pieza.alto;
-  const R = pieza.radio * esc, x = caminoX(z) + lado * (DESFILADERO.media + R * 0.95);
+  const R = pieza.radio * esc, x = caminoX(z) + lado * (anchoCanon(z) + R * 0.95);
   colocar(pieza, x, z, alto, rndD() * Math.PI * 2, 0.08, SUELO_DESF);
   colisiones[colisiones.length - 1].r = R * 0.9;                // la cara de la roca hace de pared: no se entra en ella
 }
 // Peñascos que cierran el paso. Son de hielo y roca: no se puede subir a ellos (su colisión
 // llega más alto de lo que se ve), así que hay que apartarlos con el viento.
-const penascos = [-1.85, 0, 1.85].map((dx, i) => {
-  const pieza = kitRocas[Math.min(kitRocas.length - 1, Math.floor(kitRocas.length * 0.4) + i)], alto = 2.2 + i % 2 * 0.3, ancho = 1.9;
-  const x = caminoX(DESFILADERO.penascos) + dx, z = DESFILADERO.penascos + (i - 1) * 0.5;
+const nuevoPenasco = (x, z, i) => {
+  const pieza = kitRocas[Math.min(kitRocas.length - 1, Math.floor(kitRocas.length * 0.4) + i % 3)], alto = 2.2 + i % 2 * 0.3, ancho = 1.9;
+  const SUELO_DESF = alturaTerreno(x, z);
   const g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
   m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
   g.add(m); g.scale.set(ancho / (pieza.radio * 2), alto / pieza.alto, ancho / (pieza.radio * 2)); g.rotation.y = rndD() * Math.PI * 2;
@@ -564,7 +635,14 @@ const penascos = [-1.85, 0, 1.85].map((dx, i) => {
   const col = { x, z, r: 1.0, techo: SUELO_DESF + alto + 1.6 };
   colisiones.push(col);
   return { g, col, alto, medio, R: ancho / 2, estado: "suelo", vy: 0 };
-});
+};
+const penascos = [-1.85, 0, 1.85].map((dx, i) => nuevoPenasco(caminoX(DESFILADERO.penascos) + dx, DESFILADERO.penascos + (i - 1) * 0.5, i));
+// Anillo alrededor de la segunda plataforma, abierto solo hacia el rellano (por donde se llega).
+for (let k = 0, n = Math.round(Math.PI * 2 * ANILLO_R / 2.1); k < n; k++) {
+  const a = Math.PI / 2 + (k + 0.5) / n * Math.PI * 2;
+  if (Math.abs(Math.atan2(Math.sin(a - Math.PI / 2), Math.cos(a - Math.PI / 2))) < 0.36) continue;   // la entrada
+  penascos.push(nuevoPenasco(PLATAFORMA2.x + Math.cos(a) * ANILLO_R, PLATAFORMA2.z + Math.sin(a) * ANILLO_R, k));
+}
 
 // Anillo de piedra abierto por arriba (lámina 32): la meta del prototipo.
 {
@@ -733,7 +811,7 @@ const bancos = (() => {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: opacidad }));
     let z = LARGO(12 - rnd() * 205);
     // Fuera de la grieta y del precipicio, para que no tapen los pilares ni el borde.
-    while ((z < PRECIPICIO.desde + 6 && z > PRECIPICIO.hasta - 6) || Math.abs(z - GRIETA.z) < 8) z = LARGO(12 - rnd() * 205);
+    while ((z < PRECIPICIO.desde + 6 && z > PRECIPICIO.hasta - 6) || (z < PUENTE.desde + 5 && z > PUENTE.hasta - 5) || Math.abs(z - GRIETA.z) < 8) z = LARGO(12 - rnd() * 205);
     const x = caminoX(z) + (rnd() - 0.5) * 90;
     m.position.set(x, 0, z);
     m.userData = { opacidad, vel: 0.5 + rnd() * 1.1, ancho };
@@ -801,11 +879,14 @@ estilo.textContent = `
   #portada .teclas { margin: 6px auto 0; display: grid; grid-template-columns: auto auto; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
-  #rotulo { position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
+  #rotulo { white-space: pre-line; position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
   #cerrar { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px; border: 1px solid rgba(31,42,61,.25); border-radius: 50%; background: rgba(240,245,252,.7); color: var(--tinta); font: 26px/1 Georgia, serif; cursor: pointer; pointer-events: auto; }
   #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
   #mandos { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
-  #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: rgba(240,245,252,.28); border: 1px solid rgba(31,42,61,.2); pointer-events: auto; touch-action: none; }
+  /* La palanca solo aparece al tocar, donde se pone el dedo, en la mitad izquierda de la pantalla. */
+  #zona-palanca { position: fixed; left: 0; top: 70px; bottom: 0; width: 55%; pointer-events: auto; touch-action: none; }
+  #palanca.activa { opacity: 1; }
+  #palanca { position: fixed; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: rgba(240,245,252,.28); border: 1px solid rgba(31,42,61,.2); pointer-events: none; opacity: 0; transition: opacity .2s ease; }
   #pomo { position: absolute; left: 38px; top: 38px; width: 54px; height: 54px; border-radius: 50%; background: rgba(240,245,252,.8); border: 1px solid rgba(31,42,61,.3); }
   /* Fila de botones a la derecha, a la altura del centro de la palanca; en vertical, columna. */
   #botones { position: fixed; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 18px; align-items: center; }
@@ -825,7 +906,6 @@ estilo.textContent = `
   #trazo .guia { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 5; }
   #trazo .hecho { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
   #trazo .inicio { fill: rgba(255,255,255,.9); animation: latido 1.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-  #trazo .perseguidor { fill: #1f2a3d; }
   #trazo .dedo { fill: none; stroke: #fff; stroke-width: .8; }
   @keyframes latido { 50% { transform: scale(1.5); opacity: .6; } }
   @media (prefers-reduced-motion: reduce) { #trazo .inicio { animation: none; } }
@@ -857,6 +937,7 @@ ui.innerHTML = `
   <div id="ayuda" hidden>WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento</div>
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" hidden>×</button>
   <div id="mandos" hidden>
+    <div id="zona-palanca"></div>
     <div id="palanca"><div id="pomo"></div></div>
     <div id="botones">
     <button type="button" class="boton" id="b-agachar" data-tecla="KeyC" aria-label="Agacharse"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M7.5 10 L12 14.5 L16.5 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -875,10 +956,17 @@ function moverPalanca(t) {
   joy.x = dx; joy.y = -dy;
   pomo.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
 }
-palanca.addEventListener("touchstart", e => { e.preventDefault(); const t = e.changedTouches[0]; joy.id = t.identifier; moverPalanca(t); }, { passive: false });
-palanca.addEventListener("touchmove", e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joy.id) moverPalanca(t); }, { passive: false });
-const soltarPalanca = e => { for (const t of e.changedTouches) if (t.identifier === joy.id) { joy.id = null; joy.x = joy.y = 0; pomo.style.transform = ""; } };
-palanca.addEventListener("touchend", soltarPalanca); palanca.addEventListener("touchcancel", soltarPalanca);
+const zonaPalanca = ui.querySelector("#zona-palanca");
+zonaPalanca.addEventListener("touchstart", e => {
+  e.preventDefault(); if (joy.id !== null) return;
+  const t = e.changedTouches[0]; joy.id = t.identifier;
+  // La palanca se centra donde cae el dedo.
+  palanca.style.left = t.clientX - 65 + "px"; palanca.style.top = t.clientY - 65 + "px"; palanca.style.bottom = "auto";
+  palanca.classList.add("activa"); moverPalanca(t);
+}, { passive: false });
+zonaPalanca.addEventListener("touchmove", e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joy.id) moverPalanca(t); }, { passive: false });
+const soltarPalanca = e => { for (const t of e.changedTouches) if (t.identifier === joy.id) { joy.id = null; joy.x = joy.y = 0; pomo.style.transform = ""; palanca.classList.remove("activa"); } };
+zonaPalanca.addEventListener("touchend", soltarPalanca); zonaPalanca.addEventListener("touchcancel", soltarPalanca);
 for (const b of ui.querySelectorAll(".boton")) {
   const k = b.dataset.tecla;
   b.addEventListener("touchstart", e => { e.preventDefault(); if (!teclas.has(k)) pulsadas.add(k); teclas.add(k); b.classList.add("activo"); }, { passive: false });
@@ -888,24 +976,26 @@ for (const b of ui.querySelectorAll(".boton")) {
 const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
 cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
-function rotular(texto, segundos = 5) { rotulo.textContent = texto; rotulo.style.opacity = 1; rotuloHasta = reloj + segundos; }
+// Cada frase en su línea.
+function rotular(texto, segundos = 5) { rotulo.textContent = texto.replace(/([.!?])\s+/g, "$1\n"); rotulo.style.opacity = 1; rotuloHasta = reloj + segundos; }
 
 // ─── Trazo de runas ────────────────────────────────────────────────────────
 // Para aprender cada poder se resigue una figura con el dedo (o el ratón), sin soltar, antes de
-// que la alcance una sombra que avanza detrás. Si te alcanza, te sales o sueltas, se repite.
+// que lo trazado se borre: la línea blanca se va borrando desde el principio. Si el borrado te
+// alcanza, te sales o sueltas, se repite.
 const FIGURAS = {
-  // Espiral de fuera adentro, vuelta y tres cuartos: para llamar al bastón.
-  espiral: { velocidad: 34, puntos: Array.from({ length: 121 }, (_, i) => { const t = i / 120, a = -Math.PI / 2 + t * Math.PI * 3.5, r = 42 - t * 33; return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
-  // La runa del viento (el rombo del botón ◇): para mover piedras.
-  runa: { velocidad: 40, puntos: [[50, 10], [80, 50], [50, 90], [20, 50], [50, 12]] },
+  // Espiral ondulada de fuera adentro, dos vueltas y media: para llamar al bastón.
+  espiral: { velocidad: 34, puntos: Array.from({ length: 241 }, (_, i) => { const t = i / 240, a = -Math.PI / 2 + t * Math.PI * 5, r = 44 - t * 38 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
+  // La runa del viento: el rombo del botón ◇ en un sentido y otro rombo dentro en el contrario.
+  runa: { velocidad: 40, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
 };
 const trazo = (() => {
   const capa = document.createElement("div");
   capa.id = "trazo"; capa.hidden = true;
-  capa.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="guia"/><path class="hecho"/><circle class="inicio" r="3.6"/><circle class="perseguidor" r="2.8"/><circle class="dedo" r="4"/></svg>`;
+  capa.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="guia"/><path class="hecho"/><circle class="inicio" r="3.6"/><circle class="dedo" r="4"/></svg>`;
   document.body.appendChild(capa);
   const svg = capa.querySelector("svg"), guia = capa.querySelector(".guia"), hecho = capa.querySelector(".hecho");
-  const inicio = capa.querySelector(".inicio"), perseguidor = capa.querySelector(".perseguidor"), dedo = capa.querySelector(".dedo");
+  const inicio = capa.querySelector(".inicio"), dedo = capa.querySelector(".dedo");
   let pts = [], s = [], L = 0, figura = null, fase = "nada", progreso = 0, cazador = 0, espera = 0, alAcabar = null;
   // La figura en puntos cada unidad, con la distancia recorrida hasta cada uno.
   function preparar(nombre) {
@@ -922,11 +1012,9 @@ const trazo = (() => {
   }
   const indice = d => { let i = 0; while (i < s.length - 1 && s[i + 1] <= d) i++; return i; };
   function dibujar() {
-    const i = indice(progreso);
-    hecho.setAttribute("d", progreso > 0 ? "M" + pts.slice(0, i + 1).map(q => q.join(" ")).join(" L") : "");
-    const c = pts[indice(Math.max(0, cazador))];
-    perseguidor.setAttribute("cx", c[0]); perseguidor.setAttribute("cy", c[1]);
-    perseguidor.style.opacity = fase === "trazando" && cazador > 0 ? 1 : 0;
+    // Lo trazado se va borrando desde el principio: solo queda la línea entre lo borrado y el dedo.
+    const i0 = indice(Math.max(0, cazador)), i1 = indice(progreso);
+    hecho.setAttribute("d", progreso > 0 && i1 > i0 ? "M" + pts.slice(i0, i1 + 1).map(q => q.join(" ")).join(" L") : "");
     inicio.style.opacity = fase === "esperando" ? 1 : 0;
   }
   function reiniciar() { fase = "esperando"; progreso = 0; cazador = 0; dedo.style.opacity = 0; dibujar(); }
@@ -949,8 +1037,8 @@ const trazo = (() => {
       const d = Math.hypot(p.x - pts[i][0], p.y - pts[i][1]);
       if (d < mejor) { mejor = d; mi = i; }
     }
-    if (mejor < 8) progreso = Math.max(progreso, s[mi]);
-    else if (mejor > 14) fallar("Te has salido del trazo.");
+    if (mejor < 6.5) progreso = Math.max(progreso, s[mi]);
+    else if (mejor > 12) fallar("Te has salido del trazo.");
     if (fase === "trazando" && progreso >= L - 1.5) acabar();
     dibujar();
   });
@@ -960,13 +1048,13 @@ const trazo = (() => {
     empezar(nombre, fin) {
       preparar(nombre); alAcabar = fin; capa.hidden = false; reiniciar();
       mandos.style.visibility = "hidden";                         // la palanca y los botones, fuera mientras se traza
-      rotular(tactil ? "Pon el dedo en el punto blanco y resigue la figura antes de que te alcance la sombra." : "Pulsa en el punto blanco y resigue la figura, sin soltar, antes de que te alcance la sombra.", 6);
+      rotular(tactil ? "Pon el dedo en el punto blanco. Resigue la figura antes de que la línea se borre." : "Pulsa en el punto blanco. Resigue la figura sin soltar, antes de que la línea se borre.", 6);
     },
     actualizar(dt) {
       if (capa.hidden) return;
       if (fase === "trazando") {
         cazador += figura.velocidad * dt;
-        if (cazador >= progreso) fallar("La sombra te ha alcanzado.");
+        if (cazador >= progreso) fallar("La línea se ha borrado.");
         dibujar();
       } else if (fase === "fallo" && (espera -= dt) <= 0) reiniciar();
       else if (fase === "hecho" && (espera -= dt) <= 0) { capa.hidden = true; fase = "nada"; mandos.style.visibility = ""; const f = alAcabar; alAcabar = null; if (f) f(); }
@@ -1053,7 +1141,7 @@ let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBast
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
-let avisoRocas = false, avisoSalto = false, avisoAlza = false;
+let avisoRocas = false, avisoSalto = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
@@ -1115,7 +1203,8 @@ function empezarRescate() {
   rescate = { t: 0, desde: pos.clone(), hacia: enPrecipicio ? inicio : seguro.clone() };
   vel.set(0, 0, 0);
   efectoEspiral = 2;
-  if (!tieneBaston) rotular("El viento te recoge. Necesitarás algo más para cruzar.", 5);
+  if (pos.z < PUENTE.desde + 1 && pos.z > PUENTE.hasta - 1) rotular("El viento te recoge. Cruza por las pilastras.", 4);
+  else if (!tieneBaston) rotular("El viento te recoge. Necesitarás algo más para cruzar.", 5);
 }
 
 function actualizar(dt) {
@@ -1246,7 +1335,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -1265,8 +1354,10 @@ function actualizar(dt) {
       musica.nota("recoger", 0.6); musica.viento(0.3, 0.9);
     }
     if (!avisoRocas && pos.z < ZONA_ROCAS[0] + 4) { avisoRocas = true; rotular("Rocas en el camino: rodéalas.", 4); }
+    if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Un abismo. Cruza por las pilastras.", 4); }
+    if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Pilastras caídas: salta con Λ." : "Pilastras caídas: salta con Espacio.", 4); }
-    if (!avisoAlza && !tieneBaston && pos.z < ZONA_PILASTRAS[1] - 2) { avisoAlza = true; rotular("Algo se alza a lo lejos, sobre la nieve.", 5); }
+    if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos, sobre la nieve.", 5); }
     if (!avisoPenascos && pos.z < DESFILADERO.desde + 2 && penascos.some(p => p.estado === "suelo")) {
       avisoPenascos = true;
       rotular(muevePiedras ? "Peñascos cierran el paso. Acércate y usa el viento." : "Peñascos cierran el paso. Quizá la plataforma de atrás guarde algo.", 6);
@@ -1527,7 +1618,7 @@ window.__blizzard = { niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: 
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   bordes: () => colisiones.filter(c => c.borde).map(c => [c.z, c.borde.map(v => +v.toFixed(2)).join(" ")]),
-  autoTrazo: false, completarTrazo: () => trazo.completar(), LARGO, get trazando() { return trazo.activo; }, get faseTrazo() { return trazo.fase; },
+  autoTrazo: false, completarTrazo: () => trazo.completar(), LARGO, caminoX, get trazando() { return trazo.activo; }, get faseTrazo() { return trazo.fase; },
   simular(segundos, mantenidas = [], alInicio = []) {
     mantenidas.forEach(k => teclas.add(k)); alInicio.forEach(k => pulsadas.add(k));
     for (let t = 0; t < segundos; t += 1 / 60) {

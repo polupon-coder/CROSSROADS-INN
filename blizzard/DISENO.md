@@ -473,6 +473,16 @@ sueltas, se repite; se puede volver a empezar enseguida tocando el punto de inic
 El recorrido se ha alargado por tramos (función LARGO): la salida queda despejada (la primera
 roca, a 23 m, oculta en la niebla) y hay rocas y ruinas entre las zonas y entre los acantilados.
 Los bordes de la grieta y del precipicio tienen roturas anchas, sin dientes de sierra.
+Tras las pilastras de salto hay una zona mixta (rocas y pilastras caídas de tamaños y
+posiciones distintas: unas se rodean, otras se saltan, y una puerta estrecha entre dos rocas
+altas). Antes de la primera plataforma, un abismo se cruza por un puente de pilastras gruesas:
+sube hasta una plataforma sobre una columna maciza y baja en diagonal; columnas gruesas se
+alzan desde la niebla del fondo. Si caes, el viento te devuelve al borde.
+La segunda plataforma está en una sala de roca redonda, rodeada por un anillo de piedras que
+solo deja abierta la entrada: para seguir hay que alzar y apartar alguna.
+En móvil, la palanca solo aparece al tocar, donde se pone el dedo. Los rótulos ponen cada frase
+en su línea. En el trazo, la línea blanca se va borrando desde el principio (sin punto negro);
+la espiral tiene dos vueltas y media ondulada y la runa, dos rombos en sentidos contrarios.
 Antes de la primera plataforma hay dos zonas para aprender: filas de rocas alternas, con nieve
 acumulada, que obligan a ir de un lado a otro, y dos pilastras caídas de través que hay que
 saltar. Los pilares del precipicio son anchos por ahora (más fácil) y el primero queda separado
