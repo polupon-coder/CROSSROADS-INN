@@ -738,7 +738,7 @@ for (let x = -18; x <= 18; x += 2.2) {
 }
 
 // Agujas muy altas en la zona inicial, a los lados: siluetas que se alzan en la niebla.
-for (const [x, z, alto, k, giro] of [[-17, -15, 24, 5, 0.4], [19, -20, 19, 4, 2.1], [-23, -27, 17, 5, 4.2]]) {
+for (const [x, z, alto, k, giro] of [[-27, -34, 17, 5, 0.4], [19, -20, 19, 4, 2.1], [-23, -27, 17, 5, 4.2]]) {
   colocar(kitRocas[k], x, z, alto, giro, 0.12);
   colisiones[colisiones.length - 1].r = kitRocas[k].ancho / 2 * alto / kitRocas[k].alto;
 }
@@ -871,9 +871,12 @@ for (let i = 0; i < 34; i++) {
   const rndR = generador(2718);
   const tramos = [[-43, -53, 10], [TRAS(-114), TRAS(-123), 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
   for (const [desde, hasta, n] of tramos) for (let i = 0; i < n; i++) {
-    const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1, x = caminoX(z) + lado * (4.5 + rndR() * 6.5);
+    const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1; let x = caminoX(z) + lado * (4.5 + rndR() * 6.5);
     const ruina = rndR() < 0.45, kit = ruina ? kitRuinas : kitRocas;
-    const pieza = distinta(kit, kit[Math.floor(rndR() * (ruina ? 5 : kit.length))], x, z), alto = (ruina ? 1 + rndR() * 2.2 : 0.6 + rndR() * 1.8) * 1.5;
+    const pieza = distinta(kit, kit[Math.floor(rndR() * (ruina ? 5 : kit.length))], x, z);
+    // Las pilastras de ruina en pie, el doble de altas (los bloques no): apartadas lo que crecen.
+    const pilastra = ruina && kitRuinas.indexOf(pieza) >= 2, alto = (ruina ? 1 + rndR() * 2.2 : 0.6 + rndR() * 1.8) * (pilastra ? 3 : 1.5);
+    if (pilastra) x += lado * pieza.radio * alto / pieza.alto * 0.5;
     if (PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3) || solapa(x, z, pieza.radio * alto / pieza.alto * 0.85)) continue;
     colocar(pieza, x, z, alto, rndR() * Math.PI * 2, ruina ? 0.12 : 0.25);
     colisiones[colisiones.length - 1].r = pieza.radio * alto / pieza.alto * 0.85;
