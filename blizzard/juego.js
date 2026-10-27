@@ -42,7 +42,12 @@ const ANCHO_CAMINO = 13;      // a partir de aquí el viento frena
 
 // Plano por tramos: las medidas de abajo se escribieron para un recorrido más corto. LARGO las
 // estira: de la salida a la plataforma (para las zonas de aprender) y entre los acantilados.
-const TRAMOS = [[12, 12], [-4, -4], [-42, -130], [-100, -188], [-110, -210], [-133, -233], [-141, -251], [-400, -510]];
+// Hueco de 18 m tras las pilastras de salto (z -65 del plano estirado), para la zona de agacharse:
+// lo que se escribió ya en el plano estirado más allá de ese punto se corre con TRAS.
+const HUECO = { en: -65, largo: 18 };
+const TRAS = z => z < HUECO.en ? z - HUECO.largo : z;
+const TRAMOS = [[12, 12], [-4, -4], [-4 - 61 * 38 / 126, -65], [-42, -130], [-100, -188], [-110, -210], [-133, -233], [-141, -251], [-400, -510]]
+  .map(([a, n], i) => [a, i > 2 ? n - HUECO.largo : n]);
 const LARGO = z => {
   for (let i = 0; i < TRAMOS.length - 1; i++) {
     const [a, na] = TRAMOS[i], [b, nb] = TRAMOS[i + 1];
@@ -74,7 +79,7 @@ const PILARES = [[0.5, -113.4, 2.0], [-0.6, -118.0, 1.8], [0.4, -122.9, 2.3, "ro
 const bordePrec = (x, base, fase) => base + Math.sin(x * 0.32 + fase) * 0.5 + Math.sin(x * 0.8 + fase * 2) * 0.15 + Math.sin(x * 0.21 + fase) * 1.4 * suave(3, 10, Math.abs(x));
 const precDesde = x => bordePrec(x, PRECIPICIO.desde, 0), precHasta = x => bordePrec(x, PRECIPICIO.hasta, 2.1);
 // Abismo antes de la primera plataforma: se cruza saltando de peñón en peñón.
-const PUENTE = { desde: -99, hasta: -110.5 };
+const PUENTE = { desde: TRAS(-99), hasta: TRAS(-110.5) };
 const puenteDesde = x => bordePrec(x, PUENTE.desde, 1.1), puenteHasta = x => bordePrec(x, PUENTE.hasta, 3.3);
 const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta]];
 // Segunda plataforma, ya sobre el rellano: allí el bastón aprende a mover piedras.
@@ -491,7 +496,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // ─── Antes de la primera plataforma: dos zonas para aprender ───────────────
 // Rocas y nieve acumulada que obligan a ir de un lado a otro, y luego pilastras caídas que hay
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
-const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-70, -91];      // ya en el plano estirado
+const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
   // Roca con colisión del tamaño que se ve, para no meterse dentro.
@@ -533,16 +538,16 @@ const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-
     monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - largo / 2 - 1.5, z, 3.2, 1.6, rndA() * 6);
   }
   // Zona mixta: rocas y pilastras de tamaños y posiciones distintas; unas se rodean, otras se saltan.
-  const roca = (k, dx, z, alto, radio) => rocaEntera(kitRocas[Math.min(kitRocas.length - 1, k)], caminoX(z) + dx, z, alto, radio);
-  const pil = (dx, z, largo, grueso, giro) => pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro);
+  const roca = (k, dx, z, alto, radio) => (z = TRAS(z), rocaEntera(kitRocas[Math.min(kitRocas.length - 1, k)], caminoX(z) + dx, z, alto, radio));
+  const pil = (dx, z, largo, grueso, giro) => (z = TRAS(z), pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro));
   roca(4, 1.6, -71, 2.2); roca(5, 3.1, -71.6, 1.9); roca(2, -4.2, -70.5, 1.0);
   pil(-1.8, -74.5, 3.6, 1.15, 0.25);                            // corta, a la izquierda: se rodea por la derecha o se salta
   roca(1, -0.3, -77.2, 0.95); roca(1, 1.4, -77.8, 1.0); roca(3, -2.6, -78, 1.3);
   pil(0.4, -81, 7.5, 1.5, -0.45);                               // larga y gruesa, en diagonal: hay que saltarla
   roca(3, -1.75, -84.0, 2.0, 1.2); roca(5, 1.6, -85.1, 2.9, 1.0);   // puerta estrecha entre dos rocas altas, distintas
   pil(2.6, -87.5, 4.4, 1.0, 0.6); roca(2, -2.4, -87.8, 1.4);
-  monticulo(kitRocas[0], caminoX(-89.5) - 1.2, -89.5, 3.0, 1.0, 1.2);
-  for (const [dx, z] of [[-7, -73], [7.5, -79], [-7.5, -86], [6.5, -90]]) monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], caminoX(z) + dx, z, 3.4, 1.4, rndA() * 6);
+  monticulo(kitRocas[0], caminoX(TRAS(-89.5)) - 1.2, TRAS(-89.5), 3.0, 1.0, 1.2);
+  for (const [dx, z] of [[-7, -73], [7.5, -79], [-7.5, -86], [6.5, -90]].map(([dx, z]) => [dx, TRAS(z)])) monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], caminoX(z) + dx, z, 3.4, 1.4, rndA() * 6);
 }
 
 // ─── Piedra tallada de una pieza (kit de pilares) ──────────────────────────
@@ -747,10 +752,10 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
     barra(A.clone().addScaledVector(dir, -antes).add(baja), B.clone().addScaledVector(dir, despues).add(baja), ancho, Math.PI / 2);
     colisiones.push({ x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + ancho, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: ancho * 0.45 } });
   };
-  const FONDO = alturaTerreno(caminoX(-104.6), -104.6) - 1;
+  const FONDO = alturaTerreno(caminoX(TRAS(-104.6)), TRAS(-104.6)) - 1;
   const zA = puenteDesde(caminoX(PUENTE.desde)) + 1.2, zD = puenteHasta(caminoX(PUENTE.hasta)) - 1.2;
   const A = new THREE.Vector3(caminoX(zA), alturaTerreno(caminoX(zA), zA) + 0.05, zA);
-  const M = { x: caminoX(-104.6) + 0.5, z: -104.6, r: 2.3 }; M.y = A.y + 1.2;
+  const M = { x: caminoX(TRAS(-104.6)) + 0.5, z: TRAS(-104.6), r: 2.3 }; M.y = A.y + 1.2;
   const D = new THREE.Vector3(caminoX(zD) + 1.6, 0, zD); D.y = alturaTerreno(D.x, D.z) + 0.05;
   // Columna: de una pieza desde el fondo hasta la cima plana por la que se pasa.
   barra(new THREE.Vector3(M.x, FONDO, M.z), new THREE.Vector3(M.x, M.y, M.z), M.r * 2, 0.4);
@@ -767,7 +772,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   puntal(new THREE.Vector3(D.x - 1.5, D.y - 7, puenteHasta(D.x - 1.5) - 1.4), D, C, 0.5);
   // Columnas de adorno desde la niebla del fondo, de alturas y gruesos distintos, algo ladeadas.
   for (const [dx, z, cima] of [[-6.5, -101.2, -1.5], [8, -103.5, 3.2], [-10.5, -107.8, 1.2], [13, -100.6, -3.5], [-16.5, -104.5, 4.5], [17, -108.4, -0.5],
-    [6.5, -109.2, -4.5], [-5.5, -107.6, -6], [21, -104, 6], [-22, -100.8, 1.5]]) {
+    [6.5, -109.2, -4.5], [-5.5, -107.6, -6], [21, -104, 6], [-22, -100.8, 1.5]].map(([dx, z, c]) => [dx, TRAS(z), c])) {
     const x = caminoX(z) + dx, alto = cima - FONDO, ancho = Math.min(4.8, alto / (P.alto / P.ancho) * (0.6 + rndB() * 0.25));
     const ladeo = new THREE.Vector3((rndB() - 0.5) * 0.12, 1, (rndB() - 0.5) * 0.12).normalize().multiplyScalar(alto);
     barra(new THREE.Vector3(x, FONDO, z), new THREE.Vector3(x, FONDO, z).add(ladeo), ancho, rndB() * 6);
@@ -775,26 +780,51 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 }
 
 // ─── Zona de agacharse ─────────────────────────────────────────────────────
-// Tras las pilastras de salto: dos pilastras tumbadas sobre bloques, a poca altura. De pie no se
-// pasa; agachado, sí. Debajo, un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-66.6, -68.6];
+// En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
+// entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
+// Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
+const ZONA_AGACHARSE = [-69.5, -75.5, -81.5];
 {
-  const rndG = generador(3131), LIBRE = 1.3;                     // altura libre bajo la pilastra
-  ZONA_AGACHARSE.forEach((z, i) => {
-    const cx = caminoX(z), giro = (rndG() - 0.5) * 0.25, suelo = alturaTerreno(cx, z);
-    const ex = Math.cos(giro), ez = -Math.sin(giro), grueso = 0.95, largo = 7.5;
-    // Bloques que la sostienen, uno a cada lado del paso, distintos.
-    for (const lado of [-1, 1]) {
-      const bx = cx + ex * lado * 2.5, bz = z + ez * lado * 2.5, pieza = kitPilares[(i + (lado > 0 ? 1 : 0)) % 3];
-      colocar(pieza, bx, bz, LIBRE + 0.15, giro + rndG() * 0.4, 0.1, alturaTerreno(bx, bz), false).children[0].material = nieveFina;
-      const c = colisiones[colisiones.length - 1]; c.r = pieza.ancho / 2 * (LIBRE + 0.15) / pieza.alto;
+  const rndG = generador(3131);
+  // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
+  const viga = (pieza, a, b, grueso) => {
+    pilarTallado(pieza, a, b, grueso, rndG() * 6);
+    const largo = a.distanceTo(b);
+    for (let t = 0.25; t <= largo - 0.25; t += 0.45) {
+      const q = a.clone().lerp(b, t / largo);
+      colisiones.push({ x: q.x, z: q.z, r: grueso * 0.55, techo: q.y + grueso / 2, bajo: q.y - grueso / 2 });
     }
-    // La pilastra, tumbada encima de los dos bloques.
-    const y = suelo + LIBRE + grueso / 2 + 0.05;
-    pilarTallado(kitPilares[i ? 4 : 5], new THREE.Vector3(cx - ex * largo / 2, y, z - ez * largo / 2), new THREE.Vector3(cx + ex * largo / 2, y + (rndG() - 0.5) * 0.2, z + ez * largo / 2), grueso, rndG() * 6);
-    for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.45)
-      colisiones.push({ x: cx + ex * t, z: z + ez * t, r: grueso * 0.55, techo: y + grueso / 2, bajo: suelo + LIBRE });
-    for (const lado of [-1, 1]) monticulo(kitRocas[Math.floor(rndG() * kitRocas.length)], cx + ex * lado * (largo / 2 + 1.6), z + ez * lado * (largo / 2 + 1.6), 3.4, 1.7, rndG() * 6);
+  };
+  const bloque = (pieza, x, z, alto, giro) => {
+    colocar(pieza, x, z, alto, giro, 0.12, alturaTerreno(x, z), false).children[0].material = nieveFina;
+    colisiones[colisiones.length - 1].r = pieza.ancho / 2 * alto / pieza.alto;
+  };
+  const enLinea = (cx, z, giro, t, y) => new THREE.Vector3(cx + Math.cos(giro) * t, y, z - Math.sin(giro) * t);
+  const LIBRE = 1.35;
+  ZONA_AGACHARSE.forEach((z, i) => {
+    const cx = caminoX(z), suelo = alturaTerreno(cx, z);
+    if (i === 0) {
+      // Dolmen: una pilastra grande tumbada sobre dos bloques.
+      const giro = 0.38, g = 1.3, y = suelo + LIBRE + g / 2;
+      for (const lado of [-1, 1]) { const p = enLinea(cx, z, giro, lado * 3.1, 0); bloque(kitPilares[lado > 0 ? 2 : 1], p.x, p.z, LIBRE + 0.2, giro + rndG()); }
+      viga(kitPilares[5], enLinea(cx, z, giro, -5, y), enLinea(cx, z, giro, 5, y + 0.15), g);
+    } else if (i === 1) {
+      // Pilastra caída de lado: un extremo en el suelo, el otro sobre un bloque alto. Solo se pasa por el medio.
+      const giro = -0.42, g = 1.4, medio = suelo + LIBRE + g / 2, sube = 2.4;
+      const pie = enLinea(cx, z, giro, -5.2, medio - sube), cabeza = enLinea(cx, z, giro, 5.2, medio + sube);
+      const pb = enLinea(cx, z, giro, 4.6, 0);
+      bloque(kitPilares[2], pb.x, pb.z, medio + sube - g / 2 - alturaTerreno(pb.x, pb.z) + 0.25, giro);
+      viga(kitPilares[4], pie, cabeza, g);
+    } else {
+      // Un pilar grueso, algo girado en planta, apoyado en dos rocas grandes de distinta altura.
+      const giro = 0.12, g = 1.6, y = suelo + LIBRE + g / 2;
+      const a = enLinea(cx, z, giro, -3.4, 0), b = enLinea(cx, z, giro, 3.2, 0);
+      colocar(kitRocas[4], a.x, a.z, LIBRE + 0.9, rndG() * 6, 0.3);
+      colocar(kitRocas[3], b.x, b.z, LIBRE + 0.6, rndG() * 6, 0.3);
+      viga(kitPilares[3], enLinea(cx, z, giro, -5.4, y + 0.1), enLinea(cx, z, giro, 5.2, y - 0.05), g);
+    }
+    // Cierran los lados, para que haya que pasar por debajo.
+    for (const lado of [-1, 1]) monticulo(kitRocas[Math.floor(rndG() * kitRocas.length)], cx + lado * 7.2, z + (rndG() - 0.5) * 2, 4.2, 2.0, rndG() * 6);
   });
 }
 
@@ -829,7 +859,7 @@ for (let i = 0; i < 34; i++) {
 // Tramos entre zonas: rocas y ruinas a los lados del camino, dejando libre el paso.
 {
   const rndR = generador(2718);
-  const tramos = [[-43, -53, 10], [-114, -123, 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
+  const tramos = [[-43, -53, 10], [TRAS(-114), TRAS(-123), 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
   for (const [desde, hasta, n] of tramos) for (let i = 0; i < n; i++) {
     const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1, x = caminoX(z) + lado * (4.5 + rndR() * 6.5);
     const ruina = rndR() < 0.45, kit = ruina ? kitRuinas : kitRocas;
@@ -1019,7 +1049,7 @@ if (CON_CAPA) {
 // fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
 let bastonEnMano = false, inclinacionBaston = 0.1, vueloBaston = null, espiralEn = null;
 const _espBaston = new THREE.Vector3();
-let yaAlzada = false;                                          // hasta la primera, una roca movible lleva la espiral
+let yaAlzada = false, rocaMarcada = null;                                          // hasta la primera, una roca movible lleva la espiral
 const _v2 = new THREE.Vector3();
 const _puno = new THREE.Vector3(), _dedos = new THREE.Vector3(), _eje = new THREE.Vector3();
 function centroDelPuno(destino) {
@@ -1183,7 +1213,9 @@ estilo.textContent = `
   @media (prefers-reduced-motion: reduce) { #portada, #rotulo { transition: none; } }
   /* Trazo de runas: la figura en el centro; se resigue con el dedo o el ratón. */
   /* La figura, apartada de Blizzard y del bastón: arriba en vertical, a la izquierda en horizontal. */
-  #trazo { position: fixed; inset: 0; display: grid; place-items: start center; padding-top: calc(120px + env(safe-area-inset-top, 0px)); background: rgba(214, 226, 243, .28); pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
+  #trazo { position: fixed; inset: 0; display: grid; place-items: start center; padding-top: calc(120px + env(safe-area-inset-top, 0px)); background: rgba(28, 38, 58, .42); -webkit-backdrop-filter: blur(3px) saturate(.7); backdrop-filter: blur(3px) saturate(.7); animation: velo .6s ease-out; pointer-events: auto; touch-action: none; cursor: crosshair; z-index: 3; }
+  /* Veladura: mientras se traza, el resto de la escena queda apagada y algo desenfocada. */
+  @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
@@ -1638,6 +1670,17 @@ function actualizar(dt) {
         const d = Math.hypot(p.col.x - pos.x, p.col.z - pos.z) - p.col.r;
         if (d < mejor) { mejor = d; elegido = p; }
       }
+      // Si no hay ninguna al lado, el viento alcanza una movible que esté a la vista delante (hasta 14 m);
+      // la que marca la espiral, aunque esté algo de lado.
+      if (!elegido) {
+        let lejos = 14;
+        for (const p of penascos) {
+          if (p.estado !== "suelo" || !p.movible) continue;
+          const dx = p.col.x - pos.x, dz = p.col.z - pos.z, d = Math.hypot(dx, dz);
+          const delante = (dx * adelante.x + dz * adelante.z) / (d || 1), marcada = p === rocaMarcada;
+          if (d < lejos && (delante > 0.64 || (marcada && delante > 0))) { lejos = d; elegido = p; }
+        }
+      }
       if (elegido && !elegido.movible) { rotular("Demasiado grande.", 2); musica.viento(0.15, 1.3); elegido = null; }
       if (elegido) {
         colisiones.splice(colisiones.indexOf(elegido.col), 1);
@@ -1690,7 +1733,7 @@ function actualizar(dt) {
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoMixta && pos.z < ZONA_MIXTA[0] + 4) { avisoMixta = true; rotular("Rodea lo alto. Salta lo bajo.", 4); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
-    if (!avisoAgacharse && pos.z < ZONA_AGACHARSE[0] + 2.5) { avisoAgacharse = true; rotular(tactil ? "Desliza abajo para agacharte." : "Agáchate con C.", 3); }
+    if (!avisoAgacharse && pos.z < ZONA_AGACHARSE[0] + 3.5) { avisoAgacharse = true; rotular(tactil ? "Desliza abajo para agacharte." : "Agáchate con C.", 3); }
     if (!avisoAlza && !tieneBaston && pos.z < PUENTE.hasta - 3) { avisoAlza = true; rotular("Algo se alza a lo lejos.", 4); }
     if (!avisoPenascos && pos.z < DESFILADERO.desde + 2 && penascos.some(p => p.estado === "suelo")) {
       avisoPenascos = true;
@@ -1814,6 +1857,7 @@ function actualizar(dt) {
     // La de delante: la movible más cercana a la salida del anillo, la que hay que apartar para seguir.
     const sx = PLATAFORMA2.x, sz = PLATAFORMA2.z - ANILLO_R;
     for (const p of penascos) { const d = Math.hypot(p.g.position.x - sx, p.g.position.z - sz); if (p.movible && p.estado === "suelo" && d < mejor) { mejor = d; marca = p; } }
+    rocaMarcada = marca;
     if (marca) { espiralEn = marca.g.position; espiralTam = { r: marca.R * 1.25, alto: marca.alto * 1.1 }; efectoEspiral = Math.max(efectoEspiral, 0.75); }
   }
   blizzard.position.copy(pos);
@@ -2043,7 +2087,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
