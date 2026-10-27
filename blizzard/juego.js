@@ -20,8 +20,8 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
       cargador.parse(buf.buffer, "", ok, ko);
     }))
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
-// La capa queda desactivada por ahora (decisión del autor): no encaja bien sobre el cuerpo.
-const CON_CAPA = false;
+// Capa amarilla con capucha: tela simulada que cuelga de los hombros (ver «Capa de tela»).
+const CON_CAPA = true;
 const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa]) if (g) g.scene.traverse(o => {
@@ -825,7 +825,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-71, -76.5, -82];
+const ZONA_AGACHARSE = [-71, -77];
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -846,7 +846,7 @@ const ZONA_AGACHARSE = [-71, -76.5, -82];
   // otro alto sobre un bloque). En el centro queda una altura libre de agacharse; a los lados, no.
   ZONA_AGACHARSE.forEach((z, i) => {
     const cx = caminoX(z), suelo = alturaTerreno(cx, z);
-    const [giro, sube, g, pieza] = [[0.42, 0.14, 1.3, kitPilares[5]], [-0.36, -0.15, 1.45, kitPilares[4]], [0.3, 0.13, 1.6, kitPilares[3]]][i];
+    const [giro, sube, g, pieza] = [[0.42, 0.14, 1.3, kitPilares[5]], [-0.36, -0.15, 1.45, kitPilares[4]]][i];
     const libre = t => 1.3 + sube * t, eje = t => enLinea(cx, z, giro, t, suelo + libre(t) + g / 2);
     for (const t of [-4.6, 4.6]) {
       const p = enLinea(cx, z, giro, t, 0), alto = libre(t) + 0.25;
@@ -1046,7 +1046,7 @@ const AVISOS_TUNEL = [
     for (let k = 0; k < N; k++) {
       if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 2)) continue;
       const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
-      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.12), m.clone().lerp(p1, 1.12), ancho * 0.95, rndK() * 0.4);
+      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.35), m.clone().lerp(p1, 1.35), ancho * 1.08, rndK() * 0.4);   // bien solapadas
     }
   };
   // Pilastra caída de pared a pared, en el suelo: se salta (o, si es gruesa, se salta con el viento).
@@ -1056,16 +1056,18 @@ const AVISOS_TUNEL = [
     const g = pilarTallado.ultimo;
     for (let t = 0.3; t < 18.7; t += 0.45) { const q = a.clone().lerp(b, t / 19); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.5, techo: q.y + grueso * 0.5, obj: g }); }
   };
-  // Paso bajo: pilastra de pared a pared sobre dos bloques; debajo, techo bajo (solo agachado).
-  const bajo = (z, grueso, giro, libreIzq, libreDer) => {
-    for (const [lado, libre] of [[-1, libreIzq], [1, libreDer]]) {
-      const p = sobre(z, giro, lado * 6.6, 0), pieza = kitPilares[lado > 0 ? 2 : 1], alto = (libre + 1.3) / 2 + (libre - 1.3) * 0.2 + 0.25;
-      colocar(pieza, p.x, p.z, alto, giro + rndK(), 0.12, alturaTerreno(p.x, p.z), false).children[0].material = nieveFina;
-      colisiones[colisiones.length - 1].r = pieza.ancho / 2 * alto / pieza.alto;
+  // Paso bajo, como los del principio: pilastra girada en planta y ladeada en alzado sobre dos bloques;
+  // en el centro, altura de agacharse; los lados los cierra la retentiva.
+  const bajo = (z, giro, sube, g, pieza) => {
+    const libre = t => 1.3 + sube * t, eje = t => sobre(z, giro, t, libre(t) + g / 2);
+    for (const t of [-4.6, 4.6]) {
+      const p = sobre(z, giro, t, 0), alto = libre(t) + 0.25, b = kitPilares[t * sube > 0 ? 2 : 0];
+      colocar(b, p.x, p.z, alto, giro + rndK(), 0.12, alturaTerreno(p.x, p.z), false).children[0].material = nieveFina;
+      colisiones[colisiones.length - 1].r = b.ancho / 2 * alto / b.alto;
     }
-    const a = sobre(z, giro, -9.5, libreIzq + grueso / 2), b = sobre(z, giro, 9.5, libreDer + grueso / 2);
-    pilarTallado(kitPilares[4], a, b, grueso, rndK() * 6);
-    for (let t = 0.3; t < 18.7; t += 0.45) { const q = a.clone().lerp(b, t / 19); colisiones.push({ x: q.x, z: q.z, r: grueso * 0.55, techo: q.y + grueso / 2, bajo: q.y - grueso / 2 }); }
+    const a = eje(-5.4), c = eje(5.4);
+    pilarTallado(pieza, a, c, g, rndK() * 6);
+    for (let t = 0.25; t <= 10.55; t += 0.45) { const q = a.clone().lerp(c, t / 10.8); colisiones.push({ x: q.x, z: q.z, r: g * 0.55, techo: q.y + g / 2, bajo: q.y - g / 2 }); }
   };
   // Pasarela sobre la grieta: una pilastra tumbada a lo largo del camino, con los extremos enterrados.
   const pasarela = (zA, zB, ancho) => {
@@ -1132,7 +1134,7 @@ const AVISOS_TUNEL = [
   arco(-0.5, 16, 17, 3.6, "rotoDer", 0.06);
   caido(-3, 6.5, 2.4); caido(-6.5, 7.8, 1.7); caido(-1.5, -7.4, 2.0);
   tumbada(-334, 1.2, 0.1);                                       // se salta
-  bajo(BAJOS_TUNEL[0], 1.4, -0.32, 0.25, 2.35);                 // se pasa agachado, por el centro
+  bajo(BAJOS_TUNEL[0], 0.42, 0.14, 1.3, kitPilares[5]);         // se pasa agachado, por el centro
   pasarela(ZANJA.desde + 2, ZANJA.hasta - 2, 2.2);               // se cruza la grieta por encima
   // Una pilastra rota cae dentro de la grieta, de adorno.
   pilarTallado(kitPilares[3], sobre(ZANJA.desde - 1, 0.3, -6, -9), sobre(ZANJA.desde - 2.5, 0.3, -3.5, 0.6), 1.8, 1.2);
@@ -1145,7 +1147,7 @@ const AVISOS_TUNEL = [
   for (const [dx, dz, alto, ancho] of [[-0.85, 0.2, 2.0, 1.7], [0.9, -0.3, 1.8, 1.6]])
     penascos.push(nuevoPenasco(caminoX(PUERTA_Z) + dx, PUERTA_Z + dz, alto, ancho));
   tumbada(-391, 2.1, -0.08);                                     // gruesa: hay que saltar y usar el viento
-  bajo(BAJOS_TUNEL[1], 1.5, 0.36, 2.4, 0.2);                     // otra vez, ladeada al otro lado
+  bajo(BAJOS_TUNEL[1], -0.36, -0.15, 1.45, kitPilares[4]);      // otra vez, ladeada al otro lado
   // Rocas y agujas en lo alto de las paredes, y alguna pilastra en pie.
   for (const lado of [-1, 1]) for (let z = ARCOS.desde - 2; z > ARCOS.hasta - 8; z -= 4.5 + rndK() * 3) {
     if (z < ZANJA.desde + 2 && z > ZANJA.hasta - 2) continue;
@@ -1309,17 +1311,156 @@ poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
 const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
 figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
 blizzard.updateMatrixWorld(true);
-let capaMalla = null, capaBase = null;
-if (CON_CAPA) {
-  const capa = gCapa.scene;
-  capa.traverse(o => { if (o.isMesh) { capaMalla = o; o.material.side = THREE.DoubleSide; } });
+// ─── Capa de tela ──────────────────────────────────────────────────────────
+// El modelo de la capa (con sus pliegues) se deforma con una red de tela simulada alrededor del cuerpo:
+// la fila de arriba va cosida a los hombros; el resto cae con inercia, gravedad y viento, y choca con
+// el tronco, los brazos y las piernas (nunca se mete en ellos más de lo que está en reposo, así que
+// ningún gesto la atraviesa). La capucha sigue a la cabeza. Cada vértice sigue a los puntos de la red
+// que tiene cerca, así que los pliegues del modelo se conservan y ondean.
+const capaTela = (() => {
+  if (!CON_CAPA) return null;
+  const capa = gCapa.scene; let malla = null;
+  capa.traverse(o => { if (o.isMesh) malla = o; });
+  malla.material.side = THREE.DoubleSide; malla.frustumCulled = false; malla.castShadow = true;
   const cuello = enMundo("Neck"), cadera = enMundo("Hips"), cm = 100 * ESC;
   capa.scale.set(1.28 * cm, cm, 1.28 * cm);
   capa.position.set(cadera.x, cuello.y - 0.856 * cm + 0.04 * cm, cadera.z);
   scene.add(capa); capa.updateMatrixWorld(true);
-  hueso("Spine2").attach(capa);
-  capaBase = Float32Array.from(capaMalla.geometry.attributes.position.array);
-}
+  const espalda = hueso("Spine2"), cabeza = hueso("Head");
+  espalda.attach(capa); blizzard.updateMatrixWorld(true);
+  // Capucha amarilla: la del propio personaje (va pegada a la cabeza en cualquier gesto), teñida del
+  // amarillo de la capa conservando sus sombras; el hueco de la cara (casi negro) no se toca.
+  figura.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
+    const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
+    for (let k = 0; k < pz.count; k++) cap[k] = suave(yMax - 0.21 * H, yMax - 0.17 * H, pz.getY(k));
+    g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
+    o.material = o.material.clone();
+    o.material.onBeforeCompile = sh => {
+      sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
+      sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+        float lum = dot(diffuseColor.rgb, vec3(0.3333));
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.03, 0.08, lum));`);
+    };
+  });
+  const base = Float32Array.from(malla.geometry.attributes.position.array), n = base.length / 3;
+  // Red: NI filas (de los hombros al bajo) y NJ columnas alrededor (de un borde delantero al otro).
+  const NI = 9, NJ = 13, Y_HOMBRO = 0.7, Y_CUELLO = 0.816;
+  const ang = (x, z) => Math.atan2(x, -z);                         // 0 en la espalda, ±π delante
+  let aMin = Infinity, aMax = -Infinity;
+  for (let k = 0; k < n; k++) if (base[k * 3 + 1] < Y_HOMBRO) { const a = ang(base[k * 3], base[k * 3 + 2]); aMin = Math.min(aMin, a); aMax = Math.max(aMax, a); }
+  const filaDe = y => clamp((Y_HOMBRO - y) / Y_HOMBRO * (NI - 1), 0, NI - 1), colDe = a => clamp((a - aMin) / (aMax - aMin) * (NJ - 1), 0, NJ - 1);
+  // Reposo de cada punto (en el espacio de la capa): media de los vértices de su celda.
+  const reposo = Array.from({ length: NI * NJ }, () => [0, 0, 0, 0]);
+  for (let k = 0; k < n; k++) {
+    const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2];
+    if (y > Y_HOMBRO + 0.02) continue;
+    const r = reposo[Math.round(filaDe(y)) * NJ + Math.round(colDe(ang(x, z)))]; r[0] += x; r[1] += y; r[2] += z; r[3]++;
+  }
+  for (let pasada = 0; pasada < 6; pasada++) for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) {
+    const r = reposo[i * NJ + j]; if (r[3]) continue;
+    const vec = [reposo[i * NJ + j - 1], reposo[i * NJ + j + 1], reposo[(i - 1) * NJ + j], reposo[(i + 1) * NJ + j]].filter(q => q && q[3] && (q !== reposo[i * NJ + j - 1] || j > 0) && (q !== reposo[i * NJ + j + 1] || j < NJ - 1));
+    if (vec.length) { for (const q of vec) { r[0] += q[0] / q[3]; r[1] += q[1] / q[3]; r[2] += q[2] / q[3]; } r[0] /= vec.length; r[1] /= vec.length; r[2] /= vec.length; r[3] = 1; }
+  }
+  const local = reposo.map(r => new THREE.Vector3(r[0] / r[3], r[1] / r[3], r[2] / r[3]));
+  const radio0 = local.map(v => Math.hypot(v.x, v.z) - 0.004);
+  // Enlace de cada vértice: celda, pesos bilineales y cuánto sigue a la cabeza (capucha).
+  const celda = new Int32Array(n), fu = new Float32Array(n), fv = new Float32Array(n), wCabeza = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2], f = filaDe(y), c = colDe(ang(x, z));
+    const i0 = Math.min(NI - 2, Math.floor(f)), j0 = Math.min(NJ - 2, Math.floor(c));
+    celda[k] = i0 * NJ + j0; fv[k] = f - i0; fu[k] = c - j0;
+    wCabeza[k] = suave(Y_HOMBRO + 0.01, Y_CUELLO + 0.02, y);
+  }
+  // Partículas en el mundo.
+  const P = local.map(() => new THREE.Vector3()), Q = local.map(() => new THREE.Vector3()), A = local.map(() => new THREE.Vector3());
+  const D = local.map(() => new THREE.Vector3());
+  const largoV = [], largoH = [];
+  // Cápsulas del cuerpo: [hueso inicio, hueso fin, radio (m)].
+  const CAPSULAS = [["Hips", "Spine2", 0.15], ["Spine2", "Neck", 0.14], ["LeftArm", "LeftForeArm", 0.065], ["LeftForeArm", "LeftHand", 0.055],
+    ["RightArm", "RightForeArm", 0.065], ["RightForeArm", "RightHand", 0.055], ["LeftUpLeg", "LeftLeg", 0.085], ["LeftLeg", "LeftFoot", 0.065],
+    ["RightUpLeg", "RightLeg", 0.085], ["RightLeg", "RightFoot", 0.065]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
+  const _c = new THREE.Vector3(), _d = new THREE.Vector3();
+  const alSegmento = (p, cap) => { _d.subVectors(cap.pb, cap.pa); const t = clamp(_c.subVectors(p, cap.pa).dot(_d) / Math.max(1e-6, _d.lengthSq()), 0, 1); return _c.copy(cap.pa).addScaledVector(_d, t); };
+  const colocarCapsulas = () => { for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); } };
+  // En reposo, lo más cerca que cada punto está de cada cápsula: nunca se le empuja más allá.
+  const holgura = [];
+  const anclar = () => { const M = capa.matrixWorld; for (let k = 0; k < P.length; k++) A[k].copy(local[k]).applyMatrix4(M); };
+  anclar(); colocarCapsulas();
+  for (let k = 0; k < P.length; k++) {
+    P[k].copy(A[k]); Q[k].copy(A[k]);
+    holgura.push(CAPSULAS.map(c => Math.min(c.r + 0.035, alSegmento(A[k], c).distanceTo(A[k]) - 0.005)));
+  }
+  for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) {
+    largoV.push(i ? A[i * NJ + j].distanceTo(A[(i - 1) * NJ + j]) : 0);
+    largoH.push(j ? A[i * NJ + j].distanceTo(A[i * NJ + j - 1]) : 0);
+  }
+  // Cabeza respecto a la espalda, en reposo: la capucha se mueve con lo que la cabeza se aparte de esto.
+  const relCabeza = () => new THREE.Matrix4().copy(espalda.matrixWorld).invert().multiply(cabeza.matrixWorld);
+  const cabeza0Inv = relCabeza().invert(), C = capa.matrix.clone(), Cinv = C.clone().invert();
+  const _M = new THREE.Matrix4(), _Minv = new THREE.Matrix4(), _H = new THREE.Matrix4(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _p = new THREE.Vector3();
+  const atar = (a, b, largo, k) => {   // restricción de distancia entre dos puntos (a fijo si es de la fila de arriba)
+    _v.subVectors(P[b], P[a]); const d = _v.length() || 1e-6, e = (d - largo) / d;
+    if (a < NJ) P[b].addScaledVector(_v, -e * k); else { P[a].addScaledVector(_v, e * 0.5 * k); P[b].addScaledVector(_v, -e * 0.5 * k); }
+  };
+  let ultimo = new THREE.Vector3(), cuadro = 0;
+  return {
+    malla,
+    actualizar(dt, viento, suelo) {
+      dt = Math.min(dt, 1 / 30);
+      blizzard.updateMatrixWorld(true);
+      anclar(); colocarCapsulas();
+      // Si Blizzard ha saltado de sitio (rescate, reinicio), la capa vuelve a su forma.
+      if (A[0].distanceTo(ultimo) > 1.2) for (let k = 0; k < P.length; k++) { P[k].copy(A[k]); Q[k].copy(A[k]); }
+      ultimo.copy(A[0]);
+      for (let k = 0; k < P.length; k++) {
+        if (k < NJ) { P[k].copy(A[k]); Q[k].copy(A[k]); continue; }
+        const i = Math.floor(k / NJ), j = k % NJ, baja = i / (NI - 1);
+        _v.subVectors(P[k], Q[k]).multiplyScalar(0.965); Q[k].copy(P[k]);
+        const racha = 0.6 + 0.4 * Math.sin(reloj * 1.9 + j * 0.55 + i * 0.35) * Math.sin(reloj * 0.73 + j * 0.2);
+        _v.x += (viento.x * racha) * dt * dt * baja; _v.z += (viento.z * racha) * dt * dt * baja;
+        _v.y -= 9.8 * dt * dt;
+        P[k].add(_v);
+        P[k].lerp(A[k], 0.035 + 0.05 * (1 - baja));              // vuelve un poco a su forma: ni rígida ni lacia
+      }
+      _Minv.copy(capa.matrixWorld).invert();
+      for (let it = 0; it < 4; it++) {
+        for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) { const k = i * NJ + j; atar(k - NJ, k, largoV[k], 1); if (j) atar(k - 1, k, largoH[k], 0.8); }
+        for (let k = NJ; k < P.length; k++) {
+          // Sin meterse en el cuerpo (cápsulas), sin alejarse demasiado de su sitio y sin bajar del suelo.
+          for (let c = 0; c < CAPSULAS.length; c++) {
+            const q = alSegmento(P[k], CAPSULAS[c]), d = q.distanceTo(P[k]), h = holgura[k][c];
+            if (d < h) P[k].copy(q).addScaledVector(_w.subVectors(P[k], q).normalize(), h);
+          }
+          // Nunca más cerca del eje del cuerpo que en reposo (la túnica es ancha): solo se abre hacia fuera.
+          _p.copy(P[k]).applyMatrix4(_Minv); const r = Math.hypot(_p.x, _p.z), r0 = radio0[k];
+          if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); P[k].copy(_p.applyMatrix4(capa.matrixWorld)); }
+          const lejos = 0.12 + 0.42 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
+          if (d > lejos) P[k].lerp(A[k], 1 - lejos / d);
+          if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
+        }
+      }
+      // Desplazamiento de cada punto, en el espacio de la capa.
+      _Minv.copy(capa.matrixWorld).invert();
+      for (let k = 0; k < P.length; k++) D[k].copy(P[k]).applyMatrix4(_Minv).sub(local[k]);
+      _H.copy(Cinv).multiply(relCabeza()).multiply(cabeza0Inv).multiply(C);
+      const pos = malla.geometry.attributes.position, arr = pos.array;
+      for (let k = 0; k < n; k++) {
+        const c = celda[k], u = fu[k], w = fv[k], a = D[c], b = D[c + 1], d2 = D[c + NJ], e = D[c + NJ + 1];
+        const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2];
+        let nx = x + (a.x * (1 - u) + b.x * u) * (1 - w) + (d2.x * (1 - u) + e.x * u) * w;
+        let ny = y + (a.y * (1 - u) + b.y * u) * (1 - w) + (d2.y * (1 - u) + e.y * u) * w;
+        let nz = z + (a.z * (1 - u) + b.z * u) * (1 - w) + (d2.z * (1 - u) + e.z * u) * w;
+        const h = wCabeza[k];
+        if (h > 0) { _p.set(x, y, z).applyMatrix4(_H); nx += (_p.x - nx) * h; ny += (_p.y - ny) * h; nz += (_p.z - nz) * h; }
+        arr[k * 3] = nx; arr[k * 3 + 1] = ny; arr[k * 3 + 2] = nz;
+      }
+      pos.needsUpdate = true;
+      if ((cuadro++ & 1) === 0) malla.geometry.computeVertexNormals();
+    },
+  };
+})();
 
 // El bastón no sigue el giro de la mano (las animaciones son de hacha): se coloca cada
 // fotograma en el puño derecho, casi vertical, inclinado hacia delante según la velocidad.
@@ -1596,10 +1737,10 @@ function rotular(texto, segundos = 5) { rotulo.textContent = texto.replace(/([.!
 // que lo trazado se borre: la línea blanca se va borrando desde el principio. Si el borrado te
 // alcanza, te sales o sueltas, se repite.
 const FIGURAS = {
-  // Espiral ondulada de fuera adentro, vuelta y media: para llamar al bastón.
-  espiral: { velocidad: 34, puntos: Array.from({ length: 151 }, (_, i) => { const t = i / 150, a = -Math.PI / 2 + t * Math.PI * 3.2, r = 44 - t * 28 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
-  // La runa del viento: el rombo del botón ◇.
-  runa: { velocidad: 40, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10]] },
+  // Espiral ondulada de fuera adentro, dos vueltas y media: para llamar al bastón.
+  espiral: { velocidad: 50, puntos: Array.from({ length: 241 }, (_, i) => { const t = i / 240, a = -Math.PI / 2 + t * Math.PI * 5, r = 44 - t * 38 + Math.sin(a * 6) * 2.2 * (1 - t); return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
+  // La runa del viento: el rombo del botón ◇ en un sentido y otro rombo dentro en el contrario.
+  runa: { velocidad: 58, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
   // La runa de la puerta (lámina 80): dos rombos apilados, en un solo trazo, como un ocho.
   puerta: { velocidad: 40, puntos: [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 8]] },
 };
@@ -1914,7 +2055,7 @@ function actualizar(dt) {
     efectoEspiral = Math.max(efectoEspiral, arrodillado < 2.2 ? 1 : 0);
     if (arrodillado > 2.8 && aprende === "puerta") {
       estado = "juego"; abrePuertas = true;
-      rotular(tactil ? "Desde la plataforma,\n◇ abre la puerta." : "Desde la plataforma,\nE abre la puerta.", 6);
+      rotular(tactil ? "Desde la plataforma, agáchate\ny ◇ abre la puerta." : "Desde la plataforma, agáchate\ny E abre la puerta.", 6);
     } else if (arrodillado > 2.8) {
       estado = "juego"; muevePiedras = true;
       rotular(tactil ? "◇ alza una roca. ◇ otra vez la suelta." : "E alza una roca. E otra vez la suelta.", 6);
@@ -1939,7 +2080,7 @@ function actualizar(dt) {
     // Límite del mundo: un viento de cara que crece poco a poco y devuelve al camino.
     const rachaAntes = rachaViento;
     retencion = Math.max(0, retencion - dt * 1.2);
-    rachaViento = Math.max(clamp((c.d - ANCHO_CAMINO) / 5, 0, 1), retencion * 0.8);
+    rachaViento = clamp((c.d - ANCHO_CAMINO) / 5, 0, 1);   // el bumerán, solo lejos del camino
     if (rachaAntes < 0.15 && rachaViento >= 0.15) musica.viento(0.22, 1.1);     // el bumerán aparece
     if (rachaViento > 0) {
       const haciaFuera = deseo.x * c.nx + deseo.z * c.nz;
@@ -1959,7 +2100,7 @@ function actualizar(dt) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
       musica.viento(0.25, 0.7);
-    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && agachado && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
@@ -2001,7 +2142,6 @@ function actualizar(dt) {
     moverHorizontal(vel.x * dt, vel.z * dt);
     if (retenido(pos.x, pos.z) && !retenido(xAntes, zAntes)) {
       pos.x = xAntes; pos.z = zAntes; vel.x = vel.z = 0;
-      if (retencion < 0.3) musica.viento(0.22, 1.1);
       retencion = 1;
     }
     vel.y -= GRAVEDAD * dt;
@@ -2184,6 +2324,11 @@ function actualizar(dt) {
   blizzard.rotation.y = rumbo;
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
   colocarBaston(dt, Math.hypot(vel.x, vel.z));
+  if (capaTela) {
+    // Viento: el de la llanura (de lado) más el del límite del mundo; la carrera la echa atrás sola.
+    const cv = enCamino(pos.x, pos.z);
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8, z: 0.5 - cv.nz * rachaViento * 7 }, pos.y);
+  }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
@@ -2237,7 +2382,7 @@ function actualizar(dt) {
     }
   } else {
     // Al abrirse la puerta arcana, la cámara se aparta, atrás y centrada, para verla entera.
-    if (puertaArcana.t >= 0 && puertaArcana.t < 1.3) {
+    if (puertaArcana.t >= 0 && puertaArcana.t < 1.05) {
       const P = puertaArcana; ojo.set(P.x, P.y + 4.2, P.z + 17); mira.set(P.x, P.y + 4.2, P.z);
     }
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
@@ -2293,7 +2438,9 @@ function posturaReposo(dt) {
 // Velocidad a la que avanza cada animación en su ritmo normal (unidades por segundo).
 const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 4.0, correr_libre: 5.2, andar_agachado: 0.7 };
 let enAireAntes = false;
+let animForzada = null;
 function animar(dt, v, agachado) {
+  if (animForzada) { poner(animForzada, 0.2); mixer.update(dt); return; }
   const libre = tieneBaston ? "" : "_libre";
   if (estado === "portada" || estado === "intro") poner("quieto_libre", 0.3);
   // El gesto de tender la mano se hace una vez, al completar el trazo; mientras se traza, espera quieto.
@@ -2310,17 +2457,6 @@ function animar(dt, v, agachado) {
   posturaReposo(dt);
   gestoEscalon();
 
-  // Capa: la parte baja se echa hacia atrás y se abre con la velocidad, el viento y el salto.
-  if (!capaMalla) return;
-  const p = capaMalla.geometry.attributes.position;
-  const empuje = clamp(v / V_CORRER, 0, 1) * 0.55 + rachaViento * 0.35 + (enSuelo ? 0 : 0.25) + (rescate ? 0.35 : 0);
-  for (let i = 0; i < p.count; i++) {
-    const bx = capaBase[i * 3], by = capaBase[i * 3 + 1], bz = capaBase[i * 3 + 2];
-    const t = clamp((0.66 - by) / 0.66, 0, 1), t2 = t * t;
-    const ola = Math.sin(reloj * 6 + Math.atan2(bx, bz) * 2 + by * 4) * 0.012 * t * (0.3 + empuje);
-    p.setXYZ(i, bx * (1 + t2 * empuje * 0.12), by + t2 * empuje * 0.08, bz - t2 * empuje * 0.28 + ola);
-  }
-  p.needsUpdate = true;
 }
 
 function efectos(dt, adelante) {
@@ -2436,7 +2572,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
