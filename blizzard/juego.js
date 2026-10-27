@@ -663,8 +663,8 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   const rndB = generador(4711);
   // Pasarela entre dos puntos de su cara de arriba; se camina por encima.
   const viga = (a, b, grueso, pieza, conColision = true) => {
-    // Una sola pieza grande (una losa tallada o una roca), estirada a lo largo del tramo e inclinada
-    // con él, con la cara de arriba a la altura por donde se camina.
+    // Una sola pieza grande, estirada a lo largo del tramo e inclinada con él, con la cara de arriba
+    // a la altura por donde se camina.
     const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
     const lado = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), arriba = new THREE.Vector3().crossVectors(lado, dir);
     const ancho = grueso * 1.35, alto = grueso * 1.7, sx = ancho / (pieza.radio * 2), sz = (largo + 1.2) / (pieza.radio * 2), sy = alto / pieza.alto;
@@ -683,7 +683,13 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   const M = new THREE.Vector3(caminoX(-104.6) + 0.6, A.y + 1.5, -104.6), RM = 2.3;   // plataforma de en medio
   const B = new THREE.Vector3(M.x - 0.2, M.y, M.z + RM * 0.9 - 0.3), C = new THREE.Vector3(M.x + 0.9, M.y, M.z - RM * 0.9 + 0.4);
   const D2 = new THREE.Vector3(D.x - 2.6, alturaTerreno(D.x - 2.6, D.z) + 0.35, D.z);
-  viga(A, B, 1.8, kitRuinas[0]); viga(C, D2, 2.0, kitRocas[Math.min(kitRocas.length - 1, 3)]);
+  // Cada tramo es una pilastra tallada (como la apoyada en la pared de la derecha); otra pilastra
+  // igual sale de debajo del borde, desde dentro del abismo, y se mete en ella, sosteniéndola.
+  const pilastra = kitRuinas[Math.min(kitRuinas.length - 1, 1)];
+  viga(A, B, 1.8, pilastra); viga(C, D2, 1.9, pilastra);
+  const bajoBorde = (p, z) => new THREE.Vector3(p.x, p.y - 5.5, z);
+  viga(bajoBorde(A.clone().add(new THREE.Vector3(0.7, 0, 0)), puenteDesde(A.x) - 0.6), A.clone().lerp(B, 0.6).add(new THREE.Vector3(0, -0.55, 0)), 1.5, pilastra, false);
+  viga(bajoBorde(D2.clone().add(new THREE.Vector3(-0.6, 0, 0)), puenteHasta(D2.x) + 0.6), C.clone().lerp(D2, 0.4).add(new THREE.Vector3(0, -0.6, 0)), 1.6, pilastra, false);
   pilarDeKit(M.x, M.z, RM, "losa", M.y - 0.1, rndB, false);     // bloque tallado de cima plana, con su nieve
   // Columnas de adorno, gruesas, que se alzan desde la niebla del fondo, y una pilastra apoyada contra la pared.
   for (const [dx, z, ancho, cima] of [[-6.5, -101.2, 3.4, -1.5], [8, -103.5, 4.4, 3.2], [-10.5, -107.8, 3.9, 1.2], [13, -100.6, 3.1, -3.5], [-16.5, -104.5, 4.9, 4.5], [17, -108.4, 3.6, -0.5],
