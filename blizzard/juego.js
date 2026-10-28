@@ -1371,7 +1371,7 @@ figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
 // La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
-const AMARILLO = new THREE.Color(0.72, 0.52, 0.13);
+const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.88);   // apagado, como la capucha
 
 // ─── Esclavina ─────────────────────────────────────────────────────────────
 // La parte de arriba de la capa es una copia exacta de la espalda, la nuca y lo alto de los hombros del
@@ -1790,16 +1790,16 @@ const huellas = (() => {
     g.fillStyle = "#000"; g.fillRect(0, 0, 64, 64); g.filter = "blur(5px)"; g.fillStyle = "rgba(255,255,255,0.75)";
     g.beginPath(); g.ellipse(32, 32, 17, 30, 0, 0, Math.PI * 2); g.fill();
     return new THREE.CanvasTexture(c);
-  })(), geoSurco = new THREE.PlaneGeometry(0.5, 0.55);
+  })(), geoSurco = new THREE.PlaneGeometry(0.62, 0.6);
   for (let i = 0; i < 120; i++) {
-    const m = new THREE.Mesh(geoSurco, new THREE.MeshBasicMaterial({ color: "#6a7c9c", alphaMap: texSurco, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    const m = new THREE.Mesh(geoSurco, new THREE.MeshBasicMaterial({ color: "#8395b4", alphaMap: texSurco, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
     m.visible = false; m.rotation.order = "YXZ"; m.userData.nace = -99; scene.add(m); lista.push(m);
   }
   let surcoSig = 0;
   poner.surco = (x, y, z, rumbo) => {
     const m = lista[160 + surcoSig]; surcoSig = (surcoSig + 1) % 120;
     m.position.set(x, y + 0.05, z); m.rotation.set(-Math.PI / 2, rumbo + (Math.random() - 0.5) * 0.15, 0);
-    m.scale.set(0.9 + Math.random() * 0.25, 1, 1); m.userData.nace = reloj; m.userData.fuerza = 0.55 + Math.random() * 0.2; m.visible = true;
+    m.scale.set(0.9 + Math.random() * 0.25, 1, 1); m.userData.nace = reloj; m.userData.fuerza = 0.42 + Math.random() * 0.15; m.visible = true;
   };
   // Se van borrando: enteras unos segundos, luego se desvanecen.
   poner.actualizar = () => {
@@ -2548,9 +2548,9 @@ function actualizar(dt) {
   }
   blizzard.rotation.y = rumbo;
   huellas.actualizar();
-  // Surco en la nieve acumulada: andando por encima de un montículo, cada pocos centímetros.
-  if (enSuelo && estado === "juego" && Math.hypot(vel.x, vel.z) > 0.4 && pos.y > alturaTerreno(pos.x, pos.z) + 0.12 && MONTICULOS.some(mo => Math.hypot(pos.x - mo.x, pos.z - mo.z) < mo.r)) {
-    if (Math.hypot(pos.x - ultimoSurco.x, pos.z - ultimoSurco.z) > 0.24) { huellas.surco(pos.x, pos.y, pos.z, rumbo); ultimoSurco.set(pos.x, 0, pos.z); }
+  // Surco en la nieve acumulada (la ventisca alrededor de cada montículo): al pasar, cada pocos centímetros.
+  if (enSuelo && estado === "juego" && Math.hypot(vel.x, vel.z) > 0.4 && MONTICULOS.some(mo => Math.hypot(pos.x - mo.x, pos.z - mo.z) < mo.r * 2.2)) {
+    if (Math.hypot(pos.x - ultimoSurco.x, pos.z - ultimoSurco.z) > 0.24) { huellas.surco(pos.x, alturaSuelo(pos.x, pos.z), pos.z, rumbo); ultimoSurco.set(pos.x, 0, pos.z); }
   }
   { const sueloP = alturaSuelo(pos.x, pos.z), alto = Math.max(0, pos.y - sueloP), k = clamp(1 - alto / 2.5, 0, 1);
     sombraPies.position.set(pos.x, sueloP + 0.03, pos.z); sombraPies.rotation.z = rumbo; sombraPies.scale.set((0.5 + 0.3 * (1 - k)), (0.85 + 0.4 * (1 - k)), 1); sombraPies.material.opacity = k * 0.8; }
@@ -2788,10 +2788,60 @@ function animarPuerta(dt) {
   });
 }
 
+// ─── Desenfoque de profundidad ─────────────────────────────────────────────
+// La escena se dibuja en una textura con su profundidad; al pasarla a pantalla, lo muy cercano a la
+// cámara y lo muy lejano se emborronan un poco (Blizzard, a la distancia de enfoque, queda nítido).
+// La misma pasada suaviza los bordes dentados (la textura no tiene antialias). En móvil, sin él.
+const desenfoque = TACTIL ? null : (() => {
+  const rt = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+  rt.depthTexture = new THREE.DepthTexture(); rt.depthTexture.type = THREE.UnsignedIntType;
+  const muestras = [[0.0, 0.5], [0.48, 0.16], [0.29, -0.4], [-0.29, -0.4], [-0.48, 0.16], [0.0, 1.0], [0.87, 0.5], [0.87, -0.5], [0.0, -1.0], [-0.87, -0.5], [-0.87, 0.5], [0.5, 0.87]];
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { tColor: { value: rt.texture }, tDepth: { value: rt.depthTexture }, cerca: { value: camara.near }, lejos: { value: camara.far }, enfoque: { value: 7 }, px: { value: new THREE.Vector2() } },
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: `uniform sampler2D tColor; uniform sampler2D tDepth; uniform float cerca; uniform float lejos; uniform float enfoque; uniform vec2 px; varying vec2 vUv;
+      float prof(vec2 uv) { float z = texture2D(tDepth, uv).x * 2.0 - 1.0; return 2.0 * cerca * lejos / (lejos + cerca - z * (lejos - cerca)); }
+      float luz(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+      vec3 suavizar(vec2 uv) {
+        vec3 c = texture2D(tColor, uv).rgb;
+        float n = luz(texture2D(tColor, uv + vec2(0.0, px.y)).rgb), s = luz(texture2D(tColor, uv - vec2(0.0, px.y)).rgb);
+        float e = luz(texture2D(tColor, uv + vec2(px.x, 0.0)).rgb), o = luz(texture2D(tColor, uv - vec2(px.x, 0.0)).rgb), l = luz(c);
+        float rango = max(max(n, s), max(max(e, o), l)) - min(min(n, s), min(min(e, o), l));
+        if (rango < 0.04) return c;
+        vec2 borde = normalize(vec2(-(n - s), e - o) + 1e-5) * px;
+        vec3 a = 0.5 * (texture2D(tColor, uv + borde * 0.6).rgb + texture2D(tColor, uv - borde * 0.6).rgb);
+        return mix(c, a, 0.7);
+      }
+      void main() {
+        float d = prof(vUv);
+        float coc = clamp(smoothstep(enfoque * 0.5, enfoque * 0.15, d) + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
+        vec3 col = suavizar(vUv);
+        if (coc > 0.02) {
+          vec2 r = px * coc * 3.2; vec3 suma = col;
+          ${muestras.map(([x, y]) => `suma += texture2D(tColor, vUv + vec2(${x.toFixed(2)}, ${y.toFixed(2)}) * r).rgb;`).join(" ")}
+          col = suma / ${muestras.length + 1}.0;
+        }
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    depthTest: false, depthWrite: false,
+  });
+  const cuadro = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); cuadro.frustumCulled = false;
+  const escena = new THREE.Scene(); escena.add(cuadro); const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  return {
+    ajustar(w, h) { const pr = renderer.getPixelRatio(); rt.setSize(Math.round(w * pr), Math.round(h * pr)); mat.uniforms.px.value.set(1 / (w * pr), 1 / (h * pr)); },
+    dibujar() {
+      mat.uniforms.enfoque.value = Math.max(2, camara.position.distanceTo(pos));
+      renderer.setRenderTarget(rt); renderer.render(scene, camara);
+      renderer.setRenderTarget(null); renderer.render(escena, cam);
+    },
+  };
+})();
+
 // ─── Bucle ─────────────────────────────────────────────────────────────────
 function ajustar() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
+  if (desenfoque) desenfoque.ajustar(w, h);
   camara.aspect = w / h;
   camara.updateProjectionMatrix();
 }
@@ -2846,7 +2896,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
-        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 1.0, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
+        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.88, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
@@ -2859,14 +2909,14 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.6, 1, false, 0.82); } });
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.6, 1, false, 0.7); } });
   hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.22, 0, 0.65);    // nieve fina sobre los hombros
   hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.22, 0, 0.3, 0.8);   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
-    hechos.add(o.material); nevar(o.material, 0.75, 0, 0, 0, 1, true);
+    hechos.add(o.material); nevar(o.material, 1.05, 0, 0, 0, 1, true);
   });
 }
 // Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
@@ -2885,12 +2935,12 @@ function bucle(ahora) {
   anterior = ahora;
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
-  renderer.render(scene, camara);
+  if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara);
   requestAnimationFrame(bucle);
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
