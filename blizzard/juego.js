@@ -75,7 +75,7 @@ const PRECIPICIO = { desde: LARGO(-110), hasta: LARGO(-133) };
 // [desvío lateral, z, radio, tipo]: anchos, para que sea fácil por ahora, y el primero algo separado del borde. Los normales son pilastras
 // apiladas; «rocas», un peñón grande de rocas con piedras encima; «losa», otro grande de ruinas anchas.
 // Desplazados a la derecha en zigzag: cada salto pide moverse también a un lado.
-const PILARES = [[1.2, -113.4, 2.0], [3.4, -118.0, 1.8], [1.8, -122.9, 2.3, "rocas"], [4.2, -128.6, 2.1, "losa"]].map(([x, z, ...resto]) => [x, LARGO(z), ...resto]);
+const PILARES = [[1.2, -113.4, 2.0], [3.4, -118.0, 1.8], [1.8, -122.9, 2.3, "rocas"], [4.2, -128.6, 2.1, "losa"]].map(([x, z, r, ...resto]) => [x, LARGO(z), r * 1.3, ...resto]);   // más anchas: el salto con viento, más asequible
 // Bordes del precipicio irregulares, como los de la grieta.
 const bordePrec = (x, base, fase) => base + Math.sin(x * 0.32 + fase) * 0.5 + Math.sin(x * 0.8 + fase * 2) * 0.15 + Math.sin(x * 0.21 + fase) * 1.4 * suave(3, 10, Math.abs(x));
 const precDesde = x => bordePrec(x, PRECIPICIO.desde, 0), precHasta = x => bordePrec(x, PRECIPICIO.hasta, 2.1);
@@ -518,6 +518,7 @@ for (const lado of [-1, 1]) for (let i = 0; i < 9; i++) {
 
 // Montículos de nieve: las formas del kit de rocas, aplastadas, hundidas y cubiertas con la
 // textura de nieve, agrupadas en algunas zonas de la llanura.
+const MONTICULOS = [];                                   // nieve acumulada: al cruzarla queda un surco
 function monticulo(pieza, x, z, ancho, alto, giro) {
   const g = new THREE.Group(), m = new THREE.Mesh(simplificada(pieza, 14), matMonticulo);
   m.position.copy(pieza.desplaza); m.receiveShadow = m.castShadow = true;
@@ -525,6 +526,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
   const y = alturaTerreno(x, z) - alto * 0.6;
   g.position.set(x, y, z); scene.add(g);
   colisiones.push({ x, z, r: ancho * 0.42, techo: y + alto * 0.9 });
+  MONTICULOS.push({ x, z, r: ancho * 0.48 });
 }
 {
   const zonas = [[10, -30], [-12, -64], [11, -78], [9, -150]].map(([x, z]) => [x, LARGO(z)]);
@@ -846,7 +848,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-71, -77];
+const ZONA_AGACHARSE = [-74.5, -80.5];                 // unos metros más allá de la segunda pilastra de salto
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -1753,6 +1755,7 @@ const espiral = (() => {
   return m;
 })();
 
+const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 const huellas = (() => {
   // Unas pocas variantes dibujadas a mano: la planta, borrosa en el borde, más honda en talón y punta.
   const variante = semilla => {
@@ -1780,6 +1783,23 @@ const huellas = (() => {
     m.rotation.set(-Math.PI / 2, rumbo + (Math.random() - 0.5) * 0.25, 0);
     const k = 0.85 + Math.random() * 0.3; m.scale.set(k * (0.9 + Math.random() * 0.2), k, 1);
     m.userData.nace = reloj; m.userData.fuerza = 0.5 + Math.random() * 0.35; m.visible = true;
+  };
+  // Surco: al cruzar nieve acumulada, una franja ancha y blanda (también se borra).
+  const texSurco = (() => {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 64; const g = c.getContext("2d");
+    g.fillStyle = "#000"; g.fillRect(0, 0, 64, 64); g.filter = "blur(5px)"; g.fillStyle = "rgba(255,255,255,0.75)";
+    g.beginPath(); g.ellipse(32, 32, 17, 30, 0, 0, Math.PI * 2); g.fill();
+    return new THREE.CanvasTexture(c);
+  })(), geoSurco = new THREE.PlaneGeometry(0.5, 0.55);
+  for (let i = 0; i < 120; i++) {
+    const m = new THREE.Mesh(geoSurco, new THREE.MeshBasicMaterial({ color: "#6a7c9c", alphaMap: texSurco, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    m.visible = false; m.rotation.order = "YXZ"; m.userData.nace = -99; scene.add(m); lista.push(m);
+  }
+  let surcoSig = 0;
+  poner.surco = (x, y, z, rumbo) => {
+    const m = lista[160 + surcoSig]; surcoSig = (surcoSig + 1) % 120;
+    m.position.set(x, y + 0.05, z); m.rotation.set(-Math.PI / 2, rumbo + (Math.random() - 0.5) * 0.15, 0);
+    m.scale.set(0.9 + Math.random() * 0.25, 1, 1); m.userData.nace = reloj; m.userData.fuerza = 0.55 + Math.random() * 0.2; m.visible = true;
   };
   // Se van borrando: enteras unos segundos, luego se desvanecen.
   poner.actualizar = () => {
@@ -2528,6 +2548,10 @@ function actualizar(dt) {
   }
   blizzard.rotation.y = rumbo;
   huellas.actualizar();
+  // Surco en la nieve acumulada: andando por encima de un montículo, cada pocos centímetros.
+  if (enSuelo && estado === "juego" && Math.hypot(vel.x, vel.z) > 0.4 && pos.y > alturaTerreno(pos.x, pos.z) + 0.12 && MONTICULOS.some(mo => Math.hypot(pos.x - mo.x, pos.z - mo.z) < mo.r)) {
+    if (Math.hypot(pos.x - ultimoSurco.x, pos.z - ultimoSurco.z) > 0.24) { huellas.surco(pos.x, pos.y, pos.z, rumbo); ultimoSurco.set(pos.x, 0, pos.z); }
+  }
   { const sueloP = alturaSuelo(pos.x, pos.z), alto = Math.max(0, pos.y - sueloP), k = clamp(1 - alto / 2.5, 0, 1);
     sombraPies.position.set(pos.x, sueloP + 0.03, pos.z); sombraPies.rotation.z = rumbo; sombraPies.scale.set((0.5 + 0.3 * (1 - k)), (0.85 + 0.4 * (1 - k)), 1); sombraPies.material.opacity = k * 0.8; }
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
@@ -2789,9 +2813,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
   // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
   // polvo: nieve fina en lo que mira hacia arriba (hombros); fuerza: cuánto cubre la de la base.
-  const nevar = (mat, alto, velo = 0, amarilloVelo = 0, polvo = 0, fuerza = 1) => {
+  // piedra: lleva la textura al gris azulado común de toda la piedra (sin tocar la nieve que ya trae).
+  const nevar = (mat, alto, velo = 0, amarilloVelo = 0, polvo = 0, fuerza = 1, piedra = false, apagar = 1) => {
     const prev = mat.onBeforeCompile, clave = mat.customProgramCacheKey();
-    mat.customProgramCacheKey = () => clave + "|pie" + [alto, velo, amarilloVelo, polvo, fuerza].join("|");
+    mat.customProgramCacheKey = () => clave + "|pie" + [alto, velo, amarilloVelo, polvo, fuerza, piedra, apagar].join("|");
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
@@ -2804,6 +2829,11 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
         }
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
+        ${piedra ? `{
+          float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          vec3 unida = vec3(0.42, 0.48, 0.62) / 0.47 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
+          diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));
+        }` : ""}
         ${alto > 0 ? `{
           float hP = vMundoPie.y - sueloPie(vMundoPie.xz);
           vec3 nvP = texture2D(texNievePie, vMundoPie.xz * 0.28 + vMundoPie.y * 0.15).rgb;
@@ -2816,10 +2846,11 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
+        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 1.0, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
-          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.45, 0.85, nWP.y) * smoothstep(0.3, 0.7, motasP) * ${polvo.toFixed(3)});
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)});
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         #include <fog_fragment>`);
@@ -2828,14 +2859,14 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.35); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.22, 0, 0.4);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.4, 0.22, 0, 0.15, 0.5);   // y suave abajo, junto al suelo
-  baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.3, 0.2); } });
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.6, 1, false, 0.82); } });
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.22, 0, 0.65);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.22, 0, 0.3, 0.8);   // y suave abajo, junto al suelo
+  baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
-    hechos.add(o.material); nevar(o.material, 0.75);
+    hechos.add(o.material); nevar(o.material, 0.75, 0, 0, 0, 1, true);
   });
 }
 // Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
