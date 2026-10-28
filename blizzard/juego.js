@@ -1376,7 +1376,7 @@ figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
 // La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
-const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.78);   // apagado, como la capucha
+const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.68);   // apagado, como la capucha
 
 // ─── Esclavina ─────────────────────────────────────────────────────────────
 // La parte de arriba de la capa es una copia exacta de la espalda, la nuca y lo alto de los hombros del
@@ -1767,21 +1767,22 @@ const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 const ventisqueros = [];
 function ventisquero(cx, cz, ancho, largo, alto) {
   const NX = 64, NZ = 46, geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
-  const p = geo.attributes.position, uv = geo.attributes.uv, base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
+  const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), r = Math.min(1, u * u + v * v);
     base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
+    afila[i] = suave(1, 0.45, Math.sqrt(r));                      // hacia el borde del montón, el surco se afila
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, x * 0.28, z * 0.28);
   }
   geo.computeVertexNormals();
   // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
   const tono = new Float32Array(p.count * 3); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3));
-  const sombra = i => 0.95 + 0.05 * Math.min(1, Math.max(0, base[i]) / alto);
+  const sombra = () => 1;
   for (let i = 0; i < p.count; i++) tono.fill(sombra(i), i * 3, i * 3 + 3);
   const tex = new THREE.TextureLoader().load("texturas/nieve.jpg"); tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
-  const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1, vertexColors: true }); mat.userData.suelo = true;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1, vertexColors: true }); mat.userData.suelo = true;   // como el suelo
   const malla = new THREE.Mesh(geo, mat); malla.receiveShadow = true; scene.add(malla);
-  ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, cambia: false });
+  ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, cambia: false });
 }
 ventisquero(0.4, 5.5, 8, 5.5, 0.55);
 // Cada fotograma: hunde lo que pisa Blizzard (con los bordes del surco algo levantados) y rellena el resto.
@@ -1791,9 +1792,9 @@ function pisarVentisqueros(dt) {
     let cambia = false;
     for (let i = 0; i < p.count; i++) {
       let h = v.hundido[i];
-      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); if (d < 0.42) { const k = suave(0.42, 0.18, d); if (k > h) { h = k; } } }
+      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.12 + 0.3 * a; if (d < rad) { const k = suave(rad, rad * 0.4, d) * (0.25 + 0.75 * a); if (k > h) { h = k; } } }
       if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
-      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); v.tono.fill(v.sombra(i) * (1 - 0.32 * h), i * 3, i * 3 + 3); cambia = true; }
+      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); v.tono.fill(1 - 0.22 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)), i * 3, i * 3 + 3); cambia = true; }   // sombra suave en las paredes; el fondo, blanco
     }
     if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; v.geo.computeVertexNormals(); }
     v.cambia = cambia;
@@ -2908,9 +2909,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
   // polvo: nieve fina en lo que mira hacia arriba (hombros); fuerza: cuánto cubre la de la base.
   // piedra: lleva la textura al gris azulado común de toda la piedra (sin tocar la nieve que ya trae).
-  const nevar = (mat, alto, velo = 0, amarilloVelo = 0, polvo = 0, fuerza = 1, piedra = false, apagar = 1) => {
+  // niebla: cuánta niebla recibe (el personaje, menos: a la distancia de la cámara quedaba lavado).
+  const nevar = (mat, alto, velo = 0, amarilloVelo = 0, polvo = 0, fuerza = 1, piedra = false, apagar = 1, niebla = 1) => {
     const prev = mat.onBeforeCompile, clave = mat.customProgramCacheKey();
-    mat.customProgramCacheKey = () => clave + "|pie" + [alto, velo, amarilloVelo, polvo, fuerza, piedra, apagar].join("|");
+    mat.customProgramCacheKey = () => clave + "|pie" + [alto, velo, amarilloVelo, polvo, fuerza, piedra, apagar, niebla].join("|");
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
@@ -2940,22 +2942,24 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
-        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.8, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
+        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.72, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)});
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
-        #include <fog_fragment>`);
+        ${niebla < 1 ? `#ifdef USE_FOG
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(fogNear, fogFar, fogDepth) * ${niebla.toFixed(3)});
+        #endif` : "#include <fog_fragment>"}`);
     };
     mat.needsUpdate = true;
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.05, 0.06, 0.6, 1, false, 0.58); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.1, 0, 0.65);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.1, 0, 0.3, 0.8);   // y suave abajo, junto al suelo
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.05, 0.06, 0.6, 1, false, 0.5, 0.3); } });
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.1, 0, 0.65, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.1, 0, 0.3, 0.8, false, 0.99, 0.3);   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
