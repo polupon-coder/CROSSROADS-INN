@@ -1389,31 +1389,29 @@ const esclavina = (() => {
   const alante = new THREE.Vector3().subVectors(hi, hd).setY(0).cross(arriba).normalize(), ladoV = new THREE.Vector3().crossVectors(alante, arriba);
   const yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, yAbajo = bp("Spine").y + 0.02 * m, yTope = cuello.y + 0.03 * m;
   // Separación de la espalda: pegada arriba, se levanta hacia abajo.
-  // (en los bordes apenas se despega: no asoma por los costados)
-  const sepDe = (y, l = 0) => (0.014 + 0.1 * clamp((yH - y) / (yH - yAbajo), 0, 1) ** 1.5 * (1 - clamp(Math.abs(l), 0, 1) ** 2 * 0.85)) * m;
+  const sepDe = y => (0.014 + 0.1 * clamp((yH - y) / (yH - yAbajo), 0, 1) ** 1.5) * m;
+  const L = mitad * 1.2;                                            // media anchura: laterales rectos
+  // De perfil, el borde lateral es una recta tangente a los hombros que baja hacia la espalda: lo que
+  // quedaba por delante de ella (bajo el brazo) se lleva justo a esa recta.
   const corte = y => (0.012 - 0.15 * Math.max(0, yH + 0.03 * m - y) / m) * m;
-  // Media anchura: en los hombros, hasta el arranque del brazo; por debajo algo menos (no llega a las axilas).
-  const L = mitad * 1.15, anchoEn = y => L * lerp(0.62, 1, clamp((y - yAbajo) / (yH - yAbajo), 0, 1) ** 0.7);
   const tronco = new Set(["Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder"].map(idx));
   const lat = new Float32Array(pz.count), fondo = new Float32Array(pz.count), dentro = new Uint8Array(pz.count), cerca = new Uint8Array(pz.count), _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
     _p.fromBufferAttribute(pz, k).sub(cuello); lat[k] = _p.dot(ladoV); fondo[k] = _p.dot(alante);
     const y = pz.getY(k);
     // La espalda entera de lado a lado hasta la nuca; por delante, solo lo alto de los hombros.
-    // Vista de lado, el borde es una recta tangente a los hombros que baja hacia la espalda: lo que
-    // queda por delante de ella (bajo el brazo) no entra.
-    const zona = fondo[k] <= corte(y) + 0.04 * m;
-    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= anchoEn(y) && fondo[k] <= corte(y) ? 1 : 0;
-    cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= anchoEn(y) * 1.2 && zona ? 1 : 0;   // se recorta al borde
+    const zona = fondo[k] <= corte(y) + 0.04 * m;                    // solo por detrás, hasta la recta de perfil
+    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= L && fondo[k] <= corte(y) ? 1 : 0;
+    cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= L * 1.5 && zona ? 1 : 0;   // se recorta a L y yAbajo
   }
   const nuevo = new Int32Array(pz.count).fill(-1), pos = [], nor = [], ski = [], skw = [], ind = [], ia = g.index.array;
   const usar = k => {
     if (nuevo[k] < 0) {
       nuevo[k] = pos.length / 3;
       // Bordes rectos: lo que pasa de los lados o de abajo se lleva justo al borde.
-      _p.fromBufferAttribute(pz, k); if (_p.y < yAbajo) _p.y = yAbajo; const w = anchoEn(_p.y); if (Math.abs(lat[k]) > w) _p.addScaledVector(ladoV, Math.sign(lat[k]) * w - lat[k]);
-      { const f0 = _p.clone().sub(cuello).dot(alante), fc = corte(_p.y); if (f0 > fc) _p.addScaledVector(alante, fc - f0); }   // borde de lado recto
-      const sep = sepDe(_p.y, _p.clone().sub(cuello).dot(ladoV) / w);
+      _p.fromBufferAttribute(pz, k); if (Math.abs(lat[k]) > L) _p.addScaledVector(ladoV, Math.sign(lat[k]) * L - lat[k]); if (_p.y < yAbajo) _p.y = yAbajo;
+      { const f0 = _p.clone().sub(cuello).dot(alante), fc = corte(_p.y); if (f0 > fc) _p.addScaledVector(alante, fc - f0); }
+      const sep = sepDe(_p.y);
       pos.push(_p.x + nm.getX(k) * sep, _p.y + nm.getY(k) * sep, _p.z + nm.getZ(k) * sep); nor.push(nm.getX(k), nm.getY(k), nm.getZ(k));
       for (const e of C) { ski.push(si[e](k)); skw.push(peso(k, e)); }
     }
@@ -1445,11 +1443,11 @@ const esclavina = (() => {
     const fila = [];
     for (let j = 0; j < 11; j++) {
       let a = null;
-      for (let enc = 0.97; !a && enc > 0.3; enc -= 0.05) a = anclar((j / 10 * 2 - 1) * anchoEn(y) * enc, y);   // en los bordes, algo hacia dentro si no da
+      for (let enc = 0.97; !a && enc > 0.3; enc -= 0.05) a = anclar((j / 10 * 2 - 1) * L * enc, y);   // en los bordes, algo hacia dentro si no da
       fila.push(a);
     }
-    // Donde el rayo no dé, la más cercana que sí dio.
-    return fila.map((a, j) => a || fila.reduce((b, c, k) => c && (!b || Math.abs(k - j) < Math.abs(b.k - j)) ? Object.assign(c, { k }) : b, null));
+    // Donde el rayo no dé, la vecina más cercana que sí dio.
+    return fila.map((a, j) => { if (a) return a; for (let d = 1; d < 11; d++) { const b = fila[j - d] || fila[j + d]; if (b) return b; } return null; });
   });
   const pielDe = (i, out) => {                                      // un vértice de la esclavina, en el mundo
     _base.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]).applyMatrix4(cuerpo.bindMatrix); out.set(0, 0, 0);
@@ -1542,7 +1540,7 @@ const capaTela = (() => {
   return {
     malla, P, A, estado: () => [+desvio.toFixed(2), +alzado.toFixed(2)],
     actualizar(dt, viento, suelo) {
-      dt = Math.min(dt, 1 / 30);
+      dt = clamp(dt, 0, 1 / 30);
       blizzard.updateMatrixWorld(true);
       alzado = lerp(alzado, viento.alzado || 0, 1 - Math.exp(-dt * 6));
       // Una mano que va atrás (al saltar, al agacharse) aparta la capa hacia el otro lado.
@@ -2787,7 +2785,7 @@ const sombraPies = (() => {
 
 let anterior = performance.now(), camaraFija = null;   // solo para pruebas
 function bucle(ahora) {
-  const dt = Math.min(0.05, (ahora - anterior) / 1000);
+  const dt = clamp((ahora - anterior) / 1000, 0, 0.05);           // nunca negativo (el primer fotograma tras cargar)
   anterior = ahora;
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
