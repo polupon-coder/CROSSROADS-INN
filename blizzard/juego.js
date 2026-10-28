@@ -1341,14 +1341,14 @@ const capaTela = (() => {
       sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
       sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
         float lum = dot(diffuseColor.rgb, vec3(0.3333));
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.03, 0.08, lum));`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.085, 0.12, lum));`);
     };
   });
   // Hombros algo más estrechos: la parte alta de la capa se cierra un poco hacia el centro.
-  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) a.setX(k, a.getX(k) * (1 - 0.12 * suave(0.42, 0.74, a.getY(k)))); }
+  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) a.setX(k, a.getX(k) * (1 - 0.2 * suave(0.42, 0.74, a.getY(k)))); }
   // Solo la parte de atrás, como una capa de capa y espada: fuera los triángulos de delante y de los
   // costados delanteros; arriba se deja algo más, para que caiga sobre los hombros.
-  const atras = (x, y, z) => Math.abs(Math.atan2(x, -z)) < 1.62 + 0.55 * suave(0.55, 0.76, y);
+  const atras = (x, y, z) => Math.abs(Math.atan2(x, -z)) < 1.5 - 0.18 * suave(0.5, 0.74, y);   // arriba, solo la espalda: detrás de los brazos
   {
     const a = malla.geometry.attributes.position, idx = malla.geometry.index.array, quedan = [];
     for (let t = 0; t < idx.length; t += 3) if ([0, 1, 2].every(q => atras(a.getX(idx[t + q]), a.getY(idx[t + q]), a.getZ(idx[t + q])))) quedan.push(idx[t], idx[t + 1], idx[t + 2]);
@@ -1430,9 +1430,9 @@ const capaTela = (() => {
         _v.subVectors(P[k], Q[k]).multiplyScalar(0.965); Q[k].copy(P[k]);
         const racha = 0.6 + 0.4 * Math.sin(reloj * 1.9 + j * 0.55 + i * 0.35) * Math.sin(reloj * 0.73 + j * 0.2);
         _v.x += (viento.x * racha) * dt * dt * baja; _v.z += (viento.z * racha) * dt * dt * baja;
-        _v.y -= 9.8 * dt * dt;
+        _v.y += ((viento.y || 0) * baja - 9.8) * dt * dt;
         P[k].add(_v);
-        P[k].lerp(A[k], 0.035 + 0.05 * (1 - baja));              // vuelve un poco a su forma: ni rígida ni lacia
+        P[k].lerp(A[k], 0.025 + 0.05 * (1 - baja));              // vuelve un poco a su forma: ni rígida ni lacia
       }
       _Minv.copy(capa.matrixWorld).invert();
       for (let it = 0; it < 4; it++) {
@@ -1446,7 +1446,7 @@ const capaTela = (() => {
           // Nunca más cerca del eje del cuerpo que en reposo (la túnica es ancha): solo se abre hacia fuera.
           _p.copy(P[k]).applyMatrix4(_Minv); const r = Math.hypot(_p.x, _p.z), r0 = radio0[k];
           if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); P[k].copy(_p.applyMatrix4(capa.matrixWorld)); }
-          const lejos = 0.14 + 0.55 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
+          const lejos = 0.16 + 0.85 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
           if (d > lejos) P[k].lerp(A[k], 1 - lejos / d);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
@@ -2339,7 +2339,8 @@ function actualizar(dt) {
     const cv = enCamino(pos.x, pos.z);
     // Y siempre algo hacia atrás y a un lado, para que se separe del cuerpo y ondee.
     const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo), ladoX = Math.cos(rumbo), ladoZ = -Math.sin(rumbo);
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * 2.6 + ladoX * 0.9, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * 2.6 + ladoZ * 0.9 }, pos.y);
+    const vuelo = 2.6 + Math.hypot(vel.x, vel.z) * 2.2 + (enSuelo ? 0 : 9);   // más atrás al moverse y aún más al saltar
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo + ladoX * 0.9, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo + ladoZ * 0.9, y: enSuelo ? 0 : 3 }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
