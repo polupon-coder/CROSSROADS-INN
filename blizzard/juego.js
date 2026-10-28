@@ -1980,6 +1980,14 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
     }
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
+  // Fuera los triángulos que caen en un desnivel (borde de abismo, escalón, pared): si no, el manto
+  // bajaría por la pared como una lámina o una púa.
+  { const ix = geo.index.array, bien = [];
+    for (let t = 0; t < ix.length; t += 3) {
+      const a = suelo[ix[t]], b = suelo[ix[t + 1]], c = suelo[ix[t + 2]];
+      if (Math.max(a, b, c) - Math.min(a, b, c) < 0.35 && Math.min(a, b, c) > -2) bien.push(ix[t], ix[t + 1], ix[t + 2]);
+    }
+    geo.setIndex(bien); }
   geo.computeVertexNormals();
   // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
   // Mismo material que el suelo (el tono de la nieve va en el color de cada vértice): no se distingue.
@@ -2925,9 +2933,15 @@ function actualizar(dt) {
       camara.position.lerp(new THREE.Vector3().copy(medio).addScaledVector(dir, lejos).add(new THREE.Vector3(0, 2.4, 0)), 1 - Math.exp(-dt * 3));
       camara.lookAt(medio.x, medio.y + 1.2, medio.z);
     } else if (tieneBaston) {
+      if (Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 2) {
+        // Plataforma de la puerta: más lejos, centrada en el paso y baja; se ve Blizzard y la puerta detrás.
+        camara.position.lerp(new THREE.Vector3(PLATAFORMA3.x, pos.y + 1.4, pos.z + 11), 1 - Math.exp(-dt * 3));
+        camara.lookAt(PLATAFORMA3.x, pos.y + 1.6, pos.z - 6);
+      } else {
       const objetivo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -6.2).add(new THREE.Vector3(0, 2.6, 0));   // punto de vista bajo
       camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
       camara.lookAt(new THREE.Vector3().copy(pos).addScaledVector(adelante, 1.5).add(new THREE.Vector3(0, 1.2, 0)));
+      }
     } else if (TACTIL) {
       const dir = new THREE.Vector3().copy(ladoLlamada).multiplyScalar(0.35).addScaledVector(adelante, -1).normalize();
       const lejos = camara.aspect < 1 ? 9 : 7;
