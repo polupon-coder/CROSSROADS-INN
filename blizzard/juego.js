@@ -819,8 +819,9 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   const A = new THREE.Vector3(caminoX(zA), alturaTerreno(caminoX(zA), zA) + 0.05, zA);
   const M = { x: caminoX(TRAS(-104.6)) + 0.5, z: TRAS(-104.6), r: 2.3 }; M.y = A.y + 1.2;
   const D = new THREE.Vector3(caminoX(zD) + 1.6, 0, zD); D.y = alturaTerreno(D.x, D.z) + 0.05;
-  // Columna: de una pieza desde el fondo hasta la cima plana por la que se pasa.
-  barra(new THREE.Vector3(M.x, FONDO, M.z), new THREE.Vector3(M.x, M.y, M.z), M.r * 2, 0.4);
+  // Columna: de una pieza, robusta, desde dentro de la niebla del abismo hasta la cima plana por la que
+  // se pasa (el abismo es hondo: desde el fondo quedaría estirada).
+  pilarTallado(kitPilares[4], new THREE.Vector3(M.x, M.y - 15, M.z), new THREE.Vector3(M.x, M.y, M.z), M.r * 2, 0.4);
   colisiones.push({ x: M.x, z: M.z, r: M.r * 0.95, techo: M.y - 0.05, obj: pilarTallado.ultimo });
   const B = new THREE.Vector3(M.x - 0.3, M.y, M.z + M.r - 0.4), C = new THREE.Vector3(M.x + 0.5, M.y, M.z - M.r + 0.4);
   pasarela(A, B, 2.4, 1.6);                                      // el pie, enterrado en el borde
@@ -835,9 +836,9 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
   // Columnas de adorno desde la niebla del fondo, de alturas y gruesos distintos, algo ladeadas.
   for (const [dx, z, cima] of [[-6.5, -101.2, -1.5], [8, -103.5, 3.2], [-10.5, -107.8, 1.2], [13, -100.6, -3.5], [-16.5, -104.5, 4.5], [17, -108.4, -0.5],
     [6.5, -109.2, -4.5], [-5.5, -107.6, -6], [21, -104, 6], [-22, -100.8, 1.5]].map(([dx, z, c]) => [dx, TRAS(z), c])) {
-    const x = caminoX(z) + dx, alto = cima - FONDO, ancho = Math.min(4.8, alto / (P.alto / P.ancho) * (0.6 + rndB() * 0.25));
+    const x = caminoX(z) + dx, alto = 16 + (cima + 6) * 0.5, pie = cima - alto, ancho = Math.min(4.8, alto / (P.alto / P.ancho) * (0.6 + rndB() * 0.25));
     const ladeo = new THREE.Vector3((rndB() - 0.5) * 0.12, 1, (rndB() - 0.5) * 0.12).normalize().multiplyScalar(alto);
-    barra(new THREE.Vector3(x, FONDO, z), new THREE.Vector3(x, FONDO, z).add(ladeo), ancho, rndB() * 6);
+    barra(new THREE.Vector3(x, pie, z), new THREE.Vector3(x, pie, z).add(ladeo), ancho, rndB() * 6);   // nacen en la niebla del abismo
   }
 }
 
@@ -1363,6 +1364,7 @@ for (const n of ["LeftHand", "RightHand"]) hueso(n).scale.setScalar(0.72);
 // Pies en el suelo y capa colocada, midiendo la pose de reposo con Blizzard en el origen.
 poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
 const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
+hueso("LeftHand").scale.setScalar(0.86); hueso("RightHand").scale.setScalar(0.86);   // muñecas más cortas: asoman menos de la manga
 figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) - 0.025;   // el pie, algo hundido en la nieve
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
@@ -1752,36 +1754,41 @@ const espiral = (() => {
 })();
 
 const huellas = (() => {
-  const forma = new THREE.Shape();
-  forma.moveTo(0, -0.15);
-  forma.quadraticCurveTo(0.07, -0.15, 0.06, -0.06);
-  forma.quadraticCurveTo(0.03, -0.02, 0.055, 0.05);
-  forma.quadraticCurveTo(0.05, 0.13, 0, 0.19);
-  forma.quadraticCurveTo(-0.05, 0.13, -0.055, 0.05);
-  forma.quadraticCurveTo(-0.03, -0.02, -0.06, -0.06);
-  forma.quadraticCurveTo(-0.07, -0.15, 0, -0.15);
-  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#7f90af", transparent: true, opacity: 0.6, depthWrite: false });
-  // Reborde: la nieve apartada alrededor del hueco, algo más clara (el pie se hunde).
-  const borde = new THREE.MeshBasicMaterial({ color: "#f4f7fc", transparent: true, opacity: 0.55, depthWrite: false });
-  // Un anillo alrededor del hueco (sin taparlo): el contorno algo mayor, con el pie recortado dentro.
-  const puntos = forma.getPoints(12), anillo = new THREE.Shape(puntos.map(p => new THREE.Vector2(p.x * 1.35 + 0.012, p.y * 1.2 + 0.015)));
-  anillo.holes.push(new THREE.Path(puntos.slice().reverse()));
-  const geoBorde = new THREE.ShapeGeometry(anillo);
-  const lista = [];
-  for (let i = 0; i < 180; i++) {
-    const m = new THREE.Mesh(geo, mat), r = new THREE.Mesh(geoBorde, borde);
-    m.renderOrder = 3; r.renderOrder = 2;                         // primero el reborde, encima el hueco
-    for (const o of [m, r]) { o.visible = false; o.rotation.order = "YXZ"; scene.add(o); }
-    m.userData.borde = r; lista.push(m);
+  // Unas pocas variantes dibujadas a mano: la planta, borrosa en el borde, más honda en talón y punta.
+  const variante = semilla => {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 128; const g = c.getContext("2d"), r = generador(semilla);
+    g.fillStyle = "#000"; g.fillRect(0, 0, 64, 128);               // máscara: blanco = huella (alphaMap lee el verde)
+    g.filter = "blur(3px)"; g.translate(32, 64);
+    const d = () => (r() - 0.5) * 4;
+    g.fillStyle = "rgba(255,255,255,0.7)";
+    g.beginPath(); g.moveTo(d(), -50); g.quadraticCurveTo(18 + d(), -42, 15 + d(), -14); g.quadraticCurveTo(9 + d(), 2, 13 + d(), 18);
+    g.quadraticCurveTo(13 + d(), 44, d(), 50); g.quadraticCurveTo(-13 + d(), 44, -13 + d(), 18); g.quadraticCurveTo(-9 + d(), 2, -15 + d(), -14);
+    g.quadraticCurveTo(-18 + d(), -42, d(), -50); g.fill();
+    g.fillStyle = "rgba(255,255,255,0.3)";
+    for (const y of [-32, 34]) { g.beginPath(); g.ellipse(d(), y + d(), 9 + d(), 13 + d(), 0, 0, Math.PI * 2); g.fill(); }
+    const t = new THREE.CanvasTexture(c); return t;
+  };
+  const texturas = [11, 23, 37, 41].map(variante), geo = new THREE.PlaneGeometry(0.15, 0.3), lista = [];
+  for (let i = 0; i < 160; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: "#5f7192", alphaMap: texturas[i % 4], transparent: true, opacity: 0, depthWrite: false }));
+    m.material.map = null; m.visible = false; m.rotation.order = "YXZ"; m.userData.nace = -99; scene.add(m); lista.push(m);
   }
   let siguiente = 0;
-  return (x, z, rumbo) => {
+  const poner = (x, z, rumbo) => {
     const m = lista[siguiente]; siguiente = (siguiente + 1) % lista.length;
     m.position.set(x, alturaTerreno(x, z) + 0.03, z);
-    m.rotation.set(-Math.PI / 2, rumbo, Math.PI);
-    m.visible = true;
-    const r = m.userData.borde; r.position.copy(m.position); r.rotation.copy(m.rotation); r.visible = true;
+    m.rotation.set(-Math.PI / 2, rumbo + (Math.random() - 0.5) * 0.25, 0);
+    const k = 0.85 + Math.random() * 0.3; m.scale.set(k * (0.9 + Math.random() * 0.2), k, 1);
+    m.userData.nace = reloj; m.userData.fuerza = 0.5 + Math.random() * 0.35; m.visible = true;
   };
+  // Se van borrando: enteras unos segundos, luego se desvanecen.
+  poner.actualizar = () => {
+    for (const m of lista) if (m.visible) {
+      const t = reloj - m.userData.nace, a = m.userData.fuerza * (1 - suave(3, 8, t));
+      m.material.opacity = a; if (a <= 0.005) m.visible = false;
+    }
+  };
+  return poner;
 })();
 
 // ─── Interfaz ──────────────────────────────────────────────────────────────
@@ -2520,6 +2527,7 @@ function actualizar(dt) {
     alturaVisual = lerp(escalonDesde, pos.y, suave(0.12, 0.8, t)); blizzard.position.y = alturaVisual;
   }
   blizzard.rotation.y = rumbo;
+  huellas.actualizar();
   { const sueloP = alturaSuelo(pos.x, pos.z), alto = Math.max(0, pos.y - sueloP), k = clamp(1 - alto / 2.5, 0, 1);
     sombraPies.position.set(pos.x, sueloP + 0.03, pos.z); sombraPies.rotation.z = rumbo; sombraPies.scale.set((0.5 + 0.3 * (1 - k)), (0.85 + 0.4 * (1 - k)), 1); sombraPies.material.opacity = k * 0.8; }
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
@@ -2780,9 +2788,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   const uni = { mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: CIELO } };
   // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
   // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
-  const nevar = (mat, alto, velo = 0, amarilloVelo = 0) => {
+  // polvo: nieve fina en lo que mira hacia arriba (hombros); fuerza: cuánto cubre la de la base.
+  const nevar = (mat, alto, velo = 0, amarilloVelo = 0, polvo = 0, fuerza = 1) => {
     const prev = mat.onBeforeCompile, clave = mat.customProgramCacheKey();
-    mat.customProgramCacheKey = () => clave + "|pie" + alto + "|" + velo + "|" + amarilloVelo;
+    mat.customProgramCacheKey = () => clave + "|pie" + [alto, velo, amarilloVelo, polvo, fuerza].join("|");
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
@@ -2802,7 +2811,15 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float grandeP = texture2D(texNievePie, vMundoPie.xz * 0.045 + vec2(0.37, 0.11)).r, granoP = texture2D(texNievePie, vMundoPie.xz * 3.1 + vMundoPie.y * 2.3).g;
           float altoP = ${alto.toFixed(3)} * (0.25 + 1.6 * smoothstep(0.35, 0.75, grandeP));   // unas apenas, otras bien cubiertas
           float cubreP = smoothstep(altoP, altoP * 0.3, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
-          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96);
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96 * ${fuerza.toFixed(3)});
+          // Y en los primeros centímetros, donde toca la nieve, casi del todo cubierto.
+          float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
+        }` : ""}
+        ${polvo > 0 ? `{
+          vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+          float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.45, 0.85, nWP.y) * smoothstep(0.3, 0.7, motasP) * ${polvo.toFixed(3)});
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         #include <fog_fragment>`);
@@ -2811,8 +2828,9 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1); } });
-  for (const m of [esclavina.malla.material, capaTela.malla.material]) { hechos.add(m); nevar(m, 0, 0.22); }
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.35); } });
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.22, 0, 0.4);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.4, 0.22, 0, 0.15, 0.5);   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.3, 0.2); } });
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
