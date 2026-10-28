@@ -337,6 +337,25 @@ function separarKit(gltf) {
 const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas);
 // Kit de piedra tallada: tres bloques (0-2) y tres pilares limpios (3-5), el 5 el más alto.
 const kitPilares = separarKit(gPilares), PILAR_ALTO = kitPilares[kitPilares.length - 1];
+// Nieve fina, sin volumen: solo en la textura, en las caras que miran hacia arriba, con el borde
+// irregular. Normal en el mundo con la escala de cada eje corregida (las piezas se estiran).
+const nieveFina = (() => {
+  const m = kitPilares[0].material.clone(), tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
+  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.nieveFina = { value: tex }; sh.uniforms.tonoNieve = { value: new THREE.Color(TONO_NIEVE) };
+    sh.vertexShader = "varying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+      vMundoN = (modelMatrix * vec4(transformed, 1.0)).xyz;
+      vec3 esc2 = vec3(dot(modelMatrix[0].xyz, modelMatrix[0].xyz), dot(modelMatrix[1].xyz, modelMatrix[1].xyz), dot(modelMatrix[2].xyz, modelMatrix[2].xyz));
+      vNormalN = normalize(mat3(modelMatrix) * (objectNormal / esc2));`);
+    sh.fragmentShader = "uniform sampler2D nieveFina;\nuniform vec3 tonoNieve;\nvarying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+      vec3 nv = texture2D(nieveFina, vMundoN.xz * 0.28).rgb;
+      float grano = texture2D(nieveFina, vMundoN.xz * 1.7 + vMundoN.y * 0.3).r;
+      float cubre = smoothstep(0.5, 0.78, normalize(vNormalN).y + (grano - 0.5) * 0.5);
+      diffuseColor.rgb = mix(diffuseColor.rgb, tonoNieve * nv * 0.97, cubre * 0.98);`);
+  };
+  return m;
+})();
 // Su textura es gris neutro y más clara: se tiñe al azul oscuro del resto de la roca.
 kitPilares[0].material.color.setRGB(0.66, 0.72, 0.86); kitPilares[0].material.roughness = 1; kitPilares[0].material.metalness = 0;
 // Sección de una pieza a una altura (fracción de su alto): centro y radio del fuste, con la pieza
@@ -548,12 +567,10 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
   const pilastraCaida = (x, z, largo, grueso, giro) => {
-    const pieza = kitRuinas[Math.min(kitRuinas.length - 1, 4)], suelo = alturaTerreno(x, z), g = new THREE.Group(), m = new THREE.Mesh(pieza.geo, pieza.material);
-    m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
-    g.add(m); g.scale.set(grueso / pieza.ancho, largo / pieza.alto, grueso / pieza.ancho);
-    g.rotation.set(rndA() * 6, giro, Math.PI / 2, "YXZ");
-    g.position.set(x, suelo + grueso * 0.35, z); scene.add(g);
-    const techo = suelo + grueso * 0.85;
+    // La misma piedra tallada tumbada de los pasos bajos, con su eje a lo largo del suelo.
+    const suelo = alturaTerreno(x, z), y = suelo + grueso * 0.35, dx = Math.cos(giro) * largo / 2, dz = -Math.sin(giro) * largo / 2;
+    pilarTallado(kitPilares[5], new THREE.Vector3(x - dx, y, z - dz), new THREE.Vector3(x + dx, y, z + dz), grueso, rndA() * 6);
+    const g = pilarTallado.ultimo, techo = suelo + grueso * 0.85;
     g.updateMatrixWorld(true);
     for (let t = -largo / 2 + 0.3; t <= largo / 2 - 0.3; t += 0.5) colisiones.push({ x: x + Math.cos(giro) * t, z: z - Math.sin(giro) * t, r: grueso * 0.45, techo, obj: g });
   };
@@ -591,25 +608,6 @@ const materialRuna = (() => {
 const geoRuna = new THREE.PlaneGeometry(1, 1);
 
 // ─── Piedra tallada de una pieza (kit de pilares) ──────────────────────────
-// Nieve fina, sin volumen: solo en la textura, en las caras que miran hacia arriba, con el borde
-// irregular. Normal en el mundo con la escala de cada eje corregida (las piezas se estiran).
-const nieveFina = (() => {
-  const m = kitPilares[0].material.clone(), tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
-  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
-  m.onBeforeCompile = sh => {
-    sh.uniforms.nieveFina = { value: tex }; sh.uniforms.tonoNieve = { value: new THREE.Color(TONO_NIEVE) };
-    sh.vertexShader = "varying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
-      vMundoN = (modelMatrix * vec4(transformed, 1.0)).xyz;
-      vec3 esc2 = vec3(dot(modelMatrix[0].xyz, modelMatrix[0].xyz), dot(modelMatrix[1].xyz, modelMatrix[1].xyz), dot(modelMatrix[2].xyz, modelMatrix[2].xyz));
-      vNormalN = normalize(mat3(modelMatrix) * (objectNormal / esc2));`);
-    sh.fragmentShader = "uniform sampler2D nieveFina;\nuniform vec3 tonoNieve;\nvarying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
-      vec3 nv = texture2D(nieveFina, vMundoN.xz * 0.28).rgb;
-      float grano = texture2D(nieveFina, vMundoN.xz * 1.7 + vMundoN.y * 0.3).r;
-      float cubre = smoothstep(0.5, 0.78, normalize(vNormalN).y + (grano - 0.5) * 0.5);
-      diffuseColor.rgb = mix(diffuseColor.rgb, tonoNieve * nv * 0.97, cubre * 0.98);`);
-  };
-  return m;
-})();
 // Una pieza con su eje de a (pie) a b (cabeza) y una sección de «ancho»; gira sobre su eje.
 function pilarTallado(P, a, b, ancho, giro = 0) {
   const dir = b.clone().sub(a), largo = dir.length(); dir.normalize();
@@ -1173,8 +1171,8 @@ const AVISOS_TUNEL = [
   }
   // Al empezar: una sola pilastra enorme a la izquierda, con sillares caídos; la toma inicial pasa a su lado.
   {
-    const pie = sobre(-0.5, 0.06, -8, -1.5), ap = 3.6 * 1.18;
-    pilarTallado(kitPilares[5], pie, sobre(-0.5, 0.06, -8, 17 * 0.6), ap, 0.4);
+    const pie = sobre(-30, 0.06, -15, -1.5), ap = 3.6 * 1.18;
+    pilarTallado(kitPilares[5], pie, sobre(-30, 0.06, -15, 17 * 0.6), ap, 0.4);
     colisiones.push({ x: pie.x, z: pie.z, r: ap * 0.55, techo: pie.y + 1.5 + 17 * 0.6, obj: pilarTallado.ultimo });
   }
   caido(-3, 6.5, 2.4); caido(-6.5, 7.8, 1.7); caido(-1.5, -7.4, 2.0);
@@ -1371,10 +1369,19 @@ const AMARILLO = new THREE.Color(0.63, 0.47, 0.05);
 figura.traverse(o => {
   if (!o.isSkinnedMesh) return;
   const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
-  const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cx = (g.boundingBox.max.x + g.boundingBox.min.x) / 2, cap = new Float32Array(pz.count);
+  const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
+  // Huesos en la pose de reposo, en el espacio de la malla (la escala: H es la altura de Blizzard, ~1,75 m).
+  const sk = o.skeleton, bp = n => { const i = sk.bones.findIndex(b => b.name === "mixamorig" + n); return new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(sk.boneInverses[i]).invert()).applyMatrix4(o.bindMatrixInverse); };
+  const m = H / 1.75, cuello = bp("Neck"), hi = bp("LeftArm"), hd = bp("RightArm"), alante = bp("LeftToeBase").sub(bp("LeftFoot")).setY(0).normalize();
+  const ladoV = new THREE.Vector3().crossVectors(alante, new THREE.Vector3(0, 1, 0)), yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
-    const y = pz.getY(k), dx = Math.abs(pz.getX(k) - cx);
-    cap[k] = suave(yMax - 0.21 * H, yMax - 0.17 * H, y);
+    const y = pz.getY(k); _p.fromBufferAttribute(pz, k).sub(cuello);
+    const lat = Math.abs(_p.dot(ladoV)), fondo = _p.dot(alante);
+    // Hombros: la parte de arriba, hasta el arranque del brazo.
+    const hombros = suave(yH - 0.07 * m, yH - 0.035 * m, y) * suave(mitad + 0.09 * m, mitad + 0.04 * m, lat);
+    // Por detrás, una V desde los hombros hasta el cuello, con la punta bien abajo.
+    const v = fondo < -0.01 * m ? suave(cuello.y - 0.04 * m - 0.24 * m * (1 - lat / (mitad + 0.05 * m)) - 0.02 * m, cuello.y - 0.04 * m - 0.24 * m * (1 - lat / (mitad + 0.05 * m)) + 0.01 * m, y) * suave(mitad + 0.08 * m, mitad + 0.03 * m, lat) : 0;
+    cap[k] = Math.max(suave(yMax - 0.21 * H, yMax - 0.17 * H, y), hombros, v);
   }
   g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
   o.material = o.material.clone();
@@ -1407,7 +1414,7 @@ const capaTela = (() => {
   const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = true;
   scene.add(malla);
   const hIzq = hueso("LeftArm"), hDer = hueso("RightArm"), hCuello = hueso("Neck"), hEspalda = hueso("Spine2");
-  const CAPSULAS = [["Hips", "Spine2", 0.2], ["Spine2", "Neck", 0.16], ["LeftArm", "LeftForeArm", 0.13], ["LeftForeArm", "LeftHand", 0.12],
+  const CAPSULAS = [["Hips", "Spine2", 0.17], ["Spine2", "Neck", 0.13], ["LeftArm", "LeftForeArm", 0.13], ["LeftForeArm", "LeftHand", 0.12],
     ["RightArm", "RightForeArm", 0.13], ["RightForeArm", "RightHand", 0.12], ["LeftUpLeg", "LeftLeg", 0.13], ["LeftLeg", "LeftFoot", 0.09],
     ["RightUpLeg", "RightLeg", 0.13], ["RightLeg", "RightFoot", 0.09]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _v = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -1425,7 +1432,7 @@ const capaTela = (() => {
       for (let i = 0; i < NI; i++) {
         const f = i / (NI - 1), ancho = anchoH * lerp(1, VUELO_ABAJO, f);
         A[i * NJ + j].copy(medio).addScaledVector(lado, -t * ancho)
-          .addScaledVector(atras, 0.03 + 0.07 * Math.cos(t * Math.PI / 2) + 0.45 * f * f)   // pegada arriba; se aparta hacia abajo
+          .addScaledVector(atras, 0.04 + 0.05 * Math.cos(t * Math.PI / 2) + 0.3 * f + 0.12 * f * f)   // pegada arriba; se aparta recta hacia abajo
           .setY(yArriba - 0.05 * t * t * (1 - f) - f * LARGO_CAPA * (1 - 0.12 * f));
       }
     }
