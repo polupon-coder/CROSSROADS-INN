@@ -1363,7 +1363,7 @@ for (const n of ["LeftHand", "RightHand"]) hueso(n).scale.setScalar(0.72);
 // Pies en el suelo y capa colocada, midiendo la pose de reposo con Blizzard en el origen.
 poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
 const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
-figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
+figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) - 0.025;   // el pie, algo hundido en la nieve
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
 // La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
@@ -1416,6 +1416,40 @@ const esclavina = (() => {
     return nuevo[k];
   };
   for (let t = 0; t < ia.length; t += 3) if (cerca[ia[t]] && cerca[ia[t + 1]] && cerca[ia[t + 2]] && (dentro[ia[t]] || dentro[ia[t + 1]] || dentro[ia[t + 2]])) ind.push(usar(ia[t]), usar(ia[t + 1]), usar(ia[t + 2]));
+  // Perfil sin aristas: cada triángulo en cuatro (los vértices nuevos, a medio camino, con los pesos
+  // de piel mezclados) y dos pasadas de suavizado que no tocan el borde.
+  {
+    const medios = new Map(), viejo = ind.splice(0);
+    const medio = (a, b) => {
+      const clave = a < b ? a + "_" + b : b + "_" + a; if (medios.has(clave)) return medios.get(clave);
+      const n = pos.length / 3;
+      for (let e = 0; e < 3; e++) { pos.push((pos[a * 3 + e] + pos[b * 3 + e]) / 2); nor.push((nor[a * 3 + e] + nor[b * 3 + e]) / 2); }
+      const pesos = new Map();
+      for (const v of [a, b]) for (let e = 0; e < 4; e++) if (skw[v * 4 + e]) pesos.set(ski[v * 4 + e], (pesos.get(ski[v * 4 + e]) || 0) + skw[v * 4 + e] / 2);
+      const mejores = [...pesos].sort((x, y) => y[1] - x[1]).slice(0, 4), suma = mejores.reduce((x, y) => x + y[1], 0);
+      for (let e = 0; e < 4; e++) { ski.push(mejores[e] ? mejores[e][0] : 0); skw.push(mejores[e] ? mejores[e][1] / suma : 0); }
+      medios.set(clave, n); return n;
+    };
+    for (let t = 0; t < viejo.length; t += 3) {
+      const [a, b, c] = [viejo[t], viejo[t + 1], viejo[t + 2]], ab = medio(a, b), bc = medio(b, c), ca = medio(c, a);
+      ind.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+    }
+    const vecinos = Array.from({ length: pos.length / 3 }, () => new Set()), aristas = new Map();
+    for (let t = 0; t < ind.length; t += 3) for (let q = 0; q < 3; q++) {
+      const a = ind[t + q], b = ind[t + (q + 1) % 3]; vecinos[a].add(b); vecinos[b].add(a);
+      const clave = a < b ? a + "_" + b : b + "_" + a; aristas.set(clave, (aristas.get(clave) || 0) + 1);
+    }
+    const borde = new Uint8Array(vecinos.length);
+    for (const [clave, n] of aristas) if (n === 1) for (const v of clave.split("_")) borde[+v] = 1;
+    for (let pasada = 0; pasada < 2; pasada++) {
+      const nuevo2 = pos.slice();
+      for (let v = 0; v < vecinos.length; v++) {
+        if (borde[v] || !vecinos[v].size) continue;
+        for (let e = 0; e < 3; e++) { let m2 = 0; for (const w of vecinos[v]) m2 += pos[w * 3 + e]; nuevo2[v * 3 + e] = pos[v * 3 + e] * 0.5 + m2 / vecinos[v].size * 0.5; }
+      }
+      pos.splice(0, pos.length, ...nuevo2);
+    }
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
   geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(ski, 4)); geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(skw, 4)); geo.setIndex(ind.filter((_, n) => { const t = n - n % 3; return [0, 1, 2].every(q => pos[ind[t + q] * 3 + 1] >= yCostura); }));
@@ -1476,17 +1510,17 @@ const capaTela = (() => {
   for (let k = 0; k < NI * NJ; k++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); A.push(new THREE.Vector3()); }
   // Malla visible.
   // Dos caras (por fuera y por dentro, a GROSOR) unidas por el canto: la tela tiene cuerpo.
-  const N = NR * NC, GROSOR = 0.022;
+  const N = NR * NC, GROSOR = 0.014, tono = new Float32Array(N * 2 * 3).fill(1);
   const geo = new THREE.BufferGeometry(), vert = new Float32Array(N * 2 * 3), uv = new Float32Array(N * 2 * 2), idx = [];
   for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) for (const l of [0, N]) { uv[(l + r * NC + c) * 2] = c / (NC - 1); uv[(l + r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
   for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); idx.push(N + a, N + a + 1, N + a + NC, N + a + 1, N + a + NC + 1, N + a + NC); }
   const canto = (a, b) => idx.push(a, b, N + a, b, N + b, N + a);
   for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
   for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
-  geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });   // como la capucha
+  geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3)); geo.setIndex(idx);
+  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha
   // Por dentro, algo más oscura.
-  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.8;"); };
+  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.9;"); };
   const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = false; malla.receiveShadow = false;   // sin sombra sobre el cuerpo
   scene.add(malla);
   const hIzq = hueso("LeftArm"), hDer = hueso("RightArm"), hCuello = hueso("Neck"), hEspalda = hueso("Spine2");
@@ -1590,7 +1624,9 @@ const capaTela = (() => {
             const fila = d => catmull(coord(i + d, j - 1, e), coord(i + d, j, e), coord(i + d, j + 1, e), coord(i + d, j + 2, e), tj);
             vert[o + e] = catmull(fila(-1), fila(0), fila(1), fila(2), ti);
           }
-          const u = c / (NC - 1), pl = Math.sin(u * Math.PI * 4 + 0.5) * 0.018 * (r / (NR - 1));
+          const u = c / (NC - 1), onda = Math.sin(u * Math.PI * 5 + 0.5) * 0.65 + Math.sin(u * Math.PI * 11 + 1.3) * 0.35, pl = onda * 0.026 * (0.15 + 0.85 * r / (NR - 1));
+          const sombra = 1 - 0.16 * (0.5 - 0.5 * onda) * (0.3 + 0.7 * r / (NR - 1));    // el fondo de cada pliegue, más oscuro
+          for (const l of [0, N]) for (let e = 0; e < 3; e++) tono[(l + r * NC + c) * 3 + e] = sombra;
           vert[o] += atras.x * pl; vert[o + 2] += atras.z * pl;
         }
       }
@@ -1602,7 +1638,7 @@ const capaTela = (() => {
         const o = (r * NC + c) * 3;
         for (let e = 0; e < 3; e++) vert[N * 3 + o + e] = vert[o + e] - _c.getComponent(e) * GROSOR;
       }
-      geo.attributes.position.needsUpdate = true;
+      geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
       geo.computeVertexNormals();
     },
   };
@@ -1724,15 +1760,27 @@ const huellas = (() => {
   forma.quadraticCurveTo(-0.05, 0.13, -0.055, 0.05);
   forma.quadraticCurveTo(-0.03, -0.02, -0.06, -0.06);
   forma.quadraticCurveTo(-0.07, -0.15, 0, -0.15);
-  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#a3b3cc", transparent: true, opacity: 0.38, depthWrite: false });
+  const geo = new THREE.ShapeGeometry(forma), mat = new THREE.MeshBasicMaterial({ color: "#7f90af", transparent: true, opacity: 0.6, depthWrite: false });
+  // Reborde: la nieve apartada alrededor del hueco, algo más clara (el pie se hunde).
+  const borde = new THREE.MeshBasicMaterial({ color: "#f4f7fc", transparent: true, opacity: 0.55, depthWrite: false });
+  // Un anillo alrededor del hueco (sin taparlo): el contorno algo mayor, con el pie recortado dentro.
+  const puntos = forma.getPoints(12), anillo = new THREE.Shape(puntos.map(p => new THREE.Vector2(p.x * 1.35 + 0.012, p.y * 1.2 + 0.015)));
+  anillo.holes.push(new THREE.Path(puntos.slice().reverse()));
+  const geoBorde = new THREE.ShapeGeometry(anillo);
   const lista = [];
-  for (let i = 0; i < 180; i++) { const m = new THREE.Mesh(geo, mat); m.visible = false; m.rotation.order = "YXZ"; scene.add(m); lista.push(m); }
+  for (let i = 0; i < 180; i++) {
+    const m = new THREE.Mesh(geo, mat), r = new THREE.Mesh(geoBorde, borde);
+    m.renderOrder = 3; r.renderOrder = 2;                         // primero el reborde, encima el hueco
+    for (const o of [m, r]) { o.visible = false; o.rotation.order = "YXZ"; scene.add(o); }
+    m.userData.borde = r; lista.push(m);
+  }
   let siguiente = 0;
   return (x, z, rumbo) => {
     const m = lista[siguiente]; siguiente = (siguiente + 1) % lista.length;
     m.position.set(x, alturaTerreno(x, z) + 0.03, z);
     m.rotation.set(-Math.PI / 2, rumbo, Math.PI);
     m.visible = true;
+    const r = m.userData.borde; r.position.copy(m.position); r.rotation.copy(m.rotation); r.visible = true;
   };
 })();
 
@@ -2731,9 +2779,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
   const uni = { mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: CIELO } };
   // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
-  const nevar = (mat, alto, velo = 0) => {
+  // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
+  const nevar = (mat, alto, velo = 0, amarilloVelo = 0) => {
     const prev = mat.onBeforeCompile, clave = mat.customProgramCacheKey();
-    mat.customProgramCacheKey = () => clave + "|pie" + alto + "|" + velo;
+    mat.customProgramCacheKey = () => clave + "|pie" + alto + "|" + velo + "|" + amarilloVelo;
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
@@ -2755,15 +2804,16 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float cubreP = smoothstep(altoP, altoP * 0.3, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96);
         }` : ""}
-        #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)});` : ""}
+        #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         #include <fog_fragment>`);
     };
     mat.needsUpdate = true;
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.22); } });
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1); } });
   for (const m of [esclavina.malla.material, capaTela.malla.material]) { hechos.add(m); nevar(m, 0, 0.22); }
+  baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.3, 0.2); } });
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
