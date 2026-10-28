@@ -147,7 +147,7 @@ PLATAFORMA3.x = caminoX(PLATAFORMA3.z);
 // La última plataforma, en lo alto de un desnivel: desde ella, todo el recorrido sigue ELEVA metros más arriba.
 const ELEVA = 3.6;
 PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto + ELEVA;
-const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 13, ancho: 2.4 };
+const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 13, ancho: 2.4, n: 14 };   // n escalones
 // Dunas de nieve: barjanes con la ladera de barlovento larga y suave, la cresta curva y la de sotavento
 // corta y empinada (el viento sopla a lo ancho, hacia +x). Junto al paso, bajas (se cruzan andando); a
 // los lados, enormes. Encima, un ondulado suave.
@@ -185,7 +185,10 @@ function alturaTerreno(x, z) {
   h = lerp(PLATAFORMA3.base, h, suave(PLATAFORMA3.r + 0.3, PLATAFORMA3.r + 1.2, Math.hypot(x - PLATAFORMA3.x, z - PLATAFORMA3.z)));
   // Se sube a la última plataforma por una pendiente de nieve, con escalones de piedra (ver RAMPA3).
   { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x);
-    if (rz > -1 && rz < RAMPA3.largo && rx < RAMPA3.ancho + 2) h = lerp(h, Math.max(h, lerp(PLATAFORMA3.base, h, clamp(rz / RAMPA3.largo, 0, 1))), suave(RAMPA3.ancho + 2, RAMPA3.ancho, rx)); }
+    // En el centro, en escalones (el suelo es la huella de cada escalón: los pies no se hunden); a los lados, pendiente.
+    const k = clamp(Math.floor(rz / RAMPA3.largo * RAMPA3.n), 0, RAMPA3.n - 1), esc = lerp(PLATAFORMA3.base, h, rz < 0 ? 0 : (k + 1) / (RAMPA3.n + 1));
+    const lisa = lerp(PLATAFORMA3.base, h, clamp(rz / RAMPA3.largo, 0, 1)), centro = suave(2.1, 1.85, rx);   // todo el ancho de los escalones
+    if (rz > -1 && rz < RAMPA3.largo && rx < RAMPA3.ancho + 2) h = lerp(h, Math.max(h, lerp(lisa, esc, centro)), suave(RAMPA3.ancho + 2, RAMPA3.ancho, rx)); }
   // Desfiladero: paredes de roca de 7 m a los lados; el paso queda en el centro.
   const enDesf = suave(CANON_DESDE + 1.5, CANON_DESDE - 0.5, z) * suave(DESFILADERO.hasta - 1.5, DESFILADERO.hasta + 0.5, z);
   if (enDesf > 0) { const w = anchoCanon(z); h += 7 * enDesf * suave(w + 1.4, w + 3, Math.abs(x - caminoX(z))); }   // detrás de las rocas de la pared
@@ -272,6 +275,7 @@ let MAT_SUELO = null;                                        // el material del 
       if (dentro >= 0 && dentro < 0.8) { h = filo - (0.25 + dentro * 2.2) * (0.8 + ruido); z -= Math.sign(dg) * Math.sin(x * 0.9) * 0.15 * (1 - dentro); }
     }
     pos.setZ(i, z);
+    { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
     colores.push(nieve.r, nieve.g, nieve.b);             // mismo tono también en las paredes: sin degradado
   }
@@ -1431,14 +1435,14 @@ const SALTOS_LOSAS = [];
   poner(QUIEBRA2, [[1.0, 2.0, 1.5], [4.4, 1.9, 1.4], [7.8, 2.1, 1.5], [11.2, 1.9, 1.35], [14.6, 2.2, 1.5]], [0, 2.0, 5.4, 8.8, 12.2]);
 }
 // Escalones de piedra en la pendiente de la última plataforma.
-const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.55;   // con un poco de nieve encima
-for (let d = 0.5, i = 0; d < RAMPA3.largo - 0.3; d += 0.9, i++) {
-  const z = RAMPA3.desde + d, x = PLATAFORMA3.x + Math.sin(i * 2.1) * 0.12, pieza = kitPilares[i % 3];
+const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.3;   // con un poco de nieve encima
+for (let i = 0; i < RAMPA3.n; i++) {
+  const L = RAMPA3.largo / RAMPA3.n, z = RAMPA3.desde + (i + 0.5) * L, x = PLATAFORMA3.x, pieza = kitPilares[i % 3];
   // De piedra (sin la nieve de arriba, que los confundía con la pendiente) y asomando bien.
   const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, matEscalon);
   m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto, 0)); m.castShadow = m.receiveShadow = true;
-  cuerpo.add(m); cuerpo.scale.set((RAMPA3.ancho * 1.5 - (i % 2) * 0.3) / pieza.ancho, 0.7 / pieza.alto, 1 / pieza.ancho); g.add(cuerpo);
-  g.position.set(x, alturaTerreno(x, z - 0.4) + 0.24, z); g.rotation.y = (i % 2 ? 0.04 : -0.05); scene.add(g);
+  cuerpo.add(m); cuerpo.scale.set((RAMPA3.ancho * 1.5 - (i % 2) * 0.3) / pieza.ancho, 0.7 / pieza.alto, L * 1.15 / pieza.ancho); g.add(cuerpo);
+  g.position.set(x, alturaTerreno(x, z) + 0.02, z); g.rotation.y = (i % 2 ? 0.02 : -0.02); scene.add(g);   // su cara de arriba, a ras de la huella
 }
 function animarLosas(dt) {
   for (const L of losas) {
@@ -3280,7 +3284,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
-    hechos.add(o.material); nevar(o.material, 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco ? "arco" : true);   // las que se mueven, con nieve encima
+    hechos.add(o.material); nevar(o.material, o.material.userData.polvo ? 0.08 : 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco ? "arco" : true);   // las que se mueven, con nieve encima
   });
 }
 // Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
