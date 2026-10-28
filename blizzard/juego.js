@@ -219,6 +219,24 @@ renderer.localClippingEnabled = true;          // para recortar la cima de los p
 renderer.domElement.id = "lienzo";
 document.body.appendChild(renderer.domElement);
 
+// Niebla baja de las dunas: se suma a la niebla normal en lo hondo, entre las dunas (por debajo de unos
+// metros sobre el paso), en bancos irregulares; las crestas y lo alto asoman por encima.
+{
+  const C = THREE.ShaderChunk;
+  C.fog_pars_vertex += "\n#ifdef USE_FOG\n varying vec3 vNieblaP;\n#endif";
+  C.fog_vertex += "\n#ifdef USE_FOG\n vNieblaP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif";
+  C.fog_pars_fragment += `
+#ifdef USE_FOG
+  varying vec3 vNieblaP;
+  float nieblaBaja(float d) {
+    float enD = smoothstep(${(DUNAS.desde + 4).toFixed(1)}, ${(DUNAS.desde - 16).toFixed(1)}, vNieblaP.z);
+    float banco = sin(vNieblaP.x * 0.045 + vNieblaP.z * 0.031) * sin(vNieblaP.z * 0.057 - vNieblaP.x * 0.02 + 1.7);
+    float techo = 10.5 + 2.2 * banco;
+    return enD * (1.0 - smoothstep(techo - 4.0, techo + 1.5, vNieblaP.y)) * smoothstep(3.0, 26.0, d) * 0.82;
+  }
+#endif`;
+  C.fog_fragment = C.fog_fragment.replace("gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );", "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, max(fogFactor, nieblaBaja(fogDepth)) );");
+}
 const scene = new THREE.Scene();
 scene.background = CIELO;
 // Niebla muy densa (decisión del autor): apenas se ve a unos 10 m; el fondo desaparece.
@@ -1024,7 +1042,26 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
 // Asoman de la nieve aquí y allá, a los lados del paso; en un punto, un grupo de pilastras enormes
 // tumbadas en diagonal, como un templo hundido que la nieve se ha tragado.
 // Lo más bajo del suelo en un círculo de radio R (en la ladera de una duna, bajo un lado no hay suelo).
-function masBajoEn(x, z, R) { let b = alturaTerreno(x, z); for (let a = 0; a < 12; a++) for (const f of [0.5, 1]) b = Math.min(b, alturaTerreno(x + Math.cos(a * 0.5236) * R * f, z + Math.sin(a * 0.5236) * R * f)); return b; }
+function masBajoEn(x, z, R) { let b = alturaTerreno(x, z); for (let a = 0; a < 24; a++) for (const f of [0.35, 0.7, 1]) b = Math.min(b, alturaTerreno(x + Math.cos(a * 0.2618) * R * f, z + Math.sin(a * 0.2618) * R * f)); return b; }
+// Una pieza del kit medio enterrada en una duna. Su falda de nieve (del modelo) es plana: se coloca con
+// la falda justo bajo la nieve en todo su contorno (medido en la malla real) y se hunde algo más según
+// «hundir»; si así no asoma, no se pone.
+// Una pieza del kit medio enterrada en una duna. Su falda de nieve (del modelo) es plana: solo se pone
+// donde el suelo bajo toda la falda es casi llano (si no, asoma como un disco); se prueba en unos
+// cuantos sitios cerca y, si ninguno vale, no se pone.
+const rndP = generador(3131);
+function enterrar(pieza, x, z, a, giro, hundir) {
+  if (a < 7 && kitRocas.indexOf(pieza) >= kitRocas.length - 2) pieza = kitRocas[2 + Math.round(a * 10) % 2];   // (como en colocar)
+  const R = pieza.radio * a / pieza.alto;
+  for (let t = 0; t < 8; t++) {
+    const px = x + (t ? (rndP() - 0.5) * 8 : 0), pz = z + (t ? (rndP() - 0.5) * 8 : 0);
+    if (Math.abs(px - caminoX(pz)) < 2.4) continue;
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < 16; k++) for (const f of [0, 0.5, 1.05]) { const h = alturaTerreno(px + Math.cos(k * 0.3927) * R * f, pz + Math.sin(k * 0.3927) * R * f); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+    if (hi - lo < 0.2 + 0.03 * a) return colocar(pieza, px, pz, a, giro, hundir, lo, false);
+  }
+  return null;
+}
 {
   const rndU = generador(7171);
   for (let z = DUNAS.desde - 18; z > DUNAS.hasta + 6; z -= 6 + rndU() * 7) {
@@ -1032,8 +1069,8 @@ function masBajoEn(x, z, R) { let b = alturaTerreno(x, z); for (let a = 0; a < 1
     if (solapa(x, z, 3)) continue;
     const k = rndU();
     // Bien enterradas: desde lo más bajo del suelo bajo ellas, y hundidas más de la mitad.
-    if (k < 0.45) { const pieza = kitRuinas[Math.floor(rndU() * kitRuinas.length)], a = 3 + rndU() * 5; colocar(pieza, x, z, a, rndU() * 6, 0.6 + rndU() * 0.15, masBajoEn(x, z, a * 0.5), false); }
-    else if (k < 0.75) { const a = 2.5 + rndU() * 4; colocar(kitRocas[2 + Math.floor(rndU() * 3)], x, z, a, rndU() * 6, 0.62, masBajoEn(x, z, a * 0.5), false); }
+    if (k < 0.45) { const pieza = kitRuinas[Math.floor(rndU() * kitRuinas.length)], a = 3 + rndU() * 5; enterrar(pieza, x, z, a, rndU() * 6, 0.6 + rndU() * 0.15); }
+    else if (k < 0.75) { const a = 2.5 + rndU() * 4; enterrar(kitRocas[2 + Math.floor(rndU() * 3)], x, z, a, rndU() * 6, 0.62); }
     else {                                                          // pilastra caída, medio enterrada
       const giro = rndU() * Math.PI, largo = 5 + rndU() * 6, g = 1 + rndU() * 0.8, y = alturaTerreno(x, z) - g * 0.3;
       const d = new THREE.Vector3(Math.cos(giro) * largo / 2, (rndU() - 0.3) * 1.5, Math.sin(giro) * largo / 2);
@@ -1053,7 +1090,7 @@ function masBajoEn(x, z, R) { let b = alturaTerreno(x, z); for (let a = 0; a < 1
     const pie = new THREE.Vector3(x, masBajoEn(x, z, g) - 5, z), cima = pie.clone().addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), (rndU() - 0.5) * 0.25), largo);
     pilarTallado(kitPilares[3 + (i % 3)], pie, cima, g, rndU() * 6);
     colisiones.push({ x, z, r: g * 0.7, techo: pie.y + 10, obj: pilarTallado.ultimo });
-    if (i % 3 === 0) { const rx = x + 3 + rndU() * 3, rz = z + (rndU() - 0.5) * 6, a = 3 + rndU() * 3; colocar(kitRuinas[Math.floor(rndU() * kitRuinas.length)], rx, rz, a, rndU() * 6, 0.62, masBajoEn(rx, rz, a * 0.5), false); }
+    if (i % 3 === 0) { const rx = x + 3 + rndU() * 3, rz = z + (rndU() - 0.5) * 6, a = 3 + rndU() * 3; enterrar(kitRuinas[Math.floor(rndU() * kitRuinas.length)], rx, rz, a, rndU() * 6, 0.62); }
   }
   // Rocas sueltas y en grupos, de tamaños muy distintos, medio tragadas por la nieve: una grande con
   // otras menores alrededor, o unas pocas pequeñas juntas. Nunca en el paso.
@@ -1065,7 +1102,16 @@ function masBajoEn(x, z, R) { let b = alturaTerreno(x, z); for (let a = 0; a < 1
       const a = k === 0 && grande ? 3.5 + rndU() * 4.5 : 0.8 + rndU() * 2.2, ang = rndU() * 6.28, r = k === 0 ? 0 : 2 + rndU() * 4;
       const rx = x + Math.cos(ang) * r, rz = z + Math.sin(ang) * r;
       if (Math.abs(rx - caminoX(rz)) < 4) continue;
-      colocar(kitRocas[1 + Math.floor(rndU() * (kitRocas.length - 1))], rx, rz, a, rndU() * 6, 0.55 + rndU() * 0.2, masBajoEn(rx, rz, a * 0.5), false);
+      enterrar(kitRocas[1 + Math.floor(rndU() * (kitRocas.length - 1))], rx, rz, a, rndU() * 6, 0.45 + rndU() * 0.2);
+    }
+  }
+  // Por el centro, junto al paso: rocas bajas sueltas y en corrillos, apenas asomando de la nieve.
+  for (let z = DUNAS.desde - 8; z > DUNAS.hasta + 4; z -= 4 + rndU() * 5) {
+    const lado = rndU() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (2.6 + rndU() * 7);
+    for (let k = 0, n = 1 + Math.floor(rndU() * 3); k < n; k++) {
+      const a = 1 + rndU() * 1.6, rx = x + (rndU() - 0.5) * 2.5, rz = z + (rndU() - 0.5) * 2.5;
+      if (Math.abs(rx - caminoX(rz)) < 2.4 || solapa(rx, rz, a * 0.4)) continue;
+      enterrar(kitRocas[1 + Math.floor(rndU() * 3)], rx, rz, a, rndU() * 6, 0.32 + rndU() * 0.15);
     }
   }
 }
@@ -2999,13 +3045,13 @@ function actualizar(dt) {
   const alba = suave(DUNAS.desde, DUNAS.desde - 20, pos.z);
   sol.position.set(pos.x + lerp(-18, -52, alba), pos.y + lerp(30, 19, alba), pos.z + lerp(12, -20, alba));
   sol.target.position.copy(pos);
-  sol.intensity = lerp(0.02, 0.85, alba); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
-  luzCielo.intensity = lerp(0.92, 0.66, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
+  sol.intensity = lerp(0.02, 0.42, alba); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
+  luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
 
   // En el móvil no hay sombras (por rendimiento), salvo en las dunas: se encienden al llegar.
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
-  { const c = sol.shadow.camera, r = lerp(22, 50, alba); if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
+  { const c = sol.shadow.camera, r = lerp(22, 85, alba); if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
   efectos(dt, adelante);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
@@ -3307,7 +3353,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         ${niebla < 1 ? `#ifdef USE_FOG
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(fogNear, fogFar, fogDepth) * mix(${niebla.toFixed(3)}, 1.0, smoothstep(9.0, 15.0, fogDepth)));
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, max(smoothstep(fogNear, fogFar, fogDepth) * mix(${niebla.toFixed(3)}, 1.0, smoothstep(9.0, 15.0, fogDepth)), nieblaBaja(fogDepth)));
         #endif` : "#include <fog_fragment>"}`);
     };
     mat.needsUpdate = true;
