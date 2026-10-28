@@ -1036,6 +1036,70 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   }
 }
 
+// ─── Dunas: el paisaje de las láminas ──────────────────────────────────────
+// Un gran arco apuntado solo sobre una duna, una torre en ruinas con obeliscos en una loma lejana, un
+// muro con arcadas medio enterrado, losas enormes inclinadas, monolitos sueltos y, a la izquierda del
+// paso, un farallón de losas apiladas. Todo con nieve fina en lo alto, del mismo tono de piedra.
+{
+  const rnd = generador(5757), arriba = new THREE.Vector3(0, 1, 0);
+  const pieza = (P, a, b, g, giro = 0) => pilarTallado(P, a, b, g, giro);
+  const sueloEn = (x, z) => alturaTerreno(x, z);
+  const choque = (x, z, r, alto) => colisiones.push({ x, z, r, techo: sueloEn(x, z) + alto, obj: pilarTallado.ultimo });
+  // Losa: un bloque del kit con escala propia en cada eje (ancho, alto, grueso), girada e inclinada.
+  const losa = (x, z, w, h, t, giro, incl, hundir = 0.25) => {
+    const P = kitPilares[Math.floor(rnd() * 3)], g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
+    m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
+    g.scale.set(w / P.ancho, h / P.alto, t / P.ancho); g.rotation.set(incl, giro, 0, "YXZ");
+    g.position.set(x, sueloEn(x, z) + h * (0.5 - hundir), z); scene.add(g); g.userData.tapa = true;
+    if (Math.abs(x - caminoX(z)) < 16) { const ex = Math.cos(giro) * w / 2, ez = -Math.sin(giro) * w / 2;
+      for (let k = -1; k <= 1; k += 0.5) colisiones.push({ x: x + ex * k, z: z + ez * k, r: Math.max(t, 1) * 0.8, techo: sueloEn(x, z) + h, obj: g }); }
+    return g;
+  };
+  const obelisco = (x, z, alto, g) => { const y = sueloEn(x, z); pieza(kitPilares[3 + Math.floor(rnd() * 3)], new THREE.Vector3(x, y - 1.5, z), new THREE.Vector3(x + (rnd() - 0.5) * 0.6, y + alto, z + (rnd() - 0.5) * 0.6), g, rnd() * 6); if (Math.abs(x - caminoX(z)) < 16) choque(x, z, g * 0.5, alto); };
+
+  // Gran arco apuntado, solo, sobre una duna a la derecha (lámina 1).
+  {
+    const z = -540, x = caminoX(z) + 13, y = sueloEn(x, z), luz = 7, alto = 15, g = 2.6, giro = 0.2;
+    const e = new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro));
+    const pie = l => new THREE.Vector3(x, y - 2, z).addScaledVector(e, l * luz / 2);
+    const cima = new THREE.Vector3(x, y + alto + luz * 0.75, z);
+    for (const l of [-1, 1]) {
+      pieza(kitPilares[5], pie(l), pie(l).add(new THREE.Vector3(0, alto + 2, 0)), g, rnd() * 0.3); choque(pie(l).x, pie(l).z, g * 0.55, alto);
+      const arr = pie(l).add(new THREE.Vector3(0, alto + 1, 0));
+      pieza(kitPilares[3 + (l > 0 ? 1 : 0)], arr, arr.clone().lerp(cima, 1.05), g * 0.85, rnd() * 0.3);   // la mitad del arco apuntado, con la punta fina arriba
+    }
+    // Bloques y obeliscos caídos a su alrededor.
+    for (let k = 0; k < 4; k++) obelisco(x + (rnd() - 0.2) * 14, z + (rnd() - 0.5) * 12, 3 + rnd() * 4, 0.9 + rnd() * 0.6);
+  }
+  // Torre en ruinas en una loma lejana, con obeliscos (lámina 1, al fondo).
+  {
+    const z = -610, x = caminoX(z) - 42, y = sueloEn(x, z);
+    losa(x, z, 9, 22, 7, 0.3, 0.02, 0.1);
+    losa(x + 3, z + 4, 4, 10, 4, 0.9, -0.04, 0.1);
+    for (let k = 0; k < 6; k++) obelisco(x + (rnd() - 0.5) * 30, z + (rnd() - 0.5) * 24, 6 + rnd() * 9, 1.2 + rnd() * 0.8);
+  }
+  // Muro con arcadas medio enterrado, a la izquierda (lámina 1).
+  {
+    const z0 = -560, x0 = caminoX(z0) - 24, giro = Math.PI / 2 + 0.15, e = new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro));   // paralelo al paso, lejos de él
+    for (let k = 0; k < 7; k++) {
+      const p = new THREE.Vector3(x0, 0, z0).addScaledVector(e, k * 4.2), y = sueloEn(p.x, p.z), h = 3 + rnd() * 1.6 - (k === 0 || k === 6 ? 0 : rnd() * 0.8);
+      pieza(kitPilares[k % 2 ? 0 : 2], new THREE.Vector3(p.x, y - 1.6, p.z), new THREE.Vector3(p.x, y + h, p.z), 1.6, giro);
+      if (k < 6 && rnd() < 0.8) { const q = p.clone().addScaledVector(e, 4.2); pieza(kitPilares[4], new THREE.Vector3(p.x, y + h - 0.4, p.z), new THREE.Vector3(q.x, sueloEn(q.x, q.z) + h - 0.4, q.z), 1.1, Math.PI / 2); }
+    }
+  }
+  // Losas enormes inclinadas y monolitos sueltos (lámina 2), en todo el campo de dunas.
+  for (let z = DUNAS.desde - 22; z > DUNAS.hasta + 10; z -= 14 + rnd() * 12) {
+    const lado = rnd() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (12 + rnd() * 30);
+    if (rnd() < 0.55) losa(x, z, 5 + rnd() * 9, 12 + rnd() * 16, 1.6 + rnd() * 1.6, rnd() * Math.PI, (rnd() - 0.5) * 0.35);
+    else obelisco(x, z, 6 + rnd() * 10, 1.3 + rnd() * 1.4);
+  }
+  // Farallón de losas apiladas a la izquierda del paso (lámina 2): una pared escalonada e inclinada.
+  for (let k = 0; k < 9; k++) {
+    const z = -495 - k * 4.5 - rnd() * 1.5, x = caminoX(z) - 11 - rnd() * 2 - (k % 3) * 1.8;
+    losa(x, z, 3.5 + rnd() * 2.5, 7 + rnd() * 7, 2.2 + rnd(), 1.4 + (rnd() - 0.5) * 0.3, -0.15 - rnd() * 0.12, 0.15);
+  }
+}
+
 // Rocas incrustadas en las paredes de los abismos (precipicio y puente), en dos alturas, sobresaliendo
 // metidas en la pared (asoman poco). Sin colisión: son pared, no apoyo. Lejos de los extremos de las pasarelas.
 {
@@ -2795,7 +2859,7 @@ function actualizar(dt) {
     }
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
-    scene.fog.near = 2; scene.fog.far = lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 42, suave(DUNAS.desde, DUNAS.desde - 20, pos.z));   // en las dunas se ve más lejos
+    scene.fog.near = 2; scene.fog.far = lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 85, suave(DUNAS.desde, DUNAS.desde - 20, pos.z));   // en las dunas, mucha menos niebla
   }
 
   sol.position.set(pos.x - 18, pos.y + 30, pos.z + 12);
