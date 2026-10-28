@@ -96,7 +96,9 @@ const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta], [zanjaDesde
 const PLATAFORMA2 = { x: 0, z: LARGO(-154), r: 4.6, alto: 0.7 };
 // Tercera plataforma, al final del paso de los arcos: allí se aprende a abrir la puerta arcana.
 const PLATAFORMA3 = { x: 0, z: -435, r: 6, alto: 0.7 };
-const PLATAFORMAS = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3];
+// Cuarta, al final de las dunas: allí se aprende a girar los bloques de las columnas de runas.
+const PLATAFORMA4 = { x: 0, z: -768, r: 4.6, alto: 0.7 };
+const PLATAFORMAS = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4];
 // Desfiladero cerrado por peñascos: solo se pasa apartándolos con el viento.
 const DESFILADERO = { desde: LARGO(-165), hasta: LARGO(-177), media: 2.8, penascos: LARGO(-171) };
 // El desfiladero empieza tras el rellano y se abre en una sala redonda alrededor de la segunda
@@ -105,7 +107,7 @@ const CANON_DESDE = RELLANO.z - 2, CAMARA_R = 8.5, ANILLO_R = 7.3;
 const anchoCanon = z => Math.max(DESFILADERO.media, Math.sqrt(Math.max(0, CAMARA_R * CAMARA_R - (z - PLATAFORMA2.z) ** 2)));
 // Desfiladero de los arcos (lámina de los arcos en ruinas), tras el desfiladero de los peñascos; al final, el anillo.
 const DUNAS = { desde: -558, hasta: -756 };                   // campo de dunas tras la pasarela que cae
-const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -780, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
+const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -812, PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
 const FIN_Z = ANILLO_Z + 6;
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
@@ -144,6 +146,7 @@ function alturaBase(x, z) {
 const ALTURA_PLAT = PLATAFORMA.base = alturaBase(PLATAFORMA.x, PLATAFORMA.z) * 0.3;
 PLATAFORMA2.base = alturaBase(PLATAFORMA2.x, PLATAFORMA2.z) * 0.3 + RELLANO.alto;
 PLATAFORMA3.x = caminoX(PLATAFORMA3.z);
+PLATAFORMA4.x = caminoX(PLATAFORMA4.z);
 // La última plataforma, en lo alto de un desnivel: desde ella, todo el recorrido sigue ELEVA metros más arriba.
 const ELEVA = 3.6;
 PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto + ELEVA;
@@ -203,10 +206,12 @@ function alturaTerreno(x, z) {
   h += Math.max(0, lado - 20) * 0.35 * (1 - suave(DUNAS.desde, DUNAS.desde - 12, z));   // laderas fuera del recorrido (en las dunas, no)
   const enDunas = suave(DUNAS.desde, DUNAS.desde - 14, z);
   if (enDunas > 0) h += enDunas * alturaDunas(x, z, lado);
+  if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
   for (const [d, a] of ABISMOS) if (z < d(x) && z > a(x) && Math.abs(x) < 90) h = -60;   // hondo: el fondo no se ve
   return h;
 }
+PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
 
 // ─── Escena ────────────────────────────────────────────────────────────────
 const CIELO = new THREE.Color("#c9d8ee");
@@ -1579,7 +1584,107 @@ function montarPlataforma(P, plat, giro) {
 }
 montarPlataforma(PLATAFORMA2, gPlataforma.scene.clone(), 2.4);
 montarPlataforma(PLATAFORMA3, gPlataforma.scene.clone(), 0.9);
+montarPlataforma(PLATAFORMA4, gPlataforma.scene.clone(), 1.7);   // (antes que la primera, que usa el modelo original)
 montarPlataforma(PLATAFORMA, gPlataforma.scene, 4.0);    // los pilares altos, detrás del bastón al llegar
+
+// ─── Columnas de runas (lámina del puzle arcano), tras la cuarta plataforma ─
+// Tres columnas de dos bloques cierran el paso, entre muros de bloques. Junto a una columna, ◇ gira un
+// cuarto de vuelta el bloque de arriba; agachado, el de abajo. Una columna con la misma runa arriba y
+// abajo, de cara al camino, se ilumina; con las tres así, se hunden en la nieve y dejan pasar.
+const puzle = (() => {
+  const RUNAS_P = {
+    rombo: g => { g.moveTo(128, 40); g.lineTo(176, 128); g.lineTo(128, 216); g.lineTo(80, 128); g.closePath(); },
+    rayo: g => { g.moveTo(152, 38); g.lineTo(98, 132); g.lineTo(158, 126); g.lineTo(104, 218); },
+    ocho: g => { g.moveTo(128, 34); g.lineTo(170, 82); g.lineTo(86, 174); g.lineTo(128, 222); g.lineTo(170, 174); g.lineTo(86, 82); g.closePath(); },
+    aro: g => { g.arc(128, 128, 64, -Math.PI / 2 + 0.38, Math.PI * 1.5 - 0.38); },
+  };
+  const NOMBRES = Object.keys(RUNAS_P), rnd = generador(4747);
+  const lienzo = () => { const c = document.createElement("canvas"); c.width = c.height = 256; return c; };
+  // Piedra: gris azulado como el resto, con grano, alguna grieta y los cantos más oscuros.
+  const piedra = (g, nieve) => {
+    g.fillStyle = nieve ? "#e3e9f2" : "#8f97a4"; g.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "255,255,255" : "20,24,32"},${0.03 + rnd() * 0.07})`; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 2 + rnd() * 5); }
+    if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
+    const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
+  };
+  const caras = {};
+  for (const n of NOMBRES) {
+    const c = lienzo(), g = c.getContext("2d"); piedra(g, false);
+    g.lineCap = g.lineJoin = "round";
+    g.save(); g.translate(2, 3); g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 20; g.stroke(); g.restore();   // canto claro de la talla
+    g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "#2c2a2b"; g.lineWidth = 15; g.stroke();
+    const e = lienzo(), ge = e.getContext("2d"); ge.fillStyle = "#000"; ge.fillRect(0, 0, 256, 256);
+    ge.filter = "blur(3px)"; ge.lineCap = ge.lineJoin = "round"; ge.beginPath(); RUNAS_P[n](ge); ge.strokeStyle = "#fff"; ge.lineWidth = 14; ge.stroke();
+    caras[n] = { map: new THREE.CanvasTexture(c), luz: new THREE.CanvasTexture(e) };
+  }
+  const lisa = lienzo(); piedra(lisa.getContext("2d"), false);
+  const nevada = lienzo(); piedra(nevada.getContext("2d"), true);
+  const texLisa = new THREE.CanvasTexture(lisa), texNieve = new THREE.CanvasTexture(nevada);
+  // Un bloque: las cuatro caras con runas en anillo (la que mira al camino tras k cuartos de vuelta es
+  // anillo[k]: +z, -x, -z, +x). Materiales propios, para iluminar sus runas.
+  const bloque = (anillo, arriba) => {
+    const mats = [], cara = n => { const m = new THREE.MeshStandardMaterial({ map: caras[n].map, emissive: 0xbfe2ff, emissiveMap: caras[n].luz, emissiveIntensity: 0, roughness: 0.92 }); mats.push(m); return m; };
+    const fz = cara(anillo[0]), fmx = cara(anillo[1]), fmz = cara(anillo[2]), fx = cara(anillo[3]);
+    const tapa = new THREE.MeshStandardMaterial({ map: arriba ? texNieve : texLisa, roughness: 0.95 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.6, 1.7), [fx, fmx, tapa, tapa, fz, fmz]);
+    m.castShadow = m.receiveShadow = true;
+    return { m, anillo, rot: 0, ang: 0, mats };
+  };
+  const G = PUZLE_Z, cx = caminoX(G), columnas = [];
+  for (const dx of [-2, 0, 2]) {
+    const x = cx + dx, y0 = alturaTerreno(x, G) - 0.3, g = new THREE.Group();
+    g.position.set(x, y0, G); scene.add(g);
+    const orden = () => { const a = NOMBRES.slice(); for (let i = 3; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const abajo = bloque(orden(), false), arriba = bloque(orden(), true);
+    abajo.m.position.y = 0.8; arriba.m.position.y = 2.45; arriba.m.rotation.z = (rnd() - 0.5) * 0.04;
+    g.add(abajo.m, arriba.m);
+    // Que no empiecen alineadas.
+    abajo.rot = Math.floor(rnd() * 4); arriba.rot = Math.floor(rnd() * 4);
+    if (abajo.anillo[abajo.rot] === arriba.anillo[arriba.rot]) arriba.rot = (arriba.rot + 1) % 4;
+    for (const b of [abajo, arriba]) { b.ang = b.rot * Math.PI / 2; b.m.rotation.y = b.ang; }
+    const col = { x, z: G, r: 1.15, techo: 99 }; colisiones.push(col);
+    columnas.push({ x, z: G, g, y0, abajo, arriba, col, brillo: 0 });
+  }
+  // Muros a los lados: bloques tallados, altos y medio enterrados, hasta donde el viento ya devuelve al camino.
+  for (const lado of [-1, 1]) for (let d = 4.4, k = 0; d < 24; d += 2.5 + rnd() * 0.7, k++) {
+    const x = cx + lado * d, z = G + (rnd() - 0.5) * 0.8, P = kitPilares[k % 3], h = 4.6 + rnd() * 2.6, w = 2.8, t = 2.2;
+    const g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
+    m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
+    g.scale.set(w / P.ancho, h / P.alto, t / P.ancho); g.rotation.set((rnd() - 0.5) * 0.08, (rnd() - 0.5) * 0.3, (rnd() - 0.5) * 0.08, "YXZ");
+    g.position.set(x, masBajoEn(x, z, 1.6) - 0.9 + h / 2, z); scene.add(g);
+    colisiones.push({ x, z, r: 1.55, techo: 99 });
+  }
+  let t = -1;
+  return {
+    columnas, get resuelto() { return t >= 0; },
+    cerca(x, z) { if (t >= 0) return null; let mejor = null, dm = 2.5; for (const c of columnas) { const d = Math.hypot(x - c.x, z - c.z); if (d < dm) { dm = d; mejor = c; } } return mejor; },
+    girar(c, cual) { c[cual].rot = (c[cual].rot + 1) % 4; },
+    alineada: c => c.abajo.anillo[c.abajo.rot] === c.arriba.anillo[c.arriba.rot],
+    actualizar(dt) {
+      let todas = true;
+      for (const c of columnas) {
+        let quieta = true;
+        for (const b of [c.abajo, c.arriba]) {
+          // Siempre en el mismo sentido: el ángulo destino crece un cuarto de vuelta por giro.
+          let meta = b.rot * Math.PI / 2; while (meta < b.ang - 1e-3) meta += Math.PI * 2;
+          b.ang += Math.min(meta - b.ang, dt * 2.6); b.m.rotation.y = b.ang;
+          if (meta - b.ang > 0.01) quieta = false;
+        }
+        const ok = quieta && this.alineada(c); if (!ok) todas = false;
+        c.brillo += ((ok ? 1 : 0) - c.brillo) * (1 - Math.exp(-dt * 3));
+        for (const b of [c.abajo, c.arriba]) for (const m of b.mats) m.emissiveIntensity = c.brillo * 0.75;
+      }
+      if (todas && t < 0) { t = 0; rotular("Las columnas se hunden.", 3); musica.viento(0.45, 0.6); }
+      if (t >= 0) {
+        t += dt;
+        const k = suave(0.8, 4.2, t);
+        for (const c of columnas) { c.g.position.y = c.y0 - k * 3.9; c.g.position.x = c.x + Math.sin(t * 37 + c.x) * 0.03 * (k > 0 && k < 1 ? 1 : 0); }
+        if (t > 0.8) for (const c of columnas) { const i = colisiones.indexOf(c.col); if (i >= 0) colisiones.splice(i, 1); }
+        if (t > 0.8 && t < 4.2) efectoEspiral = Math.max(efectoEspiral, 0.4);
+      }
+    },
+  };
+})();
 
 // ─── Bastón (láminas 27 y 28) ──────────────────────────────────────────────
 const madera = plano("#3b3633");
@@ -2336,6 +2441,8 @@ const FIGURAS = {
   runa: { velocidad: 58, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
   // La runa de la puerta (lámina 80): dos rombos apilados, en un solo trazo, como un ocho.
   puerta: { velocidad: 40, puntos: [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 8]] },
+  // La runa de las columnas: el rombo con su travesaño, que gira.
+  giro: { velocidad: 48, puntos: [[22, 50], [50, 8], [78, 50], [50, 92], [22, 50], [78, 50]] },
 };
 const trazo = (() => {
   const capa = document.createElement("div");
@@ -2461,17 +2568,18 @@ function empezar(santuario = 0) {
 }
 // Empezar ante una plataforma, con el bastón y los poderes de las anteriores; sin la toma inicial.
 function empezarEnSantuario(n) {
-  const P = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3][n - 1];
-  const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : RAMPA3.desde + RAMPA3.largo + 2.5, x = n === 2 ? P.x : caminoX(z);
+  const P = PLATAFORMAS[n - 1];   // (la cuarta aún no está en la lista de santuarios)
+  const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
   pos.set(x, alturaSuelo(x, z) + 0.05, z); vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
   if (n >= 2) { tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false; }
   if (n >= 3) { muevePiedras = true; yaAlzada = true; }
+  if (n >= 4) abrePuertas = true;
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
   if (n >= 2) avisoPuente = avisoSalto = avisoAgacharse = avisoMixta = avisoRocas = avisoGrieta = avisoRellano = true;
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
-  rotular(SANTUARIOS[n - 1].nombre, 4);
+  rotular(SANTUARIOS[n - 1] ? SANTUARIOS[n - 1].nombre : "Santuario de las columnas", 4);
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -2512,7 +2620,7 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
-let abrePuertas = false, aprende = "";
+let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false;
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
@@ -2680,7 +2788,10 @@ function actualizar(dt) {
     // En el centro de la segunda plataforma el viento se enrosca en el bastón: desde aquí puede mover piedras.
     arrodillado += dt;
     efectoEspiral = Math.max(efectoEspiral, arrodillado < 2.2 ? 1 : 0);
-    if (arrodillado > 2.8 && aprende === "puerta") {
+    if (arrodillado > 2.8 && aprende === "giro") {
+      estado = "juego"; giraBloques = true;
+      rotular(tactil ? "Junto a una columna, ◇ gira la piedra de arriba;\nagachado, la de abajo." : "Junto a una columna, E gira la piedra de arriba;\nagachado (C), la de abajo.", 6);
+    } else if (arrodillado > 2.8 && aprende === "puerta") {
       estado = "juego"; abrePuertas = true;
       rotular(tactil ? "Desde la plataforma, agáchate\ny ◇ abre la puerta." : "Desde la plataforma, agáchate\ny E abre la puerta.", 6);
     } else if (arrodillado > 2.8) {
@@ -2733,6 +2844,11 @@ function actualizar(dt) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.cerca(pos.x, pos.z)) {
+      // Girar un bloque de la columna: el de arriba; agachado (o recién agachado), el de abajo.
+      const c = puzle.cerca(pos.x, pos.z);
+      puzle.girar(c, agachado || reloj - ultimoAgachado <= 1.5 ? "abajo" : "arriba");
+      rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.5; musica.viento(0.3, 0.95);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado) {
       // Alzar la roca más cercana: el viento la envuelve y la sostiene delante de Blizzard.
       // Recién aprendido el poder, la que se alza es la marcada por la espiral.
@@ -2807,6 +2923,14 @@ function actualizar(dt) {
       trazo.empezar("puerta", () => { estado = "despertando"; arrodillado = 0; aprende = "puerta"; });
       musica.viento(0.3, 0.8);
     }
+    if (tieneBaston && !giraBloques && s.sobre === PLATAFORMA4 && Math.hypot(pos.x - PLATAFORMA4.x, pos.z - PLATAFORMA4.z) < 2.4 && estado === "juego") {
+      // Cuarta plataforma: la runa del giro, la de las columnas.
+      estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
+      ladoLlamada = elegirLado();
+      trazo.empezar("giro", () => { estado = "despertando"; arrodillado = 0; aprende = "giro"; });
+      musica.viento(0.3, 0.85);
+    }
+    if (!avisoPuzle && pos.z < PUZLE_Z + 9 && !puzle.resuelto) { avisoPuzle = true; rotular(giraBloques ? "Alinea las runas de cada columna." : "Columnas de runas.\nVuelve a la plataforma.", 4); }
     if (tieneBaston && !muevePiedras && s.sobre === PLATAFORMA2 && Math.hypot(pos.x - PLATAFORMA2.x, pos.z - PLATAFORMA2.z) < 2.6) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
@@ -3053,6 +3177,7 @@ function actualizar(dt) {
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   { const c = sol.shadow.camera, r = lerp(22, 85, alba); if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
+  puzle.actualizar(dt);
   efectos(dt, adelante);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
 }
@@ -3392,7 +3517,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, puzle, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
