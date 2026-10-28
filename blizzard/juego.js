@@ -1223,13 +1223,13 @@ const SALTOS_LOSAS = [];
 {
   const z0 = QUIEBRA.desde + 1.2, y0 = alturaTerreno(caminoX(z0 + 1.3), z0 + 1.3) - 0.02;
   // [distancia desde el borde, tamaño]: cinco juntas y dos grandes donde cae un salto corriendo (~3,7 m).
-  [[0.85, 1.8], [2.55, 1.8], [4.25, 1.8], [5.95, 1.8], [7.65, 1.8], [11.2, 2.4], [14.9, 2.4]].forEach(([d, tam], i) => {
+  [[0.85, 1.85, 1.5], [2.55, 1.6, 1.25], [4.25, 1.95, 1.6], [5.95, 1.7, 1.35], [7.65, 1.85, 1.55], [11.2, 2.6, 1.3], [14.9, 2.3, 1.5]].forEach(([d, tam, ancho], i) => {   // ancho: cuánto más anchas que largas
     const z = z0 - d, x = caminoX(z) + (Math.random() - 0.5) * 0.3, pieza = kitPilares[i % 3];
     const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, nieveFina);
     m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto, 0)); m.castShadow = m.receiveShadow = true;
-    cuerpo.add(m); cuerpo.scale.set(tam / pieza.ancho, 1.4 / pieza.alto, tam / pieza.ancho); g.add(cuerpo);
+    cuerpo.add(m); cuerpo.scale.set(tam * ancho / pieza.ancho, 1.4 / pieza.alto, tam / pieza.ancho); g.add(cuerpo);
     const y = y0;
-    g.position.set(x, y, z); g.rotation.y = i * 1.7; scene.add(g);
+    g.position.set(x, y, z); g.rotation.y = ((i * 1.7) % 0.5) - 0.25; scene.add(g);   // anchas a lo ancho del paso
     const col = { x, z, r: tam * 0.62, techo: y };
     colisiones.push(col);
     if (i > 4) SALTOS_LOSAS.push(z0 - [0, 0, 0, 0, 0, 8.2, 12.05][i]);           // donde hay que saltar: al final de la anterior
@@ -2793,7 +2793,7 @@ function efectos(dt, adelante) {
   // Espiral blanca del viento mágico (impulso, rescate, límite del mundo).
   efectoEspiral = Math.max(0, efectoEspiral - dt);
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
-  espiral.material.opacity = intensidad;
+  espiral.material.opacity = intensidad * 0.68;                      // algo más suave
   const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
   const centro = espiralEn || pos;
   for (let i = 0; i < n; i++) {
