@@ -1383,9 +1383,10 @@ figura.traverse(o => {
     const y = pz.getY(k); _p.fromBufferAttribute(pz, k).sub(cuello);
     const lat = Math.abs(_p.dot(ladoV)), fondo = _p.dot(alante);
     // Lo alto de los hombros, hasta el arranque del brazo.
-    const hombros = suave(yH + 0.005 * m, yH + 0.025 * m, y) * suave(mitad * 0.85, mitad * 0.7, lat);
+    // (sigue la caída del hombro: hacia fuera, solo lo más alto; no baja por los lados)
+    const yh = yH + 0.005 * m + 0.035 * m * clamp(lat / mitad, 0, 1), hombros = suave(yh, yh + 0.02 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
     // Y lo alto de la espalda, por detrás: continúa de los hombros a la capa.
-    const espalda = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.1 * m, yH - 0.07 * m, y) * suave(mitad * 0.85, mitad * 0.7, lat);
+    const espalda = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.1 * m, yH - 0.07 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
     cap[k] = Math.max(suave(yMax - 0.21 * H, yMax - 0.17 * H, y), hombros, espalda);
   }
   g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
