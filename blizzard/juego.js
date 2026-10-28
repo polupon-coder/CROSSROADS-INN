@@ -20,8 +20,8 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
       cargador.parse(buf.buffer, "", ok, ko);
     }))
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
-// Capa amarilla con capucha: tela simulada que cuelga de los hombros (ver «Capa de tela»).
-const CON_CAPA = true;
+// La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
+const CON_CAPA = false;
 const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa]) if (g) g.scene.traverse(o => {
@@ -1330,170 +1330,132 @@ poner("quieto_libre", 0); mixer.update(0); blizzard.updateMatrixWorld(true);
 const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
 figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
 blizzard.updateMatrixWorld(true);
-// ─── Capa de tela ──────────────────────────────────────────────────────────
-// El modelo de la capa (con sus pliegues) se deforma con una red de tela simulada alrededor del cuerpo:
-// la fila de arriba va cosida a los hombros; el resto cae con inercia, gravedad y viento, y choca con
-// el tronco, los brazos y las piernas (nunca se mete en ellos más de lo que está en reposo, así que
-// ningún gesto la atraviesa). La capucha sigue a la cabeza. Cada vértice sigue a los puntos de la red
-// que tiene cerca, así que los pliegues del modelo se conservan y ondean.
-const capaTela = (() => {
-  if (!CON_CAPA) return null;
-  const capa = gCapa.scene; let malla = null;
-  capa.traverse(o => { if (o.isMesh) malla = o; });
-  malla.material.side = THREE.DoubleSide; malla.frustumCulled = false; malla.castShadow = true;
-  const cuello = enMundo("Neck"), cadera = enMundo("Hips"), cm = 100 * ESC;
-  capa.scale.set(1.28 * cm, cm, 1.28 * cm);
-  capa.position.set(cadera.x, cuello.y - 0.856 * cm + 0.04 * cm, cadera.z);
-  scene.add(capa); capa.updateMatrixWorld(true);
-  const espalda = hueso("Spine2"), cabeza = hueso("Head");
-  espalda.attach(capa); blizzard.updateMatrixWorld(true);
-  // Capucha amarilla: la del propio personaje (va pegada a la cabeza en cualquier gesto), teñida del
-  // amarillo de la capa conservando sus sombras; el hueco de la cara (casi negro) no se toca.
-  figura.traverse(o => {
-    if (!o.isSkinnedMesh) return;
-    const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
-    const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
-    for (let k = 0; k < pz.count; k++) cap[k] = suave(yMax - 0.21 * H, yMax - 0.17 * H, pz.getY(k));
-    g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
-    o.material = o.material.clone();
-    o.material.onBeforeCompile = sh => {
-      sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
-      sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
-        float lum = dot(diffuseColor.rgb, vec3(0.3333));
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.085, 0.12, lum));`);
-    };
-  });
-  // Hombros algo más estrechos: la parte alta de la capa se cierra un poco hacia el centro.
-  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) { const y = a.getY(k); a.setX(k, a.getX(k) * (1 - 0.1 * suave(0.42, 0.74, y))); if (y > 0.6) a.setY(k, 0.6 + (y - 0.6) * 0.55); } }   // y la parte de arriba, bajada a los hombros
-  // Solo la parte de atrás, como una capa de capa y espada: fuera los triángulos de delante y de los
-  // costados delanteros; arriba se deja algo más, para que caiga sobre los hombros.
-  const atras = (x, y, z) => Math.abs(Math.atan2(x, -z)) < 1.5 - 0.18 * suave(0.5, 0.74, y);   // arriba, solo la espalda: detrás de los brazos
-  {
-    const a = malla.geometry.attributes.position, idx = malla.geometry.index.array, quedan = [];
-    for (let t = 0; t < idx.length; t += 3) if ([0, 1, 2].every(q => atras(a.getX(idx[t + q]), a.getY(idx[t + q]), a.getZ(idx[t + q])))) quedan.push(idx[t], idx[t + 1], idx[t + 2]);
-    malla.geometry.setIndex(quedan);
-  }
-  const base = Float32Array.from(malla.geometry.attributes.position.array), n = base.length / 3;
-  // Red: NI filas (de los hombros al bajo) y NJ columnas alrededor (de un borde delantero al otro).
-  const NI = 9, NJ = 13, Y_HOMBRO = 0.7, Y_CUELLO = 0.816;
-  const ang = (x, z) => Math.atan2(x, -z);                         // 0 en la espalda, ±π delante
-  let aMin = Infinity, aMax = -Infinity;
-  for (let k = 0; k < n; k++) if (base[k * 3 + 1] < Y_HOMBRO && atras(base[k * 3], base[k * 3 + 1], base[k * 3 + 2])) { const a = ang(base[k * 3], base[k * 3 + 2]); aMin = Math.min(aMin, a); aMax = Math.max(aMax, a); }
-  const filaDe = y => clamp((Y_HOMBRO - y) / Y_HOMBRO * (NI - 1), 0, NI - 1), colDe = a => clamp((a - aMin) / (aMax - aMin) * (NJ - 1), 0, NJ - 1);
-  // Reposo de cada punto (en el espacio de la capa): media de los vértices de su celda.
-  const reposo = Array.from({ length: NI * NJ }, () => [0, 0, 0, 0]);
-  for (let k = 0; k < n; k++) {
-    const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2];
-    if (y > Y_HOMBRO + 0.02) continue;
-    const r = reposo[Math.round(filaDe(y)) * NJ + Math.round(colDe(ang(x, z)))]; r[0] += x; r[1] += y; r[2] += z; r[3]++;
-  }
-  for (let pasada = 0; pasada < 6; pasada++) for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) {
-    const r = reposo[i * NJ + j]; if (r[3]) continue;
-    const vec = [reposo[i * NJ + j - 1], reposo[i * NJ + j + 1], reposo[(i - 1) * NJ + j], reposo[(i + 1) * NJ + j]].filter(q => q && q[3] && (q !== reposo[i * NJ + j - 1] || j > 0) && (q !== reposo[i * NJ + j + 1] || j < NJ - 1));
-    if (vec.length) { for (const q of vec) { r[0] += q[0] / q[3]; r[1] += q[1] / q[3]; r[2] += q[2] / q[3]; } r[0] /= vec.length; r[1] /= vec.length; r[2] /= vec.length; r[3] = 1; }
-  }
-  const local = reposo.map(r => new THREE.Vector3(r[0] / r[3], r[1] / r[3], r[2] / r[3]));
-  const radio0 = local.map((v, k) => Math.hypot(v.x, v.z) + 0.012 + 0.03 * Math.floor(k / NJ) / (NI - 1));   // algo separada del cuerpo
-  // Enlace de cada vértice: celda, pesos bilineales y cuánto sigue a la cabeza (capucha).
-  const celda = new Int32Array(n), fu = new Float32Array(n), fv = new Float32Array(n), wCabeza = new Float32Array(n);
-  for (let k = 0; k < n; k++) {
-    const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2], f = filaDe(y), c = colDe(ang(x, z));
-    const i0 = Math.min(NI - 2, Math.floor(f)), j0 = Math.min(NJ - 2, Math.floor(c));
-    celda[k] = i0 * NJ + j0; fv[k] = f - i0; fu[k] = c - j0;
-    wCabeza[k] = suave(Y_HOMBRO + 0.01, Y_CUELLO + 0.02, y);
-  }
-  // Partículas en el mundo.
-  const P = local.map(() => new THREE.Vector3()), Q = local.map(() => new THREE.Vector3()), A = local.map(() => new THREE.Vector3());
-  const D = local.map(() => new THREE.Vector3());
-  const largoV = [], largoH = [];
-  // Cápsulas del cuerpo: [hueso inicio, hueso fin, radio (m)].
-  const CAPSULAS = [["Hips", "Spine2", 0.15], ["Spine2", "Neck", 0.14], ["LeftArm", "LeftForeArm", 0.065], ["LeftForeArm", "LeftHand", 0.055],
-    ["RightArm", "RightForeArm", 0.065], ["RightForeArm", "RightHand", 0.055], ["LeftUpLeg", "LeftLeg", 0.085], ["LeftLeg", "LeftFoot", 0.065],
-    ["RightUpLeg", "RightLeg", 0.085], ["RightLeg", "RightFoot", 0.065]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
-  const _c = new THREE.Vector3(), _d = new THREE.Vector3();
-  const alSegmento = (p, cap) => { _d.subVectors(cap.pb, cap.pa); const t = clamp(_c.subVectors(p, cap.pa).dot(_d) / Math.max(1e-6, _d.lengthSq()), 0, 1); return _c.copy(cap.pa).addScaledVector(_d, t); };
-  const colocarCapsulas = () => { for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); } };
-  // En reposo, lo más cerca que cada punto está de cada cápsula: nunca se le empuja más allá.
-  const holgura = [];
-  const anclar = () => { const M = capa.matrixWorld; for (let k = 0; k < P.length; k++) A[k].copy(local[k]).applyMatrix4(M); };
-  anclar(); colocarCapsulas();
-  for (let k = 0; k < P.length; k++) {
-    P[k].copy(A[k]); Q[k].copy(A[k]);
-    holgura.push(CAPSULAS.map(c => Math.min(c.r + 0.035, alSegmento(A[k], c).distanceTo(A[k]) - 0.005)));
-  }
-  const largoV2 = [];
-  for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) {
-    largoV2.push(i > 1 ? A[i * NJ + j].distanceTo(A[(i - 2) * NJ + j]) : 0);
-    largoV.push(i ? A[i * NJ + j].distanceTo(A[(i - 1) * NJ + j]) : 0);
-    largoH.push(j ? A[i * NJ + j].distanceTo(A[i * NJ + j - 1]) : 0);
-  }
-  // Cabeza respecto a la espalda, en reposo: la capucha se mueve con lo que la cabeza se aparte de esto.
-  const relCabeza = () => new THREE.Matrix4().copy(espalda.matrixWorld).invert().multiply(cabeza.matrixWorld);
-  const cabeza0Inv = relCabeza().invert(), C = capa.matrix.clone(), Cinv = C.clone().invert();
-  const _M = new THREE.Matrix4(), _Minv = new THREE.Matrix4(), _H = new THREE.Matrix4(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _p = new THREE.Vector3();
-  const atar = (a, b, largo, k) => {   // restricción de distancia entre dos puntos (a fijo si es de la fila de arriba)
-    _v.subVectors(P[b], P[a]); const d = _v.length() || 1e-6, e = (d - largo) / d;
-    if (a < NJ) P[b].addScaledVector(_v, -e * k); else { P[a].addScaledVector(_v, e * 0.5 * k); P[b].addScaledVector(_v, -e * 0.5 * k); }
+// ─── Capucha amarilla ──────────────────────────────────────────────────────
+// La del propio personaje (va pegada a la cabeza en cualquier gesto), teñida de amarillo conservando
+// sus sombras; el hueco de la cara (casi negro) no se toca.
+const AMARILLO = new THREE.Color(0.63, 0.47, 0.05);
+figura.traverse(o => {
+  if (!o.isSkinnedMesh) return;
+  const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
+  const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
+  for (let k = 0; k < pz.count; k++) cap[k] = suave(yMax - 0.21 * H, yMax - 0.17 * H, pz.getY(k));
+  g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
+  o.material = o.material.clone();
+  o.material.onBeforeCompile = sh => {
+    sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
+    sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+      float lum = dot(diffuseColor.rgb, vec3(0.3333));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.085, 0.12, lum));`);
   };
-  let ultimo = new THREE.Vector3(), cuadro = 0;
+});
+
+// ─── Capa de tela ──────────────────────────────────────────────────────────
+// Capa de espalda, cosida a los hombros: el borde de arriba va cada fotograma sobre los hombros y la
+// espalda (sigue cualquier gesto); el resto es una red de tela con inercia, gravedad y viento, rigidez
+// de doblado (sin pliegues horizontales) y choques con el cuerpo, el suelo y el plano del pecho (nunca
+// pasa por delante). Se dibuja con una malla lisa interpolada sobre la red, con pliegues verticales.
+const capaTela = (() => {
+  const NI = 12, NJ = 11, LARGO_CAPA = 1.14, ANCHO_ARRIBA = 1.45, VUELO_ABAJO = 1.9;
+  const NR = 30, NC = 24;
+  const P = [], Q = [], A = [];
+  for (let k = 0; k < NI * NJ; k++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); A.push(new THREE.Vector3()); }
+  // Malla visible.
+  const geo = new THREE.BufferGeometry(), vert = new Float32Array(NR * NC * 3), uv = new Float32Array(NR * NC * 2), idx = [];
+  for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) { uv[(r * NC + c) * 2] = c / (NC - 1); uv[(r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
+  for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); }
+  geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  // Por dentro, algo más oscura.
+  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.6;"); };
+  const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = true;
+  scene.add(malla);
+  const hIzq = hueso("LeftArm"), hDer = hueso("RightArm"), hCuello = hueso("Neck"), hEspalda = hueso("Spine2");
+  const CAPSULAS = [["Hips", "Spine2", 0.2], ["Spine2", "Neck", 0.16], ["LeftArm", "LeftForeArm", 0.08], ["LeftForeArm", "LeftHand", 0.065],
+    ["RightArm", "RightForeArm", 0.08], ["RightForeArm", "RightHand", 0.065], ["LeftUpLeg", "LeftLeg", 0.13], ["LeftLeg", "LeftFoot", 0.09],
+    ["RightUpLeg", "RightLeg", 0.13], ["RightLeg", "RightFoot", 0.09]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _v = new THREE.Vector3(), _w = new THREE.Vector3();
+  const atras = new THREE.Vector3(), lado = new THREE.Vector3(), centro = new THREE.Vector3();
+  const alSegmento = (p, cap) => { _d.subVectors(cap.pb, cap.pa); const t = clamp(_c.subVectors(p, cap.pa).dot(_d) / Math.max(1e-6, _d.lengthSq()), 0, 1); return _c.copy(cap.pa).addScaledVector(_d, t); };
+  const largoV = LARGO_CAPA / (NI - 1);
+  // Forma de reposo (y borde de arriba, cosido): arco sobre los hombros por detrás, cayendo y abriéndose algo abajo.
+  const formar = () => {
+    hIzq.getWorldPosition(_a); hDer.getWorldPosition(_b); hCuello.getWorldPosition(centro);
+    atras.set(-Math.sin(rumbo), 0, -Math.cos(rumbo)); lado.set(Math.cos(rumbo), 0, -Math.sin(rumbo));
+    const medio = _v.addVectors(_a, _b).multiplyScalar(0.5), anchoH = Math.max(0.2, _a.distanceTo(_b)) * ANCHO_ARRIBA / 2;
+    const yArriba = Math.max(_a.y, _b.y) + 0.035;
+    for (let j = 0; j < NJ; j++) {
+      const t = j / (NJ - 1) * 2 - 1;                              // -1 izquierda … 1 derecha
+      for (let i = 0; i < NI; i++) {
+        const f = i / (NI - 1), ancho = anchoH * lerp(1, VUELO_ABAJO, f);
+        A[i * NJ + j].copy(medio).addScaledVector(lado, -t * ancho)
+          .addScaledVector(atras, 0.07 + 0.08 * Math.cos(t * Math.PI / 2) + 0.07 * f)
+          .setY(yArriba - f * LARGO_CAPA);
+      }
+    }
+  };
+  const atar = (a, b, largo, k) => {
+    _w.subVectors(P[b], P[a]); const d = _w.length() || 1e-6, e = (d - largo) / d;
+    if (a < NJ) P[b].addScaledVector(_w, -e * k); else { P[a].addScaledVector(_w, e * 0.5 * k); P[b].addScaledVector(_w, -e * 0.5 * k); }
+  };
+  const largoH = [];
+  let iniciada = false, ultimo = new THREE.Vector3();
+  const catmull = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+  const coord = (i, j, e) => P[clamp(i, 0, NI - 1) * NJ + clamp(j, 0, NJ - 1)].getComponent(e);
   return {
-    malla,
+    malla, P, A,
     actualizar(dt, viento, suelo) {
       dt = Math.min(dt, 1 / 30);
       blizzard.updateMatrixWorld(true);
-      anclar(); colocarCapsulas();
-      // Si Blizzard ha saltado de sitio (rescate, reinicio), la capa vuelve a su forma.
-      if (A[0].distanceTo(ultimo) > 1.2) for (let k = 0; k < P.length; k++) { P[k].copy(A[k]); Q[k].copy(A[k]); }
+      formar();
+      for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); }
+      if (!iniciada || A[0].distanceTo(ultimo) > 1.2) {
+        for (let k = 0; k < P.length; k++) { P[k].copy(A[k]); Q[k].copy(A[k]); }
+        largoH.length = 0; for (let j = 1; j < NJ; j++) largoH.push(A[j].distanceTo(A[j - 1]));
+        iniciada = true;
+      }
       ultimo.copy(A[0]);
       for (let k = 0; k < P.length; k++) {
         if (k < NJ) { P[k].copy(A[k]); Q[k].copy(A[k]); continue; }
         const i = Math.floor(k / NJ), j = k % NJ, baja = i / (NI - 1);
-        _v.subVectors(P[k], Q[k]).multiplyScalar(0.965); Q[k].copy(P[k]);
-        const racha = 0.6 + 0.4 * Math.sin(reloj * 1.9 + j * 0.55 + i * 0.35) * Math.sin(reloj * 0.73 + j * 0.2);
-        _v.x += (viento.x * racha) * dt * dt * baja; _v.z += (viento.z * racha) * dt * dt * baja;
-        _v.y += ((viento.y || 0) * baja - 9.8) * dt * dt;
-        P[k].add(_v);
-        P[k].lerp(A[k], 0.025 + 0.05 * (1 - baja));              // vuelve un poco a su forma: ni rígida ni lacia
+        _v.subVectors(P[k], Q[k]).multiplyScalar(0.97); Q[k].copy(P[k]);
+        const racha = 0.65 + 0.35 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
+        _v.x += viento.x * racha * baja * dt * dt; _v.z += viento.z * racha * baja * dt * dt;
+        _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
+        P[k].add(_v).lerp(A[k], 0.012 + 0.03 * (1 - baja));        // tiende a su caída, sin rigidez
       }
-      _Minv.copy(capa.matrixWorld).invert();
-      for (let it = 0; it < 4; it++) {
-        for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) { const k = i * NJ + j; atar(k - NJ, k, largoV[k], 1); if (j) atar(k - 1, k, largoH[k], 0.8); }
-        // Rigidez de doblado: cada punto, a su distancia del de dos filas más arriba (sin pliegues horizontales ni «S»).
-        for (let i = 2; i < NI; i++) for (let j = 0; j < NJ; j++) { const k = i * NJ + j; atar(k - 2 * NJ, k, largoV2[k], 0.6); }
+      for (let it = 0; it < 5; it++) {
+        for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) {
+          const k = i * NJ + j;
+          atar(k - NJ, k, largoV, 1);
+          if (j) atar(k - 1, k, largoH[j - 1] * lerp(1, VUELO_ABAJO, i / (NI - 1)), 0.9);
+          if (i > 1) atar(k - 2 * NJ, k, largoV * 2, 0.5);           // doblado: sin «S» ni pliegues horizontales
+        }
         for (let k = NJ; k < P.length; k++) {
-          // Sin meterse en el cuerpo (cápsulas), sin alejarse demasiado de su sitio y sin bajar del suelo.
-          for (let c = 0; c < CAPSULAS.length; c++) {
-            const q = alSegmento(P[k], CAPSULAS[c]), d = q.distanceTo(P[k]), h = holgura[k][c];
-            if (d < h) P[k].copy(q).addScaledVector(_w.subVectors(P[k], q).normalize(), h);
+          for (const c of CAPSULAS) {
+            const q = alSegmento(P[k], c), d = q.distanceTo(P[k]);
+            if (d < c.r) { _w.subVectors(P[k], q); if (_w.lengthSq() < 1e-8) _w.copy(atras); _w.normalize(); P[k].copy(q).addScaledVector(_w, c.r); }
           }
-          // Nunca más cerca del eje del cuerpo que en reposo (la túnica es ancha): solo se abre hacia fuera.
-          _p.copy(P[k]).applyMatrix4(_Minv); const r = Math.hypot(_p.x, _p.z), r0 = radio0[k];
-          if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); }
-          // Solo hacia atrás: ni se abre a los lados más que en reposo ni se adelanta hacia las piernas.
-          const lx = Math.abs(local[k].x) * 1.04 + 0.015; _p.x = clamp(_p.x, -lx, lx); _p.z = Math.min(_p.z, local[k].z + 0.03);
-          P[k].copy(_p.applyMatrix4(capa.matrixWorld));
-          const lejos = 0.16 + 0.85 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
-          if (d > lejos) P[k].lerp(A[k], 1 - lejos / d);
+          // Nunca por delante del cuerpo: detrás del plano de la espalda (con un margen a los lados).
+          const delante = _w.subVectors(P[k], centro).dot(atras);
+          if (delante < 0.04) P[k].addScaledVector(atras, 0.04 - delante);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
       }
-      // Desplazamiento de cada punto, en el espacio de la capa.
-      _Minv.copy(capa.matrixWorld).invert();
-      for (let k = 0; k < P.length; k++) D[k].copy(P[k]).applyMatrix4(_Minv).sub(local[k]);
-      _H.copy(Cinv).multiply(relCabeza()).multiply(cabeza0Inv).multiply(C);
-      const pos = malla.geometry.attributes.position, arr = pos.array;
-      for (let k = 0; k < n; k++) {
-        const c = celda[k], u = fu[k], w = fv[k], a = D[c], b = D[c + 1], d2 = D[c + NJ], e = D[c + NJ + 1];
-        const x = base[k * 3], y = base[k * 3 + 1], z = base[k * 3 + 2];
-        let nx = x + (a.x * (1 - u) + b.x * u) * (1 - w) + (d2.x * (1 - u) + e.x * u) * w;
-        let ny = y + (a.y * (1 - u) + b.y * u) * (1 - w) + (d2.y * (1 - u) + e.y * u) * w;
-        let nz = z + (a.z * (1 - u) + b.z * u) * (1 - w) + (d2.z * (1 - u) + e.z * u) * w;
-        const h = wCabeza[k];
-        if (h > 0) { _p.set(x, y, z).applyMatrix4(_H); nx += (_p.x - nx) * h; ny += (_p.y - ny) * h; nz += (_p.z - nz) * h; }
-        arr[k * 3] = nx; arr[k * 3 + 1] = ny; arr[k * 3 + 2] = nz;
+      // Malla lisa: interpolación suave sobre la red, con pliegues verticales que se abren hacia abajo.
+      for (let r = 0; r < NR; r++) {
+        const fi = r / (NR - 1) * (NI - 1), i = Math.min(NI - 2, Math.floor(fi)), ti = fi - i;
+        for (let c = 0; c < NC; c++) {
+          const fj = c / (NC - 1) * (NJ - 1), j = Math.min(NJ - 2, Math.floor(fj)), tj = fj - j, o = (r * NC + c) * 3;
+          for (let e = 0; e < 3; e++) {
+            const fila = d => catmull(coord(i + d, j - 1, e), coord(i + d, j, e), coord(i + d, j + 1, e), coord(i + d, j + 2, e), tj);
+            vert[o + e] = catmull(fila(-1), fila(0), fila(1), fila(2), ti);
+          }
+          const pl = Math.sin(c / (NC - 1) * Math.PI * 6) * 0.022 * (0.25 + 0.75 * r / (NR - 1));
+          vert[o] += atras.x * pl; vert[o + 2] += atras.z * pl;
+        }
       }
-      pos.needsUpdate = true;
-      if ((cuadro++ & 1) === 0) malla.geometry.computeVertexNormals();
+      geo.attributes.position.needsUpdate = true;
+      geo.computeVertexNormals();
     },
   };
 })();
@@ -2617,7 +2579,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
