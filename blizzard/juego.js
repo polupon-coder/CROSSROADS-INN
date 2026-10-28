@@ -1840,11 +1840,11 @@ const huellas = (() => {
   }
   let siguiente = 0;
   const poner = (x, z, rumbo) => {
-    const m = lista[siguiente]; siguiente = (siguiente + 1) % lista.length;
+    const m = lista[siguiente]; siguiente = (siguiente + 1) % 160;      // solo las piezas de huella (detrás van las de surco, más grandes)
     m.position.set(x, alturaTerreno(x, z) + 0.03, z);
     m.rotation.set(-Math.PI / 2, rumbo + (Math.random() - 0.5) * 0.25, 0);
-    const k = 0.85 + Math.random() * 0.3; m.scale.set(k * (0.9 + Math.random() * 0.2), k, 1);
-    m.userData.nace = reloj; m.userData.fuerza = 0.5 + Math.random() * 0.35; m.visible = true;
+    const k = 0.88 + Math.random() * 0.12; m.scale.set(k * (0.92 + Math.random() * 0.08), k, 1);   // nunca más grandes
+    m.userData.nace = reloj; m.userData.fuerza = (Math.random() < 0.18 ? 0.45 : 1) * (0.45 + Math.random() * 0.35); m.visible = true;   // alguna, apenas marcada
   };
   // Surco: al cruzar nieve acumulada, una franja ancha y blanda (también se borra).
   const texSurco = (() => {
@@ -2961,7 +2961,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
-          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)});
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         ${niebla < 1 ? `#ifdef USE_FOG
