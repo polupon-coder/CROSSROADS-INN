@@ -282,7 +282,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
   suelo.receiveShadow = true;
   const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano(TONO_NIEVE));
   lejos.rotation.x = -Math.PI / 2;
-  lejos.position.set(0, -1.5, -130);
+  lejos.position.set(0, -75, -130);                            // muy abajo: no puede asomar en el fondo de los precipicios
   scene.add(suelo, lejos);
 }
 
@@ -921,10 +921,10 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
     for (let t = -25; t < 25; t += 2.0 + rndC() * 0.3) {             // juntos: se ve cerrado lo que está cerrado
       if (Math.abs(t - PASO_SALTO[i]) < 3.4) continue;              // las rocas tocan los extremos de la pilastra: sin hueco
       // Algo apartadas hacia fuera del pasillo entre las dos filas, para que se pueda ir de un paso al otro.
-      sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 2.0 + rndC() * 0.5, rndC() * Math.PI * 2);
+      sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 3.4 + rndC() * 0.6, rndC() * Math.PI * 2);   // más altas que un salto
     }
     // Un sillar pegado a cada extremo de la pilastra: no queda hueco por donde parezca que se pasa.
-    for (const d of [-3.9, 3.9]) sillar(cx + PASO_SALTO[i] + d, z + (i ? -1 : 1) * 0.5, 2.2, i * 2 + d);
+    for (const d of [-3.9, 3.9]) sillar(cx + PASO_SALTO[i] + d, z + (i ? -1 : 1) * 0.5, 3.4, i * 2 + d);
   });
   for (const [z, desde] of ZONA_AGACHARSE.map(z => [z, 6.2])) {
     const cx = caminoX(z);
@@ -935,8 +935,8 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   }
   // Algunas rocas altas en esas filas, algo por detrás, que rompen la línea continua.
   const rndT = generador(8383);
-  for (const [z, ts] of [[ZONA_PILASTRAS[0], [-14, 9.5, 19]], [ZONA_PILASTRAS[1], [-19, -10.5, 13]], [ZONA_AGACHARSE[0], [-12, 16]], [ZONA_AGACHARSE[1], [-17, 10.5]]]) {
-    const cx = caminoX(z), atras = z === ZONA_PILASTRAS[0] ? 1 : -1;
+  for (const [z, ts] of [[ZONA_PILASTRAS[0], [-14, 17]], [ZONA_PILASTRAS[1], [-17, 13]], [ZONA_AGACHARSE[0], [-12, 16]], [ZONA_AGACHARSE[1], [-17, 10.5]]]) {
+    const cx = caminoX(z), atras = z === ZONA_PILASTRAS[0] ? 1 : -1;   // lejos del paso: no lo tapan
     for (const t of ts) sillar(cx + t + (rndT() - 0.5) * 1.5, z + atras * (1.6 + rndT()), 5.5 + rndT() * 2.5, rndT() * 6);
   }
 }
@@ -1462,7 +1462,7 @@ const esclavina = (() => {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
   geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(ski, 4)); geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(skw, 4)); geo.setIndex(ind.filter((_, n) => { const t = n - n % 3; return [0, 1, 2].every(q => pos[ind[t + q] * 3 + 1] >= yCostura); }));
-  const malla = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, skinning: true, side: THREE.DoubleSide }));
+  const malla = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 1, metalness: 0, skinning: true, side: THREE.DoubleSide }));
   malla.bind(sk, cuerpo.bindMatrix); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = false;
   malla.position.copy(cuerpo.position); malla.quaternion.copy(cuerpo.quaternion); malla.scale.copy(cuerpo.scale); cuerpo.parent.add(malla);
   // Anclas de la tela: dos filas de puntos justo sobre la superficie de la esclavina (de un lado al
@@ -1527,7 +1527,7 @@ const capaTela = (() => {
   for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
   for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
   geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3)); geo.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha
+  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 1, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha
   // Por dentro, algo más oscura.
   mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.9;"); };
   const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = false; malla.receiveShadow = false;   // sin sombra sobre el cuerpo
@@ -1766,12 +1766,15 @@ const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 // se va rellenando solo en unos segundos. El primero, a pocos metros del inicio.
 const ventisqueros = [];
 function ventisquero(cx, cz, ancho, largo, alto) {
-  const NX = 64, NZ = 46, geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
+  const NX = Math.ceil(ancho / 0.13), NZ = Math.ceil(largo / 0.13), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
-    const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), r = Math.min(1, u * u + v * v);
+    const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), th = Math.atan2(v, u);
+    // Contorno irregular: el radio cambia con el ángulo (lóbulos y entrantes).
+    const borde = 1 - 0.18 * (0.5 + 0.5 * Math.sin(th * 3 + cx * 1.7)) - 0.12 * (0.5 + 0.5 * Math.sin(th * 5 + cz * 2.3)) - 0.06 * (0.5 + 0.5 * Math.sin(th * 9 + cx));
+    const r = Math.min(1, (u * u + v * v) / (borde * borde));
     base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
-    afila[i] = suave(1, 0.45, Math.sqrt(r));                      // hacia el borde del montón, el surco se afila
+    afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, x * 0.28, z * 0.28);
   }
   geo.computeVertexNormals();
@@ -1784,17 +1787,32 @@ function ventisquero(cx, cz, ancho, largo, alto) {
   const malla = new THREE.Mesh(geo, mat); malla.receiveShadow = true; scene.add(malla);
   ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, cambia: false });
 }
-ventisquero(0.4, 5.5, 8, 5.5, 0.55);
+ventisquero(0.6, -4, 8.5, 6, 0.55);
+// Al pie de cada montículo de nieve, su falda de nieve blanda; y más acumulaciones a lo largo de todo el
+// recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
+for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
+{
+  const rndN = generador(9191), libre = (x, z, r) => {
+    for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
+    if (PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + r + 1)) return false;
+    return !colisiones.some(c => !c.rampa && !c.borde && Math.hypot(c.x - x, c.z - z) < c.r + r * 0.6);
+  };
+  for (let z = -6; z > ANILLO_Z + 8; z -= 9 + rndN() * 6) {
+    const lado = rndN() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (1.5 + rndN() * 5), a = 4 + rndN() * 3.5, l = 3 + rndN() * 2.5;
+    if (libre(x, z, Math.max(a, l) / 2)) ventisquero(x, z, a, l, 0.3 + rndN() * 0.25);
+  }
+}
 // Cada fotograma: hunde lo que pisa Blizzard (con los bordes del surco algo levantados) y rellena el resto.
 function pisarVentisqueros(dt) {
   for (const v of ventisqueros) {
+    if (!v.cambia && (Math.abs(pos.x - v.cx) > v.ancho / 2 + 0.5 || Math.abs(pos.z - v.cz) > v.largo / 2 + 0.5)) continue;   // lejos y sin surco: nada que hacer
     const p = v.geo.attributes.position, dentro = Math.abs(pos.x - v.cx) < v.ancho / 2 + 0.5 && Math.abs(pos.z - v.cz) < v.largo / 2 + 0.5 && pos.y < v.suelo[0] + 1.5;
     let cambia = false;
     for (let i = 0; i < p.count; i++) {
       let h = v.hundido[i];
-      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.12 + 0.3 * a; if (d < rad) { const k = suave(rad, rad * 0.4, d) * (0.25 + 0.75 * a); if (k > h) { h = k; } } }
+      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const k = suave(rad, rad * 0.4, d) * (0.08 + 0.92 * a); if (k > h) { h = k; } } }
       if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
-      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); v.tono.fill(1 - 0.22 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)), i * 3, i * 3 + 3); cambia = true; }   // sombra suave en las paredes; el fondo, blanco
+      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = 1 - w; v.tono[i * 3 + 1] = 1 - w * 0.8; v.tono[i * 3 + 2] = 1 - w * 0.45; } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
     }
     if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; v.geo.computeVertexNormals(); }
     v.cambia = cambia;
@@ -2593,10 +2611,7 @@ function actualizar(dt) {
   blizzard.rotation.y = rumbo;
   huellas.actualizar();
   pisarVentisqueros(dt);
-  // Surco en la nieve acumulada (la ventisca alrededor de cada montículo): al pasar, cada pocos centímetros.
-  if (enSuelo && estado === "juego" && Math.hypot(vel.x, vel.z) > 0.4 && MONTICULOS.some(mo => Math.hypot(pos.x - mo.x, pos.z - mo.z) < mo.r * 2.2)) {
-    if (Math.hypot(pos.x - ultimoSurco.x, pos.z - ultimoSurco.z) > 0.24) { huellas.surco(pos.x, alturaSuelo(pos.x, pos.z), pos.z, rumbo); ultimoSurco.set(pos.x, 0, pos.z); }
-  }
+
   { const sueloP = alturaSuelo(pos.x, pos.z), alto = Math.max(0, pos.y - sueloP), k = clamp(1 - alto / 2.5, 0, 1);
     sombraPies.position.set(pos.x, sueloP + 0.03, pos.z); sombraPies.rotation.z = rumbo; sombraPies.scale.set((0.5 + 0.3 * (1 - k)), (0.85 + 0.4 * (1 - k)), 1); sombraPies.material.opacity = k * 0.8; }
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
@@ -2942,7 +2957,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float pegadoP = 1.0 - smoothstep(0.015, 0.1, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
-        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.72, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
+        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.64, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
@@ -2950,16 +2965,16 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         ${niebla < 1 ? `#ifdef USE_FOG
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(fogNear, fogFar, fogDepth) * ${niebla.toFixed(3)});
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(fogNear, fogFar, fogDepth) * mix(${niebla.toFixed(3)}, 1.0, smoothstep(9.0, 15.0, fogDepth)));
         #endif` : "#include <fog_fragment>"}`);
     };
     mat.needsUpdate = true;
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.05, 0.06, 0.6, 1, false, 0.5, 0.3); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.1, 0, 0.65, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.1, 0, 0.3, 0.8, false, 0.99, 0.3);   // y suave abajo, junto al suelo
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 1; nevar(o.material, 0.16, 0.2, 0.06, 0.6, 1, false, 0.42, 0.3); } });
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.2, 0, 0.65, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.2, 0, 0.3, 0.8, false, 0.99, 0.3);   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
