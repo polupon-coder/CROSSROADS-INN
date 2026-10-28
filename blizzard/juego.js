@@ -1390,23 +1390,25 @@ const esclavina = (() => {
   const yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, yAbajo = bp("Spine").y + 0.02 * m, yTope = cuello.y + 0.03 * m;
   // Separación de la espalda: pegada arriba, se levanta hacia abajo.
   const sepDe = y => (0.014 + 0.1 * clamp((yH - y) / (yH - yAbajo), 0, 1) ** 1.5) * m;
-  const L = mitad * 1.2;                                            // media anchura: laterales rectos
+  // Media anchura: en los hombros, hasta el arranque del brazo; por debajo algo menos (no llega a las axilas).
+  const L = mitad * 1.15, anchoEn = y => L * lerp(0.82, 1, clamp((y - yAbajo) / (yH - yAbajo), 0, 1));
   const tronco = new Set(["Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder"].map(idx));
   const lat = new Float32Array(pz.count), fondo = new Float32Array(pz.count), dentro = new Uint8Array(pz.count), cerca = new Uint8Array(pz.count), _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
     _p.fromBufferAttribute(pz, k).sub(cuello); lat[k] = _p.dot(ladoV); fondo[k] = _p.dot(alante);
     const y = pz.getY(k);
     // La espalda entera de lado a lado hasta la nuca; por delante, solo lo alto de los hombros.
-    const zona = fondo[k] <= 0.01 * m;                              // solo por detrás: nada por delante
-    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= L && zona ? 1 : 0;
-    cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= L * 1.5 && zona ? 1 : 0;   // se recorta a L y yAbajo
+    // Solo por detrás; bajo la línea de los hombros, solo lo claramente de la espalda (los costados no).
+    const zona = fondo[k] <= (y > yH - 0.04 * m ? 0.01 : -0.015) * m;
+    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= anchoEn(y) && zona ? 1 : 0;
+    cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= anchoEn(y) * 1.2 && zona ? 1 : 0;   // se recorta al borde
   }
   const nuevo = new Int32Array(pz.count).fill(-1), pos = [], nor = [], ski = [], skw = [], ind = [], ia = g.index.array;
   const usar = k => {
     if (nuevo[k] < 0) {
       nuevo[k] = pos.length / 3;
       // Bordes rectos: lo que pasa de los lados o de abajo se lleva justo al borde.
-      _p.fromBufferAttribute(pz, k); if (Math.abs(lat[k]) > L) _p.addScaledVector(ladoV, Math.sign(lat[k]) * L - lat[k]); if (_p.y < yAbajo) _p.y = yAbajo;
+      _p.fromBufferAttribute(pz, k); if (_p.y < yAbajo) _p.y = yAbajo; const w = anchoEn(_p.y); if (Math.abs(lat[k]) > w) _p.addScaledVector(ladoV, Math.sign(lat[k]) * w - lat[k]);
       const sep = sepDe(_p.y);
       pos.push(_p.x + nm.getX(k) * sep, _p.y + nm.getY(k) * sep, _p.z + nm.getZ(k) * sep); nor.push(nm.getX(k), nm.getY(k), nm.getZ(k));
       for (const e of C) { ski.push(si[e](k)); skw.push(peso(k, e)); }
@@ -1439,10 +1441,11 @@ const esclavina = (() => {
     const fila = [];
     for (let j = 0; j < 11; j++) {
       let a = null;
-      for (let enc = 0.97; !a && enc > 0.3; enc -= 0.05) a = anclar((j / 10 * 2 - 1) * L * enc, y);   // en los bordes, algo hacia dentro si no da
-      fila.push(a || fila[fila.length - 1]);
+      for (let enc = 0.97; !a && enc > 0.3; enc -= 0.05) a = anclar((j / 10 * 2 - 1) * anchoEn(y) * enc, y);   // en los bordes, algo hacia dentro si no da
+      fila.push(a);
     }
-    return fila;
+    // Donde el rayo no dé, la más cercana que sí dio.
+    return fila.map((a, j) => a || fila.reduce((b, c, k) => c && (!b || Math.abs(k - j) < Math.abs(b.k - j)) ? Object.assign(c, { k }) : b, null));
   });
   const pielDe = (i, out) => {                                      // un vértice de la esclavina, en el mundo
     _base.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]).applyMatrix4(cuerpo.bindMatrix); out.set(0, 0, 0);
