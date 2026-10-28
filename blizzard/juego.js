@@ -56,7 +56,7 @@ const LARGO = z => {
   return z;
 };
 // Recorrido: el viento mantiene a Blizzard cerca de esta línea.
-const CAMINO = [[0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [3, -205], [-2.5, -228], [3, -252], [-2.5, -276], [1.5, -300], [0, -330], [0, -345], [0, -365]].map(([x, z]) => [x, LARGO(z)]);
+const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [3, -205], [-2.5, -228], [3, -252], [-2.5, -276], [1.5, -300], [0, -330], [0, -345], [0, -365]].map(([x, z]) => [x, LARGO(z)]);
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -185,7 +185,7 @@ const camara = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
 // Luz difusa de día nublado: casi todo es luz de cielo; el sol apenas marca sombras.
 // Sombras apenas perceptibles: casi toda la luz llega del cielo y del suelo nevado por igual.
 scene.add(new THREE.HemisphereLight(0xe4eaf3, 0xdbe1ec, 0.92));
-const sol = new THREE.DirectionalLight(0xf3f1ec, 0.035);
+const sol = new THREE.DirectionalLight(0xf3f1ec, 0.02);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
 Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 });
@@ -1365,42 +1365,87 @@ const enMundo = n => hueso(n).getWorldPosition(new THREE.Vector3());
 figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").y) + 0.02;
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
-// La del propio personaje (va pegada a la cabeza en cualquier gesto), teñida de amarillo conservando
-// sus sombras; el hueco de la cara (casi negro) no se toca.
-const AMARILLO = new THREE.Color(0.63, 0.47, 0.05);
-figura.traverse(o => {
-  if (!o.isSkinnedMesh) return;
-  const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
-  const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
-  // Huesos en la pose de reposo, en el espacio de la malla (la escala: H es la altura de Blizzard, ~1,75 m).
-  // (posición media de los vértices que mueve sobre todo cada hueso)
-  const sk = o.skeleton, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bp = n => {
-    const i = sk.bones.findIndex(b => b.name === "mixamorig" + n), v = new THREE.Vector3(); let c = 0;
-    for (let k = 0; k < pz.count; k++) for (const e of ["getX", "getY", "getZ", "getW"]) if (si[e](k) === i && sw[e](k) > 0.5) { v.x += pz.getX(k); v.y += pz.getY(k); v.z += pz.getZ(k); c++; }
-    return v.multiplyScalar(1 / Math.max(1, c));
-  };
-  const m = H / 1.75, cuello = bp("Neck"), hi = bp("LeftArm"), hd = bp("RightArm"), alante = new THREE.Vector3().subVectors(hi, hd).setY(0).cross(new THREE.Vector3(0, 1, 0)).normalize();   // izquierda × arriba: hacia delante
-  const ladoV = new THREE.Vector3().crossVectors(alante, new THREE.Vector3(0, 1, 0)), yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, _p = new THREE.Vector3();
+// La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
+const AMARILLO = new THREE.Color(0.72, 0.52, 0.13);
+
+// ─── Esclavina ─────────────────────────────────────────────────────────────
+// La parte de arriba de la capa es una copia exacta de la espalda, la nuca y lo alto de los hombros del
+// propio modelo, algo separada hacia fuera: va con los mismos huesos y encaja en cualquier gesto. La tela
+// de la capa sale de su borde de abajo («anclas»).
+const esclavina = (() => {
+  let cuerpo = null; figura.traverse(o => { if (o.isSkinnedMesh && !cuerpo) cuerpo = o; });
+  const g = cuerpo.geometry, pz = g.attributes.position, nm = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, sk = cuerpo.skeleton;
+  g.computeBoundingBox();
+  const m = (g.boundingBox.max.y - g.boundingBox.min.y) / 1.75, C = ["getX", "getY", "getZ", "getW"], arriba = new THREE.Vector3(0, 1, 0);
+  const idx = n => sk.bones.findIndex(b => b.name === "mixamorig" + n);
+  // Los pesos pueden venir como enteros normalizados (getX no los convierte en esta versión).
+  const escala = sw.normalized ? (sw.array instanceof Uint8Array ? 255 : 65535) : 1, peso = (k, e) => sw[e](k) / escala;
+  const principal = k => { let h = -1, w = -1; for (const e of C) if (sw[e](k) > w) { w = sw[e](k); h = si[e](k); } return h; };
+  // Posición de reposo de un hueso, en el espacio de la malla.
+  const bindInv = cuerpo.bindMatrix.clone().invert();
+  const bp = n => new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[idx(n)].clone().invert()).applyMatrix4(bindInv);
+  const cuello = bp("Neck"), hi = bp("LeftArm"), hd = bp("RightArm");
+  const alante = new THREE.Vector3().subVectors(hi, hd).setY(0).cross(arriba).normalize(), ladoV = new THREE.Vector3().crossVectors(alante, arriba);
+  const yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, yAbajo = bp("Spine").y + 0.02 * m, yTope = cuello.y + 0.03 * m;
+  // Separación de la espalda: pegada arriba, se levanta hacia abajo.
+  const sepDe = y => (0.014 + 0.1 * clamp((yH - y) / (yH - yAbajo), 0, 1) ** 1.5) * m;
+  const L = mitad * 1.2;                                            // media anchura: laterales rectos
+  const tronco = new Set(["Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder"].map(idx));
+  const lat = new Float32Array(pz.count), fondo = new Float32Array(pz.count), dentro = new Uint8Array(pz.count), cerca = new Uint8Array(pz.count), _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
-    const y = pz.getY(k); _p.fromBufferAttribute(pz, k).sub(cuello);
-    const lat = Math.abs(_p.dot(ladoV)), fondo = _p.dot(alante);
-    // Lo alto de los hombros, hasta el arranque del brazo.
-    // La capucha y su caída sobre los hombros ya vienen amarillas en la textura (con sus pliegues). Aquí solo
-    // una franja estrecha por detrás, bajo ella, para que no quede una línea oscura entre capucha y capa.
-    cap[k] = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.035 * m, yH - 0.01 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
+    _p.fromBufferAttribute(pz, k).sub(cuello); lat[k] = _p.dot(ladoV); fondo[k] = _p.dot(alante);
+    const y = pz.getY(k);
+    // La espalda entera de lado a lado hasta la nuca; por delante, solo lo alto de los hombros.
+    const zona = fondo[k] <= 0.015 * m || y > yH + 0.02 * m && fondo[k] <= 0.07 * m;
+    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= L && zona ? 1 : 0;
+    cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= L * 1.5 && zona ? 1 : 0;   // se recorta a L y yAbajo
   }
-  g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
-  o.material = o.material.clone();
-  o.material.onBeforeCompile = sh => {
-    sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
-    sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
-      float lum = dot(diffuseColor.rgb, vec3(0.3333));
-      // Lo amarillo de la textura, al amarillo de la capa (con su luz); y la franja de la espalda.
-      float amarillo = smoothstep(0.12, 0.22, diffuseColor.r - diffuseColor.b) * smoothstep(0.3, 0.4, diffuseColor.r);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.61, 0.065) * clamp(lum / 0.38, 0.55, 1.25), amarillo);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.61, 0.065) * clamp(lum / 0.14, 0.45, 1.1), vCapucha * smoothstep(0.085, 0.12, lum));`);
+  const nuevo = new Int32Array(pz.count).fill(-1), pos = [], nor = [], ski = [], skw = [], ind = [], ia = g.index.array;
+  const usar = k => {
+    if (nuevo[k] < 0) {
+      nuevo[k] = pos.length / 3;
+      // Bordes rectos: lo que pasa de los lados o de abajo se lleva justo al borde.
+      _p.fromBufferAttribute(pz, k); if (Math.abs(lat[k]) > L) _p.addScaledVector(ladoV, Math.sign(lat[k]) * L - lat[k]); if (_p.y < yAbajo) _p.y = yAbajo;
+      const sep = sepDe(_p.y);
+      pos.push(_p.x + nm.getX(k) * sep, _p.y + nm.getY(k) * sep, _p.z + nm.getZ(k) * sep); nor.push(nm.getX(k), nm.getY(k), nm.getZ(k));
+      for (const e of C) { ski.push(si[e](k)); skw.push(peso(k, e)); }
+    }
+    return nuevo[k];
   };
-});
+  for (let t = 0; t < ia.length; t += 3) if (cerca[ia[t]] && cerca[ia[t + 1]] && cerca[ia[t + 2]] && (dentro[ia[t]] || dentro[ia[t + 1]] || dentro[ia[t + 2]])) ind.push(usar(ia[t]), usar(ia[t + 1]), usar(ia[t + 2]));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(ski, 4)); geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(skw, 4)); geo.setIndex(ind);
+  const malla = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, skinning: true, side: THREE.DoubleSide }));
+  malla.bind(sk, cuerpo.bindMatrix); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = false;
+  malla.position.copy(cuerpo.position); malla.quaternion.copy(cuerpo.quaternion); malla.scale.copy(cuerpo.scale); cuerpo.parent.add(malla);
+  // Anclas de la tela: puntos sobre la espalda, algo por encima del borde de abajo (la tela tapa ese
+  // borde), de un lado al otro; se mueven con la columna y, hacia los lados, con cada hombro.
+  const _base = new THREE.Vector3(), _mat = new THREE.Matrix4(), yA = yAbajo + 0.035 * m, anclas = [];
+  const hEsp = idx("Spine2"), hHi = idx("LeftShoulder"), hHd = idx("RightShoulder");
+  for (let j = 0; j < 11; j++) {
+    const t = j / 10 * 2 - 1, s = t * L * 0.97;
+    let fondoMin = Infinity;                                       // la superficie de la espalda a esa altura
+    for (let k = 0; k < pz.count; k++) if (Math.abs(pz.getY(k) - yA) < 0.06 * m && Math.abs(lat[k] - s) < 0.05 * m) fondoMin = Math.min(fondoMin, fondo[k]);
+    if (!isFinite(fondoMin)) fondoMin = -0.06 * m;
+    const p = cuello.clone().addScaledVector(ladoV, s).addScaledVector(alante, fondoMin - sepDe(yA) - 0.004 * m).setY(yA);
+    // (ladoV apunta al lado del hombro derecho)
+    anclas.push({ p, pesos: [[hEsp, 1 - Math.abs(t) * 0.6], [t > 0 ? hHd : hHi, Math.abs(t) * 0.6]] });
+  }
+  const _x = 0, prueba = (p, h) => { _base.copy(p).applyMatrix4(cuerpo.bindMatrix); _mat.multiplyMatrices(sk.bones[h].matrixWorld, sk.boneInverses[h]); return _base.applyMatrix4(_mat).toArray().map(v => +v.toFixed(3)); };
+  window.__pruebaPiel = () => [prueba(cuello, idx("Neck")), prueba(anclas[5].p, hEsp), cuello.toArray(), anclas[5].p.toArray(), alante.toArray(), ladoV.toArray()];
+  return {
+    malla,
+    // Posición en el mundo de cada ancla, en el gesto de ahora.
+    anclas(out) {
+      // Piel a mano, en el mundo: suma de cada hueso (su matriz × su inversa de reposo) por su peso.
+      for (let j = 0; j < anclas.length; j++) {
+        _base.copy(anclas[j].p).applyMatrix4(cuerpo.bindMatrix); out[j].set(0, 0, 0);
+        for (const [h, w] of anclas[j].pesos) { _mat.multiplyMatrices(sk.bones[h].matrixWorld, sk.boneInverses[h]); out[j].addScaledVector(_p.copy(_base).applyMatrix4(_mat), w); }
+      }
+    },
+  };
+})();
 
 // ─── Capa de tela ──────────────────────────────────────────────────────────
 // Capa de espalda, cosida a los hombros: el borde de arriba va cada fotograma sobre los hombros y la
@@ -1408,19 +1453,24 @@ figura.traverse(o => {
 // de doblado (sin pliegues horizontales) y choques con el cuerpo, el suelo y el plano del pecho (nunca
 // pasa por delante). Se dibuja con una malla lisa interpolada sobre la red, con pliegues verticales.
 const capaTela = (() => {
-  const NI = 12, NJ = 11, LARGO_CAPA = 1.12, ANCHO_ARRIBA = 1.3, VUELO_ABAJO = 1.7;
+  const NI = 12, NJ = 11, LARGO_CAPA = 0.8, VUELO_ABAJO = 1.5;
   const NR = 30, NC = 24;
   const P = [], Q = [], A = [];
   for (let k = 0; k < NI * NJ; k++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); A.push(new THREE.Vector3()); }
   // Malla visible.
-  const geo = new THREE.BufferGeometry(), vert = new Float32Array(NR * NC * 3), uv = new Float32Array(NR * NC * 2), idx = [];
-  for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) { uv[(r * NC + c) * 2] = c / (NC - 1); uv[(r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
-  for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); }
+  // Dos caras (por fuera y por dentro, a GROSOR) unidas por el canto: la tela tiene cuerpo.
+  const N = NR * NC, GROSOR = 0.022;
+  const geo = new THREE.BufferGeometry(), vert = new Float32Array(N * 2 * 3), uv = new Float32Array(N * 2 * 2), idx = [];
+  for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) for (const l of [0, N]) { uv[(l + r * NC + c) * 2] = c / (NC - 1); uv[(l + r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
+  for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); idx.push(N + a, N + a + 1, N + a + NC, N + a + 1, N + a + NC + 1, N + a + NC); }
+  const canto = (a, b) => idx.push(a, b, N + a, b, N + b, N + a);
+  for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
+  for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
   geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO.clone().multiplyScalar(1.3), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });   // como la capucha
+  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });   // como la capucha
   // Por dentro, algo más oscura.
   mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.8;"); };
-  const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = true;
+  const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = false; malla.receiveShadow = false;   // sin sombra sobre el cuerpo
   scene.add(malla);
   const hIzq = hueso("LeftArm"), hDer = hueso("RightArm"), hCuello = hueso("Neck"), hEspalda = hueso("Spine2");
   const CAPSULAS = [["Hips", "Spine2", 0.17], ["Spine2", "Neck", 0.13], ["LeftArm", "LeftForeArm", 0.13], ["LeftForeArm", "LeftHand", 0.12],
@@ -1431,20 +1481,22 @@ const capaTela = (() => {
   const alSegmento = (p, cap) => { _d.subVectors(cap.pb, cap.pa); const t = clamp(_c.subVectors(p, cap.pa).dot(_d) / Math.max(1e-6, _d.lengthSq()), 0, 1); return _c.copy(cap.pa).addScaledVector(_d, t); };
   const largoV = LARGO_CAPA / (NI - 1);
   // Forma de reposo (y borde de arriba, cosido): arco sobre los hombros por detrás, cayendo y abriéndose algo abajo.
+  const T = Array.from({ length: NJ }, () => new THREE.Vector3()), _l = new THREE.Vector3();
   const formar = () => {
-    hIzq.getWorldPosition(_a); hDer.getWorldPosition(_b); hCuello.getWorldPosition(centro);
+    hCuello.getWorldPosition(centro);
     atras.set(-Math.sin(rumbo), 0, -Math.cos(rumbo)); lado.set(Math.cos(rumbo), 0, -Math.sin(rumbo));
-    const medio = _v.addVectors(_a, _b).multiplyScalar(0.5), anchoH = Math.max(0.2, _a.distanceTo(_b)) * ANCHO_ARRIBA / 2;
-    const yArriba = Math.max(_a.y, _b.y) + 0.06;
+    // Arriba, cosida al borde de la esclavina (algo por fuera); abajo se abre y se aparta en diagonal.
+    esclavina.anclas(T);
+    _l.subVectors(T[NJ - 1], T[0]).setY(0); const anchoT = _l.length() / 2; _l.normalize();
     for (let j = 0; j < NJ; j++) {
-      const t = j / (NJ - 1) * 2 - 1;                              // -1 izquierda … 1 derecha
+      const t = j / (NJ - 1) * 2 - 1;                              // un borde … el otro
       for (let i = 0; i < NI; i++) {
-        const f = i / (NI - 1), ancho = anchoH * lerp(1, VUELO_ABAJO, f);
+        const f = i / (NI - 1);
         const caida = f * LARGO_CAPA * (1 - 0.12 * f) + 0.06 * f * f * Math.cos(t * Math.PI / 2);
-        A[i * NJ + j].copy(medio).addScaledVector(lado, -t * ancho)
-          .addScaledVector(atras, 0.07 + 0.05 * Math.cos(t * Math.PI / 2) + 0.4 * f)   // pegada arriba; baja recta en diagonal
-          .setY(yArriba - 0.05 * t * t * (1 - f) - caida * Math.cos(alzado * 1.25))   // borde de abajo algo convexo
-          .addScaledVector(atras, caida * Math.sin(alzado * 1.25));          // al saltar, levantada desde los hombros
+        A[i * NJ + j].copy(T[j]).addScaledVector(atras, 0.012).addScaledVector(_l, t * anchoT * (VUELO_ABAJO - 1) * f).addScaledVector(lado, desvio * f)
+          .addScaledVector(atras, 0.4 * f)                                 // baja recta en diagonal
+          .setY(T[j].y - caida * Math.cos(alzado * 1.25))                   // borde de abajo algo convexo
+          .addScaledVector(atras, caida * Math.sin(alzado * 1.25));        // al saltar, levantada desde arriba
       }
     }
   };
@@ -1453,15 +1505,21 @@ const capaTela = (() => {
     if (a < NJ) P[b].addScaledVector(_w, -e * k); else { P[a].addScaledVector(_w, e * 0.5 * k); P[b].addScaledVector(_w, -e * 0.5 * k); }
   };
   const largoH = [];
-  let iniciada = false, ultimo = new THREE.Vector3(), alzado = 0;
+  let iniciada = false, ultimo = new THREE.Vector3(), alzado = 0, desvio = 0;
+  const hManos = [hueso("LeftHand"), hueso("RightHand")], _m = new THREE.Vector3();
   const catmull = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
   const coord = (i, j, e) => P[clamp(i, 0, NI - 1) * NJ + clamp(j, 0, NJ - 1)].getComponent(e);
   return {
-    malla, P, A,
+    malla, P, A, estado: () => [+desvio.toFixed(2), +alzado.toFixed(2)],
     actualizar(dt, viento, suelo) {
       dt = Math.min(dt, 1 / 30);
       blizzard.updateMatrixWorld(true);
       alzado = lerp(alzado, viento.alzado || 0, 1 - Math.exp(-dt * 6));
+      // Una mano que va atrás (al saltar, al agacharse) aparta la capa hacia el otro lado.
+      hCuello.getWorldPosition(centro); atras.set(-Math.sin(rumbo), 0, -Math.cos(rumbo)); lado.set(Math.cos(rumbo), 0, -Math.sin(rumbo));
+      let aparta = 0;
+      for (const h of hManos) { h.getWorldPosition(_m).sub(centro); aparta -= Math.sign(_m.dot(lado)) * clamp((_m.dot(atras) - 0.02) / 0.2, 0, 1); }
+      desvio = lerp(desvio, clamp(aparta, -1, 1) * 0.5, 1 - Math.exp(-dt * 8));
       formar();
       for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); }
       if (!iniciada || A[0].distanceTo(ultimo) > 1.2) {
@@ -1510,6 +1568,14 @@ const capaTela = (() => {
           const u = c / (NC - 1), pl = Math.sin(u * Math.PI * 4 + 0.5) * 0.018 * (r / (NR - 1));
           vert[o] += atras.x * pl; vert[o + 2] += atras.z * pl;
         }
+      }
+      // Cara de dentro: hacia el cuerpo, a lo largo de la normal de la superficie.
+      const V = (r, c, e) => vert[(clamp(r, 0, NR - 1) * NC + clamp(c, 0, NC - 1)) * 3 + e];
+      for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) {
+        for (let e = 0; e < 3; e++) { _a.setComponent(e, V(r, c + 1, e) - V(r, c - 1, e)); _b.setComponent(e, V(r + 1, c, e) - V(r - 1, c, e)); }
+        _c.crossVectors(_a, _b).normalize(); if (_c.dot(atras) < 0) _c.negate();
+        const o = (r * NC + c) * 3;
+        for (let e = 0; e < 3; e++) vert[N * 3 + o + e] = vert[o + e] - _c.getComponent(e) * GROSOR;
       }
       geo.attributes.position.needsUpdate = true;
       geo.computeVertexNormals();
@@ -2381,6 +2447,8 @@ function actualizar(dt) {
     alturaVisual = lerp(escalonDesde, pos.y, suave(0.12, 0.8, t)); blizzard.position.y = alturaVisual;
   }
   blizzard.rotation.y = rumbo;
+  { const sueloP = alturaSuelo(pos.x, pos.z), alto = Math.max(0, pos.y - sueloP), k = clamp(1 - alto / 2.5, 0, 1);
+    sombraPies.position.set(pos.x, sueloP + 0.03, pos.z); sombraPies.scale.setScalar(0.9 + 0.5 * (1 - k)); sombraPies.material.opacity = k; }
   if (estado !== "juego" && estado !== "fin") animar(dt, 0, false);
   colocarBaston(dt, Math.hypot(vel.x, vel.z));
   if (capaTela) {
@@ -2390,7 +2458,7 @@ function actualizar(dt) {
     const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo);
     const vuelo = 7 + Math.hypot(vel.x, vel.z) * 5 + (enSuelo ? 0 : 14);      // más atrás al moverse y aún más al saltar
     const sube = 4 + Math.hypot(vel.x, vel.z) * 3.2 + (enSuelo ? 0 : 9);      // se levanta por detrás al correr y más al saltar
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube, alzado: enSuelo ? clamp(Math.hypot(vel.x, vel.z) / 10, 0, 0.35) : 1 }, pos.y);
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube, alzado: enSuelo ? clamp(Math.hypot(vel.x, vel.z) / 10, 0, 0.3) : 0.7 }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
@@ -2473,6 +2541,20 @@ function girarHueso(nombre, eje, angulo) {
   _q.setFromAxisAngle(eje, angulo);
   h.quaternion.premultiply(_qp.clone().invert().multiply(_q).multiply(_qp));
 }
+// Las carreras abren mucho las puntas de los pies («pato»): cada pierna gira hacia dentro.
+let giroPies = 0.35;
+function corregirPies() {
+  let w = 0;
+  for (const n of ["correr", "correr_libre"]) if (acciones[n].isRunning()) w += acciones[n].getEffectiveWeight();
+  if (w < 0.01) return;
+  // Sobre el eje de la pierna (de la cadera al tobillo): el pie gira sin cambiar de sitio.
+  for (const [n, s] of [["Left", -1], ["Right", 1]]) {
+    blizzard.updateMatrixWorld(true);
+    const eje = _ax2.subVectors(hueso(n + "UpLeg").getWorldPosition(_ax3), hueso(n + "Foot").getWorldPosition(_ax2)).normalize();
+    girarHueso(n + "UpLeg", eje, s * giroPies * Math.min(1, w));
+  }
+}
+const _ax2 = new THREE.Vector3(), _ax3 = new THREE.Vector3();
 function gestoEscalon() {
   if (escalon <= 0) return;
   // Primero sube la pierna derecha; luego la izquierda la sigue. El cuerpo se inclina hacia delante.
@@ -2505,7 +2587,7 @@ const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 5.6, correr_libre: 2
 let enAireAntes = false;
 let animForzada = null;
 function animar(dt, v, agachado) {
-  if (animForzada) { poner(animForzada, 0.2); mixer.update(dt); return; }
+  if (animForzada) { poner(animForzada, 0.2); mixer.update(dt); corregirPies(); return; }
   const libre = tieneBaston ? "" : "_libre";
   if (estado === "portada" || estado === "intro") poner("quieto_libre", 0.3);
   // El gesto de tender la mano se hace una vez, al completar el trazo; mientras se traza, espera quieto.
@@ -2519,6 +2601,7 @@ function animar(dt, v, agachado) {
   else poner("quieto" + libre, 0.3);
   enAireAntes = !enSuelo && !rescate;
   mixer.update(dt);
+  corregirPies();
   posturaReposo(dt);
   gestoEscalon();
 
@@ -2626,6 +2709,65 @@ addEventListener("resize", ajustar);
 ajustar();
 camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
 
+// ─── Nieve al pie, veladura y sombra de contacto ───────────────────────────
+// Como en los acantilados: la nieve sube un poco por la base de rocas, pilastras, piedras móviles y
+// por los pies de Blizzard, con el borde irregular. Para saber dónde está el suelo bajo cada punto,
+// un mapa de alturas del terreno (1 m por celda) que el sombreado lee.
+{
+  const X0 = -90, Z0 = -520, NX = 181, NZ = 661, alt = new Float32Array(NX * NZ * 4);   // RGBA: vale también en WebGL 1
+  for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) alt[(iz * NX + ix) * 4] = alturaTerreno(X0 + ix, Z0 + iz);
+  const mapaAlturas = new THREE.DataTexture(alt, NX, NZ, THREE.RGBAFormat, THREE.FloatType);
+  mapaAlturas.magFilter = mapaAlturas.minFilter = THREE.NearestFilter; mapaAlturas.needsUpdate = true;
+  const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
+  const uni = { mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: CIELO } };
+  // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
+  const nevar = (mat, alto, velo = 0) => {
+    const prev = mat.onBeforeCompile, clave = mat.customProgramCacheKey();
+    mat.customProgramCacheKey = () => clave + "|pie" + alto + "|" + velo;
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev(sh, r);
+      Object.assign(sh.uniforms, uni);
+      sh.vertexShader = "varying vec3 vMundoPie;\n" + sh.vertexShader.replace("#include <skinning_vertex>", "#include <skinning_vertex>\n vMundoPie = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = `uniform sampler2D mapaAlturas; uniform sampler2D texNievePie; uniform vec3 tonoNievePie; uniform vec3 veloPie; varying vec3 vMundoPie;
+        float sueloPie(vec2 xz) {
+          vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
+          float a = texture2D(mapaAlturas, (i + 0.5) / t).r, b = texture2D(mapaAlturas, (i + vec2(1.5, 0.5)) / t).r;
+          float d = texture2D(mapaAlturas, (i + vec2(0.5, 1.5)) / t).r, e = texture2D(mapaAlturas, (i + 1.5) / t).r;
+          return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
+        }
+` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
+        ${alto > 0 ? `{
+          float hP = vMundoPie.y - sueloPie(vMundoPie.xz);
+          vec3 nvP = texture2D(texNievePie, vMundoPie.xz * 0.28 + vMundoPie.y * 0.15).rgb;
+          float ruidoP = texture2D(texNievePie, vMundoPie.xz * 1.1 + vec2(vMundoPie.y * 0.7)).r;
+          float cubreP = smoothstep(${alto.toFixed(3)}, ${(alto * 0.35).toFixed(3)}, hP + (ruidoP - 0.5) * ${(alto * 0.9).toFixed(3)});
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96);
+        }` : ""}
+        #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)});` : ""}
+        #include <fog_fragment>`);
+    };
+    mat.needsUpdate = true;
+  };
+  // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
+  const hechos = new Set();
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12); } });
+  for (const m of [esclavina.malla.material, capaTela.malla.material]) { hechos.add(m); nevar(m, 0, 0.12); }
+  // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
+  scene.traverse(o => {
+    if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.vertexColors) return;
+    hechos.add(o.material); nevar(o.material, 0.75);
+  });
+}
+// Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
+const sombraPies = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d");
+  const d = g.createRadialGradient(32, 32, 0, 32, 32, 32); d.addColorStop(0, "rgba(40,50,70,0.55)"); d.addColorStop(0.5, "rgba(40,50,70,0.25)"); d.addColorStop(1, "rgba(40,50,70,0)");
+  g.fillStyle = d; g.fillRect(0, 0, 64, 64);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 1; scene.add(m);
+  return m;
+})();
+
 let anterior = performance.now(), camaraFija = null;   // solo para pruebas
 function bucle(ahora) {
   const dt = Math.min(0.05, (ahora - anterior) / 1000);
@@ -2637,7 +2779,8 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, esclavMalla: () => { const g = esclavina.malla; g.updateMatrixWorld(true); return [g.parent.name, g.position.toArray(), g.scale.toArray(), g.bindMode, g.matrixWorld.elements.map(v => +v.toFixed(3))]; }, capaEstado: () => capaTela.estado(), esclav: () => { const T = Array.from({ length: 11 }, () => new THREE.Vector3()); esclavina.anclas(T); return [esclavina.malla.geometry.index.count, esclavina.malla.geometry.attributes.position.count, T[0].toArray(), T[5].toArray(), T[10].toArray()]; }, giroPies: a => { giroPies = a; }, pies: () => { blizzard.updateMatrixWorld(true); const d = new THREE.Vector3(Math.sin(rumbo), 0, Math.cos(rumbo)), l = new THREE.Vector3(Math.cos(rumbo), 0, -Math.sin(rumbo));
+  return [["Left", -1], ["Right", 1]].map(([n, s]) => { const f = blizzard.worldToLocal(enMundo(n + "Foot")), t = blizzard.worldToLocal(enMundo(n + "ToeBase")).sub(f); return [n, f.toArray().map(v => +v.toFixed(2)), t.toArray().map(v => +v.toFixed(3))]; }); }, capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
