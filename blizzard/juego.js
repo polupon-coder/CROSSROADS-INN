@@ -2444,7 +2444,7 @@ let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellan
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 let abrePuertas = false, aprende = "";
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
-let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0;
+let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0;
 const INTRO_DURA = 8;
@@ -2903,14 +2903,17 @@ function actualizar(dt) {
   // Cámara: detrás y algo por encima, mirando un poco por delante del personaje.
   // Plano cercano: tras unos segundos quieto, o al llamar al bastón, la cámara se acerca.
   quietoDesde = Math.hypot(vel.x, vel.z) < 0.2 && enSuelo ? quietoDesde + dt : 0;
-  const quiereCerca = estado === "llamando" || estado === "despertando" || estado === "trazando" || (estado === "juego" && quietoDesde > 2.5) ? 1 : 0;
+  // Sobre una plataforma (y hasta salir de ella) la cámara no se acerca: se queda lejos.
+  const sobrePlat = PLATAFORMAS.some(P => Math.hypot(pos.x - P.x, pos.z - P.z) < P.r + 1.2);
+  enPlat = lerp(enPlat, sobrePlat ? 1 : 0, 1 - Math.exp(-dt * 1.5));
+  const quiereCerca = !sobrePlat && (estado === "llamando" || estado === "despertando" || estado === "trazando" || (estado === "juego" && quietoDesde > 2.5)) ? 1 : 0;
   cerca = lerp(cerca, quiereCerca, 1 - Math.exp(-dt * (quiereCerca ? 0.8 : 2.5)));
   // En el túnel de los arcos, plano bajo que mira hacia arriba y a lo lejos (como en la lámina de los
   // arcos): los arcos enmarcan el paso y se ven los siguientes en la niebla.
   enTunel = lerp(enTunel, suave(ARCOS.desde + 6, ARCOS.desde - 1, pos.z) * suave(ARCOS.hasta - 12, ARCOS.hasta - 2, pos.z), 1 - Math.exp(-dt * 1.5));
   // Junto a la tercera plataforma y la puerta, la cámara se aleja para ver la puerta entera; luego vuelve.
   anteLaPuerta = lerp(anteLaPuerta, puertaArcana.t < 1 ? suave(PLATAFORMA3.z + 12, PLATAFORMA3.z + 4, pos.z) * suave(PUERTA_ARCANA_Z - 1, PUERTA_ARCANA_Z + 4, pos.z) : 0, 1 - Math.exp(-dt * 1.5));
-  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(lerp(7.2, 6.2, enTunel), 11, anteLaPuerta), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(lerp(3.6, 1.9, enTunel), 3.4, anteLaPuerta), 1.7, cerca), 0));
+  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(lerp(lerp(7.2, 6.2, enTunel), 9.5, enPlat), 11, anteLaPuerta), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(lerp(lerp(3.6, 1.9, enTunel), 2.8, enPlat), 3.4, anteLaPuerta), 1.7, cerca), 0));
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
   for (const c of colisiones) if (c.bajo !== undefined && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
@@ -2953,7 +2956,7 @@ function actualizar(dt) {
       camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
       camara.lookAt(new THREE.Vector3().copy(pos).addScaledVector(adelante, 1.2).add(new THREE.Vector3(0, 1.2, 0)));
     } else {
-      const objetivo = new THREE.Vector3().copy(pos).addScaledVector(ladoLlamada, 2.6).addScaledVector(adelante, -5.2).add(new THREE.Vector3(0, 1.9, 0));
+      const objetivo = new THREE.Vector3().copy(pos).addScaledVector(ladoLlamada, 3.2).addScaledVector(adelante, -8.5).add(new THREE.Vector3(0, 2.2, 0));   // lejos también aquí
       camara.position.lerp(objetivo, 1 - Math.exp(-dt * 3));
       camara.lookAt(pos.x, pos.y + 1.05, pos.z);
     }
