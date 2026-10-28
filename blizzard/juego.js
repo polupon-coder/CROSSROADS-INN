@@ -915,10 +915,12 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   ZONA_PILASTRAS.forEach((z, i) => {
     const cx = caminoX(z);
     for (let t = -25; t < 25; t += 2.0 + rndC() * 0.3) {             // juntos: se ve cerrado lo que está cerrado
-      if (Math.abs(t - PASO_SALTO[i]) < 4.2) continue;
+      if (Math.abs(t - PASO_SALTO[i]) < 3.4) continue;              // las rocas tocan los extremos de la pilastra: sin hueco
       // Algo apartadas hacia fuera del pasillo entre las dos filas, para que se pueda ir de un paso al otro.
       sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 2.0 + rndC() * 0.5, rndC() * Math.PI * 2);
     }
+    // Un sillar pegado a cada extremo de la pilastra: no queda hueco por donde parezca que se pasa.
+    for (const d of [-3.9, 3.9]) sillar(cx + PASO_SALTO[i] + d, z + (i ? -1 : 1) * 0.5, 2.2, i * 2 + d);
   });
   for (const [z, desde] of ZONA_AGACHARSE.map(z => [z, 6.2])) {
     const cx = caminoX(z);
@@ -1383,11 +1385,9 @@ figura.traverse(o => {
     const y = pz.getY(k); _p.fromBufferAttribute(pz, k).sub(cuello);
     const lat = Math.abs(_p.dot(ladoV)), fondo = _p.dot(alante);
     // Lo alto de los hombros, hasta el arranque del brazo.
-    // (sigue la caída del hombro: hacia fuera, solo lo más alto; no baja por los lados)
-    const yh = yH + 0.005 * m + 0.035 * m * clamp(lat / mitad, 0, 1), hombros = suave(yh, yh + 0.02 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
-    // Y lo alto de la espalda, por detrás: continúa de los hombros a la capa.
-    const espalda = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.1 * m, yH - 0.07 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
-    cap[k] = Math.max(suave(yMax - 0.21 * H, yMax - 0.17 * H, y), hombros, espalda);
+    // La capucha y su caída sobre los hombros ya vienen amarillas en la textura (con sus pliegues). Aquí solo
+    // una franja estrecha por detrás, bajo ella, para que no quede una línea oscura entre capucha y capa.
+    cap[k] = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.035 * m, yH - 0.01 * m, y) * suave(mitad * 0.7, mitad * 0.55, lat);
   }
   g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
   o.material = o.material.clone();
@@ -1395,7 +1395,10 @@ figura.traverse(o => {
     sh.vertexShader = "attribute float capucha;\nvarying float vCapucha;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vCapucha = capucha;");
     sh.fragmentShader = "varying float vCapucha;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
       float lum = dot(diffuseColor.rgb, vec3(0.3333));
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.085, 0.12, lum));`);
+      // Lo amarillo de la textura, al amarillo de la capa (con su luz); y la franja de la espalda.
+      float amarillo = smoothstep(0.12, 0.22, diffuseColor.r - diffuseColor.b) * smoothstep(0.3, 0.4, diffuseColor.r);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.61, 0.065) * clamp(lum / 0.38, 0.55, 1.25), amarillo);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.61, 0.065) * clamp(lum / 0.14, 0.45, 1.1), vCapucha * smoothstep(0.085, 0.12, lum));`);
   };
 });
 
@@ -1439,7 +1442,7 @@ const capaTela = (() => {
         const f = i / (NI - 1), ancho = anchoH * lerp(1, VUELO_ABAJO, f);
         const caida = f * LARGO_CAPA * (1 - 0.12 * f) + 0.06 * f * f * Math.cos(t * Math.PI / 2);
         A[i * NJ + j].copy(medio).addScaledVector(lado, -t * ancho)
-          .addScaledVector(atras, 0.04 + 0.05 * Math.cos(t * Math.PI / 2) + 0.3 * f + 0.12 * f * f)   // pegada arriba; se aparta recta hacia abajo
+          .addScaledVector(atras, 0.07 + 0.05 * Math.cos(t * Math.PI / 2) + 0.4 * f)   // pegada arriba; baja recta en diagonal
           .setY(yArriba - 0.05 * t * t * (1 - f) - caida * Math.cos(alzado * 1.25))   // borde de abajo algo convexo
           .addScaledVector(atras, caida * Math.sin(alzado * 1.25));          // al saltar, levantada desde los hombros
       }
@@ -1474,7 +1477,7 @@ const capaTela = (() => {
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        P[k].add(_v).lerp(A[k], 0.012 + 0.02 * (1 - baja) + 0.08 * alzado);        // tiende a su caída, suelta
+        P[k].add(_v).lerp(A[k], 0.012 + 0.07 * (1 - baja) * (1 - baja) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
       }
       for (let it = 0; it < 5; it++) {
         for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) {
@@ -2387,7 +2390,7 @@ function actualizar(dt) {
     const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo);
     const vuelo = 7 + Math.hypot(vel.x, vel.z) * 5 + (enSuelo ? 0 : 14);      // más atrás al moverse y aún más al saltar
     const sube = 4 + Math.hypot(vel.x, vel.z) * 3.2 + (enSuelo ? 0 : 9);      // se levanta por detrás al correr y más al saltar
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube, alzado: enSuelo ? clamp(Math.hypot(vel.x, vel.z) / 8, 0, 0.5) : 1 }, pos.y);
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube, alzado: enSuelo ? clamp(Math.hypot(vel.x, vel.z) / 10, 0, 0.35) : 1 }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
@@ -2498,7 +2501,7 @@ function posturaReposo(dt) {
 
 // Elige la animación según lo que hace Blizzard y mueve la capa con la velocidad y el viento.
 // Velocidad a la que avanza cada animación en su ritmo normal (unidades por segundo).
-const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 4.0, correr_libre: 5.2, andar_agachado: 0.7 };
+const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 5.6, correr_libre: 2.6, andar_agachado: 0.7 };
 let enAireAntes = false;
 let animForzada = null;
 function animar(dt, v, agachado) {
