@@ -2075,9 +2075,22 @@ estilo.textContent = `
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   #lienzo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   .capa-ui { z-index: 4; position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
-  #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; cursor: pointer; padding-inline: 28px; transition: opacity 1.2s ease; }
+  #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
+  #portada .botones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+  #portada button.opcion { font: inherit; font-size: 18px; color: var(--tinta); background: rgba(255,255,255,.55); border: 1px solid rgba(31,42,61,.25); border-radius: 999px; padding: 10px 26px; cursor: pointer; letter-spacing: .06em; }
+  #portada button.opcion:hover, #portada button.opcion:focus-visible { background: rgba(255,255,255,.85); outline: none; border-color: rgba(31,42,61,.5); }
+  #portada .santuarios { display: grid; gap: 10px; justify-items: center; }
+  #portada .santuarios[hidden], #portada .botones[hidden], #portada .teclas[hidden] { display: none; }
+  #portada .santuarios p { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
+  #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); }
+  #portada .lista button { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--tinta); background: rgba(255,255,255,.55); border: 1px solid rgba(31,42,61,.2); border-radius: 14px; padding: 8px 14px; cursor: pointer; }
+  #portada .lista button:hover, #portada .lista button:focus-visible { background: rgba(255,255,255,.85); outline: none; }
+  #portada .lista svg { width: 44px; height: 44px; }
+  #portada .lista svg path { fill: none; stroke: var(--tinta); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+  #portada .lista b { display: block; font-weight: 400; font-size: 18px; }
+  #portada .lista span { font-family: system-ui, sans-serif; font-size: 13px; color: var(--tinta-suave); }
   #portada .teclas { margin: 6px auto 0; display: grid; grid-template-columns: auto auto; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
@@ -2131,11 +2144,18 @@ const ui = document.createElement("div");
 ui.className = "capa-ui";
 const tactil = TACTIL;
 ui.innerHTML = `
-  <div id="portada" role="button" tabindex="0" aria-label="Empezar">
+  <div id="portada">
     <h1>BLIZZARD</h1>
-    ${tactil ? `
-    <p class="empezar">Toca para empezar</p>` : `
-    <p class="empezar">Pulsa cualquier tecla para empezar</p>
+    <div class="botones">
+      <button type="button" class="opcion" id="b-empezar">Empezar</button>
+      <button type="button" class="opcion" id="b-santuarios">Santuarios</button>
+    </div>
+    <div class="santuarios" hidden>
+      <p>Empieza en un santuario con lo que ya has aprendido.</p>
+      <div class="lista"></div>
+      <button type="button" class="opcion" id="b-volver">Volver</button>
+    </div>
+    ${tactil ? "" : `
     <div class="teclas">
       <b>W A S D / flechas</b><span>caminar</span>
       <b>Mayúsculas</b><span>correr</span>
@@ -2332,7 +2352,7 @@ const musica = (() => {
 const teclas = new Set();
 const pulsadas = new Set(); // solo el fotograma en que se pulsan
 let estado = "portada";
-function empezar() {
+function empezar(santuario = 0) {
   if (estado !== "portada") return;
   if (tactil) { mandos.hidden = false; try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {} }
   estado = "intro"; tIntro = 0;
@@ -2342,17 +2362,50 @@ function empezar() {
   setTimeout(() => portada.remove(), 1300);
   ayuda.hidden = tactil;
   cerrar.hidden = false;
+  if (santuario) empezarEnSantuario(santuario);
+}
+// Empezar ante una plataforma, con el bastón y los poderes de las anteriores; sin la toma inicial.
+function empezarEnSantuario(n) {
+  const P = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3][n - 1];
+  const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : RAMPA3.desde + RAMPA3.largo + 2.5, x = n === 2 ? P.x : caminoX(z);
+  pos.set(x, alturaSuelo(x, z) + 0.05, z); vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
+  if (n >= 2) { tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false; }
+  if (n >= 3) { muevePiedras = true; yaAlzada = true; }
+  estado = "juego"; tIntro = INTRO_DURA;
+  camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
+  // Los avisos de lo que queda atrás, ya vistos.
+  if (n >= 2) avisoPuente = avisoSalto = avisoAgacharse = avisoMixta = avisoRocas = avisoGrieta = avisoRellano = true;
+  if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
+  rotular(SANTUARIOS[n - 1].nombre, 4);
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
   if (e.code === "Escape" && estado !== "portada") { location.reload(); return; }
-  if (estado === "portada") { empezar(); return; }
+  if (estado === "portada") { if (e.code === "Enter" || e.code === "Space") { if (!document.activeElement || document.activeElement.tagName !== "BUTTON") empezar(); } return; }
   if (!teclas.has(e.code)) pulsadas.add(e.code);
   teclas.add(e.code);
 });
 addEventListener("keyup", e => teclas.delete(e.code));
 addEventListener("blur", () => teclas.clear());
-portada.addEventListener("click", empezar);
+// Portada: «Empezar» o «Santuarios» (empezar en una plataforma con lo aprendido hasta ahí).
+const SANTUARIOS = [
+  { runa: "espiral", nombre: "Santuario del bastón", texto: "La primera plataforma: aún sin bastón." },
+  { runa: "runa", nombre: "Santuario de las rocas", texto: "Con el bastón. Aquí aprendes a mover rocas." },
+  { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
+];
+{
+  const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
+  SANTUARIOS.forEach((S, i) => {
+    const pts = FIGURAS[S.runa].puntos.filter((_, k, a) => a.length < 60 || k % 3 === 0);
+    const b = document.createElement("button"); b.type = "button";
+    b.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M${pts.map(p => p.map(v => v.toFixed(1)).join(" ")).join(" L")}"/></svg><div><b>${S.nombre}</b><span>${S.texto}</span></div>`;
+    b.addEventListener("click", e => { e.stopPropagation(); empezar(i + 1); });
+    lista.appendChild(b);
+  });
+  portada.querySelector("#b-empezar").addEventListener("click", e => { e.stopPropagation(); empezar(); });
+  portada.querySelector("#b-santuarios").addEventListener("click", e => { e.stopPropagation(); botones.hidden = true; caja.hidden = false; const t = portada.querySelector(".teclas"); if (t) t.hidden = true; lista.querySelector("button").focus(); });
+  portada.querySelector("#b-volver").addEventListener("click", e => { e.stopPropagation(); botones.hidden = false; caja.hidden = true; const t = portada.querySelector(".teclas"); if (t) t.hidden = false; portada.querySelector("#b-santuarios").focus(); });
+}
 const tecla = (...c) => c.some(k => teclas.has(k));
 const pulsada = (...c) => c.some(k => pulsadas.has(k));
 
@@ -3069,10 +3122,11 @@ const desenfoque = (() => {
       }
       void main() {
         float d = prof(vUv);
-        float coc = clamp((1.0 - smoothstep(enfoque * 0.12, enfoque * 0.55, d)) * 1.4 + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
+        float cerca = 1.0 - smoothstep(enfoque * 0.2, enfoque * 0.8, d);
+        float coc = clamp(cerca * 1.6 + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
         vec3 col = suavizar(vUv);
         if (coc > 0.02) {
-          vec2 r = px * coc * 3.2; vec3 suma = col;
+          vec2 r = px * coc * (3.2 + 5.0 * cerca); vec3 suma = col;
           ${muestras.map(([x, y]) => `suma += texture2D(tColor, vUv + vec2(${x.toFixed(2)}, ${y.toFixed(2)}) * r).rgb;`).join(" ")}
           col = suma / ${muestras.length + 1}.0;
         }
