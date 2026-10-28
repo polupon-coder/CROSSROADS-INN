@@ -230,6 +230,7 @@ const TONO_NIEVE = "#e4eaf3";
 const texturaHueco = () => new THREE.TextureLoader().load("texturas/hueco.png");
 const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.95, ...extra });
 
+let MAT_SUELO = null;                                        // el material del suelo (también lo usa la nieve acumulada)
 // Suelo nevado, con más detalle a lo largo del recorrido para que la grieta y el rellano tengan paredes netas.
 {
   // Rejilla de densidad variable: muy fina en la franja de la grieta y cerca del camino,
@@ -306,7 +307,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
       float mm = texture2D(map, vMundo.xz * 0.019 + vec2(0.13, 0.71)).r * 0.55 + texture2D(nieve2, vMundo.xz * 0.043 + vec2(0.4, 0.2)).g * 0.45;
       float gr = texture2D(map, vMundo.xz * 0.9).r;
       float mancha = smoothstep(0.6, 0.63, mm + (gr - 0.5) * 0.05), borde = smoothstep(0.57, 0.6, mm + (gr - 0.5) * 0.06) - mancha;
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.9, 0.94, 1.0), mancha * 0.8) * (1.0 + borde * 0.06);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.93, 0.96, 1.0), mancha * 0.6) * (1.0 + borde * 0.05);
       vec3 nS = normalize(vNormalS);
       vec2 uvR = (abs(nS.x) > abs(nS.z) ? vMundo.zy : vMundo.xy) * vec2(0.16, 0.22);
       vec3 pr = texture2D(piedra, uvR).rgb, pr2 = texture2D(piedra, uvR * 0.37 + 0.5).rgb;
@@ -317,6 +318,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.78, 0.84, 0.95), (1.0 - dunaS) * smoothstep(0.05, 0.6, nS.x));   // sotavento, en sombra azulada
       diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca);`);
   };
+  MAT_SUELO = matSuelo;
   const suelo = new THREE.Mesh(geo, matSuelo);
   suelo.receiveShadow = true;
   const lejos = new THREE.Mesh(new THREE.RingGeometry(150, 1400, 48, 1), plano(TONO_NIEVE));
@@ -1870,17 +1872,16 @@ function ventisquero(cx, cz, ancho, largo, alto) {
     const r = Math.min(1, (u * u + v * v) / (borde * borde));
     base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
     afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
-    suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, x * 0.28, z * 0.28);
+    suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
   geo.computeVertexNormals();
   // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
+  // Mismo material que el suelo (el tono de la nieve va en el color de cada vértice): no se distingue.
   const tono = new Float32Array(p.count * 3); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3));
-  const sombra = () => 1;
-  for (let i = 0; i < p.count; i++) tono.fill(sombra(i), i * 3, i * 3 + 3);
-  const tex = new THREE.TextureLoader().load("texturas/nieve.jpg"); tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
-  const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1, vertexColors: true }); mat.userData.suelo = true;   // como el suelo
-  const malla = new THREE.Mesh(geo, mat); malla.receiveShadow = true; scene.add(malla);
-  ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, cambia: false });
+  const nieveC = new THREE.Color(TONO_NIEVE), sombra = () => 1;
+  for (let i = 0; i < p.count; i++) { tono[i * 3] = nieveC.r; tono[i * 3 + 1] = nieveC.g; tono[i * 3 + 2] = nieveC.b; }
+  const malla = new THREE.Mesh(geo, MAT_SUELO); malla.receiveShadow = true; scene.add(malla);
+  ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, nieveC, cambia: false });
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
 // Al pie de cada montículo de nieve, su falda de nieve blanda; y más acumulaciones a lo largo de todo el
@@ -1908,7 +1909,7 @@ function pisarVentisqueros(dt) {
       let h = v.hundido[i];
       if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const k = suave(rad, rad * 0.4, d) * (0.08 + 0.92 * a); if (k > h) { h = k; } } }
       if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
-      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = 1 - w; v.tono[i * 3 + 1] = 1 - w * 0.8; v.tono[i * 3 + 2] = 1 - w * 0.45; } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
+      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
     }
     if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; v.geo.computeVertexNormals(); }
     v.cambia = cambia;
