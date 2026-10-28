@@ -1435,7 +1435,7 @@ const SALTOS_LOSAS = [];
   poner(QUIEBRA2, [[1.0, 2.0, 1.5], [4.4, 1.9, 1.4], [7.8, 2.1, 1.5], [11.2, 1.9, 1.35], [14.6, 2.2, 1.5]], [0, 2.0, 5.4, 8.8, 12.2]);
 }
 // Escalones de piedra en la pendiente de la última plataforma.
-const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.18;   // con un poco de nieve encima
+const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.85;   // nieve a manchas sobre la huella   // con un poco de nieve encima
 for (let i = 0; i < RAMPA3.n; i++) {
   const L = RAMPA3.largo / RAMPA3.n, z = RAMPA3.desde + (i + 0.5) * L, x = PLATAFORMA3.x, pieza = kitPilares[i % 3];
   // De piedra (sin la nieve de arriba, que los confundía con la pendiente) y asomando bien.
@@ -3265,7 +3265,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
-          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * mix(0.92, 1.02, motasP), smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)});` : ""}
+          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * mix(0.92, 1.02, motasP), smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
           if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
