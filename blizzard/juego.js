@@ -2078,7 +2078,9 @@ estilo.textContent = `
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
-  #portada .botones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+  #portada .botones { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 10px; }
+  #portada .botones button.opcion { min-width: 180px; }
+  #portada #b-santuarios { color: var(--tinta-suave); opacity: .8; }
   #portada button.opcion { font: inherit; font-size: 18px; color: var(--tinta); background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(214,226,242,.6)); border: none; border-radius: 999px; padding: 10px 26px; cursor: pointer; letter-spacing: .06em; }
   #portada button.opcion:hover, #portada button.opcion:focus-visible { background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(226,235,247,.8)); outline: none; }
   #portada .santuarios { display: grid; gap: 10px; justify-items: center; }
