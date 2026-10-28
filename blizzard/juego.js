@@ -275,7 +275,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
       vec2 uvR = (abs(nS.x) > abs(nS.z) ? vMundo.zy : vMundo.xy) * vec2(0.16, 0.22);
       vec3 pr = texture2D(piedra, uvR).rgb, pr2 = texture2D(piedra, uvR * 0.37 + 0.5).rgb;
       pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.42, 0.48, 0.62);
-      float roca = smoothstep(0.66, 0.4, nS.y + (n1.r - 0.5) * 0.35 + (pr2.r - 0.6) * 0.6);
+      float roca = 1.0 - smoothstep(0.4, 0.66, nS.y + (n1.r - 0.5) * 0.35 + (pr2.r - 0.6) * 0.6);
       diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca);`);
   };
   const suelo = new THREE.Mesh(geo, matSuelo);
@@ -2859,7 +2859,7 @@ const desenfoque = TACTIL ? null : (() => {
       }
       void main() {
         float d = prof(vUv);
-        float coc = clamp(smoothstep(enfoque * 0.5, enfoque * 0.15, d) + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
+        float coc = clamp(1.0 - smoothstep(enfoque * 0.15, enfoque * 0.5, d) + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
         vec3 col = suavizar(vUv);
         if (coc > 0.02) {
           vec2 r = px * coc * 3.2; vec3 suma = col;
@@ -2936,10 +2936,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float ruidoP = texture2D(texNievePie, vMundoPie.xz * 1.1 + vec2(vMundoPie.y * 0.7)).r;
           float grandeP = texture2D(texNievePie, vMundoPie.xz * 0.045 + vec2(0.37, 0.11)).r, granoP = texture2D(texNievePie, vMundoPie.xz * 3.1 + vMundoPie.y * 2.3).g;
           float altoP = ${alto.toFixed(3)} * (0.25 + 1.6 * smoothstep(0.35, 0.75, grandeP));   // unas apenas, otras bien cubiertas
-          float cubreP = smoothstep(altoP, altoP * 0.3, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
+          float cubreP = 1.0 - smoothstep(altoP * 0.3, altoP, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96 * ${fuerza.toFixed(3)});
           // Y en los primeros centímetros, donde toca la nieve, casi del todo cubierto.
-          float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
+          float pegadoP = 1.0 - smoothstep(0.015, 0.1, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
         ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.72, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
