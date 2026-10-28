@@ -1371,17 +1371,22 @@ figura.traverse(o => {
   const g = o.geometry, pz = g.attributes.position; g.computeBoundingBox();
   const yMax = g.boundingBox.max.y, H = yMax - g.boundingBox.min.y, cap = new Float32Array(pz.count);
   // Huesos en la pose de reposo, en el espacio de la malla (la escala: H es la altura de Blizzard, ~1,75 m).
-  const sk = o.skeleton, bp = n => { const i = sk.bones.findIndex(b => b.name === "mixamorig" + n); return new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(sk.boneInverses[i]).invert()).applyMatrix4(o.bindMatrixInverse); };
-  const m = H / 1.75, cuello = bp("Neck"), hi = bp("LeftArm"), hd = bp("RightArm"), alante = bp("LeftToeBase").sub(bp("LeftFoot")).setY(0).normalize();
+  // (posición media de los vértices que mueve sobre todo cada hueso)
+  const sk = o.skeleton, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bp = n => {
+    const i = sk.bones.findIndex(b => b.name === "mixamorig" + n), v = new THREE.Vector3(); let c = 0;
+    for (let k = 0; k < pz.count; k++) for (const e of ["getX", "getY", "getZ", "getW"]) if (si[e](k) === i && sw[e](k) > 0.5) { v.x += pz.getX(k); v.y += pz.getY(k); v.z += pz.getZ(k); c++; }
+    return v.multiplyScalar(1 / Math.max(1, c));
+  };
+  const m = H / 1.75, cuello = bp("Neck"), hi = bp("LeftArm"), hd = bp("RightArm"), alante = new THREE.Vector3().subVectors(hi, hd).setY(0).cross(new THREE.Vector3(0, 1, 0)).normalize();   // izquierda × arriba: hacia delante
   const ladoV = new THREE.Vector3().crossVectors(alante, new THREE.Vector3(0, 1, 0)), yH = (hi.y + hd.y) / 2, mitad = hi.distanceTo(hd) / 2, _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
     const y = pz.getY(k); _p.fromBufferAttribute(pz, k).sub(cuello);
     const lat = Math.abs(_p.dot(ladoV)), fondo = _p.dot(alante);
-    // Hombros: la parte de arriba, hasta el arranque del brazo.
-    const hombros = suave(yH - 0.07 * m, yH - 0.035 * m, y) * suave(mitad + 0.09 * m, mitad + 0.04 * m, lat);
-    // Por detrás, una V desde los hombros hasta el cuello, con la punta bien abajo.
-    const v = fondo < -0.01 * m ? suave(cuello.y - 0.04 * m - 0.24 * m * (1 - lat / (mitad + 0.05 * m)) - 0.02 * m, cuello.y - 0.04 * m - 0.24 * m * (1 - lat / (mitad + 0.05 * m)) + 0.01 * m, y) * suave(mitad + 0.08 * m, mitad + 0.03 * m, lat) : 0;
-    cap[k] = Math.max(suave(yMax - 0.21 * H, yMax - 0.17 * H, y), hombros, v);
+    // Lo alto de los hombros, hasta el arranque del brazo.
+    const hombros = suave(yH + 0.005 * m, yH + 0.025 * m, y) * suave(mitad * 0.85, mitad * 0.7, lat);
+    // Y lo alto de la espalda, por detrás: continúa de los hombros a la capa.
+    const espalda = suave(-0.005 * m, -0.02 * m, fondo) * suave(yH - 0.1 * m, yH - 0.07 * m, y) * suave(mitad * 0.85, mitad * 0.7, lat);
+    cap[k] = Math.max(suave(yMax - 0.21 * H, yMax - 0.17 * H, y), hombros, espalda);
   }
   g.setAttribute("capucha", new THREE.BufferAttribute(cap, 1));
   o.material = o.material.clone();
@@ -1399,7 +1404,7 @@ figura.traverse(o => {
 // de doblado (sin pliegues horizontales) y choques con el cuerpo, el suelo y el plano del pecho (nunca
 // pasa por delante). Se dibuja con una malla lisa interpolada sobre la red, con pliegues verticales.
 const capaTela = (() => {
-  const NI = 12, NJ = 11, LARGO_CAPA = 1.02, ANCHO_ARRIBA = 1.3, VUELO_ABAJO = 1.7;
+  const NI = 12, NJ = 11, LARGO_CAPA = 1.12, ANCHO_ARRIBA = 1.3, VUELO_ABAJO = 1.7;
   const NR = 30, NC = 24;
   const P = [], Q = [], A = [];
   for (let k = 0; k < NI * NJ; k++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); A.push(new THREE.Vector3()); }
@@ -1408,15 +1413,15 @@ const capaTela = (() => {
   for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) { uv[(r * NC + c) * 2] = c / (NC - 1); uv[(r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
   for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); }
   geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO.clone().multiplyScalar(1.3), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });   // como la capucha
   // Por dentro, algo más oscura.
-  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.6;"); };
+  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.8;"); };
   const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = true;
   scene.add(malla);
   const hIzq = hueso("LeftArm"), hDer = hueso("RightArm"), hCuello = hueso("Neck"), hEspalda = hueso("Spine2");
   const CAPSULAS = [["Hips", "Spine2", 0.17], ["Spine2", "Neck", 0.13], ["LeftArm", "LeftForeArm", 0.13], ["LeftForeArm", "LeftHand", 0.12],
-    ["RightArm", "RightForeArm", 0.13], ["RightForeArm", "RightHand", 0.12], ["LeftUpLeg", "LeftLeg", 0.13], ["LeftLeg", "LeftFoot", 0.09],
-    ["RightUpLeg", "RightLeg", 0.13], ["RightLeg", "RightFoot", 0.09]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
+    ["RightArm", "RightForeArm", 0.13], ["RightForeArm", "RightHand", 0.12], ["LeftUpLeg", "LeftLeg", 0.17], ["LeftLeg", "LeftFoot", 0.14],
+    ["RightUpLeg", "RightLeg", 0.17], ["RightLeg", "RightFoot", 0.14]].map(([a, b, r]) => ({ a: hueso(a), b: hueso(b), r, pa: new THREE.Vector3(), pb: new THREE.Vector3() }));
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _v = new THREE.Vector3(), _w = new THREE.Vector3();
   const atras = new THREE.Vector3(), lado = new THREE.Vector3(), centro = new THREE.Vector3();
   const alSegmento = (p, cap) => { _d.subVectors(cap.pb, cap.pa); const t = clamp(_c.subVectors(p, cap.pa).dot(_d) / Math.max(1e-6, _d.lengthSq()), 0, 1); return _c.copy(cap.pa).addScaledVector(_d, t); };
@@ -1431,9 +1436,11 @@ const capaTela = (() => {
       const t = j / (NJ - 1) * 2 - 1;                              // -1 izquierda … 1 derecha
       for (let i = 0; i < NI; i++) {
         const f = i / (NI - 1), ancho = anchoH * lerp(1, VUELO_ABAJO, f);
+        const caida = f * LARGO_CAPA * (1 - 0.12 * f) + 0.06 * f * f * Math.cos(t * Math.PI / 2);
         A[i * NJ + j].copy(medio).addScaledVector(lado, -t * ancho)
           .addScaledVector(atras, 0.04 + 0.05 * Math.cos(t * Math.PI / 2) + 0.3 * f + 0.12 * f * f)   // pegada arriba; se aparta recta hacia abajo
-          .setY(yArriba - 0.05 * t * t * (1 - f) - f * LARGO_CAPA * (1 - 0.12 * f));
+          .setY(yArriba - 0.05 * t * t * (1 - f) - caida * Math.cos(alzado * 1.25))   // borde de abajo algo convexo
+          .addScaledVector(atras, caida * Math.sin(alzado * 1.25));          // al saltar, levantada desde los hombros
       }
     }
   };
@@ -1442,7 +1449,7 @@ const capaTela = (() => {
     if (a < NJ) P[b].addScaledVector(_w, -e * k); else { P[a].addScaledVector(_w, e * 0.5 * k); P[b].addScaledVector(_w, -e * 0.5 * k); }
   };
   const largoH = [];
-  let iniciada = false, ultimo = new THREE.Vector3();
+  let iniciada = false, ultimo = new THREE.Vector3(), alzado = 0;
   const catmull = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
   const coord = (i, j, e) => P[clamp(i, 0, NI - 1) * NJ + clamp(j, 0, NJ - 1)].getComponent(e);
   return {
@@ -1450,6 +1457,7 @@ const capaTela = (() => {
     actualizar(dt, viento, suelo) {
       dt = Math.min(dt, 1 / 30);
       blizzard.updateMatrixWorld(true);
+      alzado = lerp(alzado, viento.alzado || 0, 1 - Math.exp(-dt * 6));
       formar();
       for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); }
       if (!iniciada || A[0].distanceTo(ultimo) > 1.2) {
@@ -1465,7 +1473,7 @@ const capaTela = (() => {
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        P[k].add(_v).lerp(A[k], 0.012 + 0.02 * (1 - baja));        // tiende a su caída, suelta
+        P[k].add(_v).lerp(A[k], 0.012 + 0.02 * (1 - baja) + 0.08 * alzado);        // tiende a su caída, suelta
       }
       for (let it = 0; it < 5; it++) {
         for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) {
@@ -2378,7 +2386,7 @@ function actualizar(dt) {
     const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo);
     const vuelo = 7 + Math.hypot(vel.x, vel.z) * 5 + (enSuelo ? 0 : 14);      // más atrás al moverse y aún más al saltar
     const sube = 4 + Math.hypot(vel.x, vel.z) * 3.2 + (enSuelo ? 0 : 9);      // se levanta por detrás al correr y más al saltar
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube }, pos.y);
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube, alzado: enSuelo ? clamp(Math.hypot(vel.x, vel.z) / 8, 0, 0.5) : 1 }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
