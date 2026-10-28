@@ -3133,27 +3133,6 @@ function animarPuerta(dt) {
   });
 }
 
-// ─── Montaña del templo ────────────────────────────────────────────────────
-// Detrás de la puerta arcana, muy lejos, se intuye entre la niebla la silueta borrosa de una montaña con
-// un templo en la cima (la meta lejana). Un plano pintado que siempre mira a la cámara.
-const montanaTemplo = (() => {
-  const c = document.createElement("canvas"); c.width = 1024; c.height = 512; const g = c.getContext("2d");
-  g.filter = "blur(6px)"; g.fillStyle = "rgba(150,166,192,1)";
-  g.beginPath(); g.moveTo(0, 512); g.lineTo(120, 390); g.lineTo(260, 300); g.lineTo(380, 190); g.lineTo(450, 130); g.lineTo(512, 112); g.lineTo(580, 135);
-  g.lineTo(660, 200); g.lineTo(760, 270); g.lineTo(880, 360); g.lineTo(1024, 430); g.lineTo(1024, 512); g.fill();
-  // El templo: gradas, columnas y un remate apuntado.
-  g.fillStyle = "rgba(128,146,176,1)";
-  g.fillRect(452, 104, 120, 14); g.fillRect(462, 92, 100, 12);
-  for (let k = 0; k < 6; k++) g.fillRect(468 + k * 17, 56, 8, 38);
-  g.fillRect(458, 48, 108, 10);
-  g.beginPath(); g.moveTo(452, 48); g.lineTo(512, 14); g.lineTo(572, 48); g.fill();
-  g.filter = "none";
-  const tex = new THREE.CanvasTexture(c);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(260, 130), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, fog: false, depthWrite: false }));
-  m.position.set(caminoX(PUERTA_ARCANA_Z), 40, PUERTA_ARCANA_Z - 380); m.renderOrder = -1; scene.add(m);
-  return m;
-})();
-
 // ─── Desenfoque de profundidad ─────────────────────────────────────────────
 // La escena se dibuja en una textura con su profundidad; al pasarla a pantalla, lo muy cercano a la
 // cámara y lo muy lejano se emborronan un poco (Blizzard, a la distancia de enfoque, queda nítido).
@@ -3331,7 +3310,6 @@ function bucle(ahora) {
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
   ocultarTapadores();
-  montanaTemplo.material.opacity = 0.35 * suave(PLATAFORMA3.z + 40, PLATAFORMA3.z + 8, pos.z) * suave(DUNAS.desde - 10, DUNAS.desde + 30, pos.z);   // tras la puerta; en las dunas se pierde montanaTemplo.position.y = pos.y + 38; montanaTemplo.lookAt(camara.position.x, montanaTemplo.position.y, camara.position.z);
   if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara);
   requestAnimationFrame(bucle);
 }
