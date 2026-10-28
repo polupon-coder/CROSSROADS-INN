@@ -1025,13 +1025,14 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   }
   // El templo hundido: pilastras muy altas, paralelas, inclinadas en diagonal, saliendo de una duna.
   const zt = -585, xt = caminoX(zt) + 16, dir = new THREE.Vector3(-0.55, 0.78, -0.3).normalize();
-  for (let i = 0; i < 6; i++) {
-    const x = xt + (i % 3) * 5.5 - 5 + (rndU() - 0.5) * 2, z = zt + Math.floor(i / 3) * 7 - 3 + (rndU() - 0.5) * 2, largo = 20 + rndU() * 14, g = 3 + rndU() * 1.6;
-    const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 4, z), cima = pie.clone().addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), (rndU() - 0.5) * 0.15), largo);
+  // Más separadas, de tamaños muy distintos, repartidas por un área grande a la derecha del paso.
+  for (let i = 0; i < 11; i++) {
+    const x = xt - 4 + (i % 4) * (10 + rndU() * 5) + (rndU() - 0.5) * 4, z = zt + 18 - Math.floor(i / 4) * (14 + rndU() * 6) + (rndU() - 0.5) * 5;
+    const largo = 12 + rndU() * 30, g = 1.8 + rndU() * 3.4;
+    const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 3, z), cima = pie.clone().addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), (rndU() - 0.5) * 0.25), largo);
     pilarTallado(kitPilares[3 + (i % 3)], pie, cima, g, rndU() * 6);
     colisiones.push({ x, z, r: g * 0.7, techo: pie.y + 8, obj: pilarTallado.ultimo });
-    // Dovelas o bloques caídos a su pie.
-    if (i % 2 === 0) colocar(kitRuinas[Math.floor(rndU() * kitRuinas.length)], x + 3 + rndU() * 3, z + (rndU() - 0.5) * 6, 3.5 + rndU() * 3, rndU() * 6, 0.5);
+    if (i % 3 === 0) colocar(kitRuinas[Math.floor(rndU() * kitRuinas.length)], x + 3 + rndU() * 3, z + (rndU() - 0.5) * 6, 3 + rndU() * 3, rndU() * 6, 0.5);
   }
 }
 
@@ -1166,6 +1167,9 @@ const AVISOS_TUNEL = [
   const desvio = z => -Math.atan(caminoX(z - 0.5) - caminoX(z + 0.5));
   const eje = giro => new THREE.Vector3(Math.cos(giro), 0, -Math.sin(giro));
   const sobre = (z, giro, t, y) => { const d = eje(giro + desvio(z)), cx = caminoX(z); return new THREE.Vector3(cx + d.x * t, alturaTerreno(cx, z) + y, z + d.z * t); };
+  // Todas las piezas de los arcos, del mismo tono: sin la nieve de las caras de arriba (en las juntas
+  // de pilastra, capitel y dovelas hacía un degradado blanco).
+  const matArco = kitPilares[0].material.clone();
   // Arco: dos pilastras al pie de las paredes y la curva de dovelas encima (las que faltan, caídas).
   const arco = (z, span, alto, ancho, estado, giro) => {
     const R = span / 2, frente = new THREE.Vector3(Math.sin(giro + desvio(z)), 0, Math.cos(giro + desvio(z)));
@@ -1173,10 +1177,10 @@ const AVISOS_TUNEL = [
     for (const lado of [-1, 1]) {
       // Pilastras algo más anchas, y de piezas distintas del kit (sin repetirse en fila).
       const h = altoDe(lado), pie = sobre(z, giro, lado * R, -1.5), ap = ancho * 1.18, pieza = kitPilares[3 + (Math.round(-z / 7) * 2 + (lado > 0 ? 1 : 0)) % 3];
-      pilarTallado(pieza, pie, sobre(z, giro, lado * R, h), ap, rndK() * 6);
+      pilarTallado(pieza, pie, sobre(z, giro, lado * R, h), ap, rndK() * 6); pilarTallado.ultimo.children[0].material = matArco;
       colisiones.push({ x: pie.x, z: pie.z, r: ap * 0.55, techo: pie.y + 1.5 + h, obj: pilarTallado.ultimo });
       // Capitel: un bloque más ancho sobre la pilastra, donde apoya la primera dovela.
-      if (h >= alto * 0.99) { const c = sobre(z, giro, lado * R, h - ancho * 0.25); pilarTallado(kitPilares[1], c, c.clone().add(new THREE.Vector3(0, ancho * 0.55, 0)), ancho * 1.28, rndK() * 0.3); }
+      if (h >= alto * 0.99) { const c = sobre(z, giro, lado * R, h - ancho * 0.25); pilarTallado(kitPilares[1], c, c.clone().add(new THREE.Vector3(0, ancho * 0.55, 0)), ancho * 1.28, rndK() * 0.3); pilarTallado.ultimo.children[0].material = matArco; }
       rndK();
       if (false) {
         const m = new THREE.Mesh(geoRuna, materialRuna(Math.floor(rndK() * RUNAS.length)));
@@ -1189,7 +1193,7 @@ const AVISOS_TUNEL = [
       if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 2)) continue;
       const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
       const libre = estado === "rotoDer" && k === 1, pa = m.clone().lerp(p0, 1.35), pb = m.clone().lerp(p1, 1.35);   // bien solapadas
-      pilarTallado(kitPilares[3 + (k % 2)], libre ? pb : pa, libre ? pa : pb, ancho * 1.08, rndK() * 0.4);   // la del extremo roto, con la punta fina fuera
+      pilarTallado(kitPilares[3 + (k % 2)], libre ? pb : pa, libre ? pa : pb, ancho * 1.08, rndK() * 0.4); pilarTallado.ultimo.children[0].material = matArco;   // la del extremo roto, con la punta fina fuera
     }
   };
   // Pilastra caída de pared a pared, en el suelo: se salta (o, si es gruesa, se salta con el viento).
@@ -1862,7 +1866,9 @@ const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 // Nieve acumulada, blanda, que se cruza andando: bajo los pies se hunde de verdad y deja un surco que
 // se va rellenando solo en unos segundos. El primero, a pocos metros del inicio.
 const ventisqueros = [];
-function ventisquero(cx, cz, ancho, largo, alto) {
+// manto: capa continua (en las dunas): grosor igual en todo el tramo, solo se afina en los lados (y,
+// si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
+function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
   const NX = Math.ceil(ancho / Math.max(0.13, ancho / 34)), NZ = Math.ceil(largo / Math.max(0.13, largo / 34)), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
@@ -1870,8 +1876,13 @@ function ventisquero(cx, cz, ancho, largo, alto) {
     // Contorno irregular: el radio cambia con el ángulo (lóbulos y entrantes).
     const borde = 1 - 0.18 * (0.5 + 0.5 * Math.sin(th * 3 + cx * 1.7)) - 0.12 * (0.5 + 0.5 * Math.sin(th * 5 + cz * 2.3)) - 0.06 * (0.5 + 0.5 * Math.sin(th * 9 + cx));
     const r = Math.min(1, (u * u + v * v) / (borde * borde));
-    base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
-    afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
+    if (manto) {
+      const k = suave(1, 0.7, Math.abs(u)) * (manto.ini && v > 0 ? suave(1, 0.6, v) : 1) * (manto.fin && v < 0 ? suave(-1, -0.6, v) : 1);
+      base[i] = alto * k * (0.9 + 0.1 * Math.sin(x * 1.3 + z * 0.7)) - 0.04; afila[i] = k;
+    } else {
+      base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
+      afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
+    }
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
   geo.computeVertexNormals();
@@ -1888,6 +1899,8 @@ ventisquero(0.6, -4, 8.5, 6, 0.55);
 // recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
 for (const [x, z, a, l, h] of MONTONES) ventisquero(x, z, a, l, h);
+// En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
+for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 26, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
 {
   const rndN = generador(9191), libre = (x, z, r) => {
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
