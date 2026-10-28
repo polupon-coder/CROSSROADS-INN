@@ -2079,14 +2079,14 @@ estilo.textContent = `
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
   #portada .botones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-  #portada button.opcion { font: inherit; font-size: 18px; color: var(--tinta); background: rgba(255,255,255,.55); border: 1px solid rgba(31,42,61,.25); border-radius: 999px; padding: 10px 26px; cursor: pointer; letter-spacing: .06em; }
-  #portada button.opcion:hover, #portada button.opcion:focus-visible { background: rgba(255,255,255,.85); outline: none; border-color: rgba(31,42,61,.5); }
+  #portada button.opcion { font: inherit; font-size: 18px; color: var(--tinta); background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(214,226,242,.6)); border: none; border-radius: 999px; padding: 10px 26px; cursor: pointer; letter-spacing: .06em; }
+  #portada button.opcion:hover, #portada button.opcion:focus-visible { background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(226,235,247,.8)); outline: none; }
   #portada .santuarios { display: grid; gap: 10px; justify-items: center; }
   #portada .santuarios[hidden], #portada .botones[hidden], #portada .teclas[hidden] { display: none; }
   #portada .santuarios p { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); }
-  #portada .lista button { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--tinta); background: rgba(255,255,255,.55); border: 1px solid rgba(31,42,61,.2); border-radius: 14px; padding: 8px 14px; cursor: pointer; }
-  #portada .lista button:hover, #portada .lista button:focus-visible { background: rgba(255,255,255,.85); outline: none; }
+  #portada .lista button { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--tinta); background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(214,226,242,.6)); border: none; border-radius: 14px; padding: 8px 14px; cursor: pointer; }
+  #portada .lista button:hover, #portada .lista button:focus-visible { background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(226,235,247,.8)); outline: none; }
   #portada .lista svg { width: 44px; height: 44px; }
   #portada .lista svg path { fill: none; stroke: var(--tinta); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
   #portada .lista b { display: block; font-weight: 400; font-size: 18px; }
@@ -2147,11 +2147,10 @@ ui.innerHTML = `
   <div id="portada">
     <h1>BLIZZARD</h1>
     <div class="botones">
-      <button type="button" class="opcion" id="b-empezar">Empezar</button>
+      <button type="button" class="opcion" id="b-empezar">Viaje</button>
       <button type="button" class="opcion" id="b-santuarios">Santuarios</button>
     </div>
     <div class="santuarios" hidden>
-      <p>Empieza en un santuario con lo que ya has aprendido.</p>
       <div class="lista"></div>
       <button type="button" class="opcion" id="b-volver">Volver</button>
     </div>
@@ -2398,7 +2397,7 @@ const SANTUARIOS = [
   SANTUARIOS.forEach((S, i) => {
     const pts = FIGURAS[S.runa].puntos.filter((_, k, a) => a.length < 60 || k % 3 === 0);
     const b = document.createElement("button"); b.type = "button";
-    b.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M${pts.map(p => p.map(v => v.toFixed(1)).join(" ")).join(" L")}"/></svg><div><b>${S.nombre}</b><span>${S.texto}</span></div>`;
+    b.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M${pts.map(p => p.map(v => v.toFixed(1)).join(" ")).join(" L")}"/></svg><div><b>${S.nombre}</b></div>`;
     b.addEventListener("click", e => { e.stopPropagation(); empezar(i + 1); });
     lista.appendChild(b);
   });
