@@ -1391,17 +1391,16 @@ const esclavina = (() => {
   // Separación de la espalda: pegada arriba, se levanta hacia abajo.
   const sepDe = y => (0.014 + 0.1 * clamp((yH - y) / (yH - yAbajo), 0, 1) ** 1.5) * m;
   const L = mitad * 1.2;                                            // media anchura: laterales rectos
-  // De perfil, el borde lateral es una recta tangente a los hombros que baja hacia la espalda: lo que
-  // quedaba por delante de ella (bajo el brazo) se lleva justo a esa recta.
-  const corte = y => (0.012 - 0.15 * Math.max(0, yH + 0.03 * m - y) / m) * m;
+  // Por debajo de la costura de arriba de la capa no se dibuja: ahí solo se ve la tela (nada en los omoplatos).
+  const yCostura = yAbajo + 0.17 * m;
   const tronco = new Set(["Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder"].map(idx));
   const lat = new Float32Array(pz.count), fondo = new Float32Array(pz.count), dentro = new Uint8Array(pz.count), cerca = new Uint8Array(pz.count), _p = new THREE.Vector3();
   for (let k = 0; k < pz.count; k++) {
     _p.fromBufferAttribute(pz, k).sub(cuello); lat[k] = _p.dot(ladoV); fondo[k] = _p.dot(alante);
     const y = pz.getY(k);
     // La espalda entera de lado a lado hasta la nuca; por delante, solo lo alto de los hombros.
-    const zona = fondo[k] <= corte(y) + 0.04 * m;                    // solo por detrás, hasta la recta de perfil
-    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= L && fondo[k] <= corte(y) ? 1 : 0;
+    const zona = fondo[k] <= 0.01 * m;                              // solo por detrás: nada por delante
+    dentro[k] = tronco.has(principal(k)) && y >= yAbajo && y <= yTope && Math.abs(lat[k]) <= L && zona ? 1 : 0;
     cerca[k] = y >= yAbajo - 0.1 * m && y <= yTope && Math.abs(lat[k]) <= L * 1.5 && zona ? 1 : 0;   // se recorta a L y yAbajo
   }
   const nuevo = new Int32Array(pz.count).fill(-1), pos = [], nor = [], ski = [], skw = [], ind = [], ia = g.index.array;
@@ -1410,7 +1409,6 @@ const esclavina = (() => {
       nuevo[k] = pos.length / 3;
       // Bordes rectos: lo que pasa de los lados o de abajo se lleva justo al borde.
       _p.fromBufferAttribute(pz, k); if (Math.abs(lat[k]) > L) _p.addScaledVector(ladoV, Math.sign(lat[k]) * L - lat[k]); if (_p.y < yAbajo) _p.y = yAbajo;
-      { const f0 = _p.clone().sub(cuello).dot(alante), fc = corte(_p.y); if (f0 > fc) _p.addScaledVector(alante, fc - f0); }
       const sep = sepDe(_p.y);
       pos.push(_p.x + nm.getX(k) * sep, _p.y + nm.getY(k) * sep, _p.z + nm.getZ(k) * sep); nor.push(nm.getX(k), nm.getY(k), nm.getZ(k));
       for (const e of C) { ski.push(si[e](k)); skw.push(peso(k, e)); }
@@ -1420,7 +1418,7 @@ const esclavina = (() => {
   for (let t = 0; t < ia.length; t += 3) if (cerca[ia[t]] && cerca[ia[t + 1]] && cerca[ia[t + 2]] && (dentro[ia[t]] || dentro[ia[t + 1]] || dentro[ia[t + 2]])) ind.push(usar(ia[t]), usar(ia[t + 1]), usar(ia[t + 2]));
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(ski, 4)); geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(skw, 4)); geo.setIndex(ind);
+  geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(ski, 4)); geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(skw, 4)); geo.setIndex(ind.filter((_, n) => { const t = n - n % 3; return [0, 1, 2].every(q => pos[ind[t + q] * 3 + 1] >= yCostura); }));
   const malla = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 0.9, metalness: 0, skinning: true, side: THREE.DoubleSide }));
   malla.bind(sk, cuerpo.bindMatrix); malla.frustumCulled = false; malla.castShadow = true; malla.receiveShadow = false;
   malla.position.copy(cuerpo.position); malla.quaternion.copy(cuerpo.quaternion); malla.scale.copy(cuerpo.scale); cuerpo.parent.add(malla);
@@ -1444,10 +1442,9 @@ const esclavina = (() => {
     for (let j = 0; j < 11; j++) {
       let a = null;
       for (let enc = 0.97; !a && enc > 0.3; enc -= 0.05) a = anclar((j / 10 * 2 - 1) * L * enc, y);   // en los bordes, algo hacia dentro si no da
-      fila.push(a);
+      fila.push(a || fila[fila.length - 1]);
     }
-    // Donde el rayo no dé, la vecina más cercana que sí dio.
-    return fila.map((a, j) => { if (a) return a; for (let d = 1; d < 11; d++) { const b = fila[j - d] || fila[j + d]; if (b) return b; } return null; });
+    return fila;
   });
   const pielDe = (i, out) => {                                      // un vértice de la esclavina, en el mundo
     _base.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]).applyMatrix4(cuerpo.bindMatrix); out.set(0, 0, 0);
