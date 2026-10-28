@@ -274,7 +274,7 @@ const plano = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, fla
       vec3 nS = normalize(vNormalS);
       vec2 uvR = (abs(nS.x) > abs(nS.z) ? vMundo.zy : vMundo.xy) * vec2(0.16, 0.22);
       vec3 pr = texture2D(piedra, uvR).rgb, pr2 = texture2D(piedra, uvR * 0.37 + 0.5).rgb;
-      pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.42, 0.48, 0.62);
+      pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.46, 0.5, 0.58);
       float roca = 1.0 - smoothstep(0.4, 0.66, nS.y + (n1.r - 0.5) * 0.35 + (pr2.r - 0.6) * 0.6);
       diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca);`);
   };
@@ -460,7 +460,7 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   scene.add(g);
   colisiones.push({ x, z, r: pieza.radio * s * 0.8, techo: y + alto * 0.97, obj: g });   // del tamaño que se ve: no se entra en la roca
   if (falda) nieveAlPie(x, z, pieza.radio * s, suelo);
-  g.userData.pieza = pieza;
+  g.userData.pieza = pieza; g.userData.tapa = true;
   return g;
 }
 
@@ -643,7 +643,7 @@ function pilarTallado(P, a, b, ancho, giro = 0) {
   m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
   g.matrixAutoUpdate = false;
   g.matrix.makeBasis(lado.multiplyScalar(s), dir.clone().multiplyScalar(largo / P.alto), frente.multiplyScalar(s)).setPosition(a.clone().add(b).multiplyScalar(0.5));
-  scene.add(g); g.updateMatrixWorld(true);
+  scene.add(g); g.updateMatrixWorld(true); g.userData.tapa = true;
   pilarTallado.ultimo = g;
   return g;
 }
@@ -1117,7 +1117,8 @@ const AVISOS_TUNEL = [
     for (let k = 0; k < N; k++) {
       if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 2)) continue;
       const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
-      pilarTallado(kitPilares[3 + (k % 2)], m.clone().lerp(p0, 1.35), m.clone().lerp(p1, 1.35), ancho * 1.08, rndK() * 0.4);   // bien solapadas
+      const libre = estado === "rotoDer" && k === 1, pa = m.clone().lerp(p0, 1.35), pb = m.clone().lerp(p1, 1.35);   // bien solapadas
+      pilarTallado(kitPilares[3 + (k % 2)], libre ? pb : pa, libre ? pa : pb, ancho * 1.08, rndK() * 0.4);   // la del extremo roto, con la punta fina fuera
     }
   };
   // Pilastra caída de pared a pared, en el suelo: se salta (o, si es gruesa, se salta con el viento).
@@ -2878,7 +2879,7 @@ function animarPuerta(dt) {
 // La escena se dibuja en una textura con su profundidad; al pasarla a pantalla, lo muy cercano a la
 // cámara y lo muy lejano se emborronan un poco (Blizzard, a la distancia de enfoque, queda nítido).
 // La misma pasada suaviza los bordes dentados (la textura no tiene antialias). En móvil, sin él.
-const desenfoque = TACTIL ? null : (() => {
+const desenfoque = (() => {
   const rt = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
   rt.depthTexture = new THREE.DepthTexture(); rt.depthTexture.type = THREE.UnsignedIntType;
   const muestras = [[0.0, 0.5], [0.48, 0.16], [0.29, -0.4], [-0.29, -0.4], [-0.48, 0.16], [0.0, 1.0], [0.87, 0.5], [0.87, -0.5], [0.0, -1.0], [-0.87, -0.5], [-0.87, 0.5], [0.5, 0.87]];
@@ -2900,7 +2901,7 @@ const desenfoque = TACTIL ? null : (() => {
       }
       void main() {
         float d = prof(vUv);
-        float coc = clamp(1.0 - smoothstep(enfoque * 0.15, enfoque * 0.5, d) + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
+        float coc = clamp((1.0 - smoothstep(enfoque * 0.12, enfoque * 0.55, d)) * 1.4 + smoothstep(enfoque * 2.4, enfoque * 6.0, d) * 0.75, 0.0, 1.0);
         vec3 col = suavizar(vUv);
         if (coc > 0.02) {
           vec2 r = px * coc * 3.2; vec3 suma = col;
@@ -2922,6 +2923,29 @@ const desenfoque = TACTIL ? null : (() => {
     },
   };
 })();
+
+// ─── Lo que tapa la vista ──────────────────────────────────────────────────
+// Rocas, pilastras y vigas que quedan muy cerca de la cámara, entre ella y Blizzard: se ocultan
+// (antes, al acercarse, ya se ven desenfocadas). Esfera de cada pieza para descartar rápido; rayo solo
+// con las que quedan.
+const tapadores = [];
+scene.traverse(o => { if (o.userData.tapa) { const e = new THREE.Box3().setFromObject(o).getBoundingSphere(new THREE.Sphere()); tapadores.push({ o, e, oculto: false }); } });
+const _rayoT = new THREE.Raycaster(), _ojoT = new THREE.Vector3(), _hastaT = new THREE.Vector3();
+function ocultarTapadores() {
+  _ojoT.copy(camara.position); _hastaT.copy(pos).add(new THREE.Vector3(0, 1.1, 0));
+  const largo = _ojoT.distanceTo(_hastaT), dir = _hastaT.clone().sub(_ojoT).normalize();
+  _rayoT.set(_ojoT, dir); _rayoT.far = largo;
+  for (const t of tapadores) {
+    let tapa = false;
+    const dc = t.e.center.distanceTo(_ojoT);
+    if (dc - t.e.radius < 4.5) {                                  // solo lo que está muy cerca de la cámara
+      const proy = clamp(_hastaT.clone().sub(_ojoT).dot(t.e.center.clone().sub(_ojoT)) / (largo * largo), 0, 1);
+      const cerca = _ojoT.clone().lerp(_hastaT, proy).distanceTo(t.e.center) < t.e.radius;
+      if (cerca) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(4.5, largo - 0.6); }
+    }
+    if (tapa !== t.oculto) { t.oculto = tapa; t.o.visible = !tapa; }
+  }
+}
 
 // ─── Bucle ─────────────────────────────────────────────────────────────────
 function ajustar() {
@@ -2968,7 +2992,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
         ${piedra ? `{
           float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          vec3 unida = vec3(0.42, 0.48, 0.62) / 0.47 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
+          vec3 unida = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
           diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));
         }` : ""}
         ${alto > 0 ? `{
@@ -3025,6 +3049,7 @@ function bucle(ahora) {
   anterior = ahora;
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
+  ocultarTapadores();
   if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara);
   requestAnimationFrame(bucle);
 }
