@@ -518,7 +518,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // Rocas y nieve acumulada que obligan a ir de un lado a otro, y luego pilastras caídas que hay
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
 // En cada fila de pilastras de salto, el tramo que se salta queda a un lado (hay que buscarlo).
-const PASO_SALTO = [5.2, -5.2];
+const PASO_SALTO = [6, -6];
 const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
@@ -883,8 +883,8 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   // Pilastras de salto: rocas en toda la fila menos en el tramo de la pilastra, a un lado.
   ZONA_PILASTRAS.forEach((z, i) => {
     const cx = caminoX(z);
-    for (let t = -25; t < 25; t += 3.6 + rndC() * 0.8) {             // pocos sillares, espaciados: la retentiva cierra
-      if (Math.abs(t - PASO_SALTO[i]) < 5.6) continue;
+    for (let t = -25; t < 25; t += 2.0 + rndC() * 0.3) {             // juntos: se ve cerrado lo que está cerrado
+      if (Math.abs(t - PASO_SALTO[i]) < 4.2) continue;
       // Algo apartadas hacia fuera del pasillo entre las dos filas, para que se pueda ir de un paso al otro.
       sillar(cx + t, z + (i ? -1 : 1) * 1.1 + (rndC() - 0.5) * 0.5, 2.0 + rndC() * 0.5, rndC() * Math.PI * 2);
     }
@@ -1344,12 +1344,22 @@ const capaTela = (() => {
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.63, 0.47, 0.05) * clamp(lum / 0.14, 0.45, 1.35), vCapucha * smoothstep(0.03, 0.08, lum));`);
     };
   });
+  // Hombros algo más estrechos: la parte alta de la capa se cierra un poco hacia el centro.
+  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) a.setX(k, a.getX(k) * (1 - 0.12 * suave(0.42, 0.74, a.getY(k)))); }
+  // Solo la parte de atrás, como una capa de capa y espada: fuera los triángulos de delante y de los
+  // costados delanteros; arriba se deja algo más, para que caiga sobre los hombros.
+  const atras = (x, y, z) => Math.abs(Math.atan2(x, -z)) < 1.62 + 0.55 * suave(0.55, 0.76, y);
+  {
+    const a = malla.geometry.attributes.position, idx = malla.geometry.index.array, quedan = [];
+    for (let t = 0; t < idx.length; t += 3) if ([0, 1, 2].every(q => atras(a.getX(idx[t + q]), a.getY(idx[t + q]), a.getZ(idx[t + q])))) quedan.push(idx[t], idx[t + 1], idx[t + 2]);
+    malla.geometry.setIndex(quedan);
+  }
   const base = Float32Array.from(malla.geometry.attributes.position.array), n = base.length / 3;
   // Red: NI filas (de los hombros al bajo) y NJ columnas alrededor (de un borde delantero al otro).
   const NI = 9, NJ = 13, Y_HOMBRO = 0.7, Y_CUELLO = 0.816;
   const ang = (x, z) => Math.atan2(x, -z);                         // 0 en la espalda, ±π delante
   let aMin = Infinity, aMax = -Infinity;
-  for (let k = 0; k < n; k++) if (base[k * 3 + 1] < Y_HOMBRO) { const a = ang(base[k * 3], base[k * 3 + 2]); aMin = Math.min(aMin, a); aMax = Math.max(aMax, a); }
+  for (let k = 0; k < n; k++) if (base[k * 3 + 1] < Y_HOMBRO && atras(base[k * 3], base[k * 3 + 1], base[k * 3 + 2])) { const a = ang(base[k * 3], base[k * 3 + 2]); aMin = Math.min(aMin, a); aMax = Math.max(aMax, a); }
   const filaDe = y => clamp((Y_HOMBRO - y) / Y_HOMBRO * (NI - 1), 0, NI - 1), colDe = a => clamp((a - aMin) / (aMax - aMin) * (NJ - 1), 0, NJ - 1);
   // Reposo de cada punto (en el espacio de la capa): media de los vértices de su celda.
   const reposo = Array.from({ length: NI * NJ }, () => [0, 0, 0, 0]);
@@ -1364,7 +1374,7 @@ const capaTela = (() => {
     if (vec.length) { for (const q of vec) { r[0] += q[0] / q[3]; r[1] += q[1] / q[3]; r[2] += q[2] / q[3]; } r[0] /= vec.length; r[1] /= vec.length; r[2] /= vec.length; r[3] = 1; }
   }
   const local = reposo.map(r => new THREE.Vector3(r[0] / r[3], r[1] / r[3], r[2] / r[3]));
-  const radio0 = local.map(v => Math.hypot(v.x, v.z) - 0.004);
+  const radio0 = local.map((v, k) => Math.hypot(v.x, v.z) + 0.012 + 0.03 * Math.floor(k / NJ) / (NI - 1));   // algo separada del cuerpo
   // Enlace de cada vértice: celda, pesos bilineales y cuánto sigue a la cabeza (capucha).
   const celda = new Int32Array(n), fu = new Float32Array(n), fv = new Float32Array(n), wCabeza = new Float32Array(n);
   for (let k = 0; k < n; k++) {
@@ -1436,7 +1446,7 @@ const capaTela = (() => {
           // Nunca más cerca del eje del cuerpo que en reposo (la túnica es ancha): solo se abre hacia fuera.
           _p.copy(P[k]).applyMatrix4(_Minv); const r = Math.hypot(_p.x, _p.z), r0 = radio0[k];
           if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); P[k].copy(_p.applyMatrix4(capa.matrixWorld)); }
-          const lejos = 0.12 + 0.42 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
+          const lejos = 0.14 + 0.55 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
           if (d > lejos) P[k].lerp(A[k], 1 - lejos / d);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
@@ -1943,7 +1953,7 @@ let agachadoAhora = false;
 // Magia retentiva: en los pasos que no se pueden rodear, entrar en su franja por fuera del paso (por
 // encima de las rocas, saltando…) devuelve a donde se estaba, con el viento en bumerán. hw: medio
 // ancho del paso; m: media franja a lo largo del camino.
-const RETENCIONES = [...ZONA_PILASTRAS.map((z, i) => ({ z, hw: 3.6, m: 1.2, dx: PASO_SALTO[i] })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 1.7, m: 2.4 })), { z: PUERTA_Z, hw: 2.2, m: 1.6 },
+const RETENCIONES = [...ZONA_PILASTRAS.map((z, i) => ({ z, hw: 3.4, m: 1.2, dx: PASO_SALTO[i] })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 1.7, m: 2.4 })), { z: PUERTA_Z, hw: 2.2, m: 1.6 },
   ...BAJOS_TUNEL.map(z => ({ z, hw: 1.7, m: 3 }))];
 const retenido = (x, z) => RETENCIONES.some(R => { const d = Math.abs(x - caminoX(R.z) - (R.dx || 0)); return Math.abs(z - R.z) < R.m && d > R.hw && d < 40; });
 let retencion = 0;
@@ -2327,7 +2337,9 @@ function actualizar(dt) {
   if (capaTela) {
     // Viento: el de la llanura (de lado) más el del límite del mundo; la carrera la echa atrás sola.
     const cv = enCamino(pos.x, pos.z);
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8, z: 0.5 - cv.nz * rachaViento * 7 }, pos.y);
+    // Y siempre algo hacia atrás y a un lado, para que se separe del cuerpo y ondee.
+    const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo), ladoX = Math.cos(rumbo), ladoZ = -Math.sin(rumbo);
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * 2.6 + ladoX * 0.9, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * 2.6 + ladoZ * 0.9 }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
