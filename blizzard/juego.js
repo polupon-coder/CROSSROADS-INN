@@ -518,8 +518,8 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // Rocas y nieve acumulada que obligan a ir de un lado a otro, y luego pilastras caídas que hay
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
 // En cada fila de pilastras de salto, el tramo que se salta queda a un lado (hay que buscarlo).
-const PASO_SALTO = [6, -6];
-const ZONA_ROCAS = [-27, -33, -39], ZONA_PILASTRAS = [-57, -64], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
+const PASO_SALTO = [4.5, -4.5];
+const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
   // Roca con colisión del tamaño que se ve, para no meterse dentro.
@@ -602,7 +602,7 @@ const nieveFina = (() => {
       vec3 nv = texture2D(nieveFina, vMundoN.xz * 0.28).rgb;
       float grano = texture2D(nieveFina, vMundoN.xz * 1.7 + vMundoN.y * 0.3).r;
       float cubre = smoothstep(0.5, 0.78, normalize(vNormalN).y + (grano - 0.5) * 0.5);
-      diffuseColor.rgb = mix(diffuseColor.rgb, tonoNieve * nv, cubre * 0.94);`);
+      diffuseColor.rgb = mix(diffuseColor.rgb, min(tonoNieve * nv * 1.14, vec3(1.0)), cubre * 0.98);`);
   };
   return m;
 })();
@@ -766,6 +766,19 @@ for (let x = -18; x <= 18; x += 2.2) {
   for (const lado of [-1, 1]) for (let x = 20.2; x <= 44; x += 2.2) {
     const xr = caminoX(RELLANO.z) + lado * x + (rndL() - 0.5);
     rocaRellano(distinta(kitRocas, kitRocas[2 + Math.floor(rndL() * 3)], xr, RELLANO.z, 4.5), xr, rndL() * Math.PI * 2);
+  }
+}
+
+// Zona inicial: rocas grandes y alguna columna alta a ambos lados, dejando libre el camino.
+{
+  const rndI = generador(1212);
+  for (const lado of [-1, 1]) for (let z = -6 - rndI() * 2; z > -23; z -= 3.2 + rndI() * 2.4) {
+    const x = caminoX(z) + lado * (6.5 + rndI() * 6);
+    if (rndI() < 0.25) {
+      const R = 0.9 + rndI() * 0.6, alto = 8 + rndI() * 7, suelo = alturaTerreno(x, z);
+      pilarTallado(kitPilares[3 + Math.floor(rndI() * 3)], new THREE.Vector3(x, suelo - 1, z), new THREE.Vector3(x + (rndI() - 0.5) * 0.4, suelo + alto, z), R * 2, rndI() * 6);
+      colisiones.push({ x, z, r: R * 0.95, techo: suelo + alto, obj: pilarTallado.ultimo });
+    } else if (!solapa(x, z, 2.5)) colocar(kitRocas[2 + Math.floor(rndI() * 2)], x, z, 2.8 + rndI() * 3.2, rndI() * 6);
   }
 }
 
@@ -1036,7 +1049,10 @@ const AVISOS_TUNEL = [
       const h = altoDe(lado), pie = sobre(z, giro, lado * R, -1.5);
       pilarTallado(kitPilares[5], pie, sobre(z, giro, lado * R, h), ancho, rndK() * 0.3);
       colisiones.push({ x: pie.x, z: pie.z, r: ancho * 0.55, techo: pie.y + 1.5 + h, obj: pilarTallado.ultimo });
-      if (rndK() < 0.75) {
+      // Capitel: un bloque más ancho sobre la pilastra, donde apoya la primera dovela.
+      if (h >= alto * 0.99) { const c = sobre(z, giro, lado * R, h - ancho * 0.25); pilarTallado(kitPilares[1], c, c.clone().add(new THREE.Vector3(0, ancho * 0.7, 0)), ancho * 1.45, rndK() * 0.3); }
+      rndK();
+      if (false) {
         const m = new THREE.Mesh(geoRuna, materialRuna(Math.floor(rndK() * RUNAS.length)));
         m.scale.setScalar(ancho * 0.55); m.position.copy(sobre(z, giro, lado * R, Math.min(h * 0.45, 3.4)).addScaledVector(frente, ancho * 0.52)); m.rotation.y = giro + desvio(z); scene.add(m);
       }
@@ -1117,12 +1133,15 @@ const AVISOS_TUNEL = [
     };
     const runa = materialRuna(12).clone(); runa.opacity = 0.75; runa.color.set(0xdbe8fb);  // el círculo de la lámina, partido por la junta
     for (const lado of [-1, 1]) {
-      const hoja = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, nieveFina);
+      // Arista interior recta: la hoja se recorta con un plano vertical en la junta (se mueve con ella).
+      const corte = new THREE.Plane(new THREE.Vector3(lado, 0, 0), 0), matHoja = nieveFina.clone();
+      matHoja.onBeforeCompile = nieveFina.onBeforeCompile; matHoja.clippingPlanes = [corte];
+      const hoja = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, matHoja);
       m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto / 2, 0)); m.castShadow = m.receiveShadow = true;
       cuerpo.add(m); cuerpo.scale.set(W / (pieza.radio * 2), H / pieza.alto, D / (pieza.radio * 2)); hoja.add(cuerpo);
       const r = new THREE.Mesh(geoMitad(lado), runa); r.position.set(-lado * W / 2 * 0.86, 0.6, D / 2 + 0.2 - lado * 0.12); r.scale.setScalar(1.25); hoja.add(r);
       hoja.position.set(cx + lado * W / 2 * 0.86, suelo + H / 2 - 0.3, PUERTA_ARCANA_Z + lado * 0.12); scene.add(hoja);   // juntas, algo solapadas
-      puertaArcana.hojas.push({ g: hoja, x0: hoja.position.x, lado });
+      corte.constant = -lado * cx; puertaArcana.hojas.push({ g: hoja, x0: hoja.position.x, lado, corte, junta: cx });
     }
     puertaArcana.runa = runa; puertaArcana.x = cx; puertaArcana.y = suelo; puertaArcana.z = PUERTA_ARCANA_Z;
     for (let x = -2 * W + 0.4; x <= 2 * W - 0.4; x += 0.5) {
@@ -1345,7 +1364,7 @@ const capaTela = (() => {
     };
   });
   // Hombros algo más estrechos: la parte alta de la capa se cierra un poco hacia el centro.
-  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) a.setX(k, a.getX(k) * (1 - 0.2 * suave(0.42, 0.74, a.getY(k)))); }
+  { const a = malla.geometry.attributes.position; for (let k = 0; k < a.count; k++) { const y = a.getY(k); a.setX(k, a.getX(k) * (1 - 0.1 * suave(0.42, 0.74, y))); if (y > 0.6) a.setY(k, 0.6 + (y - 0.6) * 0.55); } }   // y la parte de arriba, bajada a los hombros
   // Solo la parte de atrás, como una capa de capa y espada: fuera los triángulos de delante y de los
   // costados delanteros; arriba se deja algo más, para que caiga sobre los hombros.
   const atras = (x, y, z) => Math.abs(Math.atan2(x, -z)) < 1.5 - 0.18 * suave(0.5, 0.74, y);   // arriba, solo la espalda: detrás de los brazos
@@ -1402,7 +1421,9 @@ const capaTela = (() => {
     P[k].copy(A[k]); Q[k].copy(A[k]);
     holgura.push(CAPSULAS.map(c => Math.min(c.r + 0.035, alSegmento(A[k], c).distanceTo(A[k]) - 0.005)));
   }
+  const largoV2 = [];
   for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) {
+    largoV2.push(i > 1 ? A[i * NJ + j].distanceTo(A[(i - 2) * NJ + j]) : 0);
     largoV.push(i ? A[i * NJ + j].distanceTo(A[(i - 1) * NJ + j]) : 0);
     largoH.push(j ? A[i * NJ + j].distanceTo(A[i * NJ + j - 1]) : 0);
   }
@@ -1437,6 +1458,8 @@ const capaTela = (() => {
       _Minv.copy(capa.matrixWorld).invert();
       for (let it = 0; it < 4; it++) {
         for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) { const k = i * NJ + j; atar(k - NJ, k, largoV[k], 1); if (j) atar(k - 1, k, largoH[k], 0.8); }
+        // Rigidez de doblado: cada punto, a su distancia del de dos filas más arriba (sin pliegues horizontales ni «S»).
+        for (let i = 2; i < NI; i++) for (let j = 0; j < NJ; j++) { const k = i * NJ + j; atar(k - 2 * NJ, k, largoV2[k], 0.6); }
         for (let k = NJ; k < P.length; k++) {
           // Sin meterse en el cuerpo (cápsulas), sin alejarse demasiado de su sitio y sin bajar del suelo.
           for (let c = 0; c < CAPSULAS.length; c++) {
@@ -1445,7 +1468,10 @@ const capaTela = (() => {
           }
           // Nunca más cerca del eje del cuerpo que en reposo (la túnica es ancha): solo se abre hacia fuera.
           _p.copy(P[k]).applyMatrix4(_Minv); const r = Math.hypot(_p.x, _p.z), r0 = radio0[k];
-          if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); P[k].copy(_p.applyMatrix4(capa.matrixWorld)); }
+          if (r < r0) { _p.x *= r0 / Math.max(r, 1e-4); _p.z *= r0 / Math.max(r, 1e-4); }
+          // Solo hacia atrás: ni se abre a los lados más que en reposo ni se adelanta hacia las piernas.
+          const lx = Math.abs(local[k].x) * 1.04 + 0.015; _p.x = clamp(_p.x, -lx, lx); _p.z = Math.min(_p.z, local[k].z + 0.03);
+          P[k].copy(_p.applyMatrix4(capa.matrixWorld));
           const lejos = 0.16 + 0.85 * (Math.floor(k / NJ) / (NI - 1)), d = P[k].distanceTo(A[k]);
           if (d > lejos) P[k].lerp(A[k], 1 - lejos / d);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
@@ -1868,6 +1894,7 @@ function empezar() {
   if (estado !== "portada") return;
   if (tactil) { mandos.hidden = false; try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {} }
   estado = "intro"; tIntro = 0;
+  efectoEspiral = 0; rescate = null;                          // sin espiral al empezar (la carga pudo dejar un rescate)
   musica.empezar();
   portada.style.opacity = 0;
   setTimeout(() => portada.remove(), 1300);
@@ -1897,7 +1924,7 @@ let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellan
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 let abrePuertas = false, aprende = "";
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
-let NIEBLA_LEJOS = 19, enTunel = 0;
+let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0;
 const INTRO_DURA = 8;
@@ -1949,7 +1976,7 @@ function sueloEn(x, z, pies) {
   return { h, sobre };
 }
 
-let agachadoAhora = false;
+let agachadoAhora = false, ultimoAgachado = -9;
 // Magia retentiva: en los pasos que no se pueden rodear, entrar en su franja por fuera del paso (por
 // encima de las rocas, saltando…) devuelve a donde se estaba, con el viento en bumerán. hw: medio
 // ancho del paso; m: media franja a lo largo del camino.
@@ -2083,7 +2110,7 @@ function actualizar(dt) {
     // Bajo un techo bajo se sigue agachado aunque se suelte la tecla, para no quedar dentro de la piedra.
     const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.2 && pos.y < c.techo);
     const agachado = (tecla("KeyC", "ControlLeft") || bajoTecho) && enSuelo;
-    agachadoAhora = agachado;
+    agachadoAhora = agachado; if (agachado) ultimoAgachado = reloj;
     const rapidez = agachado ? V_AGACHADO : tecla("ShiftLeft", "ShiftRight") || Math.hypot(joy.x, joy.y) > 0.85 ? V_CORRER : V_ANDAR;
     deseo.multiplyScalar(rapidez);
 
@@ -2110,7 +2137,9 @@ function actualizar(dt) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
       musica.viento(0.25, 0.7);
-    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && agachado && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base && reloj - ultimoAgachado > 1.5) {
+      rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 2.5);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && reloj - ultimoAgachado <= 1.5 && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
@@ -2338,9 +2367,10 @@ function actualizar(dt) {
     // Viento: el de la llanura (de lado) más el del límite del mundo; la carrera la echa atrás sola.
     const cv = enCamino(pos.x, pos.z);
     // Y siempre algo hacia atrás y a un lado, para que se separe del cuerpo y ondee.
-    const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo), ladoX = Math.cos(rumbo), ladoZ = -Math.sin(rumbo);
-    const vuelo = 2.6 + Math.hypot(vel.x, vel.z) * 2.2 + (enSuelo ? 0 : 9);   // más atrás al moverse y aún más al saltar
-    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo + ladoX * 0.9, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo + ladoZ * 0.9, y: enSuelo ? 0 : 3 }, pos.y);
+    const atrasX = -Math.sin(rumbo), atrasZ = -Math.cos(rumbo);
+    const vuelo = 3.4 + Math.hypot(vel.x, vel.z) * 3 + (enSuelo ? 0 : 11);    // más atrás al moverse y aún más al saltar
+    const sube = Math.hypot(vel.x, vel.z) * 1.6 + (enSuelo ? 0 : 9);           // se levanta por detrás al correr y más al saltar
+    capaTela.actualizar(dt, { x: -2.2 - cv.nx * rachaViento * 7 + Math.sin(reloj * 0.4) * 0.8 + atrasX * vuelo, z: 0.5 - cv.nz * rachaViento * 7 + atrasZ * vuelo, y: sube }, pos.y);
   }
   if (estado === "intro" || estado === "portada") { yawCamara = Math.atan2(-c.fx, -c.fz); }
 
@@ -2352,7 +2382,9 @@ function actualizar(dt) {
   // En el túnel de los arcos, plano bajo que mira hacia arriba y a lo lejos (como en la lámina de los
   // arcos): los arcos enmarcan el paso y se ven los siguientes en la niebla.
   enTunel = lerp(enTunel, suave(ARCOS.desde + 6, ARCOS.desde - 1, pos.z) * suave(ARCOS.hasta - 12, ARCOS.hasta - 2, pos.z), 1 - Math.exp(-dt * 1.5));
-  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(7.2, 6.2, enTunel), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(3.6, 1.9, enTunel), 1.7, cerca), 0));
+  // Junto a la tercera plataforma y la puerta, la cámara se aleja para ver la puerta entera; luego vuelve.
+  anteLaPuerta = lerp(anteLaPuerta, puertaArcana.t < 1 ? suave(PLATAFORMA3.z + 12, PLATAFORMA3.z + 4, pos.z) * suave(PUERTA_ARCANA_Z - 1, PUERTA_ARCANA_Z + 4, pos.z) : 0, 1 - Math.exp(-dt * 1.5));
+  const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(lerp(7.2, 6.2, enTunel), 11, anteLaPuerta), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(lerp(3.6, 1.9, enTunel), 3.4, anteLaPuerta), 1.7, cerca), 0));
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
   for (const c of colisiones) if (c.bajo !== undefined && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
@@ -2550,7 +2582,7 @@ function animarPuerta(dt) {
   const k = suave(0.1, 1, P.t);
   if (P.t > 0.15 && P.colisiones.length) { for (const c of P.colisiones) colisiones.splice(colisiones.indexOf(c), 1); P.colisiones.length = 0; }
   P.hojas.forEach((h, i) => {
-    h.g.position.x = h.x0 + h.lado * k * 5.6;
+    h.g.position.x = h.x0 + h.lado * k * 5.6; h.corte.constant = -h.lado * (h.junta + h.lado * k * 5.6);
     const cinta = P.cintas[i], e = cinta.geometry.attributes.position.array, n = cinta.userData.N;
     cinta.material.opacity = Math.sin(Math.PI * clamp(P.t, 0, 1)) * 0.9;
     for (let j = 0; j < n; j++) {
@@ -2585,7 +2617,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
