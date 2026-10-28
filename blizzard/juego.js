@@ -464,6 +464,30 @@ function colocar(pieza, x, z, alto, giro, hundir = 0.3, suelo = alturaTerreno(x,
   return g;
 }
 
+// Colisión que sigue la planta real de la pieza (los bloques son alargados: un solo círculo dejaba
+// atravesar su lado largo): círculos a lo largo de su eje mayor, con la anchura del menor.
+function colisionCaja(c) {
+  // En metros del mundo: los vértices proyectados sobre los ejes del bloque (su giro en planta).
+  const g = c.obj; g.updateMatrixWorld(true);
+  const m = g.children[0], pz = m.geometry.attributes.position, v = new THREE.Vector3();
+  const ex = new THREE.Vector3(Math.cos(g.rotation.y), 0, -Math.sin(g.rotation.y)), ez = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y));
+  let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+  // (la geometría del kit puede tener todas las piezas: solo los vértices que usa su índice)
+  const ind = m.geometry.index ? m.geometry.index.array : null, n0 = ind ? ind.length : pz.count;
+  for (let q = 0; q < n0; q += 3) {
+    const i = ind ? ind[q] : q;
+    v.fromBufferAttribute(pz, i).applyMatrix4(m.matrixWorld); const a = v.dot(ex), b = v.dot(ez);
+    a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b);
+  }
+  const lx = a1 - a0, lz = b1 - b0, largoEnX = lx >= lz, L = Math.max(lx, lz), W = Math.min(lx, lz), r = W / 2 * 0.9;
+  const n = Math.max(1, Math.ceil((L - W) / (W * 0.6)) + 1), ca = (a0 + a1) / 2, cb = (b0 + b1) / 2;
+  for (let k = 0; k < n; k++) {
+    const t = n === 1 ? 0 : (k / (n - 1) - 0.5) * (L - W);
+    const pa = largoEnX ? ca + t : ca, pb = largoEnX ? cb : cb + t;
+    colisiones.push({ ...c, x: ex.x * pa + ez.x * pb, z: ex.z * pa + ez.z * pb, r });
+  }
+}
+
 // ¿Hay ya una roca (o montículo, columna…) que ocupe buena parte de ese sitio?
 const solapa = (x, z, r) => colisiones.some(c => !c.rampa && !c.borde && Math.hypot(c.x - x, c.z - z) < (c.r + r) * 0.7);
 // Roca del kit (lámina 81): pequeñas para alturas pequeñas, agujas para las grandes.
@@ -535,7 +559,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
     if (Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z) < PLATAFORMA2.r + 3) { rnd(); rnd(); rnd(); rnd(); continue; }
     const pieza = kitRocas[Math.floor(rnd() * kitRocas.length)];
     const ancho = 2.5 + rnd() * 3.5, alto = 0.8 + rnd() * 1.4;
-    monticulo(pieza, x, z, ancho, alto, rnd() * Math.PI * 2);
+    monton(pieza, x, z, ancho, alto, rnd() * Math.PI * 2);           // nieve blanda que se pisa (deja surco)
   }
 }
 
@@ -861,7 +885,7 @@ const ZONA_AGACHARSE = [-74.5, -80.5];                 // unos metros más allá
   };
   const bloque = (pieza, x, z, alto, giro) => {
     colocar(pieza, x, z, alto, giro, 0.12, alturaTerreno(x, z), false).children[0].material = nieveFina;
-    colisiones[colisiones.length - 1].r = pieza.ancho / 2 * alto / pieza.alto;
+    colisionCaja(colisiones.pop());
   };
   const enLinea = (cx, z, giro, t, y) => new THREE.Vector3(cx + Math.cos(giro) * t, y, z - Math.sin(giro) * t);
   // Cada paso: una pilastra girada en planta y ladeada en alzado (un extremo bajo sobre una roca, el
@@ -912,7 +936,7 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   const sillar = (x, z, alto, giro) => {
     const pieza = kitPilares[Math.floor(rndC() * 3)];
     colocar(pieza, x, z, alto, giro, 0.12, alturaTerreno(x, z), false).children[0].material = nieveFina;
-    colisiones[colisiones.length - 1].r = pieza.ancho / 2 * alto / pieza.alto;
+    colisionCaja(colisiones.pop());
   };
   // Pilastras de salto: rocas en toda la fila menos en el tramo de la pilastra, a un lado.
   ZONA_PILASTRAS.forEach((z, i) => {
@@ -1377,7 +1401,7 @@ figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
 // La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
-const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.68);   // apagado, como la capucha
+const AMARILLO = new THREE.Color(0.72, 0.52, 0.13);   // el de la textura de la capucha (se apaga igual que ella, en el sombreado)
 
 // ─── Esclavina ─────────────────────────────────────────────────────────────
 // La parte de arriba de la capa es una copia exacta de la espalda, la nuca y lo alto de los hombros del
@@ -2976,8 +3000,8 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
   figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 1; nevar(o.material, 0.16, 0.2, 0.06, 0.6, 1, false, 0.42, 0.3); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.2, 0, 0.65, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.2, 0, 0.3, 0.8, false, 0.99, 0.3);   // y suave abajo, junto al suelo
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.2, 0, 0.3, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.2, 0, 0, 0.8, false, 0.99, 0.3);   // sin motas: en la tela brillaban   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
