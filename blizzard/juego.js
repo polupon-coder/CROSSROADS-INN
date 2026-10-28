@@ -932,7 +932,12 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
       const x = cx + lado * t, zz = z + (rndC() - 0.5) * 0.8, alto = 3.4 + rndC() * 1.2;
       sillar(x, zz, alto, rndC() * Math.PI * 2);
     }
-
+  }
+  // Algunas rocas altas en esas filas, algo por detrás, que rompen la línea continua.
+  const rndT = generador(8383);
+  for (const [z, ts] of [[ZONA_PILASTRAS[0], [-14, 9.5, 19]], [ZONA_PILASTRAS[1], [-19, -10.5, 13]], [ZONA_AGACHARSE[0], [-12, 16]], [ZONA_AGACHARSE[1], [-17, 10.5]]]) {
+    const cx = caminoX(z), atras = z === ZONA_PILASTRAS[0] ? 1 : -1;
+    for (const t of ts) sillar(cx + t + (rndT() - 0.5) * 1.5, z + atras * (1.6 + rndT()), 5.5 + rndT() * 2.5, rndT() * 6);
   }
 }
 
@@ -1371,7 +1376,7 @@ figura.position.y = -Math.min(enMundo("LeftToeBase").y, enMundo("RightToeBase").
 blizzard.updateMatrixWorld(true);
 // ─── Capucha amarilla ──────────────────────────────────────────────────────
 // La del propio modelo: viene amarilla en su textura, con sus pliegues. La capa usa ese mismo tono.
-const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.88);   // apagado, como la capucha
+const AMARILLO = new THREE.Color(0.72, 0.52, 0.13).multiplyScalar(0.78);   // apagado, como la capucha
 
 // ─── Esclavina ─────────────────────────────────────────────────────────────
 // La parte de arriba de la capa es una copia exacta de la espalda, la nuca y lo alto de los hombros del
@@ -1756,6 +1761,44 @@ const espiral = (() => {
 })();
 
 const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
+// ─── Ventisquero ───────────────────────────────────────────────────────────
+// Nieve acumulada, blanda, que se cruza andando: bajo los pies se hunde de verdad y deja un surco que
+// se va rellenando solo en unos segundos. El primero, a pocos metros del inicio.
+const ventisqueros = [];
+function ventisquero(cx, cz, ancho, largo, alto) {
+  const NX = 64, NZ = 46, geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
+  const p = geo.attributes.position, uv = geo.attributes.uv, base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) {
+    const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), r = Math.min(1, u * u + v * v);
+    base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
+    suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, x * 0.28, z * 0.28);
+  }
+  geo.computeVertexNormals();
+  // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
+  const tono = new Float32Array(p.count * 3); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3));
+  const sombra = i => 0.95 + 0.05 * Math.min(1, Math.max(0, base[i]) / alto);
+  for (let i = 0; i < p.count; i++) tono.fill(sombra(i), i * 3, i * 3 + 3);
+  const tex = new THREE.TextureLoader().load("texturas/nieve.jpg"); tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, color: TONO_NIEVE, roughness: 1, vertexColors: true }); mat.userData.suelo = true;
+  const malla = new THREE.Mesh(geo, mat); malla.receiveShadow = true; scene.add(malla);
+  ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, cambia: false });
+}
+ventisquero(0.4, 5.5, 8, 5.5, 0.55);
+// Cada fotograma: hunde lo que pisa Blizzard (con los bordes del surco algo levantados) y rellena el resto.
+function pisarVentisqueros(dt) {
+  for (const v of ventisqueros) {
+    const p = v.geo.attributes.position, dentro = Math.abs(pos.x - v.cx) < v.ancho / 2 + 0.5 && Math.abs(pos.z - v.cz) < v.largo / 2 + 0.5 && pos.y < v.suelo[0] + 1.5;
+    let cambia = false;
+    for (let i = 0; i < p.count; i++) {
+      let h = v.hundido[i];
+      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); if (d < 0.42) { const k = suave(0.42, 0.18, d); if (k > h) { h = k; } } }
+      if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
+      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); v.tono.fill(v.sombra(i) * (1 - 0.32 * h), i * 3, i * 3 + 3); cambia = true; }
+    }
+    if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; v.geo.computeVertexNormals(); }
+    v.cambia = cambia;
+  }
+}
 const huellas = (() => {
   // Unas pocas variantes dibujadas a mano: la planta, borrosa en el borde, más honda en talón y punta.
   const variante = semilla => {
@@ -2548,6 +2591,7 @@ function actualizar(dt) {
   }
   blizzard.rotation.y = rumbo;
   huellas.actualizar();
+  pisarVentisqueros(dt);
   // Surco en la nieve acumulada (la ventisca alrededor de cada montículo): al pasar, cada pocos centímetros.
   if (enSuelo && estado === "juego" && Math.hypot(vel.x, vel.z) > 0.4 && MONTICULOS.some(mo => Math.hypot(pos.x - mo.x, pos.z - mo.z) < mo.r * 2.2)) {
     if (Math.hypot(pos.x - ultimoSurco.x, pos.z - ultimoSurco.z) > 0.24) { huellas.surco(pos.x, alturaSuelo(pos.x, pos.z), pos.z, rumbo); ultimoSurco.set(pos.x, 0, pos.z); }
@@ -2896,7 +2940,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float pegadoP = smoothstep(0.1, 0.015, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
-        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.88, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
+        ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.8, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
@@ -2909,9 +2953,9 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   };
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
-  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.12, 0.1, 0.6, 1, false, 0.7); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.22, 0, 0.65);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.22, 0, 0.3, 0.8);   // y suave abajo, junto al suelo
+  figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); nevar(o.material, 0.16, 0.05, 0.06, 0.6, 1, false, 0.58); } });
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.1, 0, 0.65);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.1, 0, 0.3, 0.8);   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.45; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.2); } });   // con un ligero brillo
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
