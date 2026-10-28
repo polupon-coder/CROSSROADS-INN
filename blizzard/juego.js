@@ -144,8 +144,10 @@ function alturaBase(x, z) {
 const ALTURA_PLAT = PLATAFORMA.base = alturaBase(PLATAFORMA.x, PLATAFORMA.z) * 0.3;
 PLATAFORMA2.base = alturaBase(PLATAFORMA2.x, PLATAFORMA2.z) * 0.3 + RELLANO.alto;
 PLATAFORMA3.x = caminoX(PLATAFORMA3.z);
-PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto;
-const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 10, ancho: 2.4 };
+// La última plataforma, en lo alto de un desnivel: desde ella, todo el recorrido sigue ELEVA metros más arriba.
+const ELEVA = 3.6;
+PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto + ELEVA;
+const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 13, ancho: 2.4 };
 // Dunas de nieve: barjanes con la ladera de barlovento larga y suave, la cresta curva y la de sotavento
 // corta y empinada (el viento sopla a lo ancho, hacia +x). Junto al paso, bajas (se cruzan andando); a
 // los lados, enormes. Encima, un ondulado suave.
@@ -179,7 +181,8 @@ function alturaTerreno(x, z) {
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
   h += altoRellano(x) * suave(rellanoZ(x) + 0.12, rellanoZ(x) - 0.12, z);
   h = lerp(PLATAFORMA2.base, h, suave(PLATAFORMA2.r + 0.8, PLATAFORMA2.r + 4.5, Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z)));
-  h = lerp(PLATAFORMA3.base, h, suave(PLATAFORMA3.r + 0.8, PLATAFORMA3.r + 3.5, Math.hypot(x - PLATAFORMA3.x, z - PLATAFORMA3.z)));
+  h += ELEVA * suave(RAMPA3.desde + 0.4, RAMPA3.desde - 0.4, z + Math.sin(x * 0.4) * 0.3);   // el desnivel: pared casi vertical
+  h = lerp(PLATAFORMA3.base, h, suave(PLATAFORMA3.r + 0.3, PLATAFORMA3.r + 1.2, Math.hypot(x - PLATAFORMA3.x, z - PLATAFORMA3.z)));
   // Se sube a la última plataforma por una pendiente de nieve, con escalones de piedra (ver RAMPA3).
   { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x);
     if (rz > -1 && rz < RAMPA3.largo && rx < RAMPA3.ancho + 2) h = lerp(h, Math.max(h, lerp(PLATAFORMA3.base, h, clamp(rz / RAMPA3.largo, 0, 1))), suave(RAMPA3.ancho + 2, RAMPA3.ancho, rx)); }
@@ -1259,8 +1262,15 @@ const AVISOS_TUNEL = [
     for (let k = 0; k < N; k++) {
       if ((estado === "rotoIzq" && k < 3) || (estado === "rotoDer" && k >= 2)) continue;
       const p0 = arcoPt(Math.PI - k * Math.PI / N), p1 = arcoPt(Math.PI - (k + 1) * Math.PI / N), m = p0.clone().lerp(p1, 0.5);
-      const libre = estado === "rotoDer" && k === 1, pa = m.clone().lerp(p0, 1.35), pb = m.clone().lerp(p1, 1.35);   // bien solapadas
-      pilarTallado(kitPilares[3 + (k % 2)], libre ? pb : pa, libre ? pa : pb, ancho * 1.08, rndK() * 0.4); pilarTallado.ultimo.children[0].material = matArco;   // la del extremo roto, con la punta fina fuera
+      const pa = m.clone().lerp(p0, 1.35), pb = m.clone().lerp(p1, 1.35);   // bien solapadas
+      // La del extremo roto: se afila hacia fuera (más estrecha y con una punta aún más fina).
+      const libre = (estado === "rotoDer" && k === 1) || (estado === "rotoIzq" && k === 3);
+      if (libre) {
+        const fijo = estado === "rotoDer" ? pa : pb, suelto = estado === "rotoDer" ? p1 : p0;
+        pilarTallado(kitPilares[3 + (k % 2)], fijo, fijo.clone().lerp(suelto, 0.95), ancho * 0.92, rndK() * 0.4); pilarTallado.ultimo.children[0].material = matArco;
+        const medio = fijo.clone().lerp(suelto, 0.7);
+        pilarTallado(kitPilares[3 + ((k + 1) % 2)], medio, medio.clone().lerp(suelto, 1.9), ancho * 0.55, rndK() * 0.4); pilarTallado.ultimo.children[0].material = matArco;
+      } else { pilarTallado(kitPilares[3 + (k % 2)], pa, pb, ancho * 1.08, rndK() * 0.4); pilarTallado.ultimo.children[0].material = matArco; }
     }
   };
   // Pilastra caída de pared a pared, en el suelo: se salta (o, si es gruesa, se salta con el viento).
@@ -1422,7 +1432,7 @@ const SALTOS_LOSAS = [];
 }
 // Escalones de piedra en la pendiente de la última plataforma.
 const matEscalon = kitPilares[0].material.clone();
-for (let d = 0.6, i = 0; d < RAMPA3.largo - 0.4; d += 1.15, i++) {
+for (let d = 0.5, i = 0; d < RAMPA3.largo - 0.3; d += 0.9, i++) {
   const z = RAMPA3.desde + d, x = PLATAFORMA3.x + Math.sin(i * 2.1) * 0.12, pieza = kitPilares[i % 3];
   // De piedra (sin la nieve de arriba, que los confundía con la pendiente) y asomando bien.
   const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, matEscalon);
@@ -2128,6 +2138,7 @@ estilo.textContent = `
   /* Veladura: mientras se traza, el resto de la escena queda apagada y algo desenfocada. */
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
+  body:has(#trazo:not([hidden])) #rotulo, body:has(#trazo:not([hidden])) #ayuda { color: #fff; text-shadow: none; }   /* sobre el velo de las runas: blanco, sin sombra */
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
   #trazo .guia { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 5; }
