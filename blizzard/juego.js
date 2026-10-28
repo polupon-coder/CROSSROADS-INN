@@ -1435,7 +1435,7 @@ const SALTOS_LOSAS = [];
   poner(QUIEBRA2, [[1.0, 2.0, 1.5], [4.4, 1.9, 1.4], [7.8, 2.1, 1.5], [11.2, 1.9, 1.35], [14.6, 2.2, 1.5]], [0, 2.0, 5.4, 8.8, 12.2]);
 }
 // Escalones de piedra en la pendiente de la última plataforma.
-const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.3;   // con un poco de nieve encima
+const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.18;   // con un poco de nieve encima
 for (let i = 0; i < RAMPA3.n; i++) {
   const L = RAMPA3.largo / RAMPA3.n, z = RAMPA3.desde + (i + 0.5) * L, x = PLATAFORMA3.x, pieza = kitPilares[i % 3];
   // De piedra (sin la nieve de arriba, que los confundía con la pendiente) y asomando bien.
@@ -3284,7 +3284,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
-    hechos.add(o.material); nevar(o.material, o.material.userData.polvo ? 0.08 : 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco ? "arco" : true);   // las que se mueven, con nieve encima
+    hechos.add(o.material); nevar(o.material, o.material.userData.polvo ? 0 : 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco || o.material.userData.polvo ? "arco" : true);   // arcos y escalones: tono de piedra liso   // las que se mueven, con nieve encima
   });
 }
 // Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
