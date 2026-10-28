@@ -1239,7 +1239,7 @@ const AVISOS_TUNEL = [
   const sobre = (z, giro, t, y) => { const d = eje(giro + desvio(z)), cx = caminoX(z); return new THREE.Vector3(cx + d.x * t, alturaTerreno(cx, z) + y, z + d.z * t); };
   // Todas las piezas de los arcos, del mismo tono: sin la nieve de las caras de arriba (en las juntas
   // de pilastra, capitel y dovelas hacía un degradado blanco).
-  const matArco = kitPilares[0].material.clone();
+  const matArco = kitPilares[0].material.clone(); matArco.userData.arco = true;
   // Arco: dos pilastras al pie de las paredes y la curva de dovelas encima (las que faltan, caídas).
   const arco = (z, span, alto, ancho, estado, giro) => {
     const R = span / 2, frente = new THREE.Vector3(Math.sin(giro + desvio(z)), 0, Math.cos(giro + desvio(z)));
@@ -3227,8 +3227,9 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
         ${piedra ? `{
           float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          ${piedra === "arco" ? `diffuseColor.rgb = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.42, lumU, 0.3);   // arcos: un solo tono, sin manchas claras` : `
           vec3 unida = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
-          diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));
+          diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));`}
         }` : ""}
         ${alto > 0 ? `{
           float hP = vMundoPie.y - sueloPie(vMundoPie.xz);
@@ -3265,7 +3266,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
-    hechos.add(o.material); nevar(o.material, 1.05, 0, 0, o.material.userData.nevada ? 0.95 : 0, 1, true);   // las que se mueven, con nieve encima
+    hechos.add(o.material); nevar(o.material, 1.05, 0, 0, o.material.userData.nevada ? 0.95 : 0, 1, o.material.userData.arco ? "arco" : true);   // las que se mueven, con nieve encima
   });
 }
 // Sombra de contacto: una mancha suave bajo los pies, que se aclara y encoge al subir.
