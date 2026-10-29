@@ -294,7 +294,8 @@ function alturaTerreno(x, z) {
   if (enDunas > 0) h += enDunas * alturaDunas(x, z, lado);
   // Desfiladero final: paredes altas que siguen el camino; tras la escalera, todo más alto.
   { const enC2 = suave(CANON2.desde + 2, CANON2.desde - 4, z) * suave(CANON2.hasta - 4, CANON2.hasta + 2, z);
-    if (enC2 > 0) { const w = anchoC2(z) + Math.sin(z * 0.37 + x * 0.2) * 0.35; h += 14 * enC2 * suave(w, w + 3.5, Math.abs(x - caminoX(z))) * (0.85 + 0.15 * Math.sin(z * 0.7 + x)); }
+    // (altas y siguiendo hacia fuera: no se ve dónde acaban; al pie, forradas de rocas talladas)
+    if (enC2 > 0) { const w = anchoC2(z), d = Math.abs(x - caminoX(z)); h += enC2 * (14 * suave(w + 1.4, w + 4, d) + Math.max(0, d - w - 4) * 0.9); }   // detrás de la fila de pilares (como el primer desfiladero)
     h += ESCALERA.sube * suave(ESCALERA.hasta + 0.6, ESCALERA.hasta - 0.6, z); }
   if (PLATAFORMA5.base !== undefined) h = lerp(PLATAFORMA5.base, h, suave(PLATAFORMA5.r + 0.5, PLATAFORMA5.r + 3, Math.hypot(x - PLATAFORMA5.x, z - PLATAFORMA5.z)));
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
@@ -1645,17 +1646,21 @@ const AVISOS_TUNEL = [
 
   // ─── Desfiladero final ───────────────────────────────────────────────────
   // Nada más pasar las columnas, rocas que apartar (y que tapan el fondo); la grande no se mueve.
-  for (const [dx, dz, alto, ancho] of [[-1.3, -4.4, 2.2, 1.9], [1.1, -5.2, 2.4, 2.0], [-0.3, -7.6, 2.0, 1.8], [2.9, -3.8, 4.4, 3.0]])
+  for (const [dx, dz, alto, ancho] of [[-1.3, -4.4, 2.2, 1.9], [1.1, -5.2, 2.4, 2.0], [-0.3, -7.6, 2.0, 1.8]])
     penascos.push(nuevoPenasco(caminoX(PUZLE_Z + dz) + dx, PUZLE_Z + dz, alto, ancho));
   tumbada(TUMBADA_C, 1.1, 0.12);                                 // una pilastra caída de pared a pared: se salta
   bajo(BAJO_C, 0.06, 0, 1.4, kitPilares[4]);                     // paso bajo: hay que agacharse
   // La gran escalera: piedras caídas, cada una algo más alta, sobre el precipicio, hasta el nivel de arriba.
   {
-    const L0 = alturaTerreno(caminoX(ESCALERA.desde + 1.5), ESCALERA.desde + 1.5), n = 10, largo = ESCALERA.desde - ESCALERA.hasta;   // cada piedra, ~0,46 m más alta y a ~2 m: se salta andando
+    // Bloques anchos de cara plana con nieve encima (se leen como sitio donde caer), ~0,5 m más altos cada uno.
+    const L0 = alturaTerreno(caminoX(ESCALERA.desde + 1.5), ESCALERA.desde + 1.5), n = 9, largo = ESCALERA.desde - ESCALERA.hasta;
     for (let i = 0; i < n; i++) {
-      const z = ESCALERA.desde - largo * (i + 0.5) / n, x = caminoX(z) + (i % 2 ? 0.7 : -0.7), top = L0 + ESCALERA.sube * (i + 1) / (n + 0.5), g = 2.2 + rndK() * 0.3;
-      pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(x, L0 - 30, z), new THREE.Vector3(x + (rndK() - 0.5) * 0.25, top, z + (rndK() - 0.5) * 0.25), g, rndK() * 6);
-      colisiones.push({ x, z, r: g * 0.5, techo: top });
+      const z = ESCALERA.desde - largo * (i + 0.5) / n, x = caminoX(z) + (i % 2 ? 0.5 : -0.5), top = L0 + ESCALERA.sube * (i + 1) / (n + 0.5);
+      const P = kitPilares[i % 3], alto = top - (L0 - 30), ancho = 2.6, g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
+      m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
+      g.scale.set(ancho / (P.radio * 2), alto / P.alto, ancho / (P.radio * 2)); g.rotation.y = desvio(z) + (rndK() - 0.5) * 0.2;   // (con el radio: no más ancho de lo previsto)
+      g.position.set(x, top - alto / 2, z); scene.add(g);
+      colisiones.push({ x, z, r: ancho * 0.48, techo: top });
     }
   }
   // Antes de la grieta ancha, más rocas que apartar (con una grande que no se mueve, contra la pared).
@@ -1664,8 +1669,17 @@ const AVISOS_TUNEL = [
   // La segunda puerta arcana, bajo un gran arco, tras la quinta plataforma.
   arco(PUERTA_FINAL_Z, 9.6, 15, 3.4, "entero", 0);
   montarPuerta(puertaFinal, PUERTA_FINAL_Z);
+  // Las paredes, como en el primer desfiladero: pilares tallados de pie, juntos, al borde del paso, con la
+  // pared del terreno detrás (más alta, y sigue subiendo: no se ve dónde acaba).
+  for (const lado of [-1, 1]) for (let z = CANON2.desde - 3; z > CANON2.hasta + 2; z -= 1.5 + rndK() * 0.6) {
+    if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 0.8 && z > A.hasta - 0.8) || Math.abs(z - PUERTA_FINAL_Z) < 3) continue;
+    const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 7 + rndK() * 4, R = pieza.ancho / 2 * alto / pieza.alto;
+    const x = caminoX(z) + lado * (anchoC2(z) + R * 0.95), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.3;
+    colocar(pieza, x, z, alto, giro, 0.05, alturaTerreno(caminoX(z), z), false).children[0].material = nieveFina;
+    colisiones[colisiones.length - 1].r = R * 0.9;
+  }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
-  for (let z = CANON2.desde - 6; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {
+  for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
     if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 3 && z > A.hasta - 3) || Math.abs(z - TUMBADA_C) < 3 || Math.abs(z - BAJO_C) < 3 || Math.abs(z - PLATAFORMA5.z) < PLATAFORMA5.r + 3 || Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
     const lado = rndK() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (anchoC2(z) - 0.4), g = 1.3 + rndK() * 0.6, alto = 2 + rndK() * 6;
     const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 0.8, z);
@@ -1925,7 +1939,7 @@ const puzle = (() => {
     }
     if (lado < 0) {                                              // detrás a la izquierda, una aguja muy alta que cierra el hueco
       const pieza = kitRocas[kitRocas.length - 1], alto = 21, R = pieza.radio * alto / pieza.alto, x = cx - 4.5 - R * 0.35, z = G - 3.5 - R * 0.5;
-      colocar(pieza, x, z, alto, 0.6, 0.08, masBajoEn(x, z, R * 0.6), false); colisiones[colisiones.length - 1].techo = 99;
+      colocar(pieza, x, z, alto, 0.6, 0.08, masBajoEn(x, z, R * 0.6), false); Object.assign(colisiones[colisiones.length - 1], { techo: 99, r: Math.min(3, R * 0.3) });   // (la suya, con la falda, tapaba el paso)
     }
     for (let d = 3.6, k = 0; d < 22; d += 2.2 + rnd() * 3.2, k++) {   // delante: rocas de varios tamaños
       // (sin recolocar al azar, y fuera de la franja de las columnas: ninguna se monta en ellas)
@@ -1994,7 +2008,7 @@ const puzle = (() => {
         t += dt;
         const k = suave(0.8, 4.2, t);
         for (const c of columnas) { c.g.position.y = c.y0 - k * 4.3; c.g.position.x = c.x + Math.sin(t * 37 + c.x) * 0.03 * (k > 0 && k < 1 ? 1 : 0); }
-        if (t > 0.8) for (const c of columnas) { const i = colisiones.indexOf(c.col); if (i >= 0) colisiones.splice(i, 1); }
+        if (t > 0.8) for (const c of columnas) { const i = colisiones.indexOf(c.col); if (i >= 0) { colisiones.splice(i, 1); dejarHueco(c.x, c.z, 1.0); } }   // al hundirse, la marca en la nieve (como al apartar una roca)
         if (t > 0.8 && t < 4.2) efectoEspiral = Math.max(efectoEspiral, 0.4);
       }
     },
