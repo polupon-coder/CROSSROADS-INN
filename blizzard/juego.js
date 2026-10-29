@@ -309,6 +309,7 @@ document.body.appendChild(renderer.domElement);
   C.fog_fragment = C.fog_fragment.replace("gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );", "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, max(fogFactor, nieblaBaja(fogDepth)) );");
 }
 const scene = new THREE.Scene();
+let capaNiebla = () => {};                                     // la niebla a ras de suelo (se monta más abajo)
 scene.background = CIELO;
 // Niebla muy densa (decisión del autor): apenas se ve a unos 10 m; el fondo desaparece.
 scene.fog = new THREE.Fog(CIELO, 2, 19);
@@ -424,7 +425,10 @@ let MAT_SUELO = null;                                        // el material del 
       // y solo en las caras de verdad empinadas (en los bultos pequeños y montones salía a manchas).
       float leeS = smoothstep(-592.0, -558.0, vMundo.z);
       diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(1.03), vec3(0.8, 0.85, 0.94), smoothstep(0.25, 0.6, nS.x)), 1.0 - leeS);
-      diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca);`);
+      // En las paredes de roca, nieve espolvoreada: motas, más donde la cara mira algo hacia arriba.
+      float motasR = texture2D(map, uvR * 2.3 + 0.17).r * 0.6 + texture2D(nieve2, uvR * 0.9).g * 0.4;
+      float polvoR = smoothstep(0.5, 0.68, motasR + (nS.y - 0.2) * 0.45) * 0.7;
+      diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca * (1.0 - polvoR));`);
   };
   MAT_SUELO = matSuelo;
   // El suelo, en trozos (de unos 30 m a lo largo, y el centro aparte de los lados): así solo se dibuja lo
@@ -800,6 +804,30 @@ const materialRuna = (() => {
   };
 })();
 const geoRuna = new THREE.PlaneGeometry(1, 1);
+// Una runa pegada a la cara de un objeto: se busca la cara con un rayo (desde fuera, en la dirección dada)
+// y solo se pone si es una cara casi vertical y plana donde caben sus cuatro esquinas, sobre el suelo.
+// Si no, no se pone: así nunca queda una runa flotando en el aire.
+const _rayoRuna = new THREE.Raycaster();
+function runaSobre(obj, ox, oy, oz, dx, dz, tam, mat) {
+  obj.updateMatrixWorld(true);
+  const dir = new THREE.Vector3(dx, 0, dz).normalize();
+  _rayoRuna.set(new THREE.Vector3(ox, oy, oz), dir); _rayoRuna.far = 20;
+  const h = _rayoRuna.intersectObject(obj, true)[0];
+  if (!h || !h.face) return null;
+  const n = h.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld)).normalize();
+  if (Math.abs(n.y) > 0.35 || n.dot(dir) > -0.5) return null;
+  const u = new THREE.Vector3(0, 1, 0).cross(n).normalize(), w = n.clone().cross(u).normalize(), atras = n.clone().negate();
+  for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 0]]) {
+    const q = h.point.clone().addScaledVector(u, a * tam * 0.45).addScaledVector(w, b * tam * 0.45);
+    if (q.y < alturaTerreno(q.x, q.z) + 0.08) return null;
+    _rayoRuna.set(q.clone().addScaledVector(n, 0.5), atras); _rayoRuna.far = 1;
+    const c = _rayoRuna.intersectObject(obj, true)[0];
+    if (!c || Math.abs(c.distance - 0.5) > 0.08) return null;
+  }
+  const m = new THREE.Mesh(geoRuna, mat); m.scale.setScalar(tam);
+  m.position.copy(h.point).addScaledVector(n, 0.02); m.lookAt(m.position.clone().add(n)); scene.add(m);
+  return m;
+}
 
 // ─── Piedra tallada de una pieza (kit de pilares) ──────────────────────────
 // Una pieza con su eje de a (pie) a b (cabeza) y una sección de «ancho»; gira sobre su eje.
@@ -1474,9 +1502,12 @@ const AVISOS_TUNEL = [
     const g = colocar(pieza, x, z, tam, rndK() * 6, 0.35, alturaTerreno(x, z), true);
     g.children[0].material = nieveFina; g.rotation.x = (rndK() - 0.5) * 0.24; g.rotation.z = (rndK() - 0.5) * 0.24;
     colisiones[colisiones.length - 1].r = pieza.ancho / 2 * tam / pieza.alto;
-    if (rndK() < 0.5 && z > PUERTA_ARCANA_Z) {                   // runa en la cara que mira al camino (no tras la puerta)
-      const m = new THREE.Mesh(geoRuna, materialRuna(Math.floor(rndK() * RUNAS.length))), r = pieza.ancho / 2 * tam / pieza.alto;
-      m.scale.setScalar(tam * 0.45); m.position.set(x - Math.sign(dx) * (r + 0.03), alturaTerreno(x, z) + tam * 0.45, z); m.rotation.y = -Math.sign(dx) * Math.PI / 2; scene.add(m);
+    if (rndK() < 0.5 && z > ARCOS.desde + 2) {                   // runa en la cara que mira al camino (en los arcos, ninguna)
+      // (a media altura de lo que asoma: el bloque está hundido un tercio). Se prueban la cara que mira al
+      // paso y la que mira a quien llega, a dos alturas; si en ninguna cabe entera, sin runa.
+      const mat = materialRuna(Math.floor(rndK() * RUNAS.length)), y0 = alturaTerreno(x, z), s = Math.sign(dx);
+      for (const [ddx, ddz] of [[s, 0], [0, -1], [s * 0.7, -0.7]]) for (const f of [0.24, 0.18]) if (!pilarTallado._runa && runaSobre(g, x - ddx * 6, y0 + tam * f, z - ddz * 6, ddx, ddz, tam * 0.28, mat)) pilarTallado._runa = true;
+      pilarTallado._runa = false;
     }
   };
 
@@ -3430,6 +3461,7 @@ function actualizar(dt) {
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
   puzle.actualizar(dt);
+  capaNiebla(dt);
   efectos(dt, adelante);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
 }
@@ -3690,6 +3722,55 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   const mapaAlturas = new THREE.DataTexture(alt, NX, NZ, THREE.RGBAFormat, THREE.FloatType);
   mapaAlturas.magFilter = mapaAlturas.minFilter = THREE.NearestFilter; mapaAlturas.needsUpdate = true;
   const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
+  // Niebla a ras de suelo: una capa fina que sigue a Blizzard, entre 30 y 60 cm sobre la nieve, ondulante
+  // y a jirones que arrastra el viento. Cada vértice lee la altura del suelo del mismo mapa (sin coste en
+  // la CPU); se apaga junto a la cámara, en el borde de la capa y sobre los abismos.
+  {
+    const L = 72, N = 104, geo = new THREE.PlaneGeometry(L, L, N, N); geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { capa: { value: 0 }, mapa: { value: mapaAlturas }, tiempo: { value: 0 }, color: { value: scene.fog.color }, centro: { value: new THREE.Vector3() }, ojo: { value: new THREE.Vector3() }, jugador: { value: new THREE.Vector3() } },
+      vertexShader: `uniform sampler2D mapa; uniform float tiempo; uniform float capa; varying vec3 vP; varying float vSuelo;
+        float suelo(vec2 xz) {
+          vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
+          float a = texture2D(mapa, (i + 0.5) / t).r, b = texture2D(mapa, (i + vec2(1.5, 0.5)) / t).r;
+          float d = texture2D(mapa, (i + vec2(0.5, 1.5)) / t).r, e = texture2D(mapa, (i + 1.5) / t).r;
+          return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
+        }
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          float s = suelo(w.xz); vSuelo = s;
+          float onda = 0.5 + 0.25 * sin(w.x * 0.21 + tiempo * 0.5) * sin(w.z * 0.17 - tiempo * 0.37) + 0.25 * sin((w.x + w.z) * 0.09 + tiempo * 0.23);
+          w.y = s + 0.04 + capa * (0.3 + 0.3 * onda);                // la capa de arriba, entre 30 y 60 cm
+          vP = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: `uniform float tiempo; uniform float capa; uniform vec3 color; uniform vec3 centro; uniform vec3 ojo; uniform vec3 jugador; varying vec3 vP; varying float vSuelo;
+        float ruido(vec2 p) { return sin(p.x) * sin(p.y * 1.3 + sin(p.x * 0.7)) * 0.5 + 0.5; }
+        void main() {
+          vec2 q = vP.xz * 0.16 + vec2(tiempo * 0.12, tiempo * 0.04);
+          float n = ruido(q) * 0.55 + ruido(q * 2.1 + 3.7) * 0.3 + ruido(q * 4.3 - 1.3) * 0.15;
+          float a = smoothstep(0.2, 0.8, n) * 0.11 * (1.0 - capa * 0.85);   // tenue en cada lámina, y menos cuanto más alta: se degrada hacia arriba
+          a *= smoothstep(1.2, 4.0, distance(vP, ojo));                 // nada pegado a la cámara
+          a *= 1.0 - smoothstep(24.0, 34.0, distance(vP.xz, centro.xz));  // borde de la capa
+          a *= step(-20.0, vSuelo);                                     // sobre los abismos, no
+          a *= smoothstep(0.5, 1.6, distance(vP.xz, jugador.xz));       // se aparta de Blizzard (no lo corta con una raya)
+          gl_FragColor = vec4(mix(color, vec3(1.0), 0.18), a);
+        }`,
+      transparent: true, depthWrite: false,
+    });
+    // Cinco láminas muy tenues apiladas (de ras de suelo a la altura de arriba): sumadas dan una niebla
+    // que se degrada hacia arriba sin que se vea ninguna línea donde cortan una roca o a Blizzard.
+    const capas = [0, 0.25, 0.5, 0.75, 1].map((k, i) => {
+      const m = mat.clone(); m.uniforms = { ...mat.uniforms, capa: { value: k } };
+      const c = new THREE.Mesh(geo, m); c.frustumCulled = false; c.renderOrder = 2 + i; scene.add(c); return c;
+    });
+    capaNiebla = dt => {
+      mat.uniforms.tiempo.value += dt;
+      const x = Math.round(pos.x / 2) * 2, z = Math.round(pos.z / 2) * 2;   // a saltos de 2 m (el dibujo va en coordenadas del mundo)
+      for (const c of capas) c.position.set(x, 0, z);
+      mat.uniforms.centro.value.set(x, 0, z); mat.uniforms.ojo.value.copy(camara.position); mat.uniforms.jugador.value.copy(pos);
+    };
+  }
   const uni = { mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: scene.fog.color } };   // el velo sigue al color de la niebla (rosado al amanecer)
   // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
   // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
@@ -3713,7 +3794,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
         ${piedra ? `{
           float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          ${piedra === "arco" ? `diffuseColor.rgb = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.42, lumU, 0.3);   // arcos: un solo tono, sin manchas claras` : `
+          ${piedra === "arco" ? `diffuseColor.rgb = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.42, lumU, 0.12);   // arcos: un solo tono para todas sus piezas (la textura de cada una apenas cuenta)` : `
           vec3 unida = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
           diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));`}
         }` : ""}
@@ -3724,10 +3805,15 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float grandeP = texture2D(texNievePie, vMundoPie.xz * 0.045 + vec2(0.37, 0.11)).r, granoP = texture2D(texNievePie, vMundoPie.xz * 3.1 + vMundoPie.y * 2.3).g;
           float altoP = ${alto.toFixed(3)} * (0.25 + 1.6 * smoothstep(0.35, 0.75, grandeP));   // unas apenas, otras bien cubiertas
           float cubreP = 1.0 - smoothstep(altoP * 0.3, altoP, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
+          // Junto a una pared (el suelo alrededor cambia mucho de altura) la roca no se cubre de nieve por
+          // abajo: el degradado subiría por la cara pegada a la pared.
+          float s1 = sueloPie(vMundoPie.xz + vec2(1.2, 0.0)), s2 = sueloPie(vMundoPie.xz - vec2(1.2, 0.0)), s3 = sueloPie(vMundoPie.xz + vec2(0.0, 1.2)), s4 = sueloPie(vMundoPie.xz - vec2(0.0, 1.2));
+          float pared = smoothstep(0.9, 1.8, max(max(s1, s2), max(s3, s4)) - min(min(s1, s2), min(s3, s4)));
+          cubreP *= 1.0 - pared;
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96 * ${fuerza.toFixed(3)});
           // Y en los primeros centímetros, donde toca la nieve, casi del todo cubierto.
           float pegadoP = 1.0 - smoothstep(0.015, 0.1, hP + (granoP - 0.5) * 0.05 + (ruidoP - 0.5) * 0.03);
-          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * 0.97 * ${fuerza.toFixed(3)});
+          diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP * 1.04, pegadoP * (1.0 - pared) * 0.97 * ${fuerza.toFixed(3)});
         }` : ""}
         ${apagar < 1 ? `diffuseColor.rgb *= mix(${apagar.toFixed(3)}, 0.64, smoothstep(0.08, 0.2, diffuseColor.r - diffuseColor.b));` : ""}
         ${polvo > 0 ? `{
