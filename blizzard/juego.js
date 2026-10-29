@@ -28,6 +28,15 @@ const INGLES = {
   "Pon el dedo en el punto. Resigue la figura.": "Put your finger on the dot. Trace the figure.",
   "Pulsa en el punto. Resigue sin soltar.": "Press on the dot. Trace without letting go.",
   "Santuario del giro": "Sanctuary of the Turn",
+  "Santuario del barrido": "Sanctuary of the Sweep",
+  "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
+  "Un cilindro cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered cylinder.\nLearn the sweep on the platform.",
+  "Cada cilindro guarda la runa de una piedra:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each cylinder keeps the rune of one stone:\nthe lowest, the bottom one; the tallest, the top one.",
+  "Junto a un cilindro, ◇ barre su nieve\ncon el viento.": "Next to a cylinder, ◇ sweeps its snow\naway with the wind.",
+  "Junto a un cilindro, E barre su nieve\ncon el viento.": "Next to a cylinder, E sweeps its snow\naway with the wind.",
+  "La columna se hunde.": "The column sinks.",
+  "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.": "E turns the marked stone.\nCrouch (C) and E moves the mark down.",
+  "◇ gira la piedra marcada.\nAgachado, ◇ baja la marca.": "◇ turns the marked stone.\nCrouched, ◇ moves the mark down.",
   "Santuario del bastón": "Sanctuary of the Staff",
   "Santuario de las rocas": "Sanctuary of the Rocks",
   "Santuario de la puerta": "Sanctuary of the Door",
@@ -194,6 +203,9 @@ const FIN_Z = ANILLO_Z + 6;
 const CANON2 = { desde: -790, hasta: -968 };
 const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hasta: -872, sube: 4.8 }, GRIETA_C2 = { desde: -903, hasta: -907.4 };
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
+// En lugar de la segunda puerta: una columna de cuatro piedras giratorias, con una sima a cada lado (el
+// paso solo sigue por donde está la columna).
+const COLUMNA4_Z = PUERTA_FINAL_Z, SIMA4 = { desde: COLUMNA4_Z + 2.6, hasta: COLUMNA4_Z - 2.6 };
 const anchoC2 = z => 4.4 + Math.sin(z * 0.13) * 0.7;
 // Nieve que se hunde (como arenas movedizas, en espiral): de pared a pared; hay que saltarla corriendo.
 const ARENAS = [{ z: -881, largo: 2.6 }, { z: -929, largo: 2.6 }, { z: -630, largo: 2.6, ancho: 9 }, { z: -685, largo: 2.6, ancho: 9 }];   // (las dos últimas, en el manto de las dunas)
@@ -307,6 +319,7 @@ function alturaTerreno(x, z) {
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
   for (const [d, a] of ABISMOS) if (z < d(x) && z > a(x) && Math.abs(x) < 90) h = -60;   // hondo: el fondo no se ve
+  if (z < SIMA4.desde && z > SIMA4.hasta && Math.abs(x - caminoX(z)) > 1.05 && Math.abs(x) < 90) h = -60;   // las simas a los lados de la columna
   return h;
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -378,7 +391,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-1012, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 140, 1), 140];
+  const zs = [...filas(-1012, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 140, 1), 140];
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -1484,7 +1497,7 @@ const AVISOS_CANON = [
   { z: ESCALERA.desde + 5, texto: "Sube de piedra en piedra." },
   { z: GRIETA_C2.desde + 6, texto: "Muy ancha. Salta y usa el viento." },
   ...ARENAS.map(A => ({ z: A.z + 7, texto: "Nieve que se hunde.\n¡Sáltala corriendo!" })),
-  { z: PLATAFORMA5.z + 8, texto: "Otra puerta sellada.\nSube a la plataforma." },
+  { z: PLATAFORMA5.z + 8, texto: "Una columna de runas entre dos simas.\nSube a la plataforma." },
 ];
 const AVISOS_TUNEL = [
   { z: PLATAFORMA3.z + 9, texto: "Una puerta sellada.\nSube a la plataforma." },
@@ -1714,15 +1727,12 @@ const AVISOS_TUNEL = [
   // Antes de la grieta ancha, más rocas que apartar (con una grande que no se mueve, contra la pared).
   for (const [dx, dz, alto, ancho] of [[-1.2, 8.5, 2.1, 1.8], [1.3, 9.6, 2.3, 1.9], [-2.9, 11, 4.2, 3.0]])
     penascos.push(nuevoPenasco(caminoX(GRIETA_C2.desde + dz) + dx, GRIETA_C2.desde + dz, alto, ancho));
-  // La segunda puerta arcana, bajo un gran arco, tras la quinta plataforma.
-  arco(PUERTA_FINAL_Z, 9.6, 15, 3.4, "entero", 0);
-  montarPuerta(puertaFinal, PUERTA_FINAL_Z);
   // Las paredes, como en el primer desfiladero: pilares tallados de pie, juntos, al borde del paso; detrás,
   // otra fila más alta, y la pared del terreno más atrás (no las corta). Sobre los precipicios, los mismos
   // pilares salen del fondo (no quedan flotando ni dejan hueco).
-  const enPrecipicio = z => [GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 1.2 && z > A.hasta - 1.2);
+  const enPrecipicio = z => [GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4].some(A => z < A.desde + 1.2 && z > A.hasta - 1.2);
   // El suelo de referencia de la pared: el del paso; sobre un precipicio, el de su borde más cercano.
-  const sueloPared = z => { const A = [GRIETA_C1, ESCALERA, GRIETA_C2].find(A => z < A.desde + 1.2 && z > A.hasta - 1.2); if (!A) return alturaTerreno(caminoX(z), z); const zb = z > (A.desde + A.hasta) / 2 ? A.desde + 2.5 : A.hasta - 2.5; return alturaTerreno(caminoX(zb), zb); };
+  const sueloPared = z => { const A = [GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4].find(A => z < A.desde + 1.2 && z > A.hasta - 1.2); if (!A) return alturaTerreno(caminoX(z), z); const zb = z > (A.desde + A.hasta) / 2 ? A.desde + 2.5 : A.hasta - 2.5; return alturaTerreno(caminoX(zb), zb); };
   // (las de suelo firme, como copias de una malla instanciada por pieza y tramo: cientos de piezas en
   // pocas llamadas de dibujo, y sin sombra arrojada; cada tramo se descarta si no está a la vista)
   const copiasPared = new Map(), _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _arriba = new THREE.Vector3(0, 1, 0);
@@ -1737,13 +1747,11 @@ const AVISOS_TUNEL = [
     if (choque) colisiones.push({ x, z, r: R * 0.9, techo: 99 });
   };
   for (const lado of [-1, 1]) for (let z = CANON2.desde - 3; z > CANON2.hasta + 2; z -= 1.5 + rndK() * 0.6) {
-    if (Math.abs(z - PUERTA_FINAL_Z) < 3) continue;
     const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 7 + rndK() * 4, R = pieza.ancho / 2 * alto / pieza.alto;
     const x = caminoX(z) + lado * (anchoC2(z) + R * 0.95), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.3;
     pilarPared(pieza, x, z, alto, giro, sueloPared(z), true);
   }
   for (const lado of [-1, 1]) for (let z = CANON2.desde - 2; z > CANON2.hasta + 2; z -= 2.2 + rndK() * 1.0) {
-    if (Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
     const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 14 + rndK() * 8, R = pieza.ancho / 2 * alto / pieza.alto;
     const x = caminoX(z) + lado * (anchoC2(z) + 3.0 + R * 0.9), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.4;
     pilarPared(pieza, x, z, alto, giro, sueloPared(z), false);
@@ -1763,7 +1771,7 @@ const AVISOS_TUNEL = [
   }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
   for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
-    if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 3 && z > A.hasta - 3) || ARENAS.some(A => Math.abs(z - A.z) < 4) || Math.abs(z - TUMBADA_C) < 3 || Math.abs(z - BAJO_C) < 3 || Math.abs(z - PLATAFORMA5.z) < PLATAFORMA5.r + 3 || Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
+    if ([GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4].some(A => z < A.desde + 3 && z > A.hasta - 3) || ARENAS.some(A => Math.abs(z - A.z) < 4) || Math.abs(z - TUMBADA_C) < 3 || Math.abs(z - BAJO_C) < 3 || Math.abs(z - PLATAFORMA5.z) < PLATAFORMA5.r + 3 || Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
     const lado = rndK() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (anchoC2(z) - 0.4), g = 1.3 + rndK() * 0.6, alto = 2 + rndK() * 6;
     const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 0.8, z);
     pilarTallado(kitPilares[3 + Math.floor(rndK() * 3)], pie, pie.clone().add(new THREE.Vector3((rndK() - 0.5) * 0.6, alto, 0)), g, rndK() * 6);
@@ -2097,8 +2105,58 @@ const puzle = (() => {
     colisiones.push({ x, z, r: 1.1, techo: g.position.y + 2.6 });
     pistas.push({ x, z });
   }
+  // ── Tras el desfiladero: la columna de cuatro piedras, entre dos simas ──
+  // Su solución la guardan cuatro cilindros arcanos alrededor de la quinta plataforma, cubiertos de nieve:
+  // con el barrido (el poder de esa plataforma) se descubre la runa de cada uno. El más bajo dice la
+  // piedra de abajo; el más alto, la de arriba. (Generador propio: no cambia nada de lo anterior.)
+  const rnd4 = generador(4848);
+  const col4 = (() => {
+    const z = COLUMNA4_Z, x = caminoX(z), y0 = alturaTerreno(x, z) + 0.05, g = new THREE.Group();
+    g.position.set(x, y0, z); scene.add(g);
+    const orden = () => { const a = NOMBRES.slice(); for (let i = 3; i > 0; i--) { const j = Math.floor(rnd4() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const metas4 = [0, 1, 2, 3].map(() => NOMBRES[Math.floor(rnd4() * 4)]);
+    const bloques = [0, 1, 2, 3].map(k => {
+      const b = bloque(orden(), k === 3);
+      b.m.position.y = 0.8 + k * 1.59; b.m.rotation.z = (rnd4() - 0.5) * 0.02; g.add(b.m);
+      b.rot = Math.floor(rnd4() * 4); b.ang = b.rot * Math.PI / 2; b.m.rotation.y = b.ang;
+      return b;
+    });
+    if (bloques.every((b, k) => b.anillo[b.rot] === metas4[k])) { bloques[2].rot = (bloques[2].rot + 1) % 4; bloques[2].ang = bloques[2].rot * Math.PI / 2; bloques[2].m.rotation.y = bloques[2].ang; }
+    const col = { x, z, r: 1.15, techo: 99 }; colisiones.push(col);
+    return { x, z, g, y0, bloques, metas: metas4, col, sel: 3, brillo: 0, t: -1 };
+  })();
+  // Los cilindros: en el borde de la plataforma, de cuatro alturas; la runa mira al centro, tapada por
+  // una funda de nieve que el barrido se lleva.
+  const cilindros = (() => {
+    const P = PLATAFORMA5, altos = [1.1, 1.5, 1.9, 2.3], sitio = [0, 1, 2, 3];
+    for (let i = 3; i > 0; i--) { const j = Math.floor(rnd4() * (i + 1)); [sitio[i], sitio[j]] = [sitio[j], sitio[i]]; }
+    const matPiedra = new THREE.MeshStandardMaterial({ map: texLisaLimpia, roughness: 0.92 }), matFunda = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1, transparent: true });
+    matFunda.userData.suelo = true;
+    matPiedra.userData.nevada = true;                              // (nieve encima, como las rocas)
+    return [0, 1, 2, 3].map(nivel => {
+      const ang = Math.PI / 4 + sitio[nivel] * Math.PI / 2, R = P.r + 1.0, cx = P.x + Math.sin(ang) * R, cz = P.z + Math.cos(ang) * R, h = altos[nivel];
+      const suelo = masBajoEn(cx, cz, 0.6), g = new THREE.Group(); g.position.set(cx, suelo - 0.25, cz); g.rotation.y = ang + Math.PI; scene.add(g);   // (+z local mira al centro)
+      const fuste = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, h + 0.25, 18), matPiedra); fuste.position.y = (h + 0.25) / 2; fuste.castShadow = fuste.receiveShadow = true; g.add(fuste);
+      // La runa, tallada en la cara que mira a la plataforma (una tira curva pegada al fuste).
+      const c = document.createElement("canvas"); c.width = c.height = 256; const q = c.getContext("2d"); q.lineCap = q.lineJoin = "round";
+      q.save(); q.translate(2, 3); q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "rgba(255,255,255,.35)"; q.lineWidth = 22; q.stroke(); q.restore();
+      q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "#1e1d20"; q.lineWidth = 16; q.stroke();
+      const lado = Math.min(0.62, h * 0.55), runa = new THREE.Mesh(new THREE.CylinderGeometry(0.455, 0.455, lado, 12, 1, true, -0.75, 1.5),
+        new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, roughness: 0.9, emissive: 0xbfe2ff, emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2 }));
+      runa.material.userData.suelo = true; runa.position.y = h * 0.62; g.add(runa);
+      // La funda de nieve: un poco más gruesa que el fuste, con su copete.
+      const funda = new THREE.Group();
+      const f1 = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, h + 0.05, 18), matFunda.clone()); f1.position.y = (h + 0.05) / 2 + 0.2;
+      const f2 = new THREE.Mesh(new THREE.SphereGeometry(0.52, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), f1.material); f2.scale.y = 0.45; f2.position.y = h + 0.25;
+      funda.add(f1, f2); g.add(funda);
+      colisiones.push({ x: cx, z: cz, r: 0.55, techo: suelo + h });
+      return { x: cx, z: cz, nivel, g, funda, runa, t: -1 };
+    });
+  })();
+  function metas4De(nivel) { return col4.metas[nivel]; }
   let t = -1;
   return {
+    col4, cilindros,
     columnas, pistas, get resuelto() { return t >= 0; },
     // Como con las rocas movibles: la columna de al lado o la que está a la vista delante (hasta 14 m);
     // el bloque de arriba o, agachado, el de abajo.
@@ -2112,6 +2170,18 @@ const puzle = (() => {
       return { c: mejor, cual, centro: b.centro };
     },
     girar(c, cual) { c[cual].rot = (c[cual].rot + 1) % 4; },
+    // La columna de cuatro: la piedra marcada (empieza por la de arriba); agachado, la marca baja una piedra.
+    objetivo4(x, z, ad) {
+      const c = col4; if (c.t >= 0) return null;
+      const dx = c.x - x, dz = c.z - z, d = Math.hypot(dx, dz), del = (dx * ad.x + dz * ad.z) / (d || 1);
+      if (!(d < 3 || (del > 0.64 && d < 14))) return null;
+      const b = c.bloques[c.sel]; b.centro.set(c.x, c.g.position.y + b.m.position.y, c.z);
+      return { c, b, centro: b.centro };
+    },
+    girar4() { const b = col4.bloques[col4.sel]; b.rot = (b.rot + 1) % 4; },
+    bajar4() { col4.sel = (col4.sel + 3) % 4; },
+    cilindroCerca(x, z) { let mejor = null, dm = 2.3; for (const c of cilindros) { const d = Math.hypot(c.x - x, c.z - z); if (d < dm) { dm = d; mejor = c; } } return mejor; },
+    barrer(c) { if (c.t < 0) c.t = 0; },
     alineada: c => c.abajo.anillo[c.abajo.rot] === c.meta.abajo && c.arriba.anillo[c.arriba.rot] === c.meta.arriba,
     actualizar(dt) {
       let todas = true;
@@ -2128,6 +2198,27 @@ const puzle = (() => {
         for (const b of [c.abajo, c.arriba]) for (const m of b.mats) m.emissiveIntensity = c.brillo * 0.75;
       }
       if (todas && t < 0) { t = 0; rotular("Las columnas se hunden.", 3); musica.viento(0.45, 0.6); }
+      // La columna de cuatro.
+      { const c = col4; let quieta = true;
+        for (const b of c.bloques) { let meta = b.rot * Math.PI / 2; while (meta < b.ang - 1e-3) meta += Math.PI * 2; b.ang += Math.min(meta - b.ang, dt * 2.6); b.m.rotation.y = b.ang; if (meta - b.ang > 0.01) quieta = false; }
+        const ok = quieta && c.bloques.every((b, k) => b.anillo[b.rot] === c.metas[k]);
+        c.brillo += ((ok ? 1 : 0) - c.brillo) * (1 - Math.exp(-dt * 3));
+        for (const b of c.bloques) for (const m of b.mats) m.emissiveIntensity = c.brillo * 0.75;
+        if (ok && c.t < 0) { c.t = 0; rotular("La columna se hunde.", 3); musica.viento(0.45, 0.6); }
+        if (c.t >= 0) {
+          c.t += dt; const k = suave(0.8, 5, c.t);
+          c.g.position.y = c.y0 - k * 7.6; c.g.position.x = c.x + Math.sin(c.t * 37) * 0.03 * (k > 0 && k < 1 ? 1 : 0);
+          if (c.t > 0.8) { const i = colisiones.indexOf(c.col); if (i >= 0) { colisiones.splice(i, 1); dejarHueco(c.x, c.z, 1.0); hundirNieve(c.x, c.z, 1.1); } }
+          if (c.t > 0.8 && c.t < 5) efectoEspiral = Math.max(efectoEspiral, 0.4);
+        } }
+      // Los cilindros: el barrido se lleva la funda (sube, se abre y se deshace) y la runa se enciende un poco.
+      for (const c of cilindros) if (c.t >= 0 && c.t < 2) {
+        c.t += dt; const k = suave(0, 1.4, c.t);
+        c.funda.scale.set(1 + k * 0.5, 1 + k * 0.15, 1 + k * 0.5); c.funda.position.y = k * 0.5; c.funda.rotation.y = k * 2.5;
+        c.funda.traverse(o => { if (o.material) o.material.opacity = 1 - k; });
+        c.runa.material.emissiveIntensity = 0.35 * suave(0.6, 1.6, c.t) * (1 - suave(1.6, 2, c.t) * 0.6);
+        if (c.t >= 2) c.funda.visible = false;
+      }
       if (t >= 0) {
         t += dt;
         const k = suave(0.8, 4.2, t);
@@ -2650,7 +2741,7 @@ for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
 }
 // En el desfiladero final: nieve acumulada a trozos, sobre todo contra las paredes, y algún montón en el paso.
 {
-  const rndC = generador(7373), libreC = z => !ARENAS.some(A => Math.abs(z - A.z) < A.largo / 2 + 2.5) && ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 2.5 && z > A.hasta - 2.5) && Math.abs(z - PLATAFORMA5.z) > PLATAFORMA5.r + 1.5 && Math.abs(z - PUERTA_FINAL_Z) > 2;
+  const rndC = generador(7373), libreC = z => !ARENAS.some(A => Math.abs(z - A.z) < A.largo / 2 + 2.5) && ![GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4].some(A => z < A.desde + 2.5 && z > A.hasta - 2.5) && Math.abs(z - PLATAFORMA5.z) > PLATAFORMA5.r + 1.5 && Math.abs(z - PUERTA_FINAL_Z) > 2;
   for (let z = CANON2.desde - 3; z > CANON2.hasta + 3; z -= 1.8 + rndC() * 2.4) {
     if (!libreC(z)) continue;
     for (const lado of [-1, 1]) {
@@ -2983,6 +3074,8 @@ const FIGURAS = {
   puerta: { velocidad: 40, puntos: FIGURAS_PUERTA.slice(0, -1).concat([[50, 8]]) },
   // La runa de las columnas: el rombo con su travesaño, que gira.
   giro: { velocidad: 48, puntos: [[22, 50], [50, 8], [78, 50], [50, 92], [22, 50], [78, 50]] },
+  // La runa del barrido (lámina 80): dos cheurones, uno sobre otro, en un solo trazo.
+  barrido: { velocidad: 48, puntos: [[26, 20], [50, 44], [74, 20], [26, 56], [50, 80], [74, 56]] },
 };
 const trazo = (() => {
   const capa = document.createElement("div");
@@ -3116,6 +3209,7 @@ function empezarEnSantuario(n) {
   if (n >= 2) { muevePiedras = true; yaAlzada = true; }
   if (n >= 3) abrePuertas = true;
   if (n >= 4) giraBloques = true;
+  if (n >= 5) barre = true;
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
@@ -3138,6 +3232,7 @@ const SANTUARIOS = [
   { runa: "runa", nombre: "Santuario de las rocas", texto: "Con el bastón. Aquí aprendes a mover rocas." },
   { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
   { runa: "espiral", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
+  { runa: "barrido", nombre: "Santuario del barrido", texto: "Tras el desfiladero. Aquí aprendes a barrer la nieve con el viento." },
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
@@ -3172,7 +3267,7 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
-let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0;
+let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3();
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
@@ -3231,7 +3326,7 @@ let agachadoAhora = false, ultimoAgachado = -9;
 // Magia retentiva: en los pasos que no se pueden rodear, entrar en su franja por fuera del paso (por
 // encima de las rocas, saltando…) devuelve a donde se estaba, con el viento en bumerán. hw: medio
 // ancho del paso; m: media franja a lo largo del camino.
-const RETENCIONES = [...ZONA_PILASTRAS.map((z, i) => ({ z, hw: 3.4, m: 1.2, dx: PASO_SALTO[i] })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 1.7, m: 2.4 })), { z: PUERTA_Z, hw: 2.2, m: 1.6 },
+const RETENCIONES = [...ZONA_PILASTRAS.map((z, i) => ({ z, hw: 3.4, m: 1.2, dx: PASO_SALTO[i] })), ...ZONA_AGACHARSE.map(z => ({ z, hw: 1.7, m: 2.4 })), { z: PUERTA_Z, hw: 2.2, m: 1.6 }, { z: COLUMNA4_Z, hw: 1.2, m: 2.8 },
   ...BAJOS_TUNEL.map(z => ({ z, hw: 1.7, m: 3 }))];
 const retenido = (x, z) => RETENCIONES.some(R => { const d = Math.abs(x - caminoX(R.z) - (R.dx || 0)); return Math.abs(z - R.z) < R.m && d > R.hw && d < 40; });
 let retencion = 0;
@@ -3344,6 +3439,9 @@ function actualizar(dt) {
     if (arrodillado > 2.8 && aprende === "giro") {
       estado = "juego"; giraBloques = true;
       rotular(tactil ? "◇ gira la piedra marcada por la espiral;\nagachado, la de abajo." : "E gira la piedra marcada por la espiral;\nagachado (C), la de abajo.", 6);
+    } else if (arrodillado > 2.8 && aprende === "barrido") {
+      estado = "juego"; barre = true;
+      rotular(tactil ? "Junto a un cilindro, ◇ barre su nieve\ncon el viento." : "Junto a un cilindro, E barre su nieve\ncon el viento.", 6);
     } else if (arrodillado > 2.8 && aprende === "puerta") {
       estado = "juego"; abrePuertas = true;
       rotular(tactil ? "Desde la plataforma, agáchate\ny ◇ abre la puerta." : "Desde la plataforma, agáchate\ny E abre la puerta.", 6);
@@ -3398,10 +3496,19 @@ function actualizar(dt) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
-    } else if (pulsada("KeyE", "KeyJ") && enSuelo && abrePuertas && puertaFinal.t < 0 && Math.hypot(pos.x - PLATAFORMA5.x, pos.z - PLATAFORMA5.z) < PLATAFORMA5.r + 0.3 && pos.y > PLATAFORMA5.base) {
-      // La segunda puerta: igual que la primera, desde su plataforma y agachado.
-      if (reloj - ultimoAgachado > 1.5 && !agachado) rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 2.5);
-      else { puertaFinal.t = 0; rumbo = Math.atan2(puertaFinal.x - pos.x, puertaFinal.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7); }
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && puzle.cilindroCerca(pos.x, pos.z) && puzle.cilindroCerca(pos.x, pos.z).t < 0) {
+      // Un cilindro arcano cubierto de nieve: con el barrido, el viento se lleva la nieve y deja ver su runa.
+      const c = puzle.cilindroCerca(pos.x, pos.z);
+      if (!barre) rotular("Un cilindro cubierto de nieve.\nAprende el barrido en la plataforma.", 3.5);
+      else {
+        puzle.barrer(c); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
+        espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.8, alto: 2.2 }; efectoEspiral = Math.max(efectoEspiral, 1);
+        if (!avisoCilindros) { avisoCilindros = true; rotular("Cada cilindro guarda la runa de una piedra:\nel más bajo, la de abajo; el más alto, la de arriba.", 6); }
+      }
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo4(pos.x, pos.z, adelante)) {
+      // La columna de cuatro: E gira la piedra marcada; agachado, la marca baja una piedra.
+      const c = puzle.col4;
+      if (agachado || reloj - ultimoAgachado <= 0.3) puzle.bajar4(); else { puzle.girar4(); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.5; musica.viento(0.3, 0.95); }
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo(pos.x, pos.z, adelante, agachado || reloj - ultimoAgachado <= 1.5)) {
       // Girar el bloque marcado por la espiral: el de arriba; agachado (o recién agachado), el de abajo.
       const o = puzle.objetivo(pos.x, pos.z, adelante, agachado || reloj - ultimoAgachado <= 1.5), c = o.c;
@@ -3462,7 +3569,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && !ARENAS.some(A => Math.abs(pos.z - A.z) < A.largo / 2 + 2) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && !ARENAS.some(A => Math.abs(pos.z - A.z) < A.largo / 2 + 2) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && enSuelo && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -3486,6 +3593,14 @@ function actualizar(dt) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
       trazo.empezar("espiral", () => { estado = "despertando"; arrodillado = 0; aprende = "giro"; });   // la espiral: girar
+      musica.viento(0.3, 0.85);
+    }
+    if (giraBloques && !avisoCol4 && pos.z < COLUMNA4_Z + 6 && puzle.col4.t < 0) { avisoCol4 = true; rotular(tactil ? "◇ gira la piedra marcada.\nAgachado, ◇ baja la marca." : "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.", 6); }
+    if (giraBloques && !barre && enSuelo && s.sobre === PLATAFORMA5 && Math.hypot(pos.x - PLATAFORMA5.x, pos.z - PLATAFORMA5.z) < 2.4 && estado === "juego") {
+      // Quinta plataforma: la runa de los dos cheurones, la del barrido (el viento que quita la nieve).
+      estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
+      ladoLlamada = elegirLado();
+      trazo.empezar("barrido", () => { estado = "despertando"; arrodillado = 0; aprende = "barrido"; });
       musica.viento(0.3, 0.85);
     }
     if (!avisoPuzle && pos.z < PUZLE_Z + 9 && !puzle.resuelto) { avisoPuzle = true; rotular(giraBloques ? "Pon las runas como las viste\nen el camino, en orden." : "Columnas de runas.\nVuelve a la plataforma.", 4); }
@@ -3629,6 +3744,10 @@ function actualizar(dt) {
   // Con el poder de girar, la espiral marca el bloque de la columna a la que se apunta (agachado, el de abajo).
   if (giraBloques && (estado === "juego" || estado === "empujando") && !llevando && !rescate && Math.abs(pos.z - PUZLE_Z) < 16) {
     const o = puzle.objetivo(pos.x, pos.z, adelante, agachadoAhora);
+    if (o) { espiralEn = o.centro; espiralTam = { r: 1.35, alto: 1.9 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
+  }
+  if (giraBloques && (estado === "juego" || estado === "empujando") && !llevando && !rescate && Math.abs(pos.z - COLUMNA4_Z) < 16) {
+    const o = puzle.objetivo4(pos.x, pos.z, adelante);
     if (o) { espiralEn = o.centro; espiralTam = { r: 1.35, alto: 1.9 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
   }
   // La nieve que se hunde: al pisarla, Blizzard se va hundiendo en espiral; si no salta a tiempo, el viento
