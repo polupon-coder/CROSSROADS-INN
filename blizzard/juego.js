@@ -207,25 +207,27 @@ const suave = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t 
 function lerpAngulo(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
 // Punto del recorrido más cercano: distancia lateral, normal hacia fuera y dirección de avance.
+// (sin crear objetos por tramo: se llama miles de veces)
 function enCamino(x, z) {
-  let mejor = { d: Infinity };
+  let dm = Infinity, nx = 0, nz = 0, fx = 0, fz = 0;
   for (let i = 0; i < CAMINO.length - 1; i++) {
-    const [ax, az] = CAMINO[i], [bx, bz] = CAMINO[i + 1];
-    const vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz;
+    const a = CAMINO[i], b = CAMINO[i + 1], ax = a[0], az = a[1];
+    const vx = b[0] - ax, vz = b[1] - az, l2 = vx * vx + vz * vz;
     const t = clamp(((x - ax) * vx + (z - az) * vz) / l2, 0, 1);
-    const px = ax + vx * t, pz = az + vz * t, dx = x - px, dz = z - pz, d = Math.hypot(dx, dz);
-    if (d < mejor.d) { const l = Math.sqrt(l2); mejor = { d, nx: d ? dx / d : 0, nz: d ? dz / d : 0, fx: vx / l, fz: vz / l }; }
+    const dx = x - ax - vx * t, dz = z - az - vz * t, d2 = dx * dx + dz * dz;
+    if (d2 < dm) { dm = d2; const d = Math.sqrt(d2), l = Math.sqrt(l2); nx = d ? dx / d : 0; nz = d ? dz / d : 0; fx = vx / l; fz = vz / l; }
   }
-  return mejor;
+  return { d: Math.sqrt(dm), nx, nz, fx, fz };
 }
 
-// x del recorrido a una z dada (el recorrido siempre avanza hacia z negativa).
+// x del recorrido a una z dada (el recorrido siempre avanza hacia z negativa): búsqueda binaria del tramo.
 function caminoX(z) {
-  for (let i = 0; i < CAMINO.length - 1; i++) {
-    const [ax, az] = CAMINO[i], [bx, bz] = CAMINO[i + 1];
-    if (z <= az && z >= bz) return lerp(ax, bx, (z - az) / (bz - az));
-  }
-  return 0;
+  const n = CAMINO.length;
+  if (z > CAMINO[0][1] || z < CAMINO[n - 1][1]) return 0;
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (CAMINO[m][1] >= z) lo = m; else hi = m; }
+  const [ax, az] = CAMINO[lo], [bx, bz] = CAMINO[hi];
+  return az === bz ? ax : lerp(ax, bx, (z - az) / (bz - az));
 }
 
 // ─── Terreno ───────────────────────────────────────────────────────────────
@@ -1299,6 +1301,18 @@ function enterrar(pieza, x, z, a, giro, hundir) {
       enterrar(kitRocas[1 + Math.floor(rndU() * 3)], rx, rz, a, rndU() * 6, 0.16 + rndU() * 0.14);
     }
   }
+  // A los lados, lejos del paso (en los extremos de las dunas): más rocas y grupos, a ambos lados.
+  const rndE = generador(8383);
+  for (let z = DUNAS.desde - 10; z > DUNAS.hasta + 4; z -= 7 + rndE() * 6) for (const lado of [-1, 1]) {
+    const x = caminoX(z) + lado * (13 + rndE() * 16);
+    if (solapa(x, z, 3.5)) continue;
+    for (let k = 0, n = 1 + Math.floor(rndE() * 4); k < n; k++) {
+      const a = k === 0 ? 2 + rndE() * 4 : 0.8 + rndE() * 1.8, ang = rndE() * 6.28, r = k === 0 ? 0 : 2 + rndE() * 3.5;
+      const rx = x + Math.cos(ang) * r, rz = z + Math.sin(ang) * r;
+      if (solapa(rx, rz, a * 0.4)) continue;
+      enterrar(kitRocas[1 + Math.floor(rndE() * (kitRocas.length - 1))], rx, rz, a, rndE() * 6, 0.24 + rndE() * 0.16);
+    }
+  }
 }
 
 // ─── Dunas: el paisaje de las láminas ──────────────────────────────────────
@@ -1986,7 +2000,7 @@ const puzle = (() => {
       P.setXYZ(i, x * r, y * (0.8 + 0.2 * Math.sin(th * 3 + f)), z * r);
     }
     geo.computeVertexNormals();
-    const g = new THREE.Mesh(geo, matGorro); g.scale.set(0.74, 0.13, 0.74); g.position.y = 0.77; g.castShadow = g.receiveShadow = true;
+    const g = new THREE.Mesh(geo, matGorro); g.scale.set(0.82, 0.17, 0.82); g.position.y = 0.76; g.castShadow = g.receiveShadow = true;
     return g;
   };
   const bloque = (anillo, arriba, soloFrente = false) => {
@@ -1994,7 +2008,7 @@ const puzle = (() => {
     const liso = () => new THREE.MeshStandardMaterial({ map: arriba ? texLisa : texLisaLimpia, roughness: 0.92 });   // (las pistas: solo la runa de delante)
     const fz = cara(anillo[0]), fmx = soloFrente ? liso() : cara(anillo[1]), fmz = soloFrente ? liso() : cara(anillo[2]), fx = soloFrente ? liso() : cara(anillo[3]);
     const tapa = new THREE.MeshStandardMaterial({ map: texLisaLimpia, roughness: 0.95 }); void texNieve;
-    for (const m of [...mats, tapa, fmx, fmz, fx]) m.userData.nevada = true;   // nieve como en las rocas móviles: encima y al pie
+    for (const m of [...mats, tapa, fmx, fmz, fx]) { m.userData.nevada = true; m.userData.pista = soloFrente; }   // (las pistas: tumbadas en las dunas)   // nieve como en las rocas móviles: encima y al pie
     const m = new THREE.Mesh(geoBloque(), [fx, fmx, tapa, tapa, fz, fmz]);
     m.castShadow = m.receiveShadow = true;
     if (arriba && !soloFrente) m.add(gorroNieve());
@@ -2682,7 +2696,7 @@ function hundirNieve(x, z, R) {
   for (const v of ventisqueros) {
     if (Math.abs(x - v.cx) > v.ancho / 2 + R * 1.4 || Math.abs(z - v.cz) > v.largo / 2 + R * 1.4) continue;
     const p = v.geo.attributes.position; v.fijo = v.fijo || new Float32Array(p.count);
-    for (let i = 0; i < p.count; i++) { const d = Math.hypot(p.getX(i) - x, p.getZ(i) - z); if (d < R * 1.4) v.fijo[i] = Math.max(v.fijo[i], suave(R * 1.4, R * 0.7, d) * 0.97); }
+    for (let i = 0; i < p.count; i++) { const d = Math.hypot(p.getX(i) - x, p.getZ(i) - z); if (d < R * 1.4) { v.fijo[i] = Math.max(v.fijo[i], suave(R * 1.4, R * 0.7, d) * 0.97); if (v.activos) v.activos.add(i); } }
     v.cambia = true;
   }
 }
@@ -2705,16 +2719,28 @@ function normalesLocales(v) {
 // Cada fotograma: hunde lo que pisa Blizzard (con los bordes del surco algo levantados) y rellena el resto.
 function pisarVentisqueros(dt) {
   for (const v of ventisqueros) {
-    if (!v.cambia && (Math.abs(pos.x - v.cx) > v.ancho / 2 + 0.5 || Math.abs(pos.z - v.cz) > v.largo / 2 + 0.5)) continue;   // lejos y sin surco: nada que hacer
-    const p = v.geo.attributes.position, dentro = Math.abs(pos.x - v.cx) < v.ancho / 2 + 0.5 && Math.abs(pos.z - v.cz) < v.largo / 2 + 0.5 && pos.y < alturaTerreno(pos.x, pos.z) + 1.2;
+    // Solo se tocan los vértices bajo los pies (una ventana de la rejilla) y los que aún se rellenan.
+    if (!v.activos) { v.activos = new Set(); if (v.fijo) for (let i = 0; i < v.fijo.length; i++) if (v.fijo[i] > 0) v.activos.add(i); }
+    const cerca = Math.abs(pos.x - v.cx) < v.ancho / 2 + 0.5 && Math.abs(pos.z - v.cz) < v.largo / 2 + 0.5;
+    if (!cerca && !v.activos.size) continue;                         // lejos y sin surco: nada que hacer
+    const p = v.geo.attributes.position, dentro = cerca && pos.y < alturaTerreno(pos.x, pos.z) + 1.2;
     let cambia = false;
-    for (let i = 0; i < p.count; i++) {
+    const tocar = i => {
       let h = v.hundido[i];
       if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const q = 1 - (d / rad) * (d / rad), k = q * q * (0.08 + 0.92 * a); if (k > h) { h = k; } } }   // perfil de cuenco: sin escalones aunque se cruce en diagonal
       if (h > 0) h = Math.max(0, h - dt * 0.14); if (v.fijo && v.fijo[i] > h) h = v.fijo[i];   // (lo hundido para siempre no se rellena)
       // se rellena en unos 7 s
       if (h !== v.hundido[i]) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, nx = v.nx; t[i] = 1; if (i > 0) t[i - 1] = 1; if (i + 1 < t.length) t[i + 1] = 1; if (i >= nx) t[i - nx] = 1; if (i + nx < t.length) t[i + nx] = 1; } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
+      if (h > (v.fijo ? v.fijo[i] : 0)) v.activos.add(i); else v.activos.delete(i);
+    };
+    const vistos = new Set(v.activos);
+    if (dentro) {                                                   // la ventana bajo los pies (radio máximo del cuenco: 0,42 m)
+      const nx = v.nx, nz = v.nz, dx = v.ancho / (nx - 1), dz = v.largo / (nz - 1);
+      const c0 = Math.max(0, Math.floor((pos.x - 0.45 - (v.cx - v.ancho / 2)) / dx)), c1 = Math.min(nx - 1, Math.ceil((pos.x + 0.45 - (v.cx - v.ancho / 2)) / dx));
+      const r0 = Math.max(0, Math.floor((pos.z - 0.45 - (v.cz - v.largo / 2)) / dz)), r1 = Math.min(nz - 1, Math.ceil((pos.z + 0.45 - (v.cz - v.largo / 2)) / dz));
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) vistos.add(r * nx + c);
     }
+    for (const i of vistos) tocar(i);
     if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; normalesLocales(v); }
     v.cambia = cambia;
   }
@@ -3956,9 +3982,10 @@ const desenfoque = (() => {
 // (antes, al acercarse, ya se ven desenfocadas). Esfera de cada pieza para descartar rápido; rayo solo
 // con las que quedan.
 const tapadores = [];
-scene.traverse(o => { if (o.userData.tapa) { const e = new THREE.Box3().setFromObject(o).getBoundingSphere(new THREE.Sphere()); tapadores.push({ o, e, oculto: false }); } });
+scene.traverse(o => { if (o.userData.tapa) { const caja = new THREE.Box3().setFromObject(o), e = caja.getBoundingSphere(new THREE.Sphere()); tapadores.push({ o, e, caja, oculto: false }); } });
 const _rayoT = new THREE.Raycaster(), _ojoT = new THREE.Vector3(), _hastaT = new THREE.Vector3();
 let _turnoT = 0;
+const _cajaT = new THREE.Vector3();
 function ocultarTapadores() {
   if (++_turnoT % 4) return;                                    // cada 4 fotogramas basta (el rayo contra las mallas es caro)
   _ojoT.copy(camara.position); _hastaT.copy(pos).add(new THREE.Vector3(0, 1.1, 0));
@@ -3970,7 +3997,9 @@ function ocultarTapadores() {
     if (dc - t.e.radius < 4.5) {                                  // solo lo que está muy cerca de la cámara
       const proy = clamp(_hastaT.clone().sub(_ojoT).dot(t.e.center.clone().sub(_ojoT)) / (largo * largo), 0, 1);
       const cerca = _ojoT.clone().lerp(_hastaT, proy).distanceTo(t.e.center) < t.e.radius;
-      if (cerca) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(4.5, largo - 0.6); }
+      // Primero, contra su caja (barato); solo si la toca cerca de la cámara, el rayo contra la malla.
+      const enCaja = cerca && _rayoT.ray.intersectBox(t.caja, _cajaT) && _cajaT.distanceTo(_ojoT) < Math.min(4.5, largo - 0.6);
+      if (enCaja) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(4.5, largo - 0.6); }
     }
     if (tapa !== t.oculto) { t.oculto = tapa; t.o.visible = !tapa; }
   }
@@ -4008,6 +4037,16 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) m = Math.max(m, alt[(Math.min(NZ - 1, Math.max(0, iz + b)) * NX + Math.min(NX - 1, Math.max(0, ix + a))) * 4 + 1]);
     alt[(iz * NX + ix) * 4 + 3] = m;
   }
+  // Y junto a las rocas, columnas y piedras (lo que tiene choque): la niebla baja tampoco las corta.
+  for (const c of colisiones) {
+    if (!(c.r > 0.4) || c.rampa || c.borde) continue;
+    const R = c.r + 1.2;
+    for (let iz = Math.floor(c.z - R - Z0); iz <= Math.ceil(c.z + R - Z0); iz++) for (let ix = Math.floor(c.x - R - X0); ix <= Math.ceil(c.x + R - X0); ix++) {
+      if (ix < 0 || iz < 0 || ix >= NX || iz >= NZ) continue;
+      const d = Math.hypot(X0 + ix - c.x, Z0 + iz - c.z), k = (iz * NX + ix) * 4 + 3;
+      if (d < R) alt[k] = Math.max(alt[k], 3 * Math.min(1, (R - d) / 1.2 + 0.5));
+    }
+  }
   // En el azul, lo que alzan los montones y el manto de nieve sobre el suelo (para que la niebla baja
   // pase por encima y no los corte en rayas).
   for (const v of ventisqueros) {
@@ -4018,6 +4057,13 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
       const k = (iz * NX + ix) * 4 + 2; alt[k] = Math.max(alt[k], v.base[i]);
     }
   }
+  // En las laderas de la nieve acumulada (suelo + montón cambia deprisa), la niebla baja también se apaga:
+  // se suma al alfa (precalculado aquí: el sombreado de la niebla no lee más).
+  { const hT = (ix, iz) => { const k = (Math.min(NZ - 1, Math.max(0, iz)) * NX + Math.min(NX - 1, Math.max(0, ix))) * 4; return alt[k] + alt[k + 2] * 1.15; };
+    for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) {
+      const h = [hT(ix + 1, iz), hT(ix - 1, iz), hT(ix, iz + 1), hT(ix, iz - 1)], k = (iz * NX + ix) * 4 + 3;
+      alt[k] = Math.max(alt[k], (Math.max(...h) - Math.min(...h)) * 4);
+    } }
   const mapaAlturas = new THREE.DataTexture(alt, NX, NZ, THREE.RGBAFormat, THREE.FloatType);
   mapaAlturas.magFilter = mapaAlturas.minFilter = THREE.NearestFilter; mapaAlturas.needsUpdate = true;
   const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
@@ -4052,7 +4098,8 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           a *= 1.0 - smoothstep(24.0, 34.0, distance(vP.xz, centro.xz));  // borde de la capa
           a *= step(-20.0, vSuelo);                                     // sobre los abismos, no
           a *= 1.0 - smoothstep(0.35, 0.9, vRango);                     // ni en laderas empinadas (cortaría el suelo en rayas)
-          a *= 1.0 - smoothstep(1.2, 2.5, vPared);                      // ni junto a las paredes (cortaría sus rocas)
+          a *= 1.0 - smoothstep(1.2, 2.5, vPared);                      // ni junto a las paredes ni a las rocas (las cortaría)
+          a *= 1.0 + 0.9 * smoothstep(-554.0, -570.0, vP.z) * (1.0 - smoothstep(-770.0, -782.0, vP.z));   // en las dunas, más
           a *= smoothstep(0.5, 1.6, distance(vP.xz, jugador.xz));       // se aparta de Blizzard (no lo corta con una raya)
           gl_FragColor = vec4(mix(color, vec3(1.0), 0.18), a);
         }`,
@@ -4092,7 +4139,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
         }
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
-        ${piedra && piedra !== "runas" ? `{
+        ${piedra && piedra !== "runas" && piedra !== "pista" ? `{
           float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
           ${piedra === "arco" ? `diffuseColor.rgb = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.42, lumU, 0.12);   // arcos: un solo tono para todas sus piezas (la textura de cada una apenas cuenta)` : `
           vec3 unida = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
@@ -4119,7 +4166,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
-          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.985, 0.992, 1.008)" : ""}, smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
+          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.985, 0.992, 1.008)" : ""}, smoothstep(${piedra === "pista" ? "0.8, 0.95" : "0.35, 0.7"}, nWP.y + (motasP - 0.5) * ${piedra === "pista" ? "0.15" : "0.5"}) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
           if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
@@ -4138,7 +4185,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
     // Los bloques de runas llevan un material por cara: cada uno, como una roca móvil.
-    if (o.isMesh && Array.isArray(o.material) && o.material.every(m => m.userData.nevada)) { for (const m of o.material) if (!hechos.has(m)) { hechos.add(m); nevar(m, 1.05, 0, 0, 0.95, 1, "runas"); } return; }   // (sin igualar el tono: el suyo)
+    if (o.isMesh && Array.isArray(o.material) && o.material.every(m => m.userData.nevada)) { for (const m of o.material) if (!hechos.has(m)) { hechos.add(m); nevar(m, m.userData.pista ? 0 : 1.05, 0, 0, 0.95, 1, m.userData.pista ? "pista" : "runas"); } return; }   // (sin igualar el tono: el suyo; las pistas, sin nieve al pie: están medio enterradas)
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
     hechos.add(o.material); nevar(o.material, o.material.userData.polvo ? 0 : 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco || o.material.userData.polvo ? "arco" : true);   // arcos y escalones: tono de piedra liso   // las que se mueven, con nieve encima
   });
