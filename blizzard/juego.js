@@ -1907,7 +1907,7 @@ const puzle = (() => {
   const lienzo = () => { const c = document.createElement("canvas"); c.width = c.height = 256; return c; };
   // Piedra: gris azulado como el resto, con grano, alguna grieta y los cantos más oscuros.
   const piedra = (g, nieve) => {
-    g.fillStyle = nieve ? "#e3e9f2" : "#858d9a";                   // (el gris de las demás piedras) g.fillRect(0, 0, 256, 256);
+    g.fillStyle = nieve ? "#e3e9f2" : "#8790a1";                   // un punto más oscuro y algo azul g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "255,255,255" : "20,24,32"},${0.03 + rnd() * 0.07})`; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 2 + rnd() * 5); }
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
@@ -1916,12 +1916,13 @@ const puzle = (() => {
   // los de los lados. Sobre la talla también, pero rala: la runa se sigue leyendo.
   const espolvorear = g => {
     const nieve = a => `rgba(238,243,251,${a})`;
-    for (let i = 0; i < 800; i++) {                               // (poca: antes la cara quedaba moteada entera)
-      const y = 256 * Math.pow(rnd(), 2.2), x = rnd() * 256, r = 0.6 + rnd() * (y < 40 ? 2 : 1.2);
-      g.fillStyle = nieve(((0.15 + rnd() * 0.3) * (1 - y / 280)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+    for (let i = 0; i < 2600; i++) {
+      const y = 256 * Math.pow(rnd(), 1.6), x = rnd() * 256, r = 0.7 + rnd() * (y < 50 ? 3 : 1.8);
+      g.fillStyle = nieve(((0.3 + rnd() * 0.5) * (1 - y / 320)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
     }
-    for (let i = 0; i < 4; i++) { const x = rnd() * 256, y = rnd() * 30, r = 3 + rnd() * 5; g.fillStyle = nieve(0.45 + rnd() * 0.2); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
-    g.fillStyle = nieve(0.7); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 3 + rnd() * 9); g.lineTo(256, 0); g.fill();   // el canto de arriba
+    for (let i = 0; i < 14; i++) { const x = rnd() * 256, y = rnd() * 70, r = 4 + rnd() * 8; g.fillStyle = nieve(0.55 + rnd() * 0.3); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
+    g.fillStyle = nieve(0.85); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 6 + rnd() * 18); g.lineTo(256, 0); g.fill();   // el canto de arriba
+    for (const lx of [0, 256]) { g.beginPath(); g.moveTo(lx, 0); for (let y = 0; y <= 180; y += 12) g.lineTo(Math.abs(lx - (2 + rnd() * 9 * (1 - y / 200))), y); g.lineTo(lx, 180); g.fillStyle = nieve(0.6); g.fill(); }
   };
   const caras = {};
   for (const n of NOMBRES) {
@@ -2013,7 +2014,7 @@ const puzle = (() => {
     }
     // Al pie de la pared, bloques tallados de varios tamaños (sin falda): tapan dónde apoyan las agujas.
     for (let d = 3.4, k = 0; d < 24; d += 1.4 + rnd() * 1.4, k++) {
-      const P = kitPilares[k % 3], a = 1.6 + rnd() * 2.6, x = cx + lado * d, z = G - 0.2 - rnd() * 1.4;
+      const P = kitPilares[k % 3], a = 1.6 + rnd() * 2.6, R = P.radio * a / P.alto, x = cx + lado * Math.max(d, 3.15 + R), z = G - 0.2 - rnd() * 1.4;   // (sin montarse en las columnas)
       colocar(P, x, z, a, rnd() * 6, 0.2, masBajoEn(x, z, 1), false).children[0].material = nieveFina;
       colisiones[colisiones.length - 1].techo = 99;
     }
