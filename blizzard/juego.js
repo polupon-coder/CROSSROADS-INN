@@ -284,7 +284,7 @@ const CIELO = new THREE.Color("#c9d8ee");
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 const TACTIL = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 renderer.setPixelRatio(Math.min(TACTIL ? 1.5 : 1.25, window.devicePixelRatio || 1));   // en ordenador, con el desenfoque a pantalla completa, 2 era muy lento
-renderer.shadowMap.enabled = !TACTIL;
+renderer.shadowMap.enabled = false;                           // sombras solo en las dunas (fuera, el sol casi no tiene fuerza): se encienden al llegar
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;           // suavizada entre texels: con un mapa grueso, sombra difusa
 renderer.localClippingEnabled = true;          // para recortar la cima de los pilares
 renderer.domElement.id = "lienzo";
@@ -3456,7 +3456,7 @@ function actualizar(dt) {
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
   renderer.shadowMap.autoUpdate = alba > 0;
-  // En el móvil no hay sombras (por rendimiento), salvo en las dunas: se encienden al llegar.
+  // Sin sombras (por rendimiento) salvo en las dunas: se encienden al llegar (en móvil y en ordenador).
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
@@ -3863,16 +3863,39 @@ const medidor = document.createElement("div");
 medidor.style.cssText = "position:fixed;right:12px;bottom:10px;z-index:9;font:12px/1.3 system-ui,sans-serif;color:#1f2a3d;background:rgba(240,245,252,.75);padding:4px 8px;border-radius:6px;pointer-events:none";
 medidor.hidden = true; document.body.appendChild(medidor);
 let medFotos = 0, medDesde = performance.now(), medPeor = 0;
+// Calidad automática: si el juego va por debajo de 45 fps durante dos tramos seguidos (de unos 2 s), baja
+// un escalón: 1) resolución interna 1x; 2) sin el desenfoque de cerca y de lejos; 3) resolución 0,8x.
+// Nunca vuelve a subir (para no oscilar). En un equipo que vaya bien no cambia nada.
+const calidad = { nivel: 0, desenfoque: true, suma: 0, n: 0, malas: 0, desde: 0 };
+function vigilarCalidad(ms) {
+  if (navigator.webdriver) return;                              // (en las pruebas automáticas, sin tocar)
+  if (estado === "portada" || estado === "intro" || document.hidden) { calidad.desde = 0; calidad.suma = calidad.n = 0; return; }
+  const ahora = performance.now();
+  if (!calidad.desde) calidad.desde = ahora;
+  if (ahora - calidad.desde < 4000 || calidad.nivel >= 3) return;   // los primeros segundos, aún preparando sombreados
+  calidad.suma += Math.min(ms, 100); calidad.n++;
+  if (calidad.suma < 2000) return;
+  const fps = 1000 * calidad.n / calidad.suma; calidad.suma = calidad.n = 0;
+  calidad.malas = fps < 45 ? calidad.malas + 1 : 0;
+  if (calidad.malas < 2) return;
+  calidad.malas = 0; calidad.nivel++;
+  if (calidad.nivel === 1) renderer.setPixelRatio(Math.min(1, window.devicePixelRatio || 1));
+  if (calidad.nivel === 2) calidad.desenfoque = false;
+  if (calidad.nivel === 3) renderer.setPixelRatio(0.8);
+  ajustar();
+}
 addEventListener("keydown", e => { if (e.code === "KeyF" && !e.repeat) medidor.hidden = !medidor.hidden; });
 function bucle(ahora) {
+  const anterior0 = anterior;
   medFotos++; medPeor = Math.max(medPeor, ahora - anterior);
-  if (ahora - medDesde > 500) { if (!medidor.hidden) medidor.textContent = `${Math.round(medFotos * 1000 / (ahora - medDesde))} fps · peor ${Math.round(medPeor)} ms · z ${Math.round(pos.z)}`; medFotos = 0; medDesde = ahora; medPeor = 0; }
+  if (ahora - medDesde > 500) { if (!medidor.hidden) medidor.textContent = `${Math.round(medFotos * 1000 / (ahora - medDesde))} fps · peor ${Math.round(medPeor)} ms · z ${Math.round(pos.z)} · calidad ${3 - calidad.nivel}/3`; medFotos = 0; medDesde = ahora; medPeor = 0; }
   const dt = clamp((ahora - anterior) / 1000, 0, 0.05);           // nunca negativo (el primer fotograma tras cargar)
   anterior = ahora;
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
   ocultarTapadores();
-  if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara);
+  vigilarCalidad(ahora - anterior0);
+  if (desenfoque && calidad.desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara);
   requestAnimationFrame(bucle);
 }
 requestAnimationFrame(bucle);
