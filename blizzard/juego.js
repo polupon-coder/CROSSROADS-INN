@@ -1717,12 +1717,15 @@ const puzle = (() => {
     g.lineCap = g.lineJoin = "round";
     g.save(); g.translate(2, 3); g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 20; g.stroke(); g.restore();   // canto claro de la talla
     g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "#2c2a2b"; g.lineWidth = 15; g.stroke();
+    const limpia = new THREE.CanvasTexture((() => { const k = lienzo(); k.getContext("2d").drawImage(c, 0, 0); return k; })());   // la de abajo, sin nieve
     espolvorear(g);
     const e = lienzo(), ge = e.getContext("2d"); ge.fillStyle = "#000"; ge.fillRect(0, 0, 256, 256);
     ge.filter = "blur(3px)"; ge.lineCap = ge.lineJoin = "round"; ge.beginPath(); RUNAS_P[n](ge); ge.strokeStyle = "#fff"; ge.lineWidth = 14; ge.stroke();
-    caras[n] = { map: new THREE.CanvasTexture(c), luz: new THREE.CanvasTexture(e) };
+    caras[n] = { map: new THREE.CanvasTexture(c), limpia, luz: new THREE.CanvasTexture(e) };
   }
-  const lisa = lienzo(); piedra(lisa.getContext("2d"), false); espolvorear(lisa.getContext("2d"));
+  const lisa = lienzo(); piedra(lisa.getContext("2d"), false);
+  const texLisaLimpia = new THREE.CanvasTexture((() => { const k = lienzo(); k.getContext("2d").drawImage(lisa, 0, 0); return k; })());
+  espolvorear(lisa.getContext("2d"));
   const nevada = lienzo(); piedra(nevada.getContext("2d"), true);
   const texLisa = new THREE.CanvasTexture(lisa), texNieve = new THREE.CanvasTexture(nevada);
   // Un bloque: las cuatro caras con runas en anillo (la que mira al camino tras k cuartos de vuelta es
@@ -1743,10 +1746,10 @@ const puzle = (() => {
     return geo;
   };
   const bloque = (anillo, arriba, soloFrente = false) => {
-    const mats = [], cara = n => { const m = new THREE.MeshStandardMaterial({ map: caras[n].map, emissive: 0xbfe2ff, emissiveMap: caras[n].luz, emissiveIntensity: 0, roughness: 0.92 }); mats.push(m); return m; };
-    const liso = () => new THREE.MeshStandardMaterial({ map: texLisa, roughness: 0.92 });   // (las pistas: solo la runa de delante)
+    const mats = [], cara = n => { const m = new THREE.MeshStandardMaterial({ map: arriba ? caras[n].map : caras[n].limpia, emissive: 0xbfe2ff, emissiveMap: caras[n].luz, emissiveIntensity: 0, roughness: 0.92 }); mats.push(m); return m; };
+    const liso = () => new THREE.MeshStandardMaterial({ map: arriba ? texLisa : texLisaLimpia, roughness: 0.92 });   // (las pistas: solo la runa de delante)
     const fz = cara(anillo[0]), fmx = soloFrente ? liso() : cara(anillo[1]), fmz = soloFrente ? liso() : cara(anillo[2]), fx = soloFrente ? liso() : cara(anillo[3]);
-    const tapa = new THREE.MeshStandardMaterial({ map: arriba ? texNieve : texLisa, roughness: 0.95 });
+    const tapa = new THREE.MeshStandardMaterial({ map: arriba ? texNieve : texLisaLimpia, roughness: 0.95 });
     const m = new THREE.Mesh(geoBloque(), [fx, fmx, tapa, tapa, fz, fmz]);
     m.castShadow = m.receiveShadow = true;
     return { m, anillo, rot: 0, ang: 0, mats, centro: new THREE.Vector3() };
@@ -1770,14 +1773,29 @@ const puzle = (() => {
     const col = { x, z: G, r: 1.15, techo: 99 }; colisiones.push(col);
     columnas.push({ x, z: G, g, y0, abajo, arriba, col, brillo: 0, meta });
   }
-  // Muros a los lados: bloques tallados, altos y medio enterrados, hasta donde el viento ya devuelve al camino.
-  for (const lado of [-1, 1]) for (let d = 4.4, k = 0; d < 24; d += 2.5 + rnd() * 0.7, k++) {
-    const x = cx + lado * d, z = G + (rnd() - 0.5) * 0.8, P = kitPilares[k % 3], h = 4.6 + rnd() * 2.6, w = 2.8, t = 2.2;
-    const g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
+  // Muros a los lados, irregulares en planta y en alzado: detrás, una fila de bloques tallados altos (no se
+  // saltan) de anchos, alturas, giros y fondos muy distintos; delante, rocas de varios tamaños y algún
+  // bloque que sale como un espolón. Delante de las columnas, libre.
+  const bloqueMuro = (x, z, w, h, t, giro, incl, k) => {
+    const P = kitPilares[k % 3], g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
     m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
-    g.scale.set(w / P.ancho, h / P.alto, t / P.ancho); g.rotation.set((rnd() - 0.5) * 0.08, (rnd() - 0.5) * 0.3, (rnd() - 0.5) * 0.08, "YXZ");
-    g.position.set(x, masBajoEn(x, z, 1.6) - 0.9 + h / 2, z); scene.add(g);
-    colisiones.push({ x, z, r: 1.55, techo: 99 });
+    g.scale.set(w / P.ancho, h / P.alto, t / P.ancho); g.rotation.set(incl, giro, (rnd() - 0.5) * 0.12, "YXZ");
+    g.position.set(x, masBajoEn(x, z, Math.max(w, t) * 0.55) - 0.9 + h / 2, z); scene.add(g);
+    return g;
+  };
+  for (const lado of [-1, 1]) {
+    for (let d = 3.9, k = 0; d < 25; k++) {
+      const w = 2 + rnd() * 2.2, h = 5 + rnd() * 3.8 + (rnd() < 0.2 ? 2.5 : 0), t = 1.8 + rnd() * 1.6;
+      const x = cx + lado * (d + w / 2 - 0.5), z = G - 0.4 - rnd() * 1.6;
+      bloqueMuro(x, z, w, h, t, (rnd() - 0.5) * 0.7, (rnd() - 0.5) * 0.16, k);
+      for (let q = -0.35; q <= 0.36; q += 0.35) colisiones.push({ x: x + lado * q * w, z, r: Math.max(1.3, t * 0.6), techo: 99 });
+      d += w * (0.62 + rnd() * 0.25);
+    }
+    for (let d = 3.6, k = 0; d < 22; d += 2.2 + rnd() * 3.2, k++) {   // delante
+      const x = cx + lado * d, z = G + 0.6 + rnd() * 1.8;
+      if (rnd() < 0.3) bloqueMuro(x, z - 0.6, 1.2 + rnd() * 1.2, 1.6 + rnd() * 2.4, 2.6 + rnd() * 1.6, (rnd() - 0.5) * 0.5, -0.1 - rnd() * 0.2, k + 1);   // espolón
+      else enterrar(kitRocas[1 + Math.floor(rnd() * (kitRocas.length - 1))], x, z, 0.9 + rnd() * (rnd() < 0.3 ? 3.4 : 1.6), rnd() * 6, 0.2 + rnd() * 0.2);
+    }
   }
   // Las pistas: por las dunas, a un lado del paso y en orden, columnas de dos bloques iguales a las del
   // puzle, caídas, inclinadas y medio enterradas, con la cara de la runa hacia el paso y hacia quien llega.
