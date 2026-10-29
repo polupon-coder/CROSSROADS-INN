@@ -336,7 +336,7 @@ document.body.appendChild(renderer.domElement);
     float banco = sin(vNieblaP.x * 0.045 + vNieblaP.z * 0.031) * sin(vNieblaP.z * 0.057 - vNieblaP.x * 0.02 + 1.7);
     float techo = 10.5 + 2.2 * banco;
     // En las caídas (por debajo del paso), cuanto más hondo, más niebla: el fondo se pierde.
-    float hondo = smoothstep(-3.0, -32.0, vNieblaP.y) * 0.95;
+    float hondo = smoothstep(-3.0, -32.0, vNieblaP.y) * 0.97;
     return max(enD * (1.0 - smoothstep(techo - 4.0, techo + 1.5, vNieblaP.y)) * smoothstep(3.0, 26.0, d) * 0.82, hondo);
   }
 #endif`;
@@ -463,7 +463,14 @@ let MAT_SUELO = null;                                        // el material del 
       // (las texturas de nieve solo van de 0,90 a 0,95 de brillo: se estiran a 0-1 para que hagan de ruido)
       float motasR = clamp((texture2D(map, uvR * 2.3 + 0.17).r - 0.9) / 0.05, 0.0, 1.0) * 0.6 + clamp((texture2D(nieve2, uvR * 0.9).g - 0.92) / 0.04, 0.0, 1.0) * 0.4;
       float polvoR = smoothstep(0.55, 0.85, motasR + (nS.y - 0.25) * 0.6) * 0.65;
-      diffuseColor.rgb = mix(diffuseColor.rgb, pr, roca * (1.0 - polvoR));`);
+      diffuseColor.rgb = mix(diffuseColor.rgb, pr * vec3(0.98, 0.99, 1.03), roca * (1.0 - polvoR));
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.98, 1.025), roca);   // (las paredes espolvoreadas, un punto más azules: como el resto de la piedra)
+      // En el desfiladero final, las paredes de los precipicios se pierden en la niebla unos metros bajo el
+      // paso (contando desde la cámara): lo hondo no se ve. El suelo llano no se toca.
+      float hondoS = (1.0 - smoothstep(-797.0, -792.0, vMundo.z)) * roca * smoothstep(cameraPosition.y - 4.5, cameraPosition.y - 10.0, vMundo.y);`).replace("#include <fog_fragment>", `#include <fog_fragment>
+      #ifdef USE_FOG
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, hondoS * 0.92);
+      #endif`);
   };
   MAT_SUELO = matSuelo;
   // El suelo, en trozos (de unos 30 m a lo largo, y el centro aparte de los lados): así solo se dibuja lo
@@ -1708,7 +1715,7 @@ const AVISOS_TUNEL = [
   const pilarPared = (pieza, x, z, alto, giro, suelo, choque) => {
     const R = pieza.ancho / 2 * alto / pieza.alto;
     if (enPrecipicio(z)) { pilarTallado(pieza, new THREE.Vector3(x, suelo - 30, z), new THREE.Vector3(x, suelo + alto, z), R * 2, giro); pilarTallado.ultimo.children[0].material = nieveFina; if (choque) colisiones.push({ x, z, r: R * 0.9, techo: 99 }); return; }
-    const sc = alto / pieza.alto, y = suelo - 0.05 * alto - 0.15;     // como colocar(..., hundir 0,05, sin falda)
+    const sc = alto / pieza.alto, y = suelo - 0.28 * alto - 0.3;      // bien hundida: el remate en punta de su base no asoma
     const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromAxisAngle(_arriba, giro), new THREE.Vector3(sc, sc, sc)).multiply(_m4.makeTranslation(pieza.desplaza.x, pieza.desplaza.y, pieza.desplaza.z));
     const clave = kitPilares.indexOf(pieza) + ":" + Math.floor(z / 25);
     if (!copiasPared.has(clave)) copiasPared.set(clave, { pieza, ms: [] });
@@ -3700,6 +3707,9 @@ function actualizar(dt) {
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
     scene.fog.near = 2; scene.fog.far = lerp(lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 46, suave(DUNAS.desde, DUNAS.desde - 20, pos.z)), 28, suave(CANON2.desde, CANON2.desde - 12, pos.z));   // (en el desfiladero final, más niebla)   // en las dunas, algo menos niebla
+    // Al caer por un precipicio, la niebla se cierra enseguida: no se ve toda la caída.
+    nieblaCaida = lerp(nieblaCaida, !enSuelo && pos.y < seguro.y - 2.5 ? 1 : 0, 1 - Math.exp(-dt * (pos.y < seguro.y - 2.5 ? 5 : 1.5)));
+    scene.fog.near = lerp(2, 0.3, nieblaCaida); scene.fog.far = lerp(scene.fog.far, 5, nieblaCaida);
   }
 
   // En las dunas amanece: sol bajo y cálido de lado (a barlovento), sombras largas y azuladas,
@@ -3991,6 +4001,13 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     const h = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => alt[(Math.min(NZ - 1, Math.max(0, iz + b)) * NX + Math.min(NX - 1, Math.max(0, ix + a))) * 4]);
     alt[(iz * NX + ix) * 4 + 1] = Math.max(...h) - Math.min(...h);
   }
+  // En el alfa, cuánto cambia el suelo en 3 m alrededor: cerca de una pared, la niebla baja se apaga (si
+  // no, corta las rocas del pie de las paredes en rayas).
+  for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) {
+    let m = 0;
+    for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) m = Math.max(m, alt[(Math.min(NZ - 1, Math.max(0, iz + b)) * NX + Math.min(NX - 1, Math.max(0, ix + a))) * 4 + 1]);
+    alt[(iz * NX + ix) * 4 + 3] = m;
+  }
   // En el azul, lo que alzan los montones y el manto de nieve sobre el suelo (para que la niebla baja
   // pase por encima y no los corte en rayas).
   for (const v of ventisqueros) {
@@ -4011,11 +4028,11 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     const L = 72, N = 104, geo = new THREE.PlaneGeometry(L, L, N, N); geo.rotateX(-Math.PI / 2);
     const mat = new THREE.ShaderMaterial({
       uniforms: { capa: { value: 0 }, mapa: { value: mapaAlturas }, tiempo: { value: 0 }, color: { value: scene.fog.color }, centro: { value: new THREE.Vector3() }, ojo: { value: new THREE.Vector3() }, jugador: { value: new THREE.Vector3() } },
-      vertexShader: `uniform sampler2D mapa; uniform float tiempo; uniform float capa; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton;
+      vertexShader: `uniform sampler2D mapa; uniform float tiempo; uniform float capa; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton; varying float vPared;
         float suelo(vec2 xz) {
           vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
-          vec3 r = mix(mix(texture2D(mapa, (i + 0.5) / t).rgb, texture2D(mapa, (i + vec2(1.5, 0.5)) / t).rgb, f.x), mix(texture2D(mapa, (i + vec2(0.5, 1.5)) / t).rgb, texture2D(mapa, (i + 1.5) / t).rgb, f.x), f.y);
-          vRango = r.y; vMonton = r.z; return r.x;
+          vec4 r = mix(mix(texture2D(mapa, (i + 0.5) / t), texture2D(mapa, (i + vec2(1.5, 0.5)) / t), f.x), mix(texture2D(mapa, (i + vec2(0.5, 1.5)) / t), texture2D(mapa, (i + 1.5) / t), f.x), f.y);
+          vRango = r.y; vPared = r.w; vMonton = r.z; return r.x;
         }
         void main() {
           vec4 w = modelMatrix * vec4(position, 1.0);
@@ -4025,7 +4042,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           vP = w.xyz;
           gl_Position = projectionMatrix * viewMatrix * w;
         }`,
-      fragmentShader: `uniform float tiempo; uniform float capa; uniform vec3 color; uniform vec3 centro; uniform vec3 ojo; uniform vec3 jugador; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton;
+      fragmentShader: `uniform float tiempo; uniform float capa; uniform vec3 color; uniform vec3 centro; uniform vec3 ojo; uniform vec3 jugador; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton; varying float vPared;
         float ruido(vec2 p) { return sin(p.x) * sin(p.y * 1.3 + sin(p.x * 0.7)) * 0.5 + 0.5; }
         void main() {
           vec2 q = vP.xz * 0.16 + vec2(tiempo * 0.12, tiempo * 0.04);
@@ -4035,6 +4052,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           a *= 1.0 - smoothstep(24.0, 34.0, distance(vP.xz, centro.xz));  // borde de la capa
           a *= step(-20.0, vSuelo);                                     // sobre los abismos, no
           a *= 1.0 - smoothstep(0.35, 0.9, vRango);                     // ni en laderas empinadas (cortaría el suelo en rayas)
+          a *= 1.0 - smoothstep(1.2, 2.5, vPared);                      // ni junto a las paredes (cortaría sus rocas)
           a *= smoothstep(0.5, 1.6, distance(vP.xz, jugador.xz));       // se aparta de Blizzard (no lo corta con una raya)
           gl_FragColor = vec4(mix(color, vec3(1.0), 0.18), a);
         }`,
@@ -4135,6 +4153,7 @@ const sombraPies = (() => {
   return m;
 })();
 
+let nieblaCaida = 0;
 let anterior = performance.now(), camaraFija = null;   // solo para pruebas
 // Contador de fotogramas (tecla F, en ordenador): para saber cuánto va de lento y dónde.
 const medidor = document.createElement("div");
