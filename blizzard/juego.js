@@ -2184,35 +2184,24 @@ const puzle = (() => {
   // cuatro alturas; la runa, en una cara vertical y plana que mira al centro, tapada por nieve espolvoreada
   // que el barrido se lleva.
   const cilindros = (() => {
-    const P5 = PLATAFORMA5, altos = [1.4, 1.9, 2.4, 2.9], sitio = [0, 1, 2, 3];
+    const P5 = PLATAFORMA5, altos = [1.75, 1.95, 2.15, 2.35], sitio = [0, 1, 2, 3];   // (alturas parecidas: estirada, la pieza se deforma; el orden lo dicen los números)
     for (let i = 3; i > 0; i--) { const j = Math.floor(rnd4() * (i + 1)); [sitio[i], sitio[j]] = [sitio[j], sitio[i]]; }
     // La nieve que tapa la runa: motas y grumos blancos, densos en el centro y ralos hacia el borde.
     const cn = document.createElement("canvas"); cn.width = cn.height = 128; const gn = cn.getContext("2d");
     gn.fillStyle = "#000"; gn.fillRect(0, 0, 128, 128);
     for (let i = 0; i < 900; i++) { const a = rnd4() * 6.283, rr = Math.pow(rnd4(), 0.7) * 62, x = 64 + Math.cos(a) * rr, y = 64 + Math.sin(a) * rr; gn.fillStyle = `rgba(255,255,255,${(0.5 + rnd4() * 0.5) * (1 - rr / 70)})`; gn.beginPath(); gn.arc(x, y, 1 + rnd4() * 4.5 * (1 - rr / 80), 0, 6.283); gn.fill(); }
-    const texPolvo = new THREE.CanvasTexture(cn), _ray = new THREE.Raycaster();
+    const texPolvo = new THREE.CanvasTexture(cn), matPiedra = new THREE.MeshStandardMaterial({ map: texLisaLimpia, roughness: 0.92 });
+    matPiedra.userData.nevada = true;
     return [0, 1, 2, 3].map(nivel => {
-      const ang = Math.PI / 4 + sitio[nivel] * Math.PI / 2, R = P5.r + 1.2, cx = P5.x + Math.sin(ang) * R, cz = P5.z + Math.cos(ang) * R, h = altos[nivel], w = 1.55;
-      const P = kitPilares[nivel % 3];
-      if (!P.matNevada) { P.matNevada = P.material.clone(); P.matNevada.userData.nevada = true; }
+      const ang = Math.PI / 4 + sitio[nivel] * Math.PI / 2, R = P5.r + 0.85, cx = P5.x + Math.sin(ang) * R, cz = P5.z + Math.cos(ang) * R, h = altos[nivel], w = 1.7;
+      // Un bloque tallado como los de la columna (cuadrado, con sus muescas), más alto, con nieve encima.
       const suelo = masBajoEn(cx, cz, 0.8), g = new THREE.Group(); g.position.set(cx, suelo, cz); scene.add(g);
-      const forma = new THREE.Group(), m = new THREE.Mesh(P.geo, P.matNevada); m.position.copy(P.desplaza); m.castShadow = m.receiveShadow = true;
-      forma.add(m); forma.scale.set(w / (P.radio * 2), (h + 0.3) / P.alto, w / (P.radio * 2)); forma.position.y = -0.3; g.add(forma);
-      // La cara: se prueba la piedra girada de varias maneras y se queda con la que da al centro una cara
-      // vertical y plana (cinco rayos casi a la misma distancia).
-      const haciaC = new THREE.Vector3(P5.x - cx, 0, P5.z - cz).normalize(), lado = new THREE.Vector3(-haciaC.z, 0, haciaC.x), yR = h * 0.58;
-      let mejor = null;
-      for (let k = 0; k < 16; k++) {
-        forma.rotation.y = k * Math.PI / 8; g.updateMatrixWorld(true);
-        const ds = [];
-        for (const [a, b] of [[0, 0], [0.24, 0.24], [-0.24, 0.24], [0.24, -0.24], [-0.24, -0.24]]) {
-          const o = new THREE.Vector3(cx, suelo + yR + b, cz).addScaledVector(haciaC, 3).addScaledVector(lado, a);
-          _ray.set(o, haciaC.clone().negate()); _ray.far = 6; const hh = _ray.intersectObject(m)[0]; ds.push(hh ? hh.distance : 99);
-        }
-        const plana = Math.max(...ds) - Math.min(...ds);
-        if (!mejor || plana < mejor.plana) mejor = { k, plana, fuera: 3 - Math.min(...ds) };
-      }
-      forma.rotation.y = mejor.k * Math.PI / 8; g.updateMatrixWorld(true);
+      const haciaC = new THREE.Vector3(P5.x - cx, 0, P5.z - cz).normalize(), yR = h * 0.58, H = h + 0.3;
+      g.rotation.y = Math.atan2(haciaC.x, haciaC.z) + (rnd4() - 0.5) * 0.1;   // una cara, hacia el centro
+      const m = new THREE.Mesh(geoBloque(), Array(6).fill(matPiedra)); m.scale.set(w / 1.7, H / 1.6, w / 1.7); m.position.y = H / 2 - 0.3; m.castShadow = m.receiveShadow = true; g.add(m);   // (en lista, como los bloques de la columna: la misma nieve y el mismo tono)
+      const gorro = gorroNieve(); gorro.scale.x *= w / 1.7; gorro.scale.z *= w / 1.7; gorro.position.y = h - 0.03; g.add(gorro);
+      g.updateMatrixWorld(true);
+      const caraN = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y)), mejor = { fuera: w / 2 + 0.03 };
       // La runa, tallada, y encima su nieve.
       const c = document.createElement("canvas"); c.width = c.height = 256; const q = c.getContext("2d"); q.lineCap = q.lineJoin = "round";
       // (la runa algo más pequeña, arriba; debajo, tallado, su número: I la piedra de arriba, IV la de abajo)
@@ -2224,13 +2213,13 @@ const puzle = (() => {
       q.fillStyle = "rgba(255,255,255,.4)"; q.fillText(num, 130, 219); q.fillStyle = "#1e1d20"; q.fillText(num, 128, 216);
       const runa = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, roughness: 0.9, emissive: 0xbfe2ff, emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2 }));
       runa.material.userData.suelo = true;
-      const sitioR = new THREE.Vector3(cx, suelo + yR, cz).addScaledVector(haciaC, mejor.fuera + 0.012);
-      runa.position.copy(sitioR); runa.lookAt(sitioR.clone().add(haciaC)); scene.add(runa);
+      const sitioR = new THREE.Vector3(cx, suelo + yR, cz).addScaledVector(caraN, mejor.fuera);
+      runa.position.copy(sitioR); runa.lookAt(sitioR.clone().add(caraN)); scene.add(runa);
       const polvo = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshStandardMaterial({ color: TONO_NIEVE, alphaMap: texPolvo, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -4 }));
       polvo.material.userData.suelo = true;
-      polvo.position.copy(sitioR).addScaledVector(haciaC, 0.01); polvo.lookAt(polvo.position.clone().add(haciaC)); scene.add(polvo);
+      polvo.position.copy(sitioR).addScaledVector(caraN, 0.01); polvo.lookAt(polvo.position.clone().add(caraN)); scene.add(polvo);
       colisiones.push({ x: cx, z: cz, r: w * 0.5, techo: suelo + h });
-      return { x: cx, z: cz, nivel, g, polvo, runa, haciaC, base: polvo.position.clone(), t: -1 };
+      return { x: cx, z: cz, nivel, g, polvo, runa, haciaC: caraN, base: polvo.position.clone(), t: -1 };
     });
   })();
   function metas4De(nivel) { return col4.metas[nivel]; }
@@ -3326,7 +3315,7 @@ function empezarEnSantuario(n) {
   if (n >= 2) { muevePiedras = true; yaAlzada = true; }
   if (n >= 3) abrePuertas = true;
   if (n >= 4) giraBloques = true;
-  if (n >= 5) barre = true;
+  if (n >= 5) { barre = true; avisoPuzle = true; }
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
