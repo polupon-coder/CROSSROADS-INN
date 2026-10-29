@@ -28,7 +28,7 @@ const INGLES = {
   "Pon el dedo en el punto. Resigue la figura.": "Put your finger on the dot. Trace the figure.",
   "Pulsa en el punto. Resigue sin soltar.": "Press on the dot. Trace without letting go.",
   "Santuario del giro": "Sanctuary of the Turn",
-  "Santuario del barrido": "Sanctuary of the Sweep",
+  "Santuario de la revelación": "Sanctuary of Revelation",
   "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
   "Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each monolith keeps the rune of one stone of the column:\nthe lowest, the bottom one; the tallest, the top one.",
@@ -3161,8 +3161,8 @@ const FIGURAS = {
   // La runa de las columnas: el rombo con su travesaño, que gira.
   giro: { velocidad: 48, puntos: [[22, 50], [50, 8], [78, 50], [50, 92], [22, 50], [78, 50]] },
   // La runa del barrido (lámina 80): dos cheurones, uno sobre otro, en un solo trazo.
-  // (con una línea vertical que une los dos: se vuelve por el brazo de cada uno)
-  barrido: { velocidad: 52, puntos: [[26, 20], [50, 44], [74, 20], [50, 44], [50, 80], [26, 56], [50, 80], [74, 56]] },
+  // (unidos por una vertical larga en un extremo: de un solo trazo, sin volver atrás)
+  barrido: { velocidad: 50, puntos: [[74, 14], [50, 38], [26, 14], [26, 62], [50, 86], [74, 62]] },
 };
 const trazo = (() => {
   const capa = document.createElement("div");
@@ -3318,7 +3318,7 @@ const SANTUARIOS = [
   { runa: "runa", nombre: "Santuario de las rocas", texto: "Con el bastón. Aquí aprendes a mover rocas." },
   { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
   { runa: "espiral", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
-  { runa: "barrido", nombre: "Santuario del barrido", texto: "Tras el desfiladero. Aquí aprendes a barrer la nieve con el viento." },
+  { runa: "barrido", nombre: "Santuario de la revelación", texto: "Tras el desfiladero. Aquí aprendes a barrer la nieve con el viento y revelar las runas." },
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
