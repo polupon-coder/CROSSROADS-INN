@@ -218,7 +218,7 @@ PLATAFORMA4.x = caminoX(PLATAFORMA4.z);
 // La última plataforma, en lo alto de un desnivel: desde ella, todo el recorrido sigue ELEVA metros más arriba.
 const ELEVA = 3.6;
 PLATAFORMA3.base = alturaBase(PLATAFORMA3.x, PLATAFORMA3.z) * 0.3 + RELLANO.alto + ELEVA;
-const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 13, ancho: 2.4, n: 14 };   // n escalones
+const RAMPA3 = { desde: PLATAFORMA3.z + PLATAFORMA3.r * 0.8, largo: 13, ancho: 2.4, n: 14, rotos: [4, 10] };   // rotos: escalones que faltan (queda la nieve)   // n escalones
 // Dunas de nieve: barjanes con la ladera de barlovento larga y suave, la cresta curva y la de sotavento
 // corta y empinada (el viento sopla a lo ancho, hacia +x). Junto al paso, bajas (se cruzan andando); a
 // los lados, enormes. Encima, un ondulado suave.
@@ -373,7 +373,7 @@ let MAT_SUELO = null;                                        // el material del 
       if (dentro >= 0 && dentro < 0.8) { h = filo - (0.25 + dentro * 2.2) * (0.8 + ruido); z -= Math.sign(dg) * Math.sin(x * 0.9) * 0.15 * (1 - dentro); }
     }
     pos.setZ(i, z);
-    { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
+    { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
     colores.push(nieve.r, nieve.g, nieve.b);             // mismo tono también en las paredes: sin degradado
   }
@@ -1583,12 +1583,18 @@ const SALTOS_LOSAS = [];
 // Escalones de piedra en la pendiente de la última plataforma.
 const matEscalon = kitPilares[0].material.clone(); matEscalon.userData.polvo = 0.85;   // nieve a manchas sobre la huella   // con un poco de nieve encima
 for (let i = 0; i < RAMPA3.n; i++) {
+  if (RAMPA3.rotos.includes(i)) continue;                      // en mal estado: faltan un par (en su sitio, el escalón de nieve)
   const L = RAMPA3.largo / RAMPA3.n, z = RAMPA3.desde + (i + 0.5) * L, x = PLATAFORMA3.x, pieza = kitPilares[i % 3];
   // De piedra (sin la nieve de arriba, que los confundía con la pendiente) y asomando bien.
   const g = new THREE.Group(), cuerpo = new THREE.Group(), m = new THREE.Mesh(pieza.geo, matEscalon);
   m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto, 0)); m.castShadow = m.receiveShadow = true;
   cuerpo.add(m); cuerpo.scale.set((RAMPA3.ancho * 1.5 - (i % 2) * 0.3) / pieza.ancho, 0.7 / pieza.alto, L * 1.15 / pieza.ancho); g.add(cuerpo);
   g.position.set(x, alturaTerreno(x, z) + 0.02, z); g.rotation.y = (i % 2 ? 0.02 : -0.02); scene.add(g);   // su cara de arriba, a ras de la huella
+}
+// Una roca a la derecha de la escalera, montada un poco sobre los escalones.
+{
+  const z = RAMPA3.desde + RAMPA3.largo * 0.58, x = PLATAFORMA3.x + 2.5, a = 2.3;
+  colocar(kitRocas[3], x, z, a, 2.1, 0.3, masBajoEn(x, z, 1.4), false);
 }
 function animarLosas(dt) {
   for (const L of losas) {
@@ -1804,10 +1810,10 @@ const puzle = (() => {
   for (const [k, zp] of [[0, -604], [1, -655], [2, -712]].map(([k, z]) => [k, z])) {
     let x = 0, z = zp;
     for (let intento = 0; intento < 40; intento++) {
-      const lado = (k + Math.floor(intento / 2)) % 2 ? 1 : -1, d = 4.5 + (intento % 6) * 0.8;
+      const lado = (k + Math.floor(intento / 2)) % 2 ? 1 : -1, d = 3.4 + (intento % 6) * 0.4;   // junto al paso: no se pasan de largo
       x = caminoX(z) + lado * d;
       let lo = Infinity, hi = -Infinity; for (let a = 0; a < 8; a++) { const h = alturaTerreno(x + Math.cos(a * 0.785) * 1.6, z + Math.sin(a * 0.785) * 1.6); lo = Math.min(lo, h); hi = Math.max(hi, h); }
-      if (hi - lo < 0.7 && !colisiones.some(c => !c.rampa && Math.hypot(c.x - x, c.z - z) < c.r + 2.4)) break;
+      if (hi - lo < 1.1 && !colisiones.some(c => !c.rampa && Math.hypot(c.x - x, c.z - z) < c.r + 2.4)) break;
       if (intento % 6 === 5) z -= 3;
     }
     const meta = metas[k], g = new THREE.Group();
@@ -2322,8 +2328,8 @@ const ventisqueros = [];
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
 function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
   if (!manto && cz < DUNAS.desde + 2) return;                 // en las dunas, solo el manto (los montones resaltaban)
-  // (el manto de las dunas, con celdas de 0,25 m: con las de 0,76 cualquier surco salía ancho)
-  const celda = manto ? 0.25 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
+  // (el manto de las dunas, con celdas de 0,16 m: con las de 0,76 el surco salía ancho, y con 0,25 en dientes)
+  const celda = manto ? 0.16 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), th = Math.atan2(v, u);
@@ -2332,7 +2338,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
     const r = Math.min(1, (u * u + v * v) / (borde * borde));
     if (manto) {
       const k = suave(1, 0.7, Math.abs(u)) * (manto.ini && v > 0 ? suave(1, 0.6, v) : 1) * (manto.fin && v < 0 ? suave(-1, -0.6, v) : 1);
-      base[i] = alto * k * (0.9 + 0.1 * Math.sin(x * 1.3 + z * 0.7)) - 0.04; afila[i] = k * 0.55;   // surco más estrecho que en los montones
+      base[i] = alto * k * (0.9 + 0.1 * Math.sin(x * 1.3 + z * 0.7)) - 0.04; afila[i] = k * 0.62;   // surco algo más estrecho que en los montones
     } else {
       base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
       afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
@@ -2362,7 +2368,7 @@ ventisquero(0.6, -4, 8.5, 6, 0.55);
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
 for (const [x, z, a, l, h] of MONTONES) ventisquero(x, z, a, l, h);
 // En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
-for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 22, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
+for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 20, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
 {
   const rndN = generador(9191), libre = (x, z, r) => {
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
