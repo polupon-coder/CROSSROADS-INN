@@ -1912,39 +1912,29 @@ const puzle = (() => {
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
   };
-  // Nieve: un borde irregular en el canto de arriba, algo espolvoreado bajo él (motas ralas que se apagan
-  // hacia abajo). La nieve usa su propio generador: los números de «rnd» se siguen sacando igual, así
-  // no cambian ni la solución ni nada del resto.
-  const rn = generador(911);
-  const nieve = a => `rgba(238,243,251,${a})`;
+  // Sin nieve pintada en la textura: la ponen el sombreado de las rocas móviles (encima y al pie). Los
+  // números de «rnd» se siguen sacando igual, así no cambian ni la solución ni nada del resto.
   const espolvorear = g => {
     for (let i = 0; i < 2600; i++) { rnd(); rnd(); rnd(); rnd(); }
     for (let i = 0; i < 14; i++) { rnd(); rnd(); rnd(); rnd(); }
-    g.fillStyle = nieve(0.85); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 6 + rnd() * 18); g.lineTo(256, 0); g.fill();   // el canto de arriba
+    for (let x = 0; x <= 256; x += 12) rnd();
     for (const lx of [0, 256]) for (let y = 0; y <= 180; y += 12) rnd();
-    for (let i = 0; i < 9; i++) { const x = rn() * 256, y = 14 + rn() * 14, r = 5 + rn() * 9; g.fillStyle = nieve(0.5 + rn() * 0.3); g.beginPath(); g.ellipse(x, y, r * 1.7, r * 0.8, 0, 0, 6.283); g.fill(); }   // grumos colgando del canto
-    for (let i = 0; i < 650; i++) { const y = 18 + 80 * Math.pow(rn(), 1.8), x = rn() * 256, r = 0.6 + rn() * 1.6; g.fillStyle = nieve((0.25 + rn() * 0.35) * (1 - (y - 18) / 90)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); }
+    void g;
   };
-  // Nieve al pie (las de abajo): un poco amontonada contra la base, irregular, y motas por encima.
-  const nieveAlPie = g => {
-    g.fillStyle = nieve(0.8); g.beginPath(); g.moveTo(0, 256); for (let x = 0; x <= 256; x += 10) g.lineTo(x, 256 - (24 + 12 * Math.sin(x * 0.04 + rn() * 0.6) + rn() * 12)); g.lineTo(256, 256); g.fill();
-    for (let i = 0; i < 380; i++) { const y = 214 - 60 * Math.pow(rn(), 1.8), x = rn() * 256, r = 0.6 + rn() * 1.5; g.fillStyle = nieve((0.15 + rn() * 0.3) * (1 - (214 - y) / 65)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); }
-  };
-  const conPie = c => { const k = lienzo(); const g = k.getContext("2d"); g.drawImage(c, 0, 0); nieveAlPie(g); return new THREE.CanvasTexture(k); };
   const caras = {};
   for (const n of NOMBRES) {
     const c = lienzo(), g = c.getContext("2d"); piedra(g, false);
     g.lineCap = g.lineJoin = "round";
     g.save(); g.translate(2, 3); g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 20; g.stroke(); g.restore();   // canto claro de la talla
     g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "#2c2a2b"; g.lineWidth = 15; g.stroke();
-    const limpia = conPie(c);   // la de abajo: sin nieve arriba, un poco al pie
+    const limpia = new THREE.CanvasTexture(c);
     espolvorear(g);
     const e = lienzo(), ge = e.getContext("2d"); ge.fillStyle = "#000"; ge.fillRect(0, 0, 256, 256);
     ge.filter = "blur(3px)"; ge.lineCap = ge.lineJoin = "round"; ge.beginPath(); RUNAS_P[n](ge); ge.strokeStyle = "#fff"; ge.lineWidth = 14; ge.stroke();
     caras[n] = { map: new THREE.CanvasTexture(c), limpia, luz: new THREE.CanvasTexture(e) };
   }
   const lisa = lienzo(); piedra(lisa.getContext("2d"), false);
-  const texLisaLimpia = conPie(lisa);
+  const texLisaLimpia = new THREE.CanvasTexture(lisa);
   espolvorear(lisa.getContext("2d"));
   const nevada = lienzo(); piedra(nevada.getContext("2d"), true);
   const texLisa = new THREE.CanvasTexture(lisa), texNieve = new THREE.CanvasTexture(nevada);
@@ -1969,7 +1959,8 @@ const puzle = (() => {
     const mats = [], cara = n => { const m = new THREE.MeshStandardMaterial({ map: arriba ? caras[n].map : caras[n].limpia, emissive: 0xbfe2ff, emissiveMap: caras[n].luz, emissiveIntensity: 0, roughness: 0.92 }); mats.push(m); return m; };
     const liso = () => new THREE.MeshStandardMaterial({ map: arriba ? texLisa : texLisaLimpia, roughness: 0.92 });   // (las pistas: solo la runa de delante)
     const fz = cara(anillo[0]), fmx = soloFrente ? liso() : cara(anillo[1]), fmz = soloFrente ? liso() : cara(anillo[2]), fx = soloFrente ? liso() : cara(anillo[3]);
-    const tapa = new THREE.MeshStandardMaterial({ map: arriba ? texNieve : texLisaLimpia, roughness: 0.95 });
+    const tapa = new THREE.MeshStandardMaterial({ map: texLisaLimpia, roughness: 0.95 }); void texNieve;
+    for (const m of [...mats, tapa, fmx, fmz, fx]) m.userData.nevada = true;   // nieve como en las rocas móviles: encima y al pie
     const m = new THREE.Mesh(geoBloque(), [fx, fmx, tapa, tapa, fz, fmz]);
     m.castShadow = m.receiveShadow = true;
     return { m, anillo, rot: 0, ang: 0, mats, centro: new THREE.Vector3() };
@@ -4040,7 +4031,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
         }
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
-        ${piedra ? `{
+        ${piedra && piedra !== "runas" ? `{
           float lumU = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
           ${piedra === "arco" ? `diffuseColor.rgb = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.42, lumU, 0.12);   // arcos: un solo tono para todas sus piezas (la textura de cada una apenas cuenta)` : `
           vec3 unida = vec3(0.46, 0.5, 0.58) / 0.49 * mix(0.4, lumU, 0.6);   // mismo tono; brillo acercado a uno común
@@ -4068,14 +4059,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
           ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.985, 0.992, 1.008)" : ""}, smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
-          if (${piedra ? "false" : "true"}) {
-            // En el cuerpo: sobre lo amarillo, nieve; sobre el traje negro, motas más ralas y de un blanco
-            // apagado (la nieve clara sobre negro parecía brillar).
-            float amaP = ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"};
-            float granoNP = fract(sin(dot(floor(vMundoPie * 150.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);   // motas de ~7 mm
-            float cubreNP = smoothstep(0.1, 0.7, nWP.y) * mix(step(0.86, granoNP) * 0.75, smoothstep(0.5, 0.85, motasP), amaP);
-            diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * mix(0.68, 0.95, amaP), cubreNP * ${polvo.toFixed(3)});
-          }
+          if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
         ${niebla < 1 ? `#ifdef USE_FOG
@@ -4092,6 +4076,8 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.5; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.08); } });   // con un ligero brillo; poca veladura (se veía muy claro)
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
+    // Los bloques de runas llevan un material por cara: cada uno, como una roca móvil.
+    if (o.isMesh && Array.isArray(o.material) && o.material.every(m => m.userData.nevada)) { for (const m of o.material) if (!hechos.has(m)) { hechos.add(m); nevar(m, 1.05, 0, 0, 0.95, 1, "runas"); } return; }   // (sin igualar el tono: el suyo)
     if (!o.isMesh || hechos.has(o.material) || !o.material.isMeshStandardMaterial || o.material.userData.suelo) return;
     hechos.add(o.material); nevar(o.material, o.material.userData.polvo ? 0 : 1.05, 0, 0, o.material.userData.nevada ? 0.95 : o.material.userData.polvo || 0, 1, o.material.userData.arco || o.material.userData.polvo ? "arco" : true);   // arcos y escalones: tono de piedra liso   // las que se mueven, con nieve encima
   });
