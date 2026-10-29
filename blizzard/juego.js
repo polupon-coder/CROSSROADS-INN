@@ -31,11 +31,11 @@ const INGLES = {
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
   "En desarrollo…": "In development…",
-  "Desliza a la izquierda la bola de salto\npara girar la cámara.": "Swipe the jump ball left\nto turn the camera.",
-  "V gira la cámara.": "V turns the camera.",
+  "Desliza a los lados la bola de salto\npara girar la cámara.": "Swipe the jump ball sideways\nto turn the camera.",
+  "V y B giran la cámara.": "V and B turn the camera.",
   "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
-  "Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each monolith keeps the rune of one stone of the column:\nthe lowest, the bottom one; the tallest, the top one.",
+  "Cada monolito guarda la runa de una piedra de la columna:\nI, la de arriba; IV, la de abajo.": "Each monolith keeps the rune of one stone of the column:\nI, the top one; IV, the bottom one.",
   "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve.": "Facing a monolith, crouch and press ◇:\nthe wind sweeps its snow.",
   "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.": "Facing a monolith, crouch (C) and press E:\nthe wind sweeps its snow.",
   "La columna cae sobre la sima.": "The column falls across the chasm.",
@@ -87,7 +87,7 @@ const INGLES = {
   "Espacio": "Space",
   "saltar": "jump",
   "agacharse": "crouch",
-  "WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V cámara": "WASD move · Shift run · Space jump · C crouch · E wind · V camera",
+  "WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara": "WASD move · Shift run · Space jump · C crouch · E wind · V B camera",
   "Salir a la portada": "Back to the title",
   "Viento": "Wind"
 };
@@ -2215,13 +2215,18 @@ const puzle = (() => {
       forma.rotation.y = mejor.k * Math.PI / 8; g.updateMatrixWorld(true);
       // La runa, tallada, y encima su nieve.
       const c = document.createElement("canvas"); c.width = c.height = 256; const q = c.getContext("2d"); q.lineCap = q.lineJoin = "round";
-      q.save(); q.translate(2, 3); q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "rgba(255,255,255,.35)"; q.lineWidth = 22; q.stroke(); q.restore();
-      q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "#1e1d20"; q.lineWidth = 16; q.stroke();
-      const runa = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.72), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, roughness: 0.9, emissive: 0xbfe2ff, emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2 }));
+      // (la runa algo más pequeña, arriba; debajo, tallado, su número: I la piedra de arriba, IV la de abajo)
+      q.save(); q.translate(128, 92); q.scale(0.68, 0.68); q.translate(-128, -128);
+      q.save(); q.translate(2, 3); q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "rgba(255,255,255,.35)"; q.lineWidth = 24; q.stroke(); q.restore();
+      q.beginPath(); RUNAS_P[metas4De(nivel)](q); q.strokeStyle = "#1e1d20"; q.lineWidth = 18; q.stroke(); q.restore();
+      const num = ["IV", "III", "II", "I"][nivel];
+      q.font = "700 78px Georgia, 'Times New Roman', serif"; q.textAlign = "center"; q.textBaseline = "middle";
+      q.fillStyle = "rgba(255,255,255,.4)"; q.fillText(num, 130, 219); q.fillStyle = "#1e1d20"; q.fillText(num, 128, 216);
+      const runa = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, roughness: 0.9, emissive: 0xbfe2ff, emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2 }));
       runa.material.userData.suelo = true;
       const sitioR = new THREE.Vector3(cx, suelo + yR, cz).addScaledVector(haciaC, mejor.fuera + 0.012);
       runa.position.copy(sitioR); runa.lookAt(sitioR.clone().add(haciaC)); scene.add(runa);
-      const polvo = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.05), new THREE.MeshStandardMaterial({ color: TONO_NIEVE, alphaMap: texPolvo, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -4 }));
+      const polvo = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshStandardMaterial({ color: TONO_NIEVE, alphaMap: texPolvo, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -4 }));
       polvo.material.userData.suelo = true;
       polvo.position.copy(sitioR).addScaledVector(haciaC, 0.01); polvo.lookAt(polvo.position.clone().add(haciaC)); scene.add(polvo);
       colisiones.push({ x: cx, z: cz, r: w * 0.5, techo: suelo + h });
@@ -3103,7 +3108,7 @@ ui.innerHTML = `
     </div>`}
   </div>
   <div id="rotulo" aria-live="polite"></div>
-  <div id="ayuda" hidden data-t="WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V cámara">WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V cámara</div>
+  <div id="ayuda" hidden data-t="WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara">WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara</div>
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" data-t-aria="Salir a la portada" hidden>×</button>
   <div id="desarrollo" hidden data-t="En desarrollo…">En desarrollo…</div>
   <div id="mandos" hidden>
@@ -3148,15 +3153,16 @@ zonaAccion.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) if (t.identifier === acc.id) {
     const dy = clamp(t.clientY - acc.y0, -32, 32), dx = clamp(t.clientX - acc.x0, -32, 32);
     pomoAccion.style.transform = `translate(${dx}px, ${dy}px)`;
-    // A la izquierda: gira la cámara alrededor de Blizzard.
+    // A los lados: gira la cámara alrededor de Blizzard, hacia un lado o hacia el otro.
     if (dx < -20 && Math.abs(dy) < 18) teclas.add("KeyV"); else teclas.delete("KeyV");
+    if (dx > 20 && Math.abs(dy) < 18) teclas.add("KeyB"); else teclas.delete("KeyB");
     if (dy < -20 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
     if (dy > -10) acc.saltado = false;                              // volver al centro permite otro salto
     if (dy > 20) teclas.add("KeyC"); else teclas.delete("KeyC");
   }
 }, { passive: false });
 const soltarAccion = e => { for (const t of e.changedTouches) if (t.identifier === acc.id) {
-  acc.id = null; teclas.delete("KeyC"); teclas.delete("KeyV"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
+  acc.id = null; teclas.delete("KeyC"); teclas.delete("KeyV"); teclas.delete("KeyB"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
 } };
 zonaAccion.addEventListener("touchend", soltarAccion); zonaAccion.addEventListener("touchcancel", soltarAccion);
 for (const b of ui.querySelectorAll(".boton")) {
@@ -3501,9 +3507,10 @@ function actualizar(dt) {
   const c = enCamino(pos.x, pos.z);
 
   // Cámara dirigida: sigue la dirección del recorrido, no la del jugador.
-  // Girarla a mano (V, o la bola de acción hacia la izquierda): rodea a Blizzard; en cuanto avanza, vuelve
+  // Girarla a mano (V y B, o la bola de acción hacia un lado): rodea a Blizzard; en cuanto avanza, vuelve
   // a su sitio (detrás, mirando el recorrido).
-  if (estado === "juego" && tecla("KeyV")) { giroCam += dt * 1.8; yawCamara += dt * 1.8; }
+  const giroMano = estado === "juego" ? (tecla("KeyV") ? 1 : 0) - (tecla("KeyB") ? 1 : 0) : 0;
+  if (giroMano) { giroCam += dt * 1.8 * giroMano; yawCamara += dt * 1.8 * giroMano; }
   else if (Math.hypot(vel.x, vel.z) > 0.3) giroCam *= Math.exp(-dt * 2.5);
   giroCam = Math.atan2(Math.sin(giroCam), Math.cos(giroCam));
   const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam;
@@ -3622,7 +3629,7 @@ function actualizar(dt) {
       else {
         puzle.barrer(c); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
         espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.9, alto: 2.4 }; efectoEspiral = Math.max(efectoEspiral, 1);
-        if (!avisoCilindros) { avisoCilindros = true; rotular("Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.", 6); }
+        if (!avisoCilindros) { avisoCilindros = true; rotular("Cada monolito guarda la runa de una piedra de la columna:\nI, la de arriba; IV, la de abajo.", 6); }
       }
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo4(pos.x, pos.z, adelante)) {
       // La columna de cuatro: E gira la piedra marcada; agachado, la marca baja una piedra.
@@ -3730,7 +3737,7 @@ function actualizar(dt) {
       musica.viento(0.3, 0.9);
     }
     { const d = ui.querySelector("#desarrollo"), ver = pos.z < PLATAFORMA5.z + 14; if (d.hidden === ver) d.hidden = !ver; }   // (desde el Santuario de la revelación: lo que sigue, a medio hacer)
-    if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a la izquierda la bola de salto\npara girar la cámara." : "V gira la cámara.", 4); }
+    if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a los lados la bola de salto\npara girar la cámara." : "V y B giran la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
     for (const a of AVISOS_TUNEL) if (!a.visto && pos.z < a.z) { a.visto = true; rotular(tactil && a.tactil ? a.tactil : a.texto, 3.5); }
