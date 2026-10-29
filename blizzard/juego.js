@@ -325,8 +325,9 @@ document.body.appendChild(renderer.domElement);
 // metros sobre el paso), en bancos irregulares; las crestas y lo alto asoman por encima.
 {
   const C = THREE.ShaderChunk;
-  C.fog_pars_vertex += "\n#ifdef USE_FOG\n varying vec3 vNieblaP;\n#endif";
-  C.fog_vertex += "\n#ifdef USE_FOG\n vNieblaP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif";
+  // MATMUNDO: la matriz del objeto, con la de cada copia si es una malla instanciada (las paredes del desfiladero).
+  C.fog_pars_vertex += "\n#ifdef USE_INSTANCING\n #define MATMUNDO (modelMatrix * instanceMatrix)\n#else\n #define MATMUNDO modelMatrix\n#endif\n#ifdef USE_FOG\n varying vec3 vNieblaP;\n#endif";
+  C.fog_vertex += "\n#ifdef USE_FOG\n vNieblaP = (MATMUNDO * vec4(transformed, 1.0)).xyz;\n#endif";
   C.fog_pars_fragment += `
 #ifdef USE_FOG
   varying vec3 vNieblaP;
@@ -550,9 +551,10 @@ const nieveFina = (() => {
   m.onBeforeCompile = sh => {
     sh.uniforms.nieveFina = { value: tex }; sh.uniforms.tonoNieve = { value: new THREE.Color(TONO_NIEVE) };
     sh.vertexShader = "varying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
-      vMundoN = (modelMatrix * vec4(transformed, 1.0)).xyz;
-      vec3 esc2 = vec3(dot(modelMatrix[0].xyz, modelMatrix[0].xyz), dot(modelMatrix[1].xyz, modelMatrix[1].xyz), dot(modelMatrix[2].xyz, modelMatrix[2].xyz));
-      vNormalN = normalize(mat3(modelMatrix) * (objectNormal / esc2));`);
+      mat4 mM = MATMUNDO;
+      vMundoN = (mM * vec4(transformed, 1.0)).xyz;
+      vec3 esc2 = vec3(dot(mM[0].xyz, mM[0].xyz), dot(mM[1].xyz, mM[1].xyz), dot(mM[2].xyz, mM[2].xyz));
+      vNormalN = normalize(mat3(mM) * (objectNormal / esc2));`);
     sh.fragmentShader = "uniform sampler2D nieveFina;\nuniform vec3 tonoNieve;\nvarying vec3 vMundoN;\nvarying vec3 vNormalN;\n" + sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
       vec3 nv = texture2D(nieveFina, vMundoN.xz * 0.28).rgb;
       float grano = texture2D(nieveFina, vMundoN.xz * 1.7 + vMundoN.y * 0.3).r;
@@ -1698,11 +1700,18 @@ const AVISOS_TUNEL = [
   const enPrecipicio = z => [GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 1.2 && z > A.hasta - 1.2);
   // El suelo de referencia de la pared: el del paso; sobre un precipicio, el de su borde más cercano.
   const sueloPared = z => { const A = [GRIETA_C1, ESCALERA, GRIETA_C2].find(A => z < A.desde + 1.2 && z > A.hasta - 1.2); if (!A) return alturaTerreno(caminoX(z), z); const zb = z > (A.desde + A.hasta) / 2 ? A.desde + 2.5 : A.hasta - 2.5; return alturaTerreno(caminoX(zb), zb); };
+  // (las de suelo firme, como copias de una malla instanciada por pieza y tramo: cientos de piezas en
+  // pocas llamadas de dibujo, y sin sombra arrojada; cada tramo se descarta si no está a la vista)
+  const copiasPared = new Map(), _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _arriba = new THREE.Vector3(0, 1, 0);
   const pilarPared = (pieza, x, z, alto, giro, suelo, choque) => {
     const R = pieza.ancho / 2 * alto / pieza.alto;
     if (enPrecipicio(z)) { pilarTallado(pieza, new THREE.Vector3(x, suelo - 30, z), new THREE.Vector3(x, suelo + alto, z), R * 2, giro); pilarTallado.ultimo.children[0].material = nieveFina; if (choque) colisiones.push({ x, z, r: R * 0.9, techo: 99 }); return; }
-    colocar(pieza, x, z, alto, giro, 0.05, suelo, false).children[0].material = nieveFina;
-    if (choque) colisiones[colisiones.length - 1].r = R * 0.9; else colisiones.pop();
+    const sc = alto / pieza.alto, y = suelo - 0.05 * alto - 0.15;     // como colocar(..., hundir 0,05, sin falda)
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromAxisAngle(_arriba, giro), new THREE.Vector3(sc, sc, sc)).multiply(_m4.makeTranslation(pieza.desplaza.x, pieza.desplaza.y, pieza.desplaza.z));
+    const clave = kitPilares.indexOf(pieza) + ":" + Math.floor(z / 25);
+    if (!copiasPared.has(clave)) copiasPared.set(clave, { pieza, ms: [] });
+    copiasPared.get(clave).ms.push(m);
+    if (choque) colisiones.push({ x, z, r: R * 0.9, techo: 99 });
   };
   for (const lado of [-1, 1]) for (let z = CANON2.desde - 3; z > CANON2.hasta + 2; z -= 1.5 + rndK() * 0.6) {
     if (Math.abs(z - PUERTA_FINAL_Z) < 3) continue;
@@ -1715,6 +1724,19 @@ const AVISOS_TUNEL = [
     const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 14 + rndK() * 8, R = pieza.ancho / 2 * alto / pieza.alto;
     const x = caminoX(z) + lado * (anchoC2(z) + 3.0 + R * 0.9), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.4;
     pilarPared(pieza, x, z, alto, giro, sueloPared(z), false);
+  }
+  for (const { pieza, ms } of copiasPared.values()) {
+    const g = new THREE.BufferGeometry();                        // los atributos de la pieza, compartidos; la esfera, la del tramo
+    for (const k in pieza.geo.attributes) g.setAttribute(k, pieza.geo.attributes[k]);
+    g.setIndex(pieza.geo.index);
+    const caja = new THREE.Box3(), v = new THREE.Vector3();
+    if (!pieza.geo.boundingSphere) pieza.geo.computeBoundingSphere();
+    for (const m of ms) { v.copy(pieza.geo.boundingSphere.center).applyMatrix4(m); caja.expandByPoint(v); }
+    const rMax = Math.max(...ms.map(m => m.getMaxScaleOnAxis())) * pieza.geo.boundingSphere.radius;
+    g.boundingSphere = new THREE.Sphere(caja.getCenter(new THREE.Vector3()), caja.getSize(new THREE.Vector3()).length() / 2 + rMax);
+    const im = new THREE.InstancedMesh(g, nieveFina, ms.length);
+    ms.forEach((m, i) => im.setMatrixAt(i, m));
+    im.receiveShadow = true; im.frustumCulled = true; scene.add(im);   // (en three r128 viene desactivado)
   }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
   for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
@@ -1809,6 +1831,13 @@ function recomponerLosas() {
 const _rayoPlat = new THREE.Raycaster(), _abajo = new THREE.Vector3(0, -1, 0), _origen = new THREE.Vector3();
 function alturaPlatDe(P, x, z) {
   if (!P.obj || Math.hypot(x - P.x, z - P.z) > P.r * 1.08) return -Infinity;
+  if (P.rejilla) {                                               // (precalculada: el rayo contra el modelo, cada fotograma, era caro)
+    const R = P.r * 1.08, n = P.rejilla.n, fx = (x - P.x + R) / P.rejilla.paso, fz = (z - P.z + R) / P.rejilla.paso;
+    const i = Math.min(n - 2, Math.max(0, Math.floor(fx))), j = Math.min(n - 2, Math.max(0, Math.floor(fz))), u = fx - i, v = fz - j, H = P.rejilla.h;
+    const a = H[j * n + i], b = H[j * n + i + 1], c = H[(j + 1) * n + i], d = H[(j + 1) * n + i + 1];
+    if (a === -Infinity || b === -Infinity || c === -Infinity || d === -Infinity) return Math.max(a, b, c, d) === -Infinity ? -Infinity : Math.max(u < 0.5 ? (v < 0.5 ? a : c) : (v < 0.5 ? b : d), -1e9);
+    return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+  }
   _rayoPlat.set(_origen.set(x, P.base + 12, z), _abajo);
   const g = _rayoPlat.intersectObject(P.obj, true)[0];
   return g ? g.point.y : -Infinity;
@@ -1832,12 +1861,16 @@ function montarPlataforma(P, plat, giro) {
   plat.position.y += P.base + 0.42 - centro;
   plat.updateMatrixWorld(true);
   P.techo = alturaPlatDe(P, P.x + 0.3, P.z + 0.3);
+  // La altura de la plataforma, en una rejilla de 25 cm (se consulta en lugar de lanzar rayos).
+  const R = P.r * 1.08, paso = 0.25, n = Math.ceil(2 * R / paso) + 1, h = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) h[j * n + i] = alturaPlatDe(P, P.x - R + i * paso, P.z - R + j * paso);
+  P.rejilla = { n, paso, h };
 }
 montarPlataforma(PLATAFORMA2, gPlataforma.scene.clone(), 2.4);
 montarPlataforma(PLATAFORMA3, gPlataforma.scene.clone(), 0.9);
 montarPlataforma(PLATAFORMA4, gPlataforma.scene.clone(), 1.7);   // (antes que la primera, que usa el modelo original)
 montarPlataforma(PLATAFORMA5, gPlataforma.scene.clone(), 0.4);
-PLATAFORMA4.obj.position.y -= 0.22; PLATAFORMA4.obj.updateMatrixWorld(true);   // algo más hundida en la nieve
+PLATAFORMA4.obj.position.y -= 0.22; PLATAFORMA4.obj.updateMatrixWorld(true); PLATAFORMA4.techo -= 0.22; PLATAFORMA4.rejilla.h = PLATAFORMA4.rejilla.h.map(v => v - 0.22);   // (y su rejilla de alturas)   // algo más hundida en la nieve
 montarPlataforma(PLATAFORMA, gPlataforma.scene, 4.0);    // los pilares altos, detrás del bastón al llegar
 
 // Alrededor de la cuarta plataforma, un corro de columnas en ruina (rotas a distintas alturas, alguna
@@ -1874,7 +1907,7 @@ const puzle = (() => {
   const lienzo = () => { const c = document.createElement("canvas"); c.width = c.height = 256; return c; };
   // Piedra: gris azulado como el resto, con grano, alguna grieta y los cantos más oscuros.
   const piedra = (g, nieve) => {
-    g.fillStyle = nieve ? "#e3e9f2" : "#737b88";                   // (el gris de las demás piedras) g.fillRect(0, 0, 256, 256);
+    g.fillStyle = nieve ? "#e3e9f2" : "#858d9a";                   // (el gris de las demás piedras) g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "255,255,255" : "20,24,32"},${0.03 + rnd() * 0.07})`; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 2 + rnd() * 5); }
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
@@ -1883,13 +1916,12 @@ const puzle = (() => {
   // los de los lados. Sobre la talla también, pero rala: la runa se sigue leyendo.
   const espolvorear = g => {
     const nieve = a => `rgba(238,243,251,${a})`;
-    for (let i = 0; i < 2600; i++) {
-      const y = 256 * Math.pow(rnd(), 1.6), x = rnd() * 256, r = 0.7 + rnd() * (y < 50 ? 3 : 1.8);
-      g.fillStyle = nieve(((0.3 + rnd() * 0.5) * (1 - y / 320)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+    for (let i = 0; i < 800; i++) {                               // (poca: antes la cara quedaba moteada entera)
+      const y = 256 * Math.pow(rnd(), 2.2), x = rnd() * 256, r = 0.6 + rnd() * (y < 40 ? 2 : 1.2);
+      g.fillStyle = nieve(((0.15 + rnd() * 0.3) * (1 - y / 280)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
     }
-    for (let i = 0; i < 14; i++) { const x = rnd() * 256, y = rnd() * 70, r = 4 + rnd() * 8; g.fillStyle = nieve(0.55 + rnd() * 0.3); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
-    g.fillStyle = nieve(0.85); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 6 + rnd() * 18); g.lineTo(256, 0); g.fill();   // el canto de arriba
-    for (const lx of [0, 256]) { g.beginPath(); g.moveTo(lx, 0); for (let y = 0; y <= 180; y += 12) g.lineTo(Math.abs(lx - (2 + rnd() * 9 * (1 - y / 200))), y); g.lineTo(lx, 180); g.fillStyle = nieve(0.6); g.fill(); }
+    for (let i = 0; i < 4; i++) { const x = rnd() * 256, y = rnd() * 30, r = 3 + rnd() * 5; g.fillStyle = nieve(0.45 + rnd() * 0.2); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
+    g.fillStyle = nieve(0.7); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 3 + rnd() * 9); g.lineTo(256, 0); g.fill();   // el canto de arriba
   };
   const caras = {};
   for (const n of NOMBRES) {
@@ -3647,12 +3679,13 @@ function actualizar(dt) {
   sol.position.copy(sol.target.position).add(haciaSol);
   // Más allá de la niebla no se ve nada: no se dibuja (era la mayor parte de lo que se dibujaba).
   { const f = Math.max(45, scene.fog.far + 22); if (Math.abs(camara.far - f) > 1) { camara.far = f; camara.updateProjectionMatrix(); } }
-  sol.intensity = lerp(0.02, 0.42, alba); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
+  const enCanon2 = suave(CANON2.desde, CANON2.desde - 10, pos.z);   // en el desfiladero final, el sol bajo no entra entre las paredes
+  sol.intensity = lerp(0.02, 0.42, alba) * (1 - 0.92 * enCanon2); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
-  renderer.shadowMap.autoUpdate = alba > 0;
+  renderer.shadowMap.autoUpdate = alba > 0 && enCanon2 < 0.95;
   // Sin sombras (por rendimiento) salvo en las dunas: se encienden al llegar (en móvil y en ordenador).
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
@@ -3988,7 +4021,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = "varying vec3 vMundoPie;\n" + sh.vertexShader.replace("#include <skinning_vertex>", "#include <skinning_vertex>\n vMundoPie = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.vertexShader = "varying vec3 vMundoPie;\n" + sh.vertexShader.replace("#include <skinning_vertex>", "#include <skinning_vertex>\n vMundoPie = (MATMUNDO * vec4(transformed, 1.0)).xyz;");
       sh.fragmentShader = `uniform sampler2D mapaAlturas; uniform sampler2D texNievePie; uniform vec3 tonoNievePie; uniform vec3 veloPie; varying vec3 vMundoPie;
         vec2 sueloPie(vec2 xz) {                                    // (x: altura del suelo; y: cuánto cambia alrededor)
           vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
