@@ -786,6 +786,7 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
 
 // ─── Runas (lámina 80) ─────────────────────────────────────────────────────
 // Las doce runas de la lámina, como trazos grabados claros sobre la piedra, cada una en su textura.
+const FIGURAS_PUERTA = [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 6]];   // la runa de la puerta (también en el trazo)
 const RUNAS = [
   "M50 8 L64 52 L50 92 L36 52 Z", "M50 8 L70 50 L50 92 L30 50 Z M50 8 L50 92", "M30 92 L50 10 L70 92",
   "M66 8 L34 62 L68 62 M68 62 L48 92 M40 80 L48 92 L58 84", "M30 22 L50 44 L70 22 M30 54 L50 76 L70 54", "M50 8 L68 55 L50 92 L32 55 Z M32 55 L68 55",
@@ -1160,6 +1161,25 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   }
 }
 
+// ─── Antes de las dunas: columnas enormes en ruinas ───────────────────────
+// A los lados del paso, columnas muy gruesas rotas a distintas alturas, alguna ladeada, con tambores
+// caídos a su pie; el paso, libre.
+{
+  const rnd = generador(9797);
+  for (let z = QUIEBRA2.hasta - 4, k = 0; z > DUNAS.desde - 6; z -= 3.5 + rnd() * 3, k++) {
+    const lado = k % 2 ? 1 : -1, x = caminoX(z) + lado * (5.5 + rnd() * 5), g = 2.2 + rnd() * 1.1, alto = 5 + rnd() * 10;
+    const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 1, z), cima = new THREE.Vector3(x + (rnd() - 0.5) * (alto > 10 ? 1.4 : 0.4), pie.y + 1 + alto, z + (rnd() - 0.5) * 0.8);
+    pilarTallado(kitPilares[3 + (k % 3)], pie, cima, g, rnd() * 6);
+    colisiones.push({ x, z, r: g * 0.55, techo: cima.y, obj: pilarTallado.ultimo });
+    if (rnd() < 0.6) {                                            // un tambor caído a su pie, tumbado
+      const giro = rnd() * Math.PI, l = 2 + rnd() * 2, fx = x + lado * (1.5 + rnd()), fz = z + (rnd() - 0.5) * 3, y = alturaTerreno(fx, fz) - g * 0.25;
+      const d = new THREE.Vector3(Math.cos(giro) * l / 2, 0.1, Math.sin(giro) * l / 2);
+      pilarTallado(kitPilares[3 + ((k + 1) % 3)], new THREE.Vector3(fx, y, fz).sub(d), new THREE.Vector3(fx, y, fz).add(d), g * 0.85, rnd() * 6);
+      colisiones.push({ x: fx, z: fz, r: g * 0.45, techo: y + g * 0.45, obj: pilarTallado.ultimo });
+    }
+  }
+}
+
 // ─── Dunas: ruinas y rocas semienterradas ──────────────────────────────────
 // Asoman de la nieve aquí y allá, a los lados del paso; en un punto, un grupo de pilastras enormes
 // tumbadas en diagonal, como un templo hundido que la nieve se ha tragado.
@@ -1269,7 +1289,7 @@ function enterrar(pieza, x, z, a, giro, hundir) {
   {
     const z = -636, x = caminoX(z) + 13;
     // Bloques y obeliscos caídos a su alrededor.
-    for (let k = 0; k < 4; k++) obelisco(x + (rnd() - 0.2) * 14, z + (rnd() - 0.5) * 12, 3 + rnd() * 4, 0.9 + rnd() * 0.6);
+    for (let k = 0; k < 4; k++) obelisco(x + (rnd() - 0.2) * 14, z + (rnd() - 0.5) * 12, 6 + rnd() * 8, 1.8 + rnd() * 1.2);   // el doble de grandes
   }
   // Torre en ruinas en una loma lejana, con obeliscos (lámina 1, al fondo).
   {
@@ -1297,25 +1317,6 @@ function enterrar(pieza, x, z, a, giro, hundir) {
   for (let k = 0; k < 9; k++) {
     const z = -591 - k * 4.5 - rnd() * 1.5, x = caminoX(z) - 11 - rnd() * 2 - (k % 3) * 1.8;
     losa(x, z, 3.5 + rnd() * 2.5, 7 + rnd() * 7, 2.2 + rnd(), 1.4 + (rnd() - 0.5) * 0.3, -0.15 - rnd() * 0.12, 0.3);
-  }
-}
-
-// Rocas incrustadas en las paredes de los abismos (precipicio y puente), en dos alturas, sobresaliendo
-// metidas en la pared (asoman poco). Sin colisión: son pared, no apoyo. Lejos de los extremos de las pasarelas.
-{
-  const rndW = generador(9090);
-  for (const [desde, hasta] of ABISMOS) for (const [borde, haciaVacio] of [[desde, -1], [hasta, 1]]) {
-    const xc = caminoX(borde(caminoX(0)));
-    for (let x = xc - 34; x < xc + 34; x += 3.2 + rndW() * 2.4) {
-      const esPuente = desde === puenteDesde || desde === zanjaDesde, nivel = rndW();
-      if (esPuente && Math.abs(x - caminoX(borde(x))) < 4) continue;
-      // Piedra tallada, sin falda de nieve: colgada en la pared, la falda sería un plano horizontal.
-      const pieza = kitPilares[Math.floor(rndW() * kitPilares.length)], alto = 2.6 + rndW() * 3.5, R = pieza.ancho / 2 * alto / pieza.alto;
-      const zb = borde(x), arriba = alturaTerreno(x, zb - haciaVacio * 1.5);
-      const tope = arriba - 1.4 - (nivel < 0.5 ? rndW() * 1.5 : 4 + rndW() * 4);
-      colocar(pieza, x, zb - haciaVacio * R * 0.3, alto, rndW() * Math.PI * 2, 0, tope - alto * 0.97 + 0.15, false).children[0].material = nieveFina;
-      colisiones.pop();
-    }
   }
 }
 
@@ -1537,7 +1538,11 @@ const AVISOS_TUNEL = [
       for (let i = 0; i < uv.count; i++) { uv.setX(i, lado < 0 ? uv.getX(i) * 0.5 : 0.5 + uv.getX(i) * 0.5); pos.setX(i, pos.getX(i) + (lado < 0 ? -0.85 : 0.85)); }
       return g;
     };
-    const runa = materialRuna(12).clone(); runa.opacity = 0.28; runa.color.set(0xe8eef8);   // círculo muy suave  // el círculo de la lámina, partido por la junta
+    // La runa de la puerta es la que se traza en la plataforma: los dos rombos en ocho, partida por la junta.
+    const runa = (() => { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"); g.scale(2.56, 2.56);
+      g.strokeStyle = "#fff"; g.lineWidth = 4.5; g.lineJoin = g.lineCap = "round";
+      g.stroke(new Path2D("M" + FIGURAS_PUERTA.map(p => p.join(" ")).join(" L")));
+      return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.28, depthWrite: false, color: 0xe8eef8 }); })();
     for (const lado of [-1, 1]) {
       // Arista interior recta: la hoja se recorta con un plano vertical en la junta (se mueve con ella).
       const pieza = kitPilares[lado < 0 ? 1 : 2];                 // cada hoja, de una pieza distinta
@@ -1817,7 +1822,7 @@ const puzle = (() => {
     g.position.set(x, y0, G); scene.add(g);
     const orden = () => { const a = NOMBRES.slice(); for (let i = 3; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
     const abajo = bloque(orden(), false), arriba = bloque(orden(), true);
-    abajo.m.position.y = 0.8; arriba.m.position.y = 2.45; arriba.m.rotation.z = (rnd() - 0.5) * 0.04;
+    abajo.m.position.y = 0.8; arriba.m.position.y = 2.39; arriba.m.rotation.z = (rnd() - 0.5) * 0.02;   // apoyadas una en otra, sin junta abierta
     g.add(abajo.m, arriba.m);
     // Que no empiecen alineadas.
     abajo.rot = Math.floor(rnd() * 4); arriba.rot = Math.floor(rnd() * 4);
@@ -1871,7 +1876,7 @@ const puzle = (() => {
     }
     const meta = metas[k], g = new THREE.Group();
     const abajo = bloque([meta.abajo, ...NOMBRES.filter(n => n !== meta.abajo)], false, true), arriba = bloque([meta.arriba, ...NOMBRES.filter(n => n !== meta.arriba)], true, true);
-    abajo.m.position.y = 0.8; arriba.m.position.set((rnd() - 0.5) * 0.12, 2.43, (rnd() - 0.5) * 0.1); arriba.m.rotation.y = (rnd() - 0.5) * 0.16;   // gastada: algo movida
+    abajo.m.position.y = 0.8; arriba.m.position.set((rnd() - 0.5) * 0.12, 2.39, (rnd() - 0.5) * 0.1); arriba.m.rotation.y = (rnd() - 0.5) * 0.16;   // gastada: algo movida
     g.add(abajo.m, arriba.m);
     const haciaPaso = Math.sign(caminoX(z) - x), n = new THREE.Vector3(haciaPaso, 0, 1.1).normalize();
     g.rotation.set(-0.42, Math.atan2(n.x, n.z), (rnd() - 0.5) * 0.12, "YXZ");   // la runa mira al paso; recostada hacia atrás
@@ -2379,10 +2384,10 @@ const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 const ventisqueros = [];
 // manto: capa continua (en las dunas): grosor igual en todo el tramo, solo se afina en los lados (y,
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
-function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
-  if (!manto && cz < DUNAS.desde + 2) return;                 // en las dunas, solo el manto (los montones resaltaban)
+function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
+  if (!manto && !forzar && cz < DUNAS.desde + 2) return;                 // en las dunas, solo el manto (los montones resaltaban)
   // (el manto de las dunas, con celdas de 0,16 m: con las de 0,76 el surco salía ancho, y con 0,25 en dientes)
-  const celda = manto ? 0.16 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
+  const celda = manto ? 0.13 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), th = Math.atan2(v, u);
@@ -2420,6 +2425,18 @@ ventisquero(0.6, -4, 8.5, 6, 0.55);
 // recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
 for (const [x, z, a, l, h] of MONTONES) ventisquero(x, z, a, l, h);
+// Al pie de las pistas de runas de las dunas, una mancha de nieve amontonada (por encima del manto).
+for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
+// En el desfiladero de las rocas que se apartan: nieve acumulada contra las paredes, a trozos irregulares.
+{
+  const rndD = generador(6464);
+  for (let z = CANON_DESDE - 1; z > DESFILADERO.hasta - 4; z -= 1.6 + rndD() * 2.2) for (const lado of [-1, 1]) {
+    if (rndD() < 0.3) continue;
+    const w = anchoCanon(z), a = 1.6 + rndD() * 2.4, l = 2.2 + rndD() * 3.4, x = caminoX(z) + lado * (w - 0.2 - rndD() * 0.6 + a * 0.15);
+    if (Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z) < PLATAFORMA2.r + 1.2) continue;
+    ventisquero(x, z, a, l, 0.35 + rndD() * 0.4);
+  }
+}
 // En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
 for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 20, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
 {
@@ -2457,7 +2474,7 @@ function pisarVentisqueros(dt) {
     let cambia = false;
     for (let i = 0; i < p.count; i++) {
       let h = v.hundido[i];
-      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const k = suave(rad, rad * 0.4, d) * (0.08 + 0.92 * a); if (k > h) { h = k; } } }
+      if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const q = 1 - (d / rad) * (d / rad), k = q * q * (0.08 + 0.92 * a); if (k > h) { h = k; } } }   // perfil de cuenco: sin escalones aunque se cruce en diagonal
       if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
       if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, nx = v.nx; t[i] = 1; if (i > 0) t[i - 1] = 1; if (i + 1 < t.length) t[i + 1] = 1; if (i >= nx) t[i - nx] = 1; if (i + nx < t.length) t[i + nx] = 1; } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
     }
@@ -2700,7 +2717,7 @@ const FIGURAS = {
   // La runa del viento: el rombo del botón ◇ en un sentido y otro rombo dentro en el contrario.
   runa: { velocidad: 58, puntos: [[50, 8], [84, 50], [50, 92], [16, 50], [50, 10], [50, 28], [33, 50], [50, 72], [67, 50], [50, 30]] },
   // La runa de la puerta (lámina 80): dos rombos apilados, en un solo trazo, como un ocho.
-  puerta: { velocidad: 40, puntos: [[50, 6], [70, 28], [50, 50], [70, 72], [50, 94], [30, 72], [50, 50], [30, 28], [50, 8]] },
+  puerta: { velocidad: 40, puntos: FIGURAS_PUERTA.slice(0, -1).concat([[50, 8]]) },
   // La runa de las columnas: el rombo con su travesaño, que gira.
   giro: { velocidad: 48, puntos: [[22, 50], [50, 8], [78, 50], [50, 92], [22, 50], [78, 50]] },
 };
@@ -3564,7 +3581,8 @@ function efectos(dt, adelante) {
     b.rotation.y = Math.atan2(camara.position.x - b.position.x, camara.position.z - b.position.z);
     const d = Math.hypot(b.position.x - pos.x, b.position.z - pos.z);
     b.userData.llano = lerp(b.userData.llano ?? 1, alto - bajo > 1 ? 0 : 1, 1 - Math.exp(-dt * 2));
-    b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1) * b.userData.llano;
+    const dc = Math.hypot(b.position.x - camara.position.x, b.position.z - camara.position.z);   // (pegado a la cámara se veía como una lámina cruzando)
+    b.material.opacity = b.userData.opacidad * clamp((d - 5) / 9, 0, 1) * clamp((dc - 5) / 7, 0, 1) * b.userData.llano;
   }
 
   // Espiral blanca del viento mágico (impulso, rescate, límite del mundo).
@@ -3825,7 +3843,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
         ${polvo > 0 ? `{
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
-          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb, smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
+          ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.95, 0.975, 1.03)" : ""}, smoothstep(0.35, 0.7, nWP.y + (motasP - 0.5) * 0.5) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
           if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
