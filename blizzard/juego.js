@@ -326,6 +326,7 @@ Object.assign(sol.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, n
 sol.shadow.bias = -0.0008; sol.shadow.radius = 4;
 scene.add(sol, sol.target);
 const SOL_DIA = new THREE.Color(0xf3f1ec), SOL_ALBA = new THREE.Color(0xffbf8c), CIELO_DIA = new THREE.Color(0xe4eaf3), CIELO_ALBA = new THREE.Color(0xb9c2e4);
+const SOL_DIR_DIA = new THREE.Vector3(-18, 30, 12), SOL_DIR_ALBA = new THREE.Vector3(-52, 19, -20), _arribaSol = new THREE.Vector3(0, 1, 0), _ejeD = new THREE.Vector3(), _ejeR = new THREE.Vector3(), _ejeU = new THREE.Vector3();
 const SUELO_DIA = new THREE.Color(0xdbe1ec), SUELO_ALBA = new THREE.Color(0xe2cfcc), BRUMA_ALBA = new THREE.Color("#e3d4d4");
 
 // Tono único de la nieve (suelo, montículos y nieve de rocas y ruinas): blanco algo azulado.
@@ -1698,17 +1699,30 @@ const puzle = (() => {
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
   };
+  // Nieve espolvoreada: motas, más hacia arriba; grumos y un borde irregular en el canto de arriba y en
+  // los de los lados. Sobre la talla también, pero rala: la runa se sigue leyendo.
+  const espolvorear = g => {
+    const nieve = a => `rgba(238,243,251,${a})`;
+    for (let i = 0; i < 2600; i++) {
+      const y = 256 * Math.pow(rnd(), 1.6), x = rnd() * 256, r = 0.7 + rnd() * (y < 50 ? 3 : 1.8);
+      g.fillStyle = nieve(((0.3 + rnd() * 0.5) * (1 - y / 320)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+    }
+    for (let i = 0; i < 14; i++) { const x = rnd() * 256, y = rnd() * 70, r = 4 + rnd() * 8; g.fillStyle = nieve(0.55 + rnd() * 0.3); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
+    g.fillStyle = nieve(0.85); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 6 + rnd() * 18); g.lineTo(256, 0); g.fill();   // el canto de arriba
+    for (const lx of [0, 256]) { g.beginPath(); g.moveTo(lx, 0); for (let y = 0; y <= 180; y += 12) g.lineTo(Math.abs(lx - (2 + rnd() * 9 * (1 - y / 200))), y); g.lineTo(lx, 180); g.fillStyle = nieve(0.6); g.fill(); }
+  };
   const caras = {};
   for (const n of NOMBRES) {
     const c = lienzo(), g = c.getContext("2d"); piedra(g, false);
     g.lineCap = g.lineJoin = "round";
     g.save(); g.translate(2, 3); g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 20; g.stroke(); g.restore();   // canto claro de la talla
     g.beginPath(); RUNAS_P[n](g); g.strokeStyle = "#2c2a2b"; g.lineWidth = 15; g.stroke();
+    espolvorear(g);
     const e = lienzo(), ge = e.getContext("2d"); ge.fillStyle = "#000"; ge.fillRect(0, 0, 256, 256);
     ge.filter = "blur(3px)"; ge.lineCap = ge.lineJoin = "round"; ge.beginPath(); RUNAS_P[n](ge); ge.strokeStyle = "#fff"; ge.lineWidth = 14; ge.stroke();
     caras[n] = { map: new THREE.CanvasTexture(c), luz: new THREE.CanvasTexture(e) };
   }
-  const lisa = lienzo(); piedra(lisa.getContext("2d"), false);
+  const lisa = lienzo(); piedra(lisa.getContext("2d"), false); espolvorear(lisa.getContext("2d"));
   const nevada = lienzo(); piedra(nevada.getContext("2d"), true);
   const texLisa = new THREE.CanvasTexture(lisa), texNieve = new THREE.CanvasTexture(nevada);
   // Un bloque: las cuatro caras con runas en anillo (la que mira al camino tras k cuartos de vuelta es
@@ -2290,7 +2304,8 @@ const ventisqueros = [];
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
 function ventisquero(cx, cz, ancho, largo, alto, manto = null) {
   if (!manto && cz < DUNAS.desde + 2) return;                 // en las dunas, solo el manto (los montones resaltaban)
-  const NX = Math.ceil(ancho / Math.max(0.13, ancho / 34)), NZ = Math.ceil(largo / Math.max(0.13, largo / 34)), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
+  // (el manto de las dunas, con celdas de 0,25 m: con las de 0,76 cualquier surco salía ancho)
+  const celda = manto ? 0.25 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position, uv = geo.attributes.uv, afila = new Float32Array(p.count), base = new Float32Array(p.count), suelo = new Float32Array(p.count), hundido = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     const x = cx + p.getX(i), z = cz + p.getZ(i), u = p.getX(i) / (ancho / 2), v = p.getZ(i) / (largo / 2), th = Math.atan2(v, u);
@@ -2329,7 +2344,7 @@ ventisquero(0.6, -4, 8.5, 6, 0.55);
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
 for (const [x, z, a, l, h] of MONTONES) ventisquero(x, z, a, l, h);
 // En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
-for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 26, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
+for (let z = DUNAS.desde - 2, n = 0; z > ANILLO_Z + 14; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 22, 10, 0.3, { ini: n === 0, fin: z - 10 <= ANILLO_Z + 14 });
 {
   const rndN = generador(9191), libre = (x, z, r) => {
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
@@ -3334,15 +3349,20 @@ function actualizar(dt) {
   // En las dunas amanece: sol bajo y cálido de lado (a barlovento), sombras largas y azuladas,
   // y una bruma rosada en el horizonte.
   const alba = suave(DUNAS.desde, DUNAS.desde - 45, pos.z);   // amanece poco a poco
-  sol.position.set(pos.x + lerp(-18, -52, alba), pos.y + lerp(30, 19, alba), pos.z + lerp(12, -20, alba));
-  sol.target.position.copy(pos);
+  // Las sombras no deben temblar: dirección fija (la del día o la del alba; el cambio, con el sol aún sin
+  // fuerza) y el mapa de sombras encajado en su rejilla de texels (si se desliza con Blizzard, los bordes parpadean).
+  const r = alba > 0 ? 85 : 22, haciaSol = alba > 0 ? SOL_DIR_ALBA : SOL_DIR_DIA, texel = 2 * r / sol.shadow.mapSize.x;
+  _ejeD.copy(haciaSol).normalize(); _ejeR.crossVectors(_arribaSol, _ejeD).normalize(); _ejeU.crossVectors(_ejeD, _ejeR);
+  const ea = pos.dot(_ejeR), eb = pos.dot(_ejeU);
+  sol.target.position.copy(pos).addScaledVector(_ejeR, Math.round(ea / texel) * texel - ea).addScaledVector(_ejeU, Math.round(eb / texel) * texel - eb);
+  sol.position.copy(sol.target.position).add(haciaSol);
   sol.intensity = lerp(0.02, 0.42, alba); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
 
   // En el móvil no hay sombras (por rendimiento), salvo en las dunas: se encienden al llegar.
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
-  { const c = sol.shadow.camera, r = alba > 0 ? 85 : 22; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
+  { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
   puzle.actualizar(dt);
   efectos(dt, adelante);
