@@ -60,6 +60,7 @@ const INGLES = {
   "Continuará…": "To be continued…",
  "Una grieta. Corre y salta.": "A crevasse. Run and jump.",
  "Sáltala.": "Jump over it.",
+ "Nieve que se hunde.\n¡Sáltala corriendo!": "Sinking snow.\nRun and jump over it!",
  "Sube de piedra en piedra.": "Climb from stone to stone.",
  "Muy ancha. Salta y usa el viento.": "Too wide. Jump and use the wind.",
  "Otra puerta sellada.\nSube a la plataforma.": "Another sealed door.\nClimb onto the platform.",
@@ -194,6 +195,9 @@ const CANON2 = { desde: -790, hasta: -968 };
 const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hasta: -872, sube: 4.8 }, GRIETA_C2 = { desde: -903, hasta: -907.4 };
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
 const anchoC2 = z => 4.4 + Math.sin(z * 0.13) * 0.7;
+// Nieve que se hunde (como arenas movedizas, en espiral): de pared a pared; hay que saltarla corriendo.
+const ARENAS = [{ z: -881, largo: 2.6 }, { z: -929, largo: 2.6 }];
+const enArena = (x, z) => ARENAS.find(A => Math.abs(z - A.z) < A.largo / 2 && Math.abs(x - caminoX(z)) < anchoC2(z) + 0.5);
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
 const generador = semilla => { let a = semilla; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
@@ -1454,6 +1458,7 @@ const AVISOS_CANON = [
   { z: BAJO_C + 5, texto: "Agáchate con C.", tactil: "Desliza abajo para agacharte." },
   { z: ESCALERA.desde + 5, texto: "Sube de piedra en piedra." },
   { z: GRIETA_C2.desde + 6, texto: "Muy ancha. Salta y usa el viento." },
+  ...ARENAS.map(A => ({ z: A.z + 7, texto: "Nieve que se hunde.\n¡Sáltala corriendo!" })),
   { z: PLATAFORMA5.z + 8, texto: "Otra puerta sellada.\nSube a la plataforma." },
 ];
 const AVISOS_TUNEL = [
@@ -1713,7 +1718,7 @@ const AVISOS_TUNEL = [
   }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
   for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
-    if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 3 && z > A.hasta - 3) || Math.abs(z - TUMBADA_C) < 3 || Math.abs(z - BAJO_C) < 3 || Math.abs(z - PLATAFORMA5.z) < PLATAFORMA5.r + 3 || Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
+    if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 3 && z > A.hasta - 3) || ARENAS.some(A => Math.abs(z - A.z) < 4) || Math.abs(z - TUMBADA_C) < 3 || Math.abs(z - BAJO_C) < 3 || Math.abs(z - PLATAFORMA5.z) < PLATAFORMA5.r + 3 || Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
     const lado = rndK() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (anchoC2(z) - 0.4), g = 1.3 + rndK() * 0.6, alto = 2 + rndK() * 6;
     const pie = new THREE.Vector3(x, alturaTerreno(x, z) - 0.8, z);
     pilarTallado(kitPilares[3 + Math.floor(rndK() * 3)], pie, pie.clone().add(new THREE.Vector3((rndK() - 0.5) * 0.6, alto, 0)), g, rndK() * 6);
@@ -2565,7 +2570,7 @@ for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
 }
 // En el desfiladero final: nieve acumulada a trozos, sobre todo contra las paredes, y algún montón en el paso.
 {
-  const rndC = generador(7373), libreC = z => ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 2.5 && z > A.hasta - 2.5) && Math.abs(z - PLATAFORMA5.z) > PLATAFORMA5.r + 1.5 && Math.abs(z - PUERTA_FINAL_Z) > 2;
+  const rndC = generador(7373), libreC = z => !ARENAS.some(A => Math.abs(z - A.z) < A.largo / 2 + 2.5) && ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 2.5 && z > A.hasta - 2.5) && Math.abs(z - PLATAFORMA5.z) > PLATAFORMA5.r + 1.5 && Math.abs(z - PUERTA_FINAL_Z) > 2;
   for (let z = CANON2.desde - 3; z > CANON2.hasta + 3; z -= 1.8 + rndC() * 2.4) {
     if (!libreC(z)) continue;
     for (const lado of [-1, 1]) {
@@ -2575,6 +2580,17 @@ for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
     }
     if (rndC() < 0.2) ventisquero(caminoX(z) + (rndC() - 0.5) * 3, z, 2.5 + rndC() * 2, 2 + rndC() * 2, 0.3 + rndC() * 0.2);
   }
+}
+// La nieve que se hunde: un montón de pared a pared con surcos en espiral (que no se rellenan).
+for (const A of ARENAS) {
+  const cx = caminoX(A.z), w = anchoC2(A.z) + 1;
+  ventisquero(cx, A.z, w * 2, A.largo + 1.6, 0.45, null, true);
+  const v = ventisqueros[ventisqueros.length - 1], p = v.geo.attributes.position; v.fijo = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) {
+    const dx = p.getX(i) - cx, dz = (p.getZ(i) - A.z) * 1.6, r = Math.hypot(dx, dz), th = Math.atan2(dz, dx);
+    v.fijo[i] = (0.25 + 0.25 * Math.sin(th * 3 + r * 2.6)) * (1 - suave(w * 0.5, w, r)) * 0.8 + 0.35 * (1 - suave(0, 1.6, r));
+  }
+  v.cambia = true;
 }
 // En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
 for (let z = DUNAS.desde - 2, n = 0; z > PUZLE_Z - 10; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 20, 10, 0.3, { ini: n === 0, fin: z - 10 <= PUZLE_Z - 10 });
@@ -3056,7 +3072,8 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
-let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false;
+let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0;
+const _espArena = new THREE.Vector3();
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
 let yawCamara = Math.PI, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
@@ -3262,6 +3279,7 @@ function actualizar(dt) {
       deseo.x -= c.nx * rachaViento * 2.2; deseo.z -= c.nz * rachaViento * 2.2;
     }
 
+    if (hundimiento > 0) deseo.multiplyScalar(0.2);            // hundiéndose en la nieve, apenas se avanza
     if (llevando) deseo.multiplyScalar(0.6);                  // con una roca en el aire se anda despacio
     if (escalon > 0) deseo.multiplyScalar(0.65);              // al subir un escalón alto, el paso se acorta
     const agarre = enSuelo ? 12 : 2.5;
@@ -3344,7 +3362,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && !ARENAS.some(A => Math.abs(pos.z - A.z) < A.largo / 2 + 2) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && enSuelo && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -3513,7 +3531,15 @@ function actualizar(dt) {
     const o = puzle.objetivo(pos.x, pos.z, adelante, agachadoAhora);
     if (o) { espiralEn = o.centro; espiralTam = { r: 1.35, alto: 1.9 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
   }
+  // La nieve que se hunde: al pisarla, Blizzard se va hundiendo en espiral; si no salta a tiempo, el viento
+  // lo devuelve al último sitio seguro (como al caer por un precipicio).
+  if (estado === "juego" && !rescate && enSuelo && enArena(pos.x, pos.z)) {
+    hundimiento += dt * 1.25;
+    espiralEn = _espArena.set(pos.x, pos.y + 0.5 - hundimiento * 0.4, pos.z); espiralTam = { r: 0.75 + hundimiento * 0.2, alto: 0.7 }; efectoEspiral = Math.max(efectoEspiral, 1);
+    if (hundimiento > 1.35) { hundimiento = 0; empezarRescate(); }
+  } else hundimiento = Math.max(0, hundimiento - dt * 4);
   blizzard.position.copy(pos);
+  if (hundimiento > 0) blizzard.position.y -= hundimiento;
   // Al subir un escalón el cuerpo no salta de golpe: sube en un instante corto con la rodilla alta.
   if (escalon > 0) {
     escalon = Math.max(0, escalon - dt);
