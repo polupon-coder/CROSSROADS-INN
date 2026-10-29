@@ -295,7 +295,7 @@ function alturaTerreno(x, z) {
   // Desfiladero final: paredes altas que siguen el camino; tras la escalera, todo más alto.
   { const enC2 = suave(CANON2.desde + 2, CANON2.desde - 4, z) * suave(CANON2.hasta - 4, CANON2.hasta + 2, z);
     // (altas y siguiendo hacia fuera: no se ve dónde acaban; al pie, forradas de rocas talladas)
-    if (enC2 > 0) { const w = anchoC2(z), d = Math.abs(x - caminoX(z)); h += enC2 * (14 * suave(w + 1.4, w + 4, d) + Math.max(0, d - w - 4) * 0.9); }   // detrás de la fila de pilares (como el primer desfiladero)
+    if (enC2 > 0) { const w = anchoC2(z), d = Math.abs(x - caminoX(z)); h += enC2 * (16 * suave(w + 5, w + 9, d) + Math.max(0, d - w - 9) * 0.9); }   // detrás de la fila de pilares (como el primer desfiladero)
     h += ESCALERA.sube * suave(ESCALERA.hasta + 0.6, ESCALERA.hasta - 0.6, z); }
   if (PLATAFORMA5.base !== undefined) h = lerp(PLATAFORMA5.base, h, suave(PLATAFORMA5.r + 0.5, PLATAFORMA5.r + 3, Math.hypot(x - PLATAFORMA5.x, z - PLATAFORMA5.z)));
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
@@ -1661,7 +1661,8 @@ const AVISOS_TUNEL = [
 
   // ─── Desfiladero final ───────────────────────────────────────────────────
   // Nada más pasar las columnas, rocas que apartar (y que tapan el fondo); la grande no se mueve.
-  for (const [dx, dz, alto, ancho] of [[-1.3, -4.4, 2.2, 1.9], [1.1, -5.2, 2.4, 2.0], [-0.3, -7.6, 2.0, 1.8]])
+  // (de pared a pared: al hundirse las columnas, el paso sigue cerrado hasta apartarlas)
+  for (const [dx, dz, alto, ancho] of [[-2.45, -4.6, 2.3, 2.3], [0, -4.3, 2.4, 2.3], [2.45, -4.7, 2.2, 2.3]])   // (basta con llevarse una atrás, al claro)
     penascos.push(nuevoPenasco(caminoX(PUZLE_Z + dz) + dx, PUZLE_Z + dz, alto, ancho));
   tumbada(TUMBADA_C, 1.1, 0.12);                                 // una pilastra caída de pared a pared: se salta
   bajo(BAJO_C, 0.06, 0, 1.4, kitPilares[4]);                     // paso bajo: hay que agacharse
@@ -1671,9 +1672,12 @@ const AVISOS_TUNEL = [
     const L0 = alturaTerreno(caminoX(ESCALERA.desde + 1.5), ESCALERA.desde + 1.5), n = 9, largo = ESCALERA.desde - ESCALERA.hasta;
     for (let i = 0; i < n; i++) {
       const z = ESCALERA.desde - largo * (i + 0.5) / n, x = caminoX(z) + (i % 2 ? 0.5 : -0.5), top = L0 + ESCALERA.sube * (i + 1) / (n + 0.5);
-      const alto = top - (L0 - 30), ancho = 2.6, g = new THREE.Mesh(geoPiedraPlana(ancho, alto, rndK), kitPilares[0].matNevada || nieveFina);
-      g.castShadow = g.receiveShadow = true; g.rotation.y = desvio(z) + (rndK() - 0.5) * 0.2;
-      g.position.set(x, top - alto / 2, z); scene.add(g);
+      // Arriba, un bloque del kit a su escala (tallado, con nieve); debajo, la columna que baja al fondo.
+      const ancho = 2.6, P = kitPilares[i % 3], g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina), h = 2.6;
+      m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
+      g.scale.set(ancho / (P.radio * 2), h / P.alto, ancho / (P.radio * 2)); g.rotation.y = desvio(z) + (rndK() - 0.5) * 0.3;
+      g.position.set(x, top, z); scene.add(g);
+      pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(x, top - 32, z), new THREE.Vector3(x, top - h * 0.6, z), ancho * 0.9, rndK() * 6); pilarTallado.ultimo.children[0].material = nieveFina;
       colisiones.push({ x, z, r: ancho * 0.48, techo: top });
     }
   }
@@ -1683,22 +1687,29 @@ const AVISOS_TUNEL = [
   // La segunda puerta arcana, bajo un gran arco, tras la quinta plataforma.
   arco(PUERTA_FINAL_Z, 9.6, 15, 3.4, "entero", 0);
   montarPuerta(puertaFinal, PUERTA_FINAL_Z);
-  // Las paredes, como en el primer desfiladero: pilares tallados de pie, juntos, al borde del paso, con la
-  // pared del terreno detrás (más alta, y sigue subiendo: no se ve dónde acaba).
+  // Las paredes, como en el primer desfiladero: pilares tallados de pie, juntos, al borde del paso; detrás,
+  // otra fila más alta, y la pared del terreno más atrás (no las corta). Sobre los precipicios, los mismos
+  // pilares salen del fondo (no quedan flotando ni dejan hueco).
+  const enPrecipicio = z => [GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 1.2 && z > A.hasta - 1.2);
+  // El suelo de referencia de la pared: el del paso; sobre un precipicio, el de su borde más cercano.
+  const sueloPared = z => { const A = [GRIETA_C1, ESCALERA, GRIETA_C2].find(A => z < A.desde + 1.2 && z > A.hasta - 1.2); if (!A) return alturaTerreno(caminoX(z), z); const zb = z > (A.desde + A.hasta) / 2 ? A.desde + 2.5 : A.hasta - 2.5; return alturaTerreno(caminoX(zb), zb); };
+  const pilarPared = (pieza, x, z, alto, giro, suelo, choque) => {
+    const R = pieza.ancho / 2 * alto / pieza.alto;
+    if (enPrecipicio(z)) { pilarTallado(pieza, new THREE.Vector3(x, suelo - 30, z), new THREE.Vector3(x, suelo + alto, z), R * 2, giro); pilarTallado.ultimo.children[0].material = nieveFina; if (choque) colisiones.push({ x, z, r: R * 0.9, techo: 99 }); return; }
+    colocar(pieza, x, z, alto, giro, 0.05, suelo, false).children[0].material = nieveFina;
+    if (choque) colisiones[colisiones.length - 1].r = R * 0.9; else colisiones.pop();
+  };
   for (const lado of [-1, 1]) for (let z = CANON2.desde - 3; z > CANON2.hasta + 2; z -= 1.5 + rndK() * 0.6) {
-    if ([GRIETA_C1, ESCALERA, GRIETA_C2].some(A => z < A.desde + 0.8 && z > A.hasta - 0.8) || Math.abs(z - PUERTA_FINAL_Z) < 3) continue;
+    if (Math.abs(z - PUERTA_FINAL_Z) < 3) continue;
     const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 7 + rndK() * 4, R = pieza.ancho / 2 * alto / pieza.alto;
     const x = caminoX(z) + lado * (anchoC2(z) + R * 0.95), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.3;
-    colocar(pieza, x, z, alto, giro, 0.05, alturaTerreno(caminoX(z), z), false).children[0].material = nieveFina;
-    colisiones[colisiones.length - 1].r = R * 0.9;
+    pilarPared(pieza, x, z, alto, giro, sueloPared(z), true);
   }
-  // Detrás y más arriba, las mismas piedras verticales, más grandes: tapan la pared del terreno.
-  for (const lado of [-1, 1]) for (let z = CANON2.desde - 2; z > CANON2.hasta + 2; z -= 2.4 + rndK() * 1.2) {
+  for (const lado of [-1, 1]) for (let z = CANON2.desde - 2; z > CANON2.hasta + 2; z -= 2.2 + rndK() * 1.0) {
     if (Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
-    const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 13 + rndK() * 7, R = pieza.ancho / 2 * alto / pieza.alto;
-    const x = caminoX(z) + lado * (anchoC2(z) + 3.2 + R), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.4;
-    colocar(pieza, x, z, alto, giro, 0.05, Math.max(alturaTerreno(caminoX(z), z), alturaTerreno(x - lado * R, z) - 3), false).children[0].material = nieveFina;
-    colisiones.pop();                                            // (en la pared, fuera del alcance)
+    const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 14 + rndK() * 8, R = pieza.ancho / 2 * alto / pieza.alto;
+    const x = caminoX(z) + lado * (anchoC2(z) + 3.0 + R * 0.9), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.4;
+    pilarPared(pieza, x, z, alto, giro, sueloPared(z), false);
   }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
   for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
@@ -1858,7 +1869,7 @@ const puzle = (() => {
   const lienzo = () => { const c = document.createElement("canvas"); c.width = c.height = 256; return c; };
   // Piedra: gris azulado como el resto, con grano, alguna grieta y los cantos más oscuros.
   const piedra = (g, nieve) => {
-    g.fillStyle = nieve ? "#e3e9f2" : "#8f97a4"; g.fillRect(0, 0, 256, 256);
+    g.fillStyle = nieve ? "#e3e9f2" : "#737b88";                   // (el gris de las demás piedras) g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "255,255,255" : "20,24,32"},${0.03 + rnd() * 0.07})`; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 2 + rnd() * 5); }
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
@@ -1962,6 +1973,12 @@ const puzle = (() => {
     if (lado < 0) {                                              // detrás a la izquierda, una aguja muy alta que cierra el hueco
       const pieza = kitRocas[kitRocas.length - 1], alto = 21, R = pieza.radio * alto / pieza.alto, x = cx - 4.5 - R * 0.35, z = G - 3.5 - R * 0.5;
       colocar(pieza, x, z, alto, 0.6, 0.08, masBajoEn(x, z, R * 0.6), false); Object.assign(colisiones[colisiones.length - 1], { techo: 99, r: Math.min(3, R * 0.3) });   // (la suya, con la falda, tapaba el paso)
+    }
+    // Al pie de la pared, bloques tallados de varios tamaños (sin falda): tapan dónde apoyan las agujas.
+    for (let d = 3.4, k = 0; d < 24; d += 1.4 + rnd() * 1.4, k++) {
+      const P = kitPilares[k % 3], a = 1.6 + rnd() * 2.6, x = cx + lado * d, z = G - 0.2 - rnd() * 1.4;
+      colocar(P, x, z, a, rnd() * 6, 0.2, masBajoEn(x, z, 1), false).children[0].material = nieveFina;
+      colisiones[colisiones.length - 1].techo = 99;
     }
     for (let d = 3.6, k = 0; d < 22; d += 2.2 + rnd() * 3.2, k++) {   // delante: rocas de varios tamaños
       // (sin recolocar al azar, y fuera de la franja de las columnas: ninguna se monta en ellas)
@@ -2553,8 +2570,8 @@ for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
     if (!libreC(z)) continue;
     for (const lado of [-1, 1]) {
       if (rndC() < 0.3) continue;
-      const a = 1.6 + rndC() * 2.6, l = 2.2 + rndC() * 3.6, x = caminoX(z) + lado * (anchoC2(z) - 0.3 - rndC() * 0.8 + a * 0.15);
-      ventisquero(x, z, a, l, 0.35 + rndC() * 0.45);
+      const a = 1.6 + rndC() * 2.2, l = 2.2 + rndC() * 3.6, x = caminoX(z) + lado * (anchoC2(z) - 0.6 - a * 0.35 - rndC() * 0.5);   // en el suelo del paso, no en la pared (allí hacía rayas)
+      ventisquero(x, z, a, l, 0.25 + rndC() * 0.3);
     }
     if (rndC() < 0.2) ventisquero(caminoX(z) + (rndC() - 0.5) * 3, z, 2.5 + rndC() * 2, 2 + rndC() * 2, 0.3 + rndC() * 0.2);
   }
@@ -3589,7 +3606,7 @@ function actualizar(dt) {
     }
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
-    scene.fog.near = 2; scene.fog.far = lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 46, suave(DUNAS.desde, DUNAS.desde - 20, pos.z));   // en las dunas, algo menos niebla
+    scene.fog.near = 2; scene.fog.far = lerp(lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 46, suave(DUNAS.desde, DUNAS.desde - 20, pos.z)), 28, suave(CANON2.desde, CANON2.desde - 12, pos.z));   // (en el desfiladero final, más niebla)   // en las dunas, algo menos niebla
   }
 
   // En las dunas amanece: sol bajo y cálido de lado (a barlovento), sombras largas y azuladas,
