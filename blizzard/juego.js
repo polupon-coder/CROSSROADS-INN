@@ -1907,7 +1907,7 @@ const puzle = (() => {
   const lienzo = () => { const c = document.createElement("canvas"); c.width = c.height = 256; return c; };
   // Piedra: gris azulado como el resto, con grano, alguna grieta y los cantos más oscuros.
   const piedra = (g, nieve) => {
-    g.fillStyle = nieve ? "#e3e9f2" : "#8790a1";                   // un punto más oscuro y algo azul g.fillRect(0, 0, 256, 256);
+    g.fillStyle = nieve ? "#e3e9f2" : "#8f97a4"; g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "255,255,255" : "20,24,32"},${0.03 + rnd() * 0.07})`; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 2 + rnd() * 5); }
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
@@ -3040,14 +3040,16 @@ function empezar(santuario = 0) {
   cerrar.hidden = false;
   if (santuario) empezarEnSantuario(santuario);
 }
-// Empezar ante una plataforma, con el bastón y los poderes de las anteriores; sin la toma inicial.
+// Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
+// sin la toma inicial.
 function empezarEnSantuario(n) {
   const P = PLATAFORMAS[n - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
   pos.set(x, alturaSuelo(x, z) + 0.05, z); vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
-  if (n >= 2) { tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false; }
-  if (n >= 3) { muevePiedras = true; yaAlzada = true; }
-  if (n >= 4) abrePuertas = true;
+  tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false;
+  if (n >= 2) { muevePiedras = true; yaAlzada = true; }
+  if (n >= 3) abrePuertas = true;
+  if (n >= 4) giraBloques = true;
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
