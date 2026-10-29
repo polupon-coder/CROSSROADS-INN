@@ -61,14 +61,12 @@ const INGLES = {
   "Viaje": "Journey",
   "Santuarios": "Sanctuaries",
   "Volver": "Back",
-  "W A S D / flechas": "W A S D / arrows",
   "caminar": "walk",
   "Mayúsculas": "Shift",
   "correr": "run",
   "Espacio": "Space",
   "saltar": "jump",
   "agacharse": "crouch",
-  "viento (cuando tengas el bastón)": "wind (once you have the staff)",
   "WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento": "WASD move · Shift run · Space jump · C crouch · E wind",
   "Salir a la portada": "Back to the title",
   "Viento": "Wind"
@@ -2482,7 +2480,7 @@ estilo.textContent = `
   #portada .lista svg path { fill: none; stroke: var(--tinta); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
   #portada .lista b { display: block; font-weight: 400; font-size: 18px; }
   #portada .lista span { font-family: system-ui, sans-serif; font-size: 13px; color: var(--tinta-suave); }
-  #portada .teclas { margin: 6px auto 0; display: grid; grid-template-columns: auto auto; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
+  #portada .teclas { margin: 6px auto 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
   #rotulo { white-space: pre-line; position: fixed; z-index: 4; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
@@ -2549,11 +2547,10 @@ ui.innerHTML = `
     </div>
     ${tactil ? "" : `
     <div class="teclas">
-      <b data-t="W A S D / flechas">W A S D / flechas</b><span data-t="caminar">caminar</span>
+      <b>W A S D</b><span data-t="caminar">caminar</span>
       <b data-t="Mayúsculas">Mayúsculas</b><span data-t="correr">correr</span>
       <b data-t="Espacio">Espacio</b><span data-t="saltar">saltar</span>
       <b>C</b><span data-t="agacharse">agacharse</span>
-      <b>E</b><span data-t="viento (cuando tengas el bastón)">viento (cuando tengas el bastón)</span>
     </div>`}
   </div>
   <div id="rotulo" aria-live="polite"></div>
