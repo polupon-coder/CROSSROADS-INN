@@ -29,6 +29,7 @@ const INGLES = {
   "Pulsa en el punto. Resigue sin soltar.": "Press on the dot. Trace without letting go.",
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
+  "Un juego de Pol Lupon": "A game by Pol Lupon",
   "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
   "Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each monolith keeps the rune of one stone of the column:\nthe lowest, the bottom one; the tallest, the top one.",
@@ -2990,6 +2991,7 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
+  #portada .autor { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .7; pointer-events: none; }
   #portada .idioma button:focus-visible { outline: 2px solid var(--tinta-suave); outline-offset: 2px; border-radius: 4px; }
   #portada .botones button.opcion { min-width: 180px; }
   #portada #b-santuarios { color: var(--tinta-suave); opacity: .8; }
@@ -3066,6 +3068,7 @@ ui.innerHTML = `
       <button type="button" class="opcion" id="b-santuarios" data-t="Santuarios">Santuarios</button>
       <div class="idioma"><button type="button" data-idioma="es" lang="es">Español</button><button type="button" data-idioma="en" lang="en">English</button></div>
     </div>
+    <div class="autor" data-t="Un juego de Pol Lupon">Un juego de Pol Lupon</div>
     <div class="santuarios" hidden>
       <div class="lista"></div>
       <button type="button" class="opcion" id="b-volver" data-t="Volver">Volver</button>
