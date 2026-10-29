@@ -196,8 +196,8 @@ const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hast
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
 const anchoC2 = z => 4.4 + Math.sin(z * 0.13) * 0.7;
 // Nieve que se hunde (como arenas movedizas, en espiral): de pared a pared; hay que saltarla corriendo.
-const ARENAS = [{ z: -881, largo: 2.6 }, { z: -929, largo: 2.6 }];
-const enArena = (x, z) => ARENAS.find(A => Math.abs(z - A.z) < A.largo / 2 && Math.abs(x - caminoX(z)) < anchoC2(z) + 0.5);
+const ARENAS = [{ z: -881, largo: 2.6 }, { z: -929, largo: 2.6 }, { z: -630, largo: 2.6, ancho: 9 }, { z: -685, largo: 2.6, ancho: 9 }];   // (las dos últimas, en el manto de las dunas)
+const enArena = (x, z) => ARENAS.find(A => Math.abs(z - A.z) < A.largo / 2 && Math.abs(x - caminoX(z)) < (A.ancho || anchoC2(z) + 0.5));
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
 const generador = semilla => { let a = semilla; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
@@ -335,7 +335,9 @@ document.body.appendChild(renderer.domElement);
     float enD = smoothstep(${(DUNAS.desde + 4).toFixed(1)}, ${(DUNAS.desde - 16).toFixed(1)}, vNieblaP.z);
     float banco = sin(vNieblaP.x * 0.045 + vNieblaP.z * 0.031) * sin(vNieblaP.z * 0.057 - vNieblaP.x * 0.02 + 1.7);
     float techo = 10.5 + 2.2 * banco;
-    return enD * (1.0 - smoothstep(techo - 4.0, techo + 1.5, vNieblaP.y)) * smoothstep(3.0, 26.0, d) * 0.82;
+    // En las caídas (por debajo del paso), cuanto más hondo, más niebla: el fondo se pierde.
+    float hondo = smoothstep(-3.0, -32.0, vNieblaP.y) * 0.95;
+    return max(enD * (1.0 - smoothstep(techo - 4.0, techo + 1.5, vNieblaP.y)) * smoothstep(3.0, 26.0, d) * 0.82, hondo);
   }
 #endif`;
   C.fog_fragment = C.fog_fragment.replace("gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );", "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, max(fogFactor, nieblaBaja(fogDepth)) );");
@@ -1943,17 +1945,42 @@ const puzle = (() => {
   // Bloque tallado imperfecto: caras algo combadas, aristas mordidas y esquinas romas. El desplazamiento
   // depende solo de la posición, así los vértices repetidos de las aristas se mueven igual (sin rendijas).
   const geoBloque = () => {
-    const geo = new THREE.BoxGeometry(1.7, 1.6, 1.7, 5, 5, 5), P = geo.attributes.position, sem = rnd() * 100;
+    const geo = new THREE.BoxGeometry(1.7, 1.6, 1.7, 26, 8, 26), P = geo.attributes.position, sem = rnd() * 100;
+    // Muescas verticales: en cada cara, una o dos estrías junto a los cantos (fuera de la runa), de alto
+    // desigual. Salen de «sem»: no se gastan más números del generador.
+    const h = k => { const v = Math.sin(sem * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+    const muescas = [0, 1, 2, 3].map(c => [0, 1].filter(j => j === 0 || h(c * 7 + j) < 0.6).map(j => ({
+      u: (h(c * 7 + j + 2) < 0.5 ? -1 : 1) * (0.74 + 0.12 * h(c * 7 + j + 3)), y0: -0.8 + h(c * 7 + j + 4) * 0.5, y1: 0.8 - h(c * 7 + j + 5) * 0.7, p: 0.07 + 0.05 * h(c * 7 + j + 6) })));
+    const muesca = (c, u, y) => { let d = 0; for (const M of muescas[c]) { const q = (u - M.u) / 0.075; d = Math.max(d, M.p * Math.exp(-q * q) * suave(M.y0 - 0.1, M.y0 + 0.05, y) * (1 - suave(M.y1 - 0.05, M.y1 + 0.1, y))); } return d; };
     const ruido = (x, y, z) => Math.sin(x * 5.1 + sem) * Math.sin(y * 4.3 + sem * 1.7) * Math.sin(z * 4.7 + sem * 0.6);
     for (let i = 0; i < P.count; i++) {
       const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
       const bx = Math.abs(x) / 0.85, by = Math.abs(y) / 0.8, bz = Math.abs(z) / 0.85;
       const borde = [bx, by, bz].filter(v => v > 0.99).length;           // 2: arista, 3: esquina
       const k = 1 - (borde >= 2 ? 0.035 + 0.05 * (0.5 + 0.5 * ruido(z, x, y)) : 0) - (borde === 3 ? 0.04 : 0) + 0.018 * ruido(x, y, z);
-      P.setXYZ(i, x * k, y * (1 - (borde >= 2 ? 0.02 : 0)), z * k);
+      let mx = 0, mz = 0;                                              // las muescas, hacia dentro de su cara
+      if (bx > 0.99 && bz < 0.97) mx = -Math.sign(x) * muesca(x > 0 ? 3 : 1, z / 0.85, y);
+      if (bz > 0.99 && bx < 0.97) mz = -Math.sign(z) * muesca(z > 0 ? 0 : 2, x / 0.85, y);
+      P.setXYZ(i, x * k + mx, y * (1 - (borde >= 2 ? 0.02 : 0)), z * k + mz);
     }
     geo.computeVertexNormals();
     return geo;
+  };
+  // Encima de las de arriba, un montón de nieve como el de las rocas: abombado, de borde irregular y
+  // algo metido hacia dentro del canto (no acaba en la arista recta de la caja).
+  const matGorro = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1 }); matGorro.userData.suelo = true;
+  let nGorro = 0;
+  const gorroNieve = () => {
+    const geo = new THREE.SphereGeometry(1, 28, 6, 0, Math.PI * 2, 0, Math.PI / 2), P = geo.attributes.position, f = 1.7 + nGorro++ * 2.3;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), th = Math.atan2(z, x);
+      const sq = 1 / Math.max(Math.abs(Math.cos(th)), Math.abs(Math.sin(th))) ** 0.75;   // casi cuadrado, como la cara de arriba
+      const r = sq * (0.9 + 0.06 * Math.sin(th * 5 + f) + 0.04 * Math.sin(th * 11 + f * 2));
+      P.setXYZ(i, x * r, y * (0.8 + 0.2 * Math.sin(th * 3 + f)), z * r);
+    }
+    geo.computeVertexNormals();
+    const g = new THREE.Mesh(geo, matGorro); g.scale.set(0.74, 0.13, 0.74); g.position.y = 0.77; g.castShadow = g.receiveShadow = true;
+    return g;
   };
   const bloque = (anillo, arriba, soloFrente = false) => {
     const mats = [], cara = n => { const m = new THREE.MeshStandardMaterial({ map: arriba ? caras[n].map : caras[n].limpia, emissive: 0xbfe2ff, emissiveMap: caras[n].luz, emissiveIntensity: 0, roughness: 0.92 }); mats.push(m); return m; };
@@ -1963,6 +1990,7 @@ const puzle = (() => {
     for (const m of [...mats, tapa, fmx, fmz, fx]) m.userData.nevada = true;   // nieve como en las rocas móviles: encima y al pie
     const m = new THREE.Mesh(geoBloque(), [fx, fmx, tapa, tapa, fz, fmz]);
     m.castShadow = m.receiveShadow = true;
+    if (arriba && !soloFrente) m.add(gorroNieve());
     return { m, anillo, rot: 0, ang: 0, mats, centro: new THREE.Vector3() };
   };
   const G = PUZLE_Z, cx = caminoX(G), columnas = [];
@@ -2613,18 +2641,24 @@ for (const p of puzle.pistas) ventisquero(p.x, p.z, 4.2, 4.2, 0.62, null, true);
   }
 }
 // La nieve que se hunde: un montón de pared a pared con surcos en espiral (que no se rellenan).
-for (const A of ARENAS) {
-  const cx = caminoX(A.z), w = anchoC2(A.z) + 1;
-  ventisquero(cx, A.z, w * 2, A.largo + 1.6, 0.45, null, true);
-  const v = ventisqueros[ventisqueros.length - 1], p = v.geo.attributes.position; v.fijo = new Float32Array(p.count);
+// Surcos suaves (poco marcados: se adivina, no salta a la vista). En las dunas se marcan en el manto.
+const marcarArena = (A, v) => {
+  const cx = caminoX(A.z), w = (A.ancho || anchoC2(A.z) + 0.5) + 0.5, p = v.geo.attributes.position;
+  if (!v.fijo) v.fijo = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     const dx = p.getX(i) - cx, dz = (p.getZ(i) - A.z) * 1.6, r = Math.hypot(dx, dz), th = Math.atan2(dz, dx);
-    v.fijo[i] = (0.25 + 0.25 * Math.sin(th * 3 + r * 2.6)) * (1 - suave(w * 0.5, w, r)) * 0.8 + 0.35 * (1 - suave(0, 1.6, r));
+    if (Math.abs(p.getZ(i) - A.z) > A.largo / 2 + 0.8) continue;
+    v.fijo[i] = Math.max(v.fijo[i], (0.12 + 0.12 * Math.sin(th * 3 + r * 2.6)) * (1 - suave(w * 0.5, w, r)) * 0.8 + 0.18 * (1 - suave(0, 1.6, r)));
   }
   v.cambia = true;
+};
+for (const A of ARENAS) if (!A.ancho) {
+  ventisquero(caminoX(A.z), A.z, (anchoC2(A.z) + 1) * 2, A.largo + 1.6, 0.45, null, true);
+  marcarArena(A, ventisqueros[ventisqueros.length - 1]);
 }
 // En las dunas, todo el paso es nieve blanda: un manto continuo a lo largo del camino.
 for (let z = DUNAS.desde - 2, n = 0; z > PUZLE_Z - 10; z -= 10, n++) ventisquero(caminoX(z - 5), z - 5, 20, 10, 0.3, { ini: n === 0, fin: z - 10 <= PUZLE_Z - 10 });
+for (const A of ARENAS) if (A.ancho) for (const v of ventisqueros) if (Math.abs(v.cz - A.z) < v.largo / 2 + A.largo) marcarArena(A, v);
 {
   const rndN = generador(9191), libre = (x, z, r) => {
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
@@ -3957,6 +3991,16 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     const h = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => alt[(Math.min(NZ - 1, Math.max(0, iz + b)) * NX + Math.min(NX - 1, Math.max(0, ix + a))) * 4]);
     alt[(iz * NX + ix) * 4 + 1] = Math.max(...h) - Math.min(...h);
   }
+  // En el azul, lo que alzan los montones y el manto de nieve sobre el suelo (para que la niebla baja
+  // pase por encima y no los corte en rayas).
+  for (const v of ventisqueros) {
+    const P = v.geo.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const ix = Math.round(P.getX(i) - X0), iz = Math.round(P.getZ(i) - Z0);
+      if (ix < 0 || iz < 0 || ix >= NX || iz >= NZ || v.base[i] <= 0) continue;
+      const k = (iz * NX + ix) * 4 + 2; alt[k] = Math.max(alt[k], v.base[i]);
+    }
+  }
   const mapaAlturas = new THREE.DataTexture(alt, NX, NZ, THREE.RGBAFormat, THREE.FloatType);
   mapaAlturas.magFilter = mapaAlturas.minFilter = THREE.NearestFilter; mapaAlturas.needsUpdate = true;
   const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
@@ -3967,22 +4011,21 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
     const L = 72, N = 104, geo = new THREE.PlaneGeometry(L, L, N, N); geo.rotateX(-Math.PI / 2);
     const mat = new THREE.ShaderMaterial({
       uniforms: { capa: { value: 0 }, mapa: { value: mapaAlturas }, tiempo: { value: 0 }, color: { value: scene.fog.color }, centro: { value: new THREE.Vector3() }, ojo: { value: new THREE.Vector3() }, jugador: { value: new THREE.Vector3() } },
-      vertexShader: `uniform sampler2D mapa; uniform float tiempo; uniform float capa; varying vec3 vP; varying float vSuelo; varying float vRango;
+      vertexShader: `uniform sampler2D mapa; uniform float tiempo; uniform float capa; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton;
         float suelo(vec2 xz) {
           vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
-          vec2 a = texture2D(mapa, (i + 0.5) / t).rg, b = texture2D(mapa, (i + vec2(1.5, 0.5)) / t).rg;
-          vec2 d = texture2D(mapa, (i + vec2(0.5, 1.5)) / t).rg, e = texture2D(mapa, (i + 1.5) / t).rg;
-          vec2 r = mix(mix(a, b, f.x), mix(d, e, f.x), f.y); vRango = r.y; return r.x;
+          vec3 r = mix(mix(texture2D(mapa, (i + 0.5) / t).rgb, texture2D(mapa, (i + vec2(1.5, 0.5)) / t).rgb, f.x), mix(texture2D(mapa, (i + vec2(0.5, 1.5)) / t).rgb, texture2D(mapa, (i + 1.5) / t).rgb, f.x), f.y);
+          vRango = r.y; vMonton = r.z; return r.x;
         }
         void main() {
           vec4 w = modelMatrix * vec4(position, 1.0);
           float s = suelo(w.xz); vSuelo = s;
           float onda = 0.5 + 0.25 * sin(w.x * 0.21 + tiempo * 0.5) * sin(w.z * 0.17 - tiempo * 0.37) + 0.25 * sin((w.x + w.z) * 0.09 + tiempo * 0.23);
-          w.y = s + 0.04 + capa * (0.3 + 0.3 * onda);                // la capa de arriba, entre 30 y 60 cm
+          w.y = s + vMonton * 1.15 + 0.04 + capa * (0.3 + 0.3 * onda);   // la capa de arriba, entre 30 y 60 cm (sobre los montones)
           vP = w.xyz;
           gl_Position = projectionMatrix * viewMatrix * w;
         }`,
-      fragmentShader: `uniform float tiempo; uniform float capa; uniform vec3 color; uniform vec3 centro; uniform vec3 ojo; uniform vec3 jugador; varying vec3 vP; varying float vSuelo; varying float vRango;
+      fragmentShader: `uniform float tiempo; uniform float capa; uniform vec3 color; uniform vec3 centro; uniform vec3 ojo; uniform vec3 jugador; varying vec3 vP; varying float vSuelo; varying float vRango; varying float vMonton;
         float ruido(vec2 p) { return sin(p.x) * sin(p.y * 1.3 + sin(p.x * 0.7)) * 0.5 + 0.5; }
         void main() {
           vec2 q = vP.xz * 0.16 + vec2(tiempo * 0.12, tiempo * 0.04);
