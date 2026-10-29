@@ -1912,17 +1912,16 @@ const puzle = (() => {
     if (!nieve) { g.strokeStyle = "rgba(30,34,44,.35)"; g.lineWidth = 1.5; for (let k = 0; k < 3; k++) { g.beginPath(); let x = rnd() * 256, y = rnd() < 0.5 ? 0 : 256; g.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (rnd() - 0.5) * 50; y += (y > 128 ? -1 : 1) * rnd() * 30; g.lineTo(x, y); } g.stroke(); } }
     const b = g.createRadialGradient(128, 128, 90, 128, 128, 190); b.addColorStop(0, "rgba(0,0,0,0)"); b.addColorStop(1, "rgba(20,26,38,.35)"); g.fillStyle = b; g.fillRect(0, 0, 256, 256);
   };
-  // Nieve espolvoreada: motas, más hacia arriba; grumos y un borde irregular en el canto de arriba y en
-  // los de los lados. Sobre la talla también, pero rala: la runa se sigue leyendo.
+  // Nieve: solo un borde irregular en el canto de arriba.
   const espolvorear = g => {
     const nieve = a => `rgba(238,243,251,${a})`;
     for (let i = 0; i < 2600; i++) {
       const y = 256 * Math.pow(rnd(), 1.6), x = rnd() * 256, r = 0.7 + rnd() * (y < 50 ? 3 : 1.8);
-      g.fillStyle = nieve(((0.3 + rnd() * 0.5) * (1 - y / 320)).toFixed(2)); g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+      rnd(); void x, r;   // ya sin motas (se siguen sacando los números para no mover el resto del mundo)
     }
-    for (let i = 0; i < 14; i++) { const x = rnd() * 256, y = rnd() * 70, r = 4 + rnd() * 8; g.fillStyle = nieve(0.55 + rnd() * 0.3); g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 6.283); g.fill(); }
+    for (let i = 0; i < 14; i++) { rnd(); rnd(); rnd(); rnd(); }   // ni grumos
     g.fillStyle = nieve(0.85); g.beginPath(); g.moveTo(0, 0); for (let x = 0; x <= 256; x += 12) g.lineTo(x, 6 + rnd() * 18); g.lineTo(256, 0); g.fill();   // el canto de arriba
-    for (const lx of [0, 256]) { g.beginPath(); g.moveTo(lx, 0); for (let y = 0; y <= 180; y += 12) g.lineTo(Math.abs(lx - (2 + rnd() * 9 * (1 - y / 200))), y); g.lineTo(lx, 180); g.fillStyle = nieve(0.6); g.fill(); }
+    for (const lx of [0, 256]) for (let y = 0; y <= 180; y += 12) rnd();   // ni bordes laterales
   };
   const caras = {};
   for (const n of NOMBRES) {
