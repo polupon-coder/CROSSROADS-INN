@@ -30,12 +30,14 @@ const INGLES = {
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
+  "Desliza a la izquierda la bola de salto\npara girar la cámara.": "Swipe the jump ball left\nto turn the camera.",
+  "V gira la cámara.": "V turns the camera.",
   "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
   "Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each monolith keeps the rune of one stone of the column:\nthe lowest, the bottom one; the tallest, the top one.",
-  "Junto a un monolito, desliza a la izquierda\ny pulsa ◇: el viento barre su nieve.": "Next to a monolith, swipe left\nand press ◇: the wind sweeps its snow.",
+  "Junto a un monolito, desliza a la derecha\ny pulsa ◇: el viento barre su nieve.": "Next to a monolith, swipe right\nand press ◇: the wind sweeps its snow.",
   "Junto a un monolito, mantén X y pulsa E:\nel viento barre su nieve.": "Next to a monolith, hold X and press E:\nthe wind sweeps its snow.",
-  "Desliza a la izquierda y pulsa ◇.": "Swipe left and press ◇.",
+  "Desliza a la derecha y pulsa ◇.": "Swipe right and press ◇.",
   "Mantén X y pulsa E.": "Hold X and press E.",
   "La columna cae sobre la sima.": "The column falls across the chasm.",
   "Nieve que se hunde por todas partes.\nSigue el paso firme.": "Sinking snow everywhere.\nFollow the firm path.",
@@ -3126,9 +3128,9 @@ zonaAccion.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) if (t.identifier === acc.id) {
     const dy = clamp(t.clientY - acc.y0, -32, 32), dx = clamp(t.clientX - acc.x0, -32, 32);
     pomoAccion.style.transform = `translate(${dx}px, ${dy}px)`;
-    // A los lados: a la derecha gira la cámara alrededor de Blizzard; a la izquierda, prepara el barrido.
-    if (dx > 20 && Math.abs(dy) < 18) teclas.add("KeyV"); else teclas.delete("KeyV");
-    if (dx < -20 && Math.abs(dy) < 18) teclas.add("KeyX"); else teclas.delete("KeyX");
+    // A los lados: a la izquierda gira la cámara alrededor de Blizzard; a la derecha, prepara el barrido.
+    if (dx < -20 && Math.abs(dy) < 18) teclas.add("KeyV"); else teclas.delete("KeyV");
+    if (dx > 20 && Math.abs(dy) < 18) teclas.add("KeyX"); else teclas.delete("KeyX");
     if (dy < -20 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
     if (dy > -10) acc.saltado = false;                              // volver al centro permite otro salto
     if (dy > 20) teclas.add("KeyC"); else teclas.delete("KeyC");
@@ -3355,7 +3357,7 @@ let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBast
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
-let avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
+let avisoCamara = 0, avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3();
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
@@ -3478,9 +3480,10 @@ function actualizar(dt) {
   const c = enCamino(pos.x, pos.z);
 
   // Cámara dirigida: sigue la dirección del recorrido, no la del jugador.
-  // Girarla a mano (V, o la bola de acción hacia la derecha): rodea a Blizzard; al andar vuelve despacio.
+  // Girarla a mano (V, o la bola de acción hacia la izquierda): rodea a Blizzard; en cuanto avanza, vuelve
+  // a su sitio (detrás, mirando el recorrido).
   if (estado === "juego" && tecla("KeyV")) { giroCam += dt * 1.8; yawCamara += dt * 1.8; }
-  else if (Math.hypot(vel.x, vel.z) > 0.5) giroCam *= Math.exp(-dt * 0.35);
+  else if (Math.hypot(vel.x, vel.z) > 0.3) giroCam *= Math.exp(-dt * 2.5);
   giroCam = Math.atan2(Math.sin(giroCam), Math.cos(giroCam));
   const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam;
   yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * 1.2));
@@ -3500,6 +3503,7 @@ function actualizar(dt) {
     if (tIntro >= INTRO_DURA) {
       estado = "juego";
       rotular("La llanura nevada", 4);
+      avisoCamara = reloj + 5;                                   // y un poco después, cómo girar la cámara
     }
   } else if (estado === "llamando") {
     // Blizzard tiende la mano y el viento arranca el bastón de la piedra y lo trae, como un imán.
@@ -3534,7 +3538,7 @@ function actualizar(dt) {
       rotular(tactil ? "◇ gira la piedra marcada por la espiral;\nagachado, la de abajo." : "E gira la piedra marcada por la espiral;\nagachado (C), la de abajo.", 6);
     } else if (arrodillado > 2.8 && aprende === "barrido") {
       estado = "juego"; barre = true;
-      rotular(tactil ? "Junto a un monolito, desliza a la izquierda\ny pulsa ◇: el viento barre su nieve." : "Junto a un monolito, mantén X y pulsa E:\nel viento barre su nieve.", 6);
+      rotular(tactil ? "Junto a un monolito, desliza a la derecha\ny pulsa ◇: el viento barre su nieve." : "Junto a un monolito, mantén X y pulsa E:\nel viento barre su nieve.", 6);
     } else if (arrodillado > 2.8 && aprende === "puerta") {
       estado = "juego"; abrePuertas = true;
       rotular(tactil ? "Desde la plataforma, agáchate\ny ◇ abre la puerta." : "Desde la plataforma, agáchate\ny E abre la puerta.", 6);
@@ -3593,7 +3597,7 @@ function actualizar(dt) {
       // Un cilindro arcano cubierto de nieve: con el barrido, el viento se lleva la nieve y deja ver su runa.
       const c = puzle.cilindroCerca(pos.x, pos.z);
       if (!barre) rotular("Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.", 3.5);
-      else if (!tecla("KeyX")) rotular(tactil ? "Desliza a la izquierda y pulsa ◇." : "Mantén X y pulsa E.", 3);
+      else if (!tecla("KeyX")) rotular(tactil ? "Desliza a la derecha y pulsa ◇." : "Mantén X y pulsa E.", 3);
       else {
         puzle.barrer(c); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
         espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.8, alto: 2.2 }; efectoEspiral = Math.max(efectoEspiral, 1);
@@ -3704,6 +3708,7 @@ function actualizar(dt) {
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
+    if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a la izquierda la bola de salto\npara girar la cámara." : "V gira la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
     for (const a of AVISOS_TUNEL) if (!a.visto && pos.z < a.z) { a.visto = true; rotular(tactil && a.tactil ? a.tactil : a.texto, 3.5); }
