@@ -1800,17 +1800,29 @@ const puzle = (() => {
   // saltan) de anchos, alturas, giros y fondos muy distintos; delante, rocas de varios tamaños y algún
   // bloque que sale como un espolón. Delante de las columnas, libre.
   for (const lado of [-1, 1]) {
-    for (let d = 3.4, k = 0; d < 25; k++) {                     // detrás: rocas altas de tamaños muy distintos
-      // Las agujas del kit (las únicas más altas que anchas; el radio de las demás, con su falda, es enorme).
-      const pieza = kitRocas[kitRocas.length - 1 - (k % 2)], alto = 7 + rnd() * 3.5 + (rnd() < 0.25 ? 2.5 : 0), R = pieza.radio * alto / pieza.alto;
-      const x = cx + lado * (d + R * 0.75), z = G - 0.8 - rnd() * 2.4;
-      colocar(pieza, x, z, alto, rnd() * 6.28, 0.12, masBajoEn(x, z, R * 0.6), false);
-      colisiones[colisiones.length - 1].techo = 99;               // no se sube por encima
-      d += R * (0.9 + rnd() * 0.5);
+    // Detrás: agujas de roca del kit, grandes y de alturas distintas, una pegada a la otra (sin huecos). Se
+    // mide el cuerpo real de cada una (sin su falda) para que la primera empiece justo al lado de las
+    // columnas, sin montarse en ellas, y la colisión siga ese cuerpo.
+    let borde = cx + lado * 2.95;
+    for (let k = 0; Math.abs(borde - cx) < 26 && k < 12; k++) {
+      const pieza = kitRocas[kitRocas.length - 1 - (k % 2)], alto = 10 + rnd() * 5, R = pieza.radio * alto / pieza.alto, z = G - 0.5 - rnd() * 1.2;
+      const suelo = masBajoEn(borde + lado * R * 0.5, z, R * 0.5), g = colocar(pieza, borde + lado * R * 0.5, z, alto, rnd() * 6.28, 0.1, suelo, false);
+      colisiones.pop();                                          // (la suya, del radio con falda, taparía las columnas)
+      g.updateMatrixWorld(true);
+      const m = g.children[0], P = m.geometry.attributes.position, ind = m.geometry.index.array, v = new THREE.Vector3();
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (let q = 0; q < ind.length; q += 3) { v.fromBufferAttribute(P, ind[q]).applyMatrix4(m.matrixWorld); if (v.y < suelo + 0.8) continue; x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); z0 = Math.min(z0, v.z); z1 = Math.max(z1, v.z); }
+      const dx = borde - (lado > 0 ? x0 : x1); g.position.x += dx; x0 += dx; x1 += dx;
+      const ancho = x1 - x0, r = Math.max(0.8, Math.min(1.8, ancho * 0.25, (z1 - z0) / 2));   // círculos dentro del cuerpo
+      const xs = []; for (let qx = x0 + r; qx < x1 - r; qx += r) xs.push(qx); xs.push(x1 - r);   // hasta los dos bordes (sin rendija junto a las columnas)
+      for (const qx of xs) for (let qz = z0 + r; qz <= z1 - r + 1e-6; qz += r) colisiones.push({ x: qx, z: qz, r, techo: 99 });
+      borde = (lado > 0 ? x1 : x0) - lado * ancho * 0.22;         // la siguiente, montada un poco sobre esta
     }
     for (let d = 3.6, k = 0; d < 22; d += 2.2 + rnd() * 3.2, k++) {   // delante: rocas de varios tamaños
-      const x = cx + lado * d, z = G + 0.6 + rnd() * 1.8;
-      enterrar(kitRocas[1 + Math.floor(rnd() * (kitRocas.length - 1))], x, z, 0.9 + rnd() * (rnd() < 0.3 ? 3.4 : 1.6), rnd() * 6, 0.2 + rnd() * 0.2);
+      // (sin recolocar al azar, y fuera de la franja de las columnas: ninguna se monta en ellas)
+      const pieza = kitRocas[1 + Math.floor(rnd() * 3)], a = 0.9 + rnd() * (rnd() < 0.3 ? 2.6 : 1.4), R = pieza.radio * a / pieza.alto;
+      const x = cx + lado * Math.max(d, 3.1 + R), z = G + 0.6 + rnd() * 1.8;
+      colocar(pieza, x, z, a, rnd() * 6, 0.25 + rnd() * 0.15, masBajoEn(x, z, R), false);
     }
   }
   // Las pistas: por las dunas, a un lado del paso y en orden, columnas de dos bloques iguales a las del
@@ -3411,6 +3423,8 @@ function actualizar(dt) {
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
 
+  // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
+  renderer.shadowMap.autoUpdate = alba > 0;
   // En el móvil no hay sombras (por rendimiento), salvo en las dunas: se encienden al llegar.
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
