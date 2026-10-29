@@ -1568,6 +1568,21 @@ const AVISOS_TUNEL = [
   caido(-343, 5.4, 2.2); caido(-345.5, 4.6, 1.6);
   pilarTallado(kitPilares[4], sobre(-344, 0, 4.4, -0.3), sobre(-348.5, 0, 7.8, 4.2), 1.9, 0.7);
   colisiones.push({ ...(p => ({ x: p.x, z: p.z }))(sobre(-344, 0, 4.6, 0)), r: 1.2, techo: alturaTerreno(caminoX(-344), -344) + 1.5 });
+  // Bloque de piedra recto, de cara de arriba plana (donde se cae), con los cantos algo mordidos y la
+  // textura sin estirar en los lados (los del kit, estirados a 30 m, hacían puntas imposibles).
+  const geoPiedraPlana = (ancho, alto, rnd) => {
+    const geo = new THREE.BoxGeometry(ancho, alto, ancho, 3, Math.max(1, Math.round(alto / 2.6)), 3), P = geo.attributes.position, uv = geo.attributes.uv, n = geo.attributes.normal, sem = rnd() * 50;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), arriba = y > alto / 2 - 1e-3;
+      const borde = Math.max(Math.abs(x), Math.abs(z)) > ancho / 2 - 1e-3;
+      const r = Math.sin(x * 4.1 + y * 0.7 + sem) * Math.sin(z * 3.7 - y * 0.5 + sem * 1.3);
+      if (!arriba) { P.setX(i, x * (1 + 0.035 * r)); P.setZ(i, z * (1 + 0.035 * r)); }
+      else if (borde) { P.setX(i, x * 0.94); P.setZ(i, z * 0.94); P.setY(i, y - 0.08 - 0.05 * Math.abs(r)); }   // canto de arriba mordido
+      if (Math.abs(n.getY(i)) < 0.5) uv.setY(i, uv.getY(i) * alto / ancho);       // los lados, sin estirar
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
   // Puerta arcana bajo el último arco: dos hojas de piedra con una runa partida por la mitad.
   const montarPuerta = (puertaArcana, PUERTA_ARCANA_Z) => {
     const cx = caminoX(PUERTA_ARCANA_Z), suelo = alturaTerreno(cx, PUERTA_ARCANA_Z), W = 5.9, H = 9, D = 1.3;
@@ -1656,9 +1671,8 @@ const AVISOS_TUNEL = [
     const L0 = alturaTerreno(caminoX(ESCALERA.desde + 1.5), ESCALERA.desde + 1.5), n = 9, largo = ESCALERA.desde - ESCALERA.hasta;
     for (let i = 0; i < n; i++) {
       const z = ESCALERA.desde - largo * (i + 0.5) / n, x = caminoX(z) + (i % 2 ? 0.5 : -0.5), top = L0 + ESCALERA.sube * (i + 1) / (n + 0.5);
-      const P = kitPilares[i % 3], alto = top - (L0 - 30), ancho = 2.6, g = new THREE.Group(), m = new THREE.Mesh(P.geo, nieveFina);
-      m.position.copy(P.desplaza).add(new THREE.Vector3(0, -P.alto / 2, 0)); m.castShadow = m.receiveShadow = true; g.add(m);
-      g.scale.set(ancho / (P.radio * 2), alto / P.alto, ancho / (P.radio * 2)); g.rotation.y = desvio(z) + (rndK() - 0.5) * 0.2;   // (con el radio: no más ancho de lo previsto)
+      const alto = top - (L0 - 30), ancho = 2.6, g = new THREE.Mesh(geoPiedraPlana(ancho, alto, rndK), kitPilares[0].matNevada || nieveFina);
+      g.castShadow = g.receiveShadow = true; g.rotation.y = desvio(z) + (rndK() - 0.5) * 0.2;
       g.position.set(x, top - alto / 2, z); scene.add(g);
       colisiones.push({ x, z, r: ancho * 0.48, techo: top });
     }
@@ -1677,6 +1691,14 @@ const AVISOS_TUNEL = [
     const x = caminoX(z) + lado * (anchoC2(z) + R * 0.95), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.3;
     colocar(pieza, x, z, alto, giro, 0.05, alturaTerreno(caminoX(z), z), false).children[0].material = nieveFina;
     colisiones[colisiones.length - 1].r = R * 0.9;
+  }
+  // Detrás y más arriba, las mismas piedras verticales, más grandes: tapan la pared del terreno.
+  for (const lado of [-1, 1]) for (let z = CANON2.desde - 2; z > CANON2.hasta + 2; z -= 2.4 + rndK() * 1.2) {
+    if (Math.abs(z - PUERTA_FINAL_Z) < 4) continue;
+    const pieza = kitPilares[3 + Math.min(2, Math.floor(rndK() * 3))], alto = 13 + rndK() * 7, R = pieza.ancho / 2 * alto / pieza.alto;
+    const x = caminoX(z) + lado * (anchoC2(z) + 3.2 + R), giro = (lado > 0 ? 0 : Math.PI) + desvio(z) + (rndK() - 0.5) * 0.4;
+    colocar(pieza, x, z, alto, giro, 0.05, Math.max(alturaTerreno(caminoX(z), z), alturaTerreno(x - lado * R, z) - 3), false).children[0].material = nieveFina;
+    colisiones.pop();                                            // (en la pared, fuera del alcance)
   }
   // Columnas rotas a los lados, aquí y allá, contra las paredes.
   for (let z = CANON2.desde - 16; z > CANON2.hasta + 6; z -= 7 + rndK() * 6) {   // (no justo tras la puerta de las columnas)
@@ -2008,7 +2030,7 @@ const puzle = (() => {
         t += dt;
         const k = suave(0.8, 4.2, t);
         for (const c of columnas) { c.g.position.y = c.y0 - k * 4.3; c.g.position.x = c.x + Math.sin(t * 37 + c.x) * 0.03 * (k > 0 && k < 1 ? 1 : 0); }
-        if (t > 0.8) for (const c of columnas) { const i = colisiones.indexOf(c.col); if (i >= 0) { colisiones.splice(i, 1); dejarHueco(c.x, c.z, 1.0); } }   // al hundirse, la marca en la nieve (como al apartar una roca)
+        if (t > 0.8) for (const c of columnas) { const i = colisiones.indexOf(c.col); if (i >= 0) { colisiones.splice(i, 1); dejarHueco(c.x, c.z, 1.0); hundirNieve(c.x, c.z, 1.1); } }   // al hundirse, la marca en la nieve (como al apartar una roca)
         if (t > 0.8 && t < 4.2) efectoEspiral = Math.max(efectoEspiral, 0.4);
       }
     },
@@ -2550,6 +2572,15 @@ for (let z = DUNAS.desde - 2, n = 0; z > PUZLE_Z - 10; z -= 10, n++) ventisquero
     if (libre(x, z, Math.max(a, l) / 2)) ventisquero(x, z, a, l, 0.3 + rndN() * 0.25);
   }
 }
+// Un hundimiento que no se rellena (donde se hundieron las piedras de runas): como un surco hondo.
+function hundirNieve(x, z, R) {
+  for (const v of ventisqueros) {
+    if (Math.abs(x - v.cx) > v.ancho / 2 + R * 1.4 || Math.abs(z - v.cz) > v.largo / 2 + R * 1.4) continue;
+    const p = v.geo.attributes.position; v.fijo = v.fijo || new Float32Array(p.count);
+    for (let i = 0; i < p.count; i++) { const d = Math.hypot(p.getX(i) - x, p.getZ(i) - z); if (d < R * 1.4) v.fijo[i] = Math.max(v.fijo[i], suave(R * 1.4, R * 0.7, d) * 0.97); }
+    v.cambia = true;
+  }
+}
 // Normales solo donde ha cambiado algo (el surco y su borde), con los vecinos de la rejilla: recalcularlas
 // en todo el montón cada fotograma era lo más caro del juego.
 function normalesLocales(v) {
@@ -2575,8 +2606,9 @@ function pisarVentisqueros(dt) {
     for (let i = 0; i < p.count; i++) {
       let h = v.hundido[i];
       if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const q = 1 - (d / rad) * (d / rad), k = q * q * (0.08 + 0.92 * a); if (k > h) { h = k; } } }   // perfil de cuenco: sin escalones aunque se cruce en diagonal
-      if (h > 0) h = Math.max(0, h - dt * 0.14);                    // se rellena en unos 7 s
-      if (h !== v.hundido[i] || h > 0) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, nx = v.nx; t[i] = 1; if (i > 0) t[i - 1] = 1; if (i + 1 < t.length) t[i + 1] = 1; if (i >= nx) t[i - nx] = 1; if (i + nx < t.length) t[i + nx] = 1; } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
+      if (h > 0) h = Math.max(0, h - dt * 0.14); if (v.fijo && v.fijo[i] > h) h = v.fijo[i];   // (lo hundido para siempre no se rellena)
+      // se rellena en unos 7 s
+      if (h !== v.hundido[i]) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, nx = v.nx; t[i] = 1; if (i > 0) t[i - 1] = 1; if (i + 1 < t.length) t[i + 1] = 1; if (i >= nx) t[i - nx] = 1; if (i + nx < t.length) t[i + nx] = 1; } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
     }
     if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; normalesLocales(v); }
     v.cambia = cambia;
