@@ -3176,7 +3176,7 @@ function actualizar(dt) {
     if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
-    if (!tieneBaston && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
+    if (!tieneBaston && enSuelo && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
       // Antes de llamar al bastón hay que trazar la espiral.
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       trazo.empezar("espiral", () => { estado = "llamando"; arrodillado = 0; });
@@ -3185,14 +3185,14 @@ function actualizar(dt) {
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
     }
 
-    if (muevePiedras && !abrePuertas && s.sobre === PLATAFORMA3 && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < 2.4 && estado === "juego") {
+    if (muevePiedras && !abrePuertas && enSuelo && s.sobre === PLATAFORMA3 && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < 2.4 && estado === "juego") {
       // Tercera plataforma: la runa de los dos rombos, la de la puerta.
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
       trazo.empezar("puerta", () => { estado = "despertando"; arrodillado = 0; aprende = "puerta"; });
       musica.viento(0.3, 0.8);
     }
-    if (tieneBaston && !giraBloques && s.sobre === PLATAFORMA4 && Math.hypot(pos.x - PLATAFORMA4.x, pos.z - PLATAFORMA4.z) < 2.4 && estado === "juego") {
+    if (tieneBaston && !giraBloques && enSuelo && s.sobre === PLATAFORMA4 && Math.hypot(pos.x - PLATAFORMA4.x, pos.z - PLATAFORMA4.z) < 2.4 && estado === "juego") {
       // Cuarta plataforma: la runa del giro, la de las columnas.
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
@@ -3200,7 +3200,7 @@ function actualizar(dt) {
       musica.viento(0.3, 0.85);
     }
     if (!avisoPuzle && pos.z < PUZLE_Z + 9 && !puzle.resuelto) { avisoPuzle = true; rotular(giraBloques ? "Pon las runas como las viste\nen el camino, en orden." : "Columnas de runas.\nVuelve a la plataforma.", 4); }
-    if (tieneBaston && !muevePiedras && s.sobre === PLATAFORMA2 && Math.hypot(pos.x - PLATAFORMA2.x, pos.z - PLATAFORMA2.z) < 2.6) {
+    if (tieneBaston && !muevePiedras && enSuelo && s.sobre === PLATAFORMA2 && Math.hypot(pos.x - PLATAFORMA2.x, pos.z - PLATAFORMA2.z) < 2.6) {
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
@@ -3719,6 +3719,12 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
 {
   const X0 = -90, Z0 = -850, NX = 181, NZ = 991, alt = new Float32Array(NX * NZ * 4);   // RGBA: vale también en WebGL 1
   for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) alt[(iz * NX + ix) * 4] = alturaTerreno(X0 + ix, Z0 + iz);
+  // En el verde, cuánto cambia la altura del suelo alrededor (1 m a cada lado): junto a una pared es
+  // mucho. Precalculado aquí, el sombreado lo lee de una vez (antes, con cuatro lecturas más por píxel).
+  for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) {
+    const h = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => alt[(Math.min(NZ - 1, Math.max(0, iz + b)) * NX + Math.min(NX - 1, Math.max(0, ix + a))) * 4]);
+    alt[(iz * NX + ix) * 4 + 1] = Math.max(...h) - Math.min(...h);
+  }
   const mapaAlturas = new THREE.DataTexture(alt, NX, NZ, THREE.RGBAFormat, THREE.FloatType);
   mapaAlturas.magFilter = mapaAlturas.minFilter = THREE.NearestFilter; mapaAlturas.needsUpdate = true;
   const texNieve = new THREE.TextureLoader().load("texturas/nieve.jpg"); texNieve.wrapS = texNieve.wrapT = THREE.MirroredRepeatWrapping;
@@ -3785,10 +3791,10 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = "varying vec3 vMundoPie;\n" + sh.vertexShader.replace("#include <skinning_vertex>", "#include <skinning_vertex>\n vMundoPie = (modelMatrix * vec4(transformed, 1.0)).xyz;");
       sh.fragmentShader = `uniform sampler2D mapaAlturas; uniform sampler2D texNievePie; uniform vec3 tonoNievePie; uniform vec3 veloPie; varying vec3 vMundoPie;
-        float sueloPie(vec2 xz) {
+        vec2 sueloPie(vec2 xz) {                                    // (x: altura del suelo; y: cuánto cambia alrededor)
           vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
-          float a = texture2D(mapaAlturas, (i + 0.5) / t).r, b = texture2D(mapaAlturas, (i + vec2(1.5, 0.5)) / t).r;
-          float d = texture2D(mapaAlturas, (i + vec2(0.5, 1.5)) / t).r, e = texture2D(mapaAlturas, (i + 1.5) / t).r;
+          vec2 a = texture2D(mapaAlturas, (i + 0.5) / t).rg, b = texture2D(mapaAlturas, (i + vec2(1.5, 0.5)) / t).rg;
+          vec2 d = texture2D(mapaAlturas, (i + vec2(0.5, 1.5)) / t).rg, e = texture2D(mapaAlturas, (i + 1.5) / t).rg;
           return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
         }
 ` + sh.fragmentShader.replace("#include <emissivemap_fragment>", `
@@ -3799,7 +3805,8 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           diffuseColor.rgb = mix(unida, diffuseColor.rgb, smoothstep(0.58, 0.78, lumU));`}
         }` : ""}
         ${alto > 0 ? `{
-          float hP = vMundoPie.y - sueloPie(vMundoPie.xz);
+          vec2 sueloP = sueloPie(vMundoPie.xz);
+          float hP = vMundoPie.y - sueloP.x;
           vec3 nvP = texture2D(texNievePie, vMundoPie.xz * 0.28 + vMundoPie.y * 0.15).rgb;
           float ruidoP = texture2D(texNievePie, vMundoPie.xz * 1.1 + vec2(vMundoPie.y * 0.7)).r;
           float grandeP = texture2D(texNievePie, vMundoPie.xz * 0.045 + vec2(0.37, 0.11)).r, granoP = texture2D(texNievePie, vMundoPie.xz * 3.1 + vMundoPie.y * 2.3).g;
@@ -3807,8 +3814,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float cubreP = 1.0 - smoothstep(altoP * 0.3, altoP, hP + (ruidoP - 0.5) * altoP * 1.2 + (granoP - 0.5) * 0.12);
           // Junto a una pared (el suelo alrededor cambia mucho de altura) la roca no se cubre de nieve por
           // abajo: el degradado subiría por la cara pegada a la pared.
-          float s1 = sueloPie(vMundoPie.xz + vec2(1.2, 0.0)), s2 = sueloPie(vMundoPie.xz - vec2(1.2, 0.0)), s3 = sueloPie(vMundoPie.xz + vec2(0.0, 1.2)), s4 = sueloPie(vMundoPie.xz - vec2(0.0, 1.2));
-          float pared = smoothstep(0.9, 1.8, max(max(s1, s2), max(s3, s4)) - min(min(s1, s2), min(s3, s4)));
+          float pared = smoothstep(0.9, 1.8, sueloP.y);
           cubreP *= 1.0 - pared;
           diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * nvP, cubreP * 0.96 * ${fuerza.toFixed(3)});
           // Y en los primeros centímetros, donde toca la nieve, casi del todo cubierto.
@@ -3852,7 +3858,15 @@ const sombraPies = (() => {
 })();
 
 let anterior = performance.now(), camaraFija = null;   // solo para pruebas
+// Contador de fotogramas (tecla F, en ordenador): para saber cuánto va de lento y dónde.
+const medidor = document.createElement("div");
+medidor.style.cssText = "position:fixed;right:12px;bottom:10px;z-index:9;font:12px/1.3 system-ui,sans-serif;color:#1f2a3d;background:rgba(240,245,252,.75);padding:4px 8px;border-radius:6px;pointer-events:none";
+medidor.hidden = true; document.body.appendChild(medidor);
+let medFotos = 0, medDesde = performance.now(), medPeor = 0;
+addEventListener("keydown", e => { if (e.code === "KeyF" && !e.repeat) medidor.hidden = !medidor.hidden; });
 function bucle(ahora) {
+  medFotos++; medPeor = Math.max(medPeor, ahora - anterior);
+  if (ahora - medDesde > 500) { if (!medidor.hidden) medidor.textContent = `${Math.round(medFotos * 1000 / (ahora - medDesde))} fps · peor ${Math.round(medPeor)} ms · z ${Math.round(pos.z)}`; medFotos = 0; medDesde = ahora; medPeor = 0; }
   const dt = clamp((ahora - anterior) / 1000, 0, 0.05);           // nunca negativo (el primer fotograma tras cargar)
   anterior = ahora;
   if (!camaraFija) { actualizar(dt); trazo.actualizar(dt); }   // con la cámara fija de pruebas, el mundo queda congelado
