@@ -30,15 +30,14 @@ const INGLES = {
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
+  "En desarrollo…": "In development…",
   "Desliza a la izquierda la bola de salto\npara girar la cámara.": "Swipe the jump ball left\nto turn the camera.",
   "V gira la cámara.": "V turns the camera.",
   "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
   "Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.": "Each monolith keeps the rune of one stone of the column:\nthe lowest, the bottom one; the tallest, the top one.",
-  "Junto a un monolito, desliza a la derecha\ny pulsa ◇: el viento barre su nieve.": "Next to a monolith, swipe right\nand press ◇: the wind sweeps its snow.",
-  "Junto a un monolito, mantén X y pulsa E:\nel viento barre su nieve.": "Next to a monolith, hold X and press E:\nthe wind sweeps its snow.",
-  "Desliza a la derecha y pulsa ◇.": "Swipe right and press ◇.",
-  "Mantén X y pulsa E.": "Hold X and press E.",
+  "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve.": "Facing a monolith, crouch and press ◇:\nthe wind sweeps its snow.",
+  "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.": "Facing a monolith, crouch (C) and press E:\nthe wind sweeps its snow.",
   "La columna cae sobre la sima.": "The column falls across the chasm.",
   "Nieve que se hunde por todas partes.\nSigue el paso firme.": "Sinking snow everywhere.\nFollow the firm path.",
   "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.": "E turns the marked stone.\nCrouch (C) and E moves the mark down.",
@@ -146,7 +145,7 @@ const LARGO = z => {
 const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2, -125], [0, -150], [0, -180], [3, -205], [-2.5, -228], [3, -252], [-2.5, -276], [1.5, -300], [0, -330], [0, -345], [0, -365]].map(([x, z]) => [x, LARGO(z)])
   .concat([[-5, -641], [6, -691], [-3, -736], [0, -800], [6, -818], [-5, -840], [6, -862], [-5, -884], [5, -906], [-4, -928], [1, -946], [0, -965],
     // tras el desfiladero: dunas con un paso serpenteante entre la nieve que se hunde; luego, las columnas de basalto
-    [0, -975], [3.5, -988], [-3.5, -1001], [4, -1014], [-4, -1027], [3.5, -1040], [-3.5, -1053], [4, -1066], [-3, -1079], [0, -1092], [0, -1100],
+    [0, -990], [3.5, -1002], [-3.5, -1015], [4, -1028], [-4, -1041], [3.5, -1054], [-3.5, -1067], [3, -1080], [0, -1093], [0, -1100],
     [-2, -1120], [2, -1140], [-2, -1160], [1.5, -1180], [0, -1200], [0, -1300]]);       // dunas: ya en coordenadas finales
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
@@ -209,7 +208,7 @@ const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1232, PUZLE_Z = -786, PU
 const FIN_Z = ANILLO_Z + 6;
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
-const DUNAS2 = { desde: -972, hasta: -1094 }, BASALTO = { desde: -1098, hasta: -1220 };
+const DUNAS2 = { desde: -990, hasta: -1094 }, BASALTO = { desde: -1098, hasta: -1220 };
 const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2.hasta + 2, CANON2.hasta - 8, z));   // dentro del desfiladero final
 // Desfiladero final, tras el puzle de las columnas: estrecho y serpenteante, con una grieta que se salta,
 // una pilastra caída que saltar, un paso bajo, una gran escalera de piedras caídas sobre un precipicio
@@ -219,7 +218,7 @@ const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hast
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
 // En lugar de la segunda puerta: una columna de cuatro piedras giratorias al borde de una sima de pared a
 // pared. Resuelta, se tumba hacia delante y queda sobre la sima como un puente.
-const COLUMNA4_Z = PUERTA_FINAL_Z + 1, SIMA4 = { desde: COLUMNA4_Z - 1.25, hasta: COLUMNA4_Z - 6.5 };
+const COLUMNA4_Z = -980, SIMA4 = { desde: COLUMNA4_Z - 1.25, hasta: COLUMNA4_Z - 6.5 };
 const anchoC2 = z => 4.4 + Math.sin(z * 0.13) * 0.7;
 // Nieve que se hunde (como arenas movedizas, en espiral): de pared a pared; hay que saltarla corriendo.
 const ARENAS = [{ z: -881, largo: 2.6 }, { z: -929, largo: 2.6 }, { z: -630, largo: 2.6, ancho: 9 }, { z: -685, largo: 2.6, ancho: 9 }];   // (las dos últimas, en el manto de las dunas)
@@ -1768,6 +1767,20 @@ const AVISOS_TUNEL = [
   // Antes de la grieta ancha, más rocas que apartar (con una grande que no se mueve, contra la pared).
   for (const [dx, dz, alto, ancho] of [[-1.2, 8.5, 2.1, 1.8], [1.3, 9.6, 2.3, 1.9], [-2.9, 11, 4.2, 3.0]])
     penascos.push(nuevoPenasco(caminoX(GRIETA_C2.desde + dz) + dx, GRIETA_C2.desde + dz, alto, ancho));
+  // Entre la quinta plataforma y la columna: rocas y piedras talladas medio enterradas, sueltas y en grupos,
+  // a los lados del paso (generador propio: lo demás no cambia).
+  { const rD = generador(5757);
+    for (let z = PLATAFORMA5.z - PLATAFORMA5.r - 3; z > SIMA4.desde + 2.5; z -= 1.8 + rD() * 2.2) for (const lado of [-1, 1]) {
+      if (rD() < 0.12) continue;
+      const ancho = z > CANON2.hasta ? anchoC2(z) - 0.6 : 9, d = 2.3 + rD() * Math.max(0.5, ancho - 2.3), x = caminoX(z) + lado * d;
+      if (Math.hypot(x - PLATAFORMA5.x, z - PLATAFORMA5.z) < PLATAFORMA5.r + 2.8) continue;
+      if (rD() < 0.7) { const pz = kitRocas[1 + Math.floor(rD() * 3)], a = 0.8 + rD() * (rD() < 0.3 ? 2.6 : 1.3); enterrar(pz, x, z, a, rD() * 6, 0.22 + rD() * 0.15); }
+      else { const P = kitPilares[Math.floor(rD() * 3)], a = 0.8 + rD() * 1.3; colocar(P, x, z, a, rD() * 6, 0.25, masBajoEn(x, z, 0.8), false).children[0].material = nieveFina; }
+    }
+    // Y una pilastra caída, de lado, junto a la columna.
+    const zp = SIMA4.desde + 4.5, xp = caminoX(zp) + 4.2, e1 = new THREE.Vector3(xp - 0.8, alturaTerreno(xp - 0.8, zp + 2.5) - 0.3, zp + 2.5), e2 = new THREE.Vector3(xp + 1.2, alturaTerreno(xp + 1.2, zp - 2) + 0.2, zp - 2);
+    pilarTallado(kitPilares[4], e1, e2, 1.2, rD() * 6); colisiones.push({ x: xp, z: zp, r: 1.3, techo: e2.y + 0.6, obj: pilarTallado.ultimo });
+  }
   // Las paredes, como en el primer desfiladero: pilares tallados de pie, juntos, al borde del paso; detrás,
   // otra fila más alta, y la pared del terreno más atrás (no las corta). Sobre los precipicios, los mismos
   // pilares salen del fondo (no quedan flotando ni dejan hueco).
@@ -2236,13 +2249,18 @@ const puzle = (() => {
     objetivo4(x, z, ad) {
       const c = col4; if (c.t >= 0) return null;
       const dx = c.x - x, dz = c.z - z, d = Math.hypot(dx, dz), del = (dx * ad.x + dz * ad.z) / (d || 1);
-      if (!(d < 3 || (del > 0.64 && d < 14))) return null;
+      if (!(d < 3 || (del > 0.64 && d < 9))) return null;
       const b = c.bloques[c.sel]; b.centro.set(c.x, c.y0 + b.m.position.y, c.z);
       return { c, b, centro: b.centro };
     },
     girar4() { const b = col4.bloques[col4.sel]; b.rot = (b.rot + 1) % 4; },
     bajar4() { col4.sel = (col4.sel + 3) % 4; },
-    cilindroCerca(x, z) { let mejor = null, dm = 2.3; for (const c of cilindros) { const d = Math.hypot(c.x - x, c.z - z); if (d < dm) { dm = d; mejor = c; } } return mejor; },
+    // El monolito tapado que toca: el de al lado o el que está a la vista delante (hasta 6 m).
+    cilindroCerca(x, z, ad) {
+      let mejor = null, dm = 6;
+      for (const c of cilindros) { if (c.t >= 0) continue; const dx = c.x - x, dz = c.z - z, d = Math.hypot(dx, dz), del = ad ? (dx * ad.x + dz * ad.z) / (d || 1) : 1; if ((d < 2.4 || (del > 0.7 && d < 6)) && d < dm) { dm = d; mejor = c; } }
+      return mejor;
+    },
     barrer(c) { if (c.t < 0) c.t = 0; },
     alineada: c => c.abajo.anillo[c.abajo.rot] === c.meta.abajo && c.arriba.anillo[c.arriba.rot] === c.meta.arriba,
     actualizar(dt) {
@@ -2993,6 +3011,7 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
+  #desarrollo { position: fixed; left: 0; right: 0; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 13px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .8; pointer-events: none; }
   #portada .autor { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .7; pointer-events: none; }
   #portada .idioma button:focus-visible { outline: 2px solid var(--tinta-suave); outline-offset: 2px; border-radius: 4px; }
   #portada .botones button.opcion { min-width: 180px; }
@@ -3086,6 +3105,7 @@ ui.innerHTML = `
   <div id="rotulo" aria-live="polite"></div>
   <div id="ayuda" hidden data-t="WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V cámara">WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V cámara</div>
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" data-t-aria="Salir a la portada" hidden>×</button>
+  <div id="desarrollo" hidden data-t="En desarrollo…">En desarrollo…</div>
   <div id="mandos" hidden>
     <div id="zona-palanca"></div>
     <div id="palanca"><div id="pomo"></div></div>
@@ -3128,16 +3148,15 @@ zonaAccion.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) if (t.identifier === acc.id) {
     const dy = clamp(t.clientY - acc.y0, -32, 32), dx = clamp(t.clientX - acc.x0, -32, 32);
     pomoAccion.style.transform = `translate(${dx}px, ${dy}px)`;
-    // A los lados: a la izquierda gira la cámara alrededor de Blizzard; a la derecha, prepara el barrido.
+    // A la izquierda: gira la cámara alrededor de Blizzard.
     if (dx < -20 && Math.abs(dy) < 18) teclas.add("KeyV"); else teclas.delete("KeyV");
-    if (dx > 20 && Math.abs(dy) < 18) teclas.add("KeyX"); else teclas.delete("KeyX");
     if (dy < -20 && !acc.saltado) { acc.saltado = true; pulsadas.add("Space"); }
     if (dy > -10) acc.saltado = false;                              // volver al centro permite otro salto
     if (dy > 20) teclas.add("KeyC"); else teclas.delete("KeyC");
   }
 }, { passive: false });
 const soltarAccion = e => { for (const t of e.changedTouches) if (t.identifier === acc.id) {
-  acc.id = null; teclas.delete("KeyC"); teclas.delete("KeyV"); teclas.delete("KeyX"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
+  acc.id = null; teclas.delete("KeyC"); teclas.delete("KeyV"); pomoAccion.style.transform = ""; bolaAccion.classList.remove("activa");
 } };
 zonaAccion.addEventListener("touchend", soltarAccion); zonaAccion.addEventListener("touchcancel", soltarAccion);
 for (const b of ui.querySelectorAll(".boton")) {
@@ -3146,6 +3165,7 @@ for (const b of ui.querySelectorAll(".boton")) {
   const fin = e => { e.preventDefault(); teclas.delete(k); b.classList.remove("activo"); };
   b.addEventListener("touchend", fin); b.addEventListener("touchcancel", fin);
 }
+if (!tactil) ui.querySelector("#desarrollo").style.bottom = "22px";   // (en ordenador no hay botones: abajo del todo)
 const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
 cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
@@ -3358,6 +3378,7 @@ let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
 let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoCamara = 0, avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
+const _espMono = new THREE.Vector3();
 let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3();
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
@@ -3538,7 +3559,7 @@ function actualizar(dt) {
       rotular(tactil ? "◇ gira la piedra marcada por la espiral;\nagachado, la de abajo." : "E gira la piedra marcada por la espiral;\nagachado (C), la de abajo.", 6);
     } else if (arrodillado > 2.8 && aprende === "barrido") {
       estado = "juego"; barre = true;
-      rotular(tactil ? "Junto a un monolito, desliza a la derecha\ny pulsa ◇: el viento barre su nieve." : "Junto a un monolito, mantén X y pulsa E:\nel viento barre su nieve.", 6);
+      rotular(tactil ? "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve." : "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.", 6);
     } else if (arrodillado > 2.8 && aprende === "puerta") {
       estado = "juego"; abrePuertas = true;
       rotular(tactil ? "Desde la plataforma, agáchate\ny ◇ abre la puerta." : "Desde la plataforma, agáchate\ny E abre la puerta.", 6);
@@ -3593,14 +3614,14 @@ function actualizar(dt) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
-    } else if (pulsada("KeyE", "KeyJ") && enSuelo && puzle.cilindroCerca(pos.x, pos.z) && puzle.cilindroCerca(pos.x, pos.z).t < 0) {
-      // Un cilindro arcano cubierto de nieve: con el barrido, el viento se lleva la nieve y deja ver su runa.
-      const c = puzle.cilindroCerca(pos.x, pos.z);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && puzle.cilindroCerca(pos.x, pos.z, adelante)) {
+      // Un monolito cubierto de nieve (el que marca la espiral): agachado, el barrido se lleva la nieve y deja ver su runa.
+      const c = puzle.cilindroCerca(pos.x, pos.z, adelante);
       if (!barre) rotular("Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.", 3.5);
-      else if (!tecla("KeyX")) rotular(tactil ? "Desliza a la derecha y pulsa ◇." : "Mantén X y pulsa E.", 3);
+      else if (!(agachado || reloj - ultimoAgachado <= 1.5)) rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 3);
       else {
         puzle.barrer(c); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
-        espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.8, alto: 2.2 }; efectoEspiral = Math.max(efectoEspiral, 1);
+        espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.9, alto: 2.4 }; efectoEspiral = Math.max(efectoEspiral, 1);
         if (!avisoCilindros) { avisoCilindros = true; rotular("Cada monolito guarda la runa de una piedra de la columna:\nel más bajo, la de abajo; el más alto, la de arriba.", 6); }
       }
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo4(pos.x, pos.z, adelante)) {
@@ -3708,6 +3729,7 @@ function actualizar(dt) {
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
+    { const d = ui.querySelector("#desarrollo"), ver = pos.z < PLATAFORMA5.z + 14; if (d.hidden === ver) d.hidden = !ver; }   // (desde el Santuario de la revelación: lo que sigue, a medio hacer)
     if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a la izquierda la bola de salto\npara girar la cámara." : "V gira la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
@@ -3845,7 +3867,11 @@ function actualizar(dt) {
     const o = puzle.objetivo(pos.x, pos.z, adelante, agachadoAhora);
     if (o) { espiralEn = o.centro; espiralTam = { r: 1.35, alto: 1.9 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
   }
-  if (giraBloques && (estado === "juego" || estado === "empujando") && !llevando && !rescate && Math.abs(pos.z - COLUMNA4_Z) < 16) {
+  if (barre && (estado === "juego" || estado === "empujando") && !llevando && !rescate && Math.abs(pos.z - PLATAFORMA5.z) < 12) {
+    const c = puzle.cilindroCerca(pos.x, pos.z, adelante);
+    if (c) { espiralEn = _espMono.set(c.x, c.g.position.y + 1.2, c.z); espiralTam = { r: 1.0, alto: 2.4 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
+  }
+  if (giraBloques && (estado === "juego" || estado === "empujando") && !llevando && !rescate && Math.abs(pos.z - COLUMNA4_Z) < 12) {
     const o = puzle.objetivo4(pos.x, pos.z, adelante);
     if (o) { espiralEn = o.centro; espiralTam = { r: 1.35, alto: 1.9 }; efectoEspiral = Math.max(efectoEspiral, 0.7); }
   }
