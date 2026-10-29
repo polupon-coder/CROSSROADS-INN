@@ -27,7 +27,7 @@ const INGLES = {
   "Otra vez.": "Try again.",
   "Pon el dedo en el punto. Resigue la figura.": "Put your finger on the dot. Trace the figure.",
   "Pulsa en el punto. Resigue sin soltar.": "Press on the dot. Trace without letting go.",
-  "Santuario de las columnas": "Sanctuary of the Columns",
+  "Santuario del giro": "Sanctuary of the Turn",
   "Santuario del bastón": "Sanctuary of the Staff",
   "Santuario de las rocas": "Sanctuary of the Rocks",
   "Santuario de la puerta": "Sanctuary of the Door",
@@ -2931,7 +2931,7 @@ function empezar(santuario = 0) {
 }
 // Empezar ante una plataforma, con el bastón y los poderes de las anteriores; sin la toma inicial.
 function empezarEnSantuario(n) {
-  const P = PLATAFORMAS[n - 1];   // (la cuarta aún no está en la lista de santuarios)
+  const P = PLATAFORMAS[n - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
   pos.set(x, alturaSuelo(x, z) + 0.05, z); vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
   if (n >= 2) { tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false; }
@@ -2942,7 +2942,7 @@ function empezarEnSantuario(n) {
   // Los avisos de lo que queda atrás, ya vistos.
   if (n >= 2) avisoPuente = avisoSalto = avisoAgacharse = avisoMixta = avisoRocas = avisoGrieta = avisoRellano = true;
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
-  rotular(SANTUARIOS[n - 1] ? SANTUARIOS[n - 1].nombre : "Santuario de las columnas", 4);
+  rotular(SANTUARIOS[n - 1].nombre, 4);
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -2958,6 +2958,7 @@ const SANTUARIOS = [
   { runa: "espiral", nombre: "Santuario del bastón", texto: "La primera plataforma: aún sin bastón." },
   { runa: "runa", nombre: "Santuario de las rocas", texto: "Con el bastón. Aquí aprendes a mover rocas." },
   { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
+  { runa: "giro", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
