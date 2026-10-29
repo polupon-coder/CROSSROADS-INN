@@ -2955,10 +2955,10 @@ addEventListener("keyup", e => teclas.delete(e.code));
 addEventListener("blur", () => teclas.clear());
 // Portada: «Empezar» o «Santuarios» (empezar en una plataforma con lo aprendido hasta ahí).
 const SANTUARIOS = [
-  { runa: "espiral", nombre: "Santuario del bastón", texto: "La primera plataforma: aún sin bastón." },
+  { runa: "giro", nombre: "Santuario del bastón", texto: "La primera plataforma: aún sin bastón." },
   { runa: "runa", nombre: "Santuario de las rocas", texto: "Con el bastón. Aquí aprendes a mover rocas." },
   { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
-  { runa: "giro", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
+  { runa: "espiral", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
@@ -3287,7 +3287,7 @@ function actualizar(dt) {
     if (!tieneBaston && enSuelo && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
       // Antes de llamar al bastón hay que trazar la espiral.
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
-      trazo.empezar("espiral", () => { estado = "llamando"; arrodillado = 0; });
+      trazo.empezar("giro", () => { estado = "llamando"; arrodillado = 0; });   // (la runa del rombo con travesaño)
       ladoLlamada = elegirLado();
       musica.viento(0.2, 1);
       rumbo = Math.atan2(PLATAFORMA.x - pos.x, PLATAFORMA.z - pos.z) || rumbo;
@@ -3304,7 +3304,7 @@ function actualizar(dt) {
       // Cuarta plataforma: la runa del giro, la de las columnas.
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
       ladoLlamada = elegirLado();
-      trazo.empezar("giro", () => { estado = "despertando"; arrodillado = 0; aprende = "giro"; });
+      trazo.empezar("espiral", () => { estado = "despertando"; arrodillado = 0; aprende = "giro"; });   // la espiral: girar
       musica.viento(0.3, 0.85);
     }
     if (!avisoPuzle && pos.z < PUZLE_Z + 9 && !puzle.resuelto) { avisoPuzle = true; rotular(giraBloques ? "Pon las runas como las viste\nen el camino, en orden." : "Columnas de runas.\nVuelve a la plataforma.", 4); }
