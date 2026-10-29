@@ -39,7 +39,7 @@ const INGLES = {
   "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve.": "Facing a monolith, crouch and press ◇:\nthe wind sweeps its snow.",
   "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.": "Facing a monolith, crouch (C) and press E:\nthe wind sweeps its snow.",
   "La columna cae sobre la sima.": "The column falls across the chasm.",
-  "Nieve que se hunde por todas partes.\nSigue el paso firme.": "Sinking snow everywhere.\nFollow the firm path.",
+  "Nieve que se hunde por todas partes.\nAgáchate y barre: el viento descubre el paso.": "Sinking snow everywhere.\nCrouch and sweep: the wind uncovers the path.",
   "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.": "E turns the marked stone.\nCrouch (C) and E moves the mark down.",
   "◇ gira la piedra marcada.\nAgachado, ◇ baja la marca.": "◇ turns the marked stone.\nCrouched, ◇ moves the mark down.",
   "Santuario del bastón": "Sanctuary of the Staff",
@@ -1537,7 +1537,7 @@ const AVISOS_CANON = [
   { z: GRIETA_C2.desde + 6, texto: "Muy ancha. Salta y usa el viento." },
   ...ARENAS.map(A => ({ z: A.z + 7, texto: "Nieve que se hunde.\n¡Sáltala corriendo!" })),
   { z: PLATAFORMA5.z + 8, texto: "Una columna de runas entre dos simas.\nSube a la plataforma." },
-  { z: DUNAS2.desde - 1, texto: "Nieve que se hunde por todas partes.\nSigue el paso firme." },
+  { z: DUNAS2.desde - 1, texto: "Nieve que se hunde por todas partes.\nAgáchate y barre: el viento descubre el paso." },
 ];
 const AVISOS_TUNEL = [
   { z: PLATAFORMA3.z + 9, texto: "Una puerta sellada.\nSube a la plataforma." },
@@ -2869,6 +2869,27 @@ for (let z = DUNAS2.desde + 2, n = 0; z > DUNAS2.hasta - 6; z -= 10, n++) {
   }
   v.cambia = true;
 }
+// El paso firme es un camino de losas secreto bajo la nieve: el barrido (agachado y runa) se lleva la
+// nieve de los metros de delante y las losas asoman (y se quedan a la vista).
+const losasPaso = (() => {
+  const r = generador(3434), geo = new THREE.CylinderGeometry(0.5, 0.58, 0.24, 7), mat = new THREE.MeshStandardMaterial({ color: "#7c8494", roughness: 0.95, flatShading: true });
+  const l = [];
+  for (let z = DUNAS2.desde - 3; z > DUNAS2.hasta + 2; z -= 1.05 + r() * 0.25) {
+    const x = caminoX(z) + (r() - 0.5) * 0.35, m = new THREE.Mesh(geo, mat), s0 = 0.8 + r() * 0.35;
+    m.position.set(x, alturaTerreno(x, z) + 0.25, z); m.rotation.set((r() - 0.5) * 0.08, r() * 6.28, (r() - 0.5) * 0.08); m.scale.set(s0, 0.02, s0 * (0.8 + r() * 0.3));
+    m.visible = false; m.castShadow = false; m.receiveShadow = true; scene.add(m);
+    l.push({ m, z, s0, t: -1 });
+  }
+  return l;
+})();
+function revelarPaso(z0) {
+  let n = 0;
+  for (const L of losasPaso) if (L.t < 0 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; n++; }   // (las de más lejos, un poco después)
+  return n;
+}
+function animarPaso(dt) {
+  for (const L of losasPaso) if (L.t !== -1 && L.t < 1) { L.t = Math.min(1, L.t + dt * 1.6); const k = suave(0, 1, Math.max(0, L.t)); L.m.scale.y = 0.02 + 0.98 * k; }
+}
 {
   const rndN = generador(9191), libre = (x, z, r) => {
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (alturaTerreno(x + dx, z + dz) < -1 || enGrieta(x + dx, z + dz)) return false;
@@ -3610,6 +3631,10 @@ function actualizar(dt) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
       puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && barre && pos.z < DUNAS2.desde + 1 && pos.z > DUNAS2.hasta - 2 && (agachado || reloj - ultimoAgachado <= 1.5)) {
+      // En los pozos de nieve: el barrido descubre las losas del paso firme de delante.
+      revelarPaso(pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
+      espiralEn = new THREE.Vector3(pos.x + adelante.x * 3, pos.y + 0.4, pos.z + adelante.z * 3); espiralTam = { r: 2.2, alto: 0.8 }; efectoEspiral = Math.max(efectoEspiral, 1);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && puzle.cilindroCerca(pos.x, pos.z, adelante)) {
       // Un monolito cubierto de nieve (el que marca la espiral): agachado, el barrido se lleva la nieve y deja ver su runa.
       const c = puzle.cilindroCerca(pos.x, pos.z, adelante);
@@ -4002,6 +4027,7 @@ function actualizar(dt) {
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
 
   puzle.actualizar(dt);
+  animarPaso(dt);
   capaNiebla(dt);
   efectos(dt, adelante);
   if (reloj > rotuloHasta) rotulo.style.opacity = 0;
