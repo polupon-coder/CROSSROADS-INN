@@ -2890,7 +2890,28 @@ function revelarPaso(z0) {
   for (const L of losasPaso) if (L.t === -1 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; hundirNieve(L.x, L.z, 0.55 * L.s0 + 0.25); n++; }   // (las de más lejos, un poco después)
   return n;
 }
+// Ruedas de piedra inmensas que cruzan el paso de lado a lado, rodando: si te alcanzan, te empujan hacia
+// los pozos.
+const ruedas = [-1012, -1038, -1064].map((z, i) => {
+  const R = 2.6, g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 1.1, 20, 1), nieveFina); m.rotation.x = Math.PI / 2; m.castShadow = true; g.add(m);
+  scene.add(g);
+  return { g, m, z, R, cx: caminoX(z), fase: i * 2.1, vx: 0, x: caminoX(z) };
+});
+function moverRuedas(dt) {
+  for (const w of ruedas) {
+    w.fase += dt; const x = w.cx + Math.sin(w.fase * 0.38) * 13, vx = (x - w.x) / Math.max(dt, 1e-4);
+    w.m.rotation.y -= (x - w.x) / w.R; w.x = x; w.vx = vx;
+    w.g.position.set(x, alturaTerreno(x, w.z) + w.R - 0.25, w.z);
+    // Empuje: Blizzard, al alcance del canto de la rueda, sale despedido hacia donde rueda.
+    if (!rescate && Math.abs(pos.z - w.z) < 1.1 && Math.abs(pos.x - x) < w.R * 0.75 && pos.y < w.g.position.y + w.R * 0.6) {
+      const lado = Math.sign(pos.x - x) || Math.sign(vx);
+      pos.x = x + lado * w.R * 0.76; vel.x = lado * Math.max(4, Math.abs(vx) * 1.3);
+    }
+  }
+}
 function animarPaso(dt) {
+  moverRuedas(dt);
   for (const L of losasPaso) if (L.t !== -1 && L.t < 1) { L.t = Math.min(1, L.t + dt * 1.6); const k = suave(0, 1, Math.max(0, L.t)); L.m.scale.y = 0.02 + 0.98 * k; }
 }
 {
