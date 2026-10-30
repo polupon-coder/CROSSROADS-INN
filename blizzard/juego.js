@@ -39,7 +39,8 @@ const INGLES = {
   "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve.": "Facing a monolith, crouch and press ◇:\nthe wind sweeps its snow.",
   "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.": "Facing a monolith, crouch (C) and press E:\nthe wind sweeps its snow.",
   "La columna cae sobre la sima.": "The column falls across the chasm.",
-  "Nieve que se hunde por todas partes.\nAgáchate y barre: el viento descubre el paso.": "Sinking snow everywhere.\nCrouch and sweep: the wind uncovers the path.",
+  "Nieve que se hunde por todas partes.": "Sinking snow everywhere.",
+  "Agáchate y barre: el viento descubre el paso.": "Crouch and sweep: the wind uncovers the path.",
   "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.": "E turns the marked stone.\nCrouch (C) and E moves the mark down.",
   "◇ gira la piedra marcada.\nAgachado, ◇ baja la marca.": "◇ turns the marked stone.\nCrouched, ◇ moves the mark down.",
   "Santuario del bastón": "Sanctuary of the Staff",
@@ -1537,7 +1538,7 @@ const AVISOS_CANON = [
   { z: GRIETA_C2.desde + 6, texto: "Muy ancha. Salta y usa el viento." },
   ...ARENAS.map(A => ({ z: A.z + 7, texto: "Nieve que se hunde.\n¡Sáltala corriendo!" })),
   { z: PLATAFORMA5.z + 8, texto: "Una columna de runas entre dos simas.\nSube a la plataforma." },
-  { z: DUNAS2.desde - 1, texto: "Nieve que se hunde por todas partes.\nAgáchate y barre: el viento descubre el paso." },
+  { z: DUNAS2.desde - 1, texto: "Nieve que se hunde por todas partes." },
 ];
 const AVISOS_TUNEL = [
   { z: PLATAFORMA3.z + 9, texto: "Una puerta sellada.\nSube a la plataforma." },
@@ -2874,17 +2875,19 @@ for (let z = DUNAS2.desde + 2, n = 0; z > DUNAS2.hasta - 6; z -= 10, n++) {
 const losasPaso = (() => {
   const r = generador(3434), geo = new THREE.CylinderGeometry(0.5, 0.58, 0.24, 7), mat = new THREE.MeshStandardMaterial({ color: "#7c8494", roughness: 0.95, flatShading: true });
   const l = [];
-  for (let z = DUNAS2.desde - 3; z > DUNAS2.hasta + 2; z -= 1.05 + r() * 0.25) {
-    const x = caminoX(z) + (r() - 0.5) * 0.35, m = new THREE.Mesh(geo, mat), s0 = 0.8 + r() * 0.35;
-    m.position.set(x, alturaTerreno(x, z) + 0.25, z); m.rotation.set((r() - 0.5) * 0.08, r() * 6.28, (r() - 0.5) * 0.08); m.scale.set(s0, 0.02, s0 * (0.8 + r() * 0.3));
+  // Irregular: separaciones, tamaños, desvíos e inclinaciones distintos; algunas medio hundidas. A ras del
+  // suelo (Blizzard las pisa): al descubrirlas, el viento aparta también la nieve acumulada de encima.
+  for (let z = DUNAS2.desde - 3; z > DUNAS2.hasta + 2; z -= 0.75 + r() * 0.85) {
+    const x = caminoX(z) + (r() - 0.5) * 0.8, m = new THREE.Mesh(geo, mat), s0 = 0.55 + r() * 0.65, hunde = r() < 0.3 ? 0.06 + r() * 0.1 : 0, ladeo = hunde ? 0.25 : 0.1;
+    m.position.set(x, alturaTerreno(x, z) - 0.03 - hunde, z); m.rotation.set((r() - 0.5) * ladeo, r() * 6.28, (r() - 0.5) * ladeo); m.scale.set(s0, 0.02, s0 * (0.7 + r() * 0.5));
     m.visible = false; m.castShadow = false; m.receiveShadow = true; scene.add(m);
-    l.push({ m, z, s0, t: -1 });
+    l.push({ m, x, z, s0, t: -1 });
   }
   return l;
 })();
 function revelarPaso(z0) {
   let n = 0;
-  for (const L of losasPaso) if (L.t < 0 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; n++; }   // (las de más lejos, un poco después)
+  for (const L of losasPaso) if (L.t === -1 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; hundirNieve(L.x, L.z, 0.55 * L.s0 + 0.25); n++; }   // (las de más lejos, un poco después)
   return n;
 }
 function animarPaso(dt) {
@@ -3508,7 +3511,8 @@ function empezarRescate() {
   rescate = { t: 0, desde: pos.clone(), hacia: enPrecipicio ? inicio : seguro.clone() };
   vel.set(0, 0, 0);
   efectoEspiral = 2;
-  if (pos.z < PUENTE.desde + 1 && pos.z > PUENTE.hasta - 1) rotular("El viento te recoge.", 3);
+  if (pos.z < DUNAS2.desde && pos.z > DUNAS2.hasta && barre) rotular("Agáchate y barre: el viento descubre el paso.", 5);   // (la pista, solo tras hundirse)
+  else if (pos.z < PUENTE.desde + 1 && pos.z > PUENTE.hasta - 1) rotular("El viento te recoge.", 3);
   else if (!tieneBaston) rotular("El viento te recoge. Necesitas algo más.", 4);
 }
 
