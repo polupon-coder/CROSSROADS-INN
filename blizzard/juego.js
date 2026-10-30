@@ -33,7 +33,7 @@ const INGLES = {
   "En desarrollo…": "In development…",
   "Desliza a los lados la bola de salto\npara girar la cámara.": "Swipe the jump ball sideways\nto turn the camera.",
   "V y B giran la cámara.": "V and B turn the camera.",
-  "Una columna de runas entre dos simas.\nSube a la plataforma.": "A rune column between two chasms.\nClimb onto the platform.",
+  "Una columna de runas ante una sima.\nSube a la plataforma.": "A rune column before a chasm.\nClimb onto the platform.",
   "Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.": "A snow-covered monolith.\nLearn the sweep on the platform.",
   "Cada monolito guarda la runa de una piedra de la columna:\nI, la de arriba; IV, la de abajo.": "Each monolith keeps the rune of one stone of the column:\nI, the top one; IV, the bottom one.",
   "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve.": "Facing a monolith, crouch and press ◇:\nthe wind sweeps its snow.",
@@ -1537,7 +1537,7 @@ const AVISOS_CANON = [
   { z: ESCALERA.desde + 5, texto: "Sube de piedra en piedra." },
   { z: GRIETA_C2.desde + 6, texto: "Muy ancha. Salta y usa el viento." },
   ...ARENAS.map(A => ({ z: A.z + 7, texto: "Nieve que se hunde.\n¡Sáltala corriendo!" })),
-  { z: PLATAFORMA5.z + 8, texto: "Una columna de runas entre dos simas.\nSube a la plataforma." },
+  { z: PLATAFORMA5.z + 8, texto: "Una columna de runas ante una sima.\nSube a la plataforma." },
   { z: DUNAS2.desde - 1, texto: "Nieve que se hunde por todas partes." },
 ];
 const AVISOS_TUNEL = [
@@ -4261,16 +4261,19 @@ function ocultarTapadores() {
   if (++_turnoT % 4) return;                                    // cada 4 fotogramas basta (el rayo contra las mallas es caro)
   _ojoT.copy(camara.position); _hastaT.copy(pos).add(new THREE.Vector3(0, 1.1, 0));
   const largo = _ojoT.distanceTo(_hastaT), dir = _hastaT.clone().sub(_ojoT).normalize();
+  // Con la cámara girada a mano, se oculta todo lo que tape el centro de la imagen (lo que corta la línea
+  // hasta Blizzard, a cualquier distancia); si no, solo lo que está pegado a la cámara.
+  const alcance = Math.abs(giroCam) > 0.12 ? largo - 0.5 : 4.5;
   _rayoT.set(_ojoT, dir); _rayoT.far = largo;
   for (const t of tapadores) {
     let tapa = false;
     const dc = t.e.center.distanceTo(_ojoT);
-    if (dc - t.e.radius < 4.5) {                                  // solo lo que está muy cerca de la cámara
+    if (dc - t.e.radius < alcance) {
       const proy = clamp(_hastaT.clone().sub(_ojoT).dot(t.e.center.clone().sub(_ojoT)) / (largo * largo), 0, 1);
       const cerca = _ojoT.clone().lerp(_hastaT, proy).distanceTo(t.e.center) < t.e.radius;
       // Primero, contra su caja (barato); solo si la toca cerca de la cámara, el rayo contra la malla.
-      const enCaja = cerca && _rayoT.ray.intersectBox(t.caja, _cajaT) && _cajaT.distanceTo(_ojoT) < Math.min(4.5, largo - 0.6);
-      if (enCaja) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(4.5, largo - 0.6); }
+      const enCaja = cerca && _rayoT.ray.intersectBox(t.caja, _cajaT) && _cajaT.distanceTo(_ojoT) < Math.min(alcance, largo - 0.6);
+      if (enCaja) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(alcance, largo - 0.6); }
     }
     if (tapa !== t.oculto) { t.oculto = tapa; t.o.visible = !tapa; }
   }
