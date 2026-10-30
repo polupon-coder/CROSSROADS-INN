@@ -327,11 +327,14 @@ function alturaDunas(x, z, lado) {
   h *= lerp(0.3, 1, suave(3, 16, lado));                        // en el paso, dunas bajas
   return h + 0.6 * Math.sin(x * 0.13 + z * 0.05) * Math.sin(z * 0.09 + 1.3) + 0.6;
 }
+// Cada abismo con la franja de z que ocupa (medida una vez): fuera de ella no se calculan sus bordes.
+let _franjas = null;
+const franjasAbismos = () => _franjas || (_franjas = ABISMOS.map(([d, a]) => { let hi = -Infinity, lo = Infinity; for (let x = -90; x <= 90; x += 0.5) { hi = Math.max(hi, d(x)); lo = Math.min(lo, a(x)); } return [d, a, hi + 0.1, lo - 0.1]; }));
 function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
   h = lerp(ALTURA_PLAT, h, suave(6, 10, dp));               // llano alrededor de la plataforma
-  h += altoRellano(x) * suave(rellanoZ(x) + 0.12, rellanoZ(x) - 0.12, z);
+  if (z < RELLANO.z + 4) h += altoRellano(x) * (z < RELLANO.z - 4 ? 1 : suave(rellanoZ(x) + 0.12, rellanoZ(x) - 0.12, z));   // (su borde ondula menos de 4 m: lejos, el resultado es fijo)
   h = lerp(PLATAFORMA2.base, h, suave(PLATAFORMA2.r + 0.8, PLATAFORMA2.r + 4.5, Math.hypot(x - PLATAFORMA2.x, z - PLATAFORMA2.z)));
   h += ELEVA * suave(RAMPA3.desde + 0.4, RAMPA3.desde - 0.4, z + Math.sin(x * 0.4) * 0.3);   // el desnivel: pared casi vertical
   h = lerp(PLATAFORMA3.base, h, suave(PLATAFORMA3.r + 0.3, PLATAFORMA3.r + 1.2, Math.hypot(x - PLATAFORMA3.x, z - PLATAFORMA3.z)));
@@ -359,7 +362,7 @@ function alturaTerreno(x, z) {
   if (PLATAFORMA5.base !== undefined) h = lerp(PLATAFORMA5.base, h, suave(PLATAFORMA5.r + 0.5, PLATAFORMA5.r + 3, Math.hypot(x - PLATAFORMA5.x, z - PLATAFORMA5.z)));
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
-  for (const [d, a] of ABISMOS) if (z < d(x) && z > a(x) && Math.abs(x) < 90) h = -60;   // hondo: el fondo no se ve
+  if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
   return h;
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -2860,9 +2863,10 @@ for (const A of ARENAS) if (A.ancho) for (const v of ventisqueros) if (Math.abs(
 for (let z = DUNAS2.desde + 2, n = 0; z > DUNAS2.hasta - 6; z -= 10, n++) {
   ventisquero(caminoX(z - 5), z - 5, 26, 10, 0.3, { ini: n === 0, fin: z - 10 <= DUNAS2.hasta - 6 });
   const v = ventisqueros[ventisqueros.length - 1], p = v.geo.attributes.position; v.fijo = v.fijo || new Float32Array(p.count);
+  const aqui = pozos().filter(q => Math.abs(q.z - v.cz) < v.largo / 2 + q.r + 0.5);   // (solo los de este tramo)
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), zz = p.getZ(i);
-    for (const q of pozos()) {
+    for (const q of aqui) {
       if (Math.abs(q.z - zz) > q.r + 0.3 || Math.abs(q.x - x) > q.r + 0.3) continue;
       const dx = x - q.x, dz = zz - q.z, r = Math.hypot(dx, dz), th = Math.atan2(dz, dx);
       if (r < q.r) v.fijo[i] = Math.max(v.fijo[i], (0.07 + 0.07 * Math.sin(th * 3 + r * 4.2)) * (1 - suave(q.r * 0.55, q.r, r)) + 0.16 * (1 - suave(0, q.r * 0.6, r)));
@@ -3970,6 +3974,16 @@ function actualizar(dt) {
   // Junto a la tercera plataforma y la puerta, la cámara se aleja para ver la puerta entera; luego vuelve.
   anteLaPuerta = lerp(anteLaPuerta, puertaArcana.t < 1 ? suave(PLATAFORMA3.z + 12, PLATAFORMA3.z + 4, pos.z) * suave(PUERTA_ARCANA_Z - 1, PUERTA_ARCANA_Z + 4, pos.z) : 0, 1 - Math.exp(-dt * 1.5));
   const ojo = new THREE.Vector3().copy(pos).addScaledVector(adelante, -lerp(lerp(lerp(lerp(7.2, 6.2, enTunel), 9.5, enPlat), 11, anteLaPuerta), 3.6, cerca)).add(new THREE.Vector3(0, lerp(lerp(lerp(lerp(3.6, 1.9, enTunel), 2.8, enPlat), 3.4, anteLaPuerta), 1.7, cerca), 0));
+  // Girada a mano, si las paredes (desfiladeros) o el terreno la tapan, la cámara se acerca a Blizzard.
+  if (Math.abs(giroCam) > 0.05) {
+    const anchoPaso = z => z < CANON2.desde + 2 && z > CANON2.hasta - 2 ? anchoC2(z) - 0.9 : z < CANON_DESDE + 1 && z > DESFILADERO.hasta - 1 ? anchoCanon(z) - 0.9 : z < ARCOS.desde + 2 && z > ARCOS.hasta - 2 ? 7 : Infinity;
+    const d = _camD.copy(ojo).sub(pos);
+    for (let k = 1; k > 0.3; k -= 0.07) {
+      const q = _camQ.copy(pos).addScaledVector(d, k);
+      if (Math.abs(q.x - caminoX(q.z)) <= anchoPaso(q.z) && alturaTerreno(q.x, q.z) < q.y - 0.7) { ojo.copy(q); break; }
+      if (k - 0.07 <= 0.3) ojo.copy(q);
+    }
+  }
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
   for (const c of colisiones) if (c.bajo !== undefined && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
@@ -4284,7 +4298,7 @@ function ocultarTapadores() {
   const largo = _ojoT.distanceTo(_hastaT), dir = _hastaT.clone().sub(_ojoT).normalize();
   // Con la cámara girada a mano, se oculta todo lo que tape el centro de la imagen (lo que corta la línea
   // hasta Blizzard, a cualquier distancia); si no, solo lo que está pegado a la cámara.
-  const alcance = Math.abs(giroCam) > 0.12 ? largo - 0.5 : 4.5;
+  const alcance = Math.abs(giroCam) > 0.12 || tactil ? largo - 0.5 : 4.5;   // (en móvil, siempre: la pantalla es pequeña)
   _rayoT.set(_ojoT, dir); _rayoT.far = largo;
   for (const t of tapadores) {
     let tapa = false;
@@ -4496,6 +4510,7 @@ const sombraPies = (() => {
 })();
 
 let nieblaCaida = 0;
+const _camD = new THREE.Vector3(), _camQ = new THREE.Vector3();
 let anterior = performance.now(), camaraFija = null;   // solo para pruebas
 // Contador de fotogramas (tecla F, en ordenador): para saber cuánto va de lento y dónde.
 const medidor = document.createElement("div");
