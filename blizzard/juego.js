@@ -3502,6 +3502,7 @@ function elegirLado() {
   return tapado(derecha) <= tapado(izquierda) ? derecha : izquierda;
 }
 
+let hundidasD2 = 0;
 function empezarRescate() {
   losasTrasRescate = (pos.z < QUIEBRA.desde + 1 && pos.z > QUIEBRA.hasta - 1) || (pos.z < QUIEBRA2.desde + 1 && pos.z > QUIEBRA2.hasta - 1);
   musica.viento(0.35, 0.8);
@@ -3511,7 +3512,7 @@ function empezarRescate() {
   rescate = { t: 0, desde: pos.clone(), hacia: enPrecipicio ? inicio : seguro.clone() };
   vel.set(0, 0, 0);
   efectoEspiral = 2;
-  if (pos.z < DUNAS2.desde && pos.z > DUNAS2.hasta && barre) rotular("Agáchate y barre: el viento descubre el paso.", 5);   // (la pista, solo tras hundirse)
+  if (pos.z < DUNAS2.desde && pos.z > DUNAS2.hasta && barre && ++hundidasD2 >= 2) rotular("Agáchate y barre: el viento descubre el paso.", 5);   // (la pista, solo tras hundirse dos veces: al tercer intento)
   else if (pos.z < PUENTE.desde + 1 && pos.z > PUENTE.hasta - 1) rotular("El viento te recoge.", 3);
   else if (!tieneBaston) rotular("El viento te recoge. Necesitas algo más.", 4);
 }
