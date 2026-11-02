@@ -842,8 +842,8 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // Rocas y nieve acumulada que obligan a ir de un lado a otro, y luego pilastras caídas que hay
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
 // En cada fila de pilastras de salto, el tramo que se salta queda a un lado (hay que buscarlo).
-const PASO_SALTO = [4.5, -4.5];
-const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
+const PASO_SALTO = [4.5, -4.5, 3];
+const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -64, -76], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
   // Roca con colisión del tamaño que se ve, para no meterse dentro.
@@ -1186,7 +1186,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-80, -86.5];   // (bien separada de las pilastras de salto)                 // unos metros más allá de la segunda pilastra de salto
+const ZONA_AGACHARSE = [-87, -94];   // (bien separada de las pilastras de salto, que ahora son tres)                 // unos metros más allá de la segunda pilastra de salto
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -3101,7 +3101,7 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
-  #cita { position: fixed; left: 0; right: 0; top: 14%; padding: 0 32px; text-align: center; font: italic 22px/1.5 Georgia, serif; color: #fff; text-shadow: 0 1px 12px rgba(31,42,61,.25); pointer-events: none; z-index: 4; }
+  #cita { position: fixed; left: 0; right: 0; top: 14%; padding: 0 32px; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.5; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9); pointer-events: none; z-index: 4; }
   #cita span { display: block; opacity: 0; }
   #cita.ver span { animation: cita 6.5s ease 1s forwards; }
   #cita.ver span + span { animation-delay: 2.2s; }       /* la segunda frase, un poco después */
