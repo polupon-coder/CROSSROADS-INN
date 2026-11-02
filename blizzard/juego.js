@@ -1520,9 +1520,14 @@ const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite
 // sobre las pilastras por su paso, baja bajo los pasos bajos); de vez en cuando vuelve, rodea a Blizzard y
 // sigue; al final se funde con el bastón.
 const guia = (() => {
-  const luz = halo(0xe6f2ff); luz.scale.setScalar(0.45); luz.visible = false; scene.add(luz);
-  const cola = Array.from({ length: 26 }, () => { const h = halo(0xdcecff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
-  return { luz, cola, z: null, modo: "vuelta", t: 0, reloj: 0, paso: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
+  // Una cinta continua como la del viento mágico (borde marcado, centro suave), afilada en los dos extremos.
+  const N = 44, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
+  const uv = new Float32Array(N * 4), idx = []; for (let i = 0; i < N; i++) { uv.set([i / (N - 1), 0, i / (N - 1), 1], i * 4); } for (let i = 0; i < N - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  const luz = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  luz.frustumCulled = false; luz.renderOrder = 3; luz.visible = false; luz.raycast = () => {}; scene.add(luz);
+  const cola = Array.from({ length: N }, () => ({ p: new THREE.Vector3() }));
+  return { luz, cola, quieto: 0, z: null, modo: "vuelta", t: 0, reloj: 0, paso: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
 })();
 function puntoGuia(z, out) {
   let x = caminoX(z), dy = 0;
@@ -1534,26 +1539,40 @@ function puntoGuia(z, out) {
 const _gp = new THREE.Vector3();
 function moverGuia(dt) {
   const G = guia, activa = !tieneBaston && estado === "juego" && !rescate && G.fin < 1;
-  if (!activa && G.fin === 0) { G.luz.visible = false; for (const c of G.cola) c.h.visible = false; if (!tieneBaston && G.z === null) return; }
-  if (G.z === null) { G.z = pos.z - 2; puntoGuia(G.z, G.p); }
+  if (!activa && G.fin === 0) { G.luz.visible = false; if (!tieneBaston && G.z === null) return; }
+  if (G.z === null) { G.z = pos.z - 2; puntoGuia(G.z, G.p); G.p.set(pos.x + 1.5, pos.y + 1.2, pos.z); for (const c of G.cola) c.p.copy(G.p); }   // (la cinta empieza recogida en un punto)
   G.reloj += dt;
   const bast = baston.userData.luz.getWorldPosition(_gp.clone()), llega = G.z <= PLATAFORMA.z + 2;
   if (G.modo === "vuelta") {                                       // rodea a Blizzard y sigue
     G.t += dt; const a = G.t * 3.2, objetivo = _gp.set(pos.x + Math.cos(a) * 1.5, pos.y + 1.2 + Math.sin(G.t * 5) * 0.2, pos.z + Math.sin(a) * 1.5);
     G.p.lerp(objetivo, 1 - Math.exp(-dt * 5));
-    if (G.t > 3.9) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.z = pos.z - 1; }   // (dos vueltas y luego, delante: que la sigan)
+    if (G.t > 3.9) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.quieto = 0; G.z = pos.z - 1; }   // (dos vueltas y luego, delante: que la sigan)
   } else {
     const delante = pos.z - G.z;                                   // lo que lleva de ventaja
+    // Si te quedas quieto un rato o te desvías, vuelve a rodearte y a guiarte.
+    G.quieto = Math.hypot(vel.x, vel.z) < 0.3 ? G.quieto + dt : 0;
+    if (!llega && (G.quieto > 5 || Math.abs(pos.x - caminoX(pos.z)) > 7 || delante > 18)) { G.modo = "vuelta"; G.t = 0; }
     if (!llega && delante < 7) G.z -= dt * 4.2;
     const objetivo = llega ? bast : puntoGuia(G.z, _gp);
     G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
     if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 0.8);   // se funde con el bastón
   }
   const vis = !tieneBaston && estado !== "portada" && estado !== "intro" && G.fin < 1;
-  G.luz.visible = vis; G.luz.position.copy(G.p); G.luz.material.opacity = 0.42 * (1 - G.fin) * (0.85 + 0.15 * Math.sin(G.reloj * 6));
-  G.paso += dt;                                                    // (la estela guarda un punto cada poco: larga y tarda en irse)
-  if (G.paso > 0.06) { G.paso = 0; for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p); G.cola[0].p.copy(G.p); }
-  G.cola.forEach((c, i) => { const k = 1 - i / G.cola.length; c.h.visible = vis; c.h.position.copy(c.p); c.h.scale.setScalar(0.1 + 0.28 * k); c.h.material.opacity = 0.22 * Math.pow(k, 0.7) * (1 - G.fin); });
+  if (!G.luz.material.map) { G.luz.material.map = espiral.material.map; G.luz.material.needsUpdate = true; }   // (la textura de la cinta del viento)
+  G.luz.visible = vis; G.luz.material.opacity = 0.5 * (1 - G.fin);
+  // La cinta: un punto nuevo en cuanto se mueve un poco (continua, sin huecos); los viejos se quedan atrás.
+  G.paso += dt;
+  if (G.cola[0].p.distanceToSquared(G.p) > 0.0225 || G.paso > 0.05) { G.paso = 0; for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p); }   // (también con el tiempo: la cola se recoge despacio)
+  G.cola[0].p.copy(G.p);
+  const a = G.luz.geometry.attributes.position.array, n = G.cola.length, tg = new THREE.Vector3(), lado = new THREE.Vector3(), ojo = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const p0 = G.cola[Math.max(0, i - 1)].p, p1 = G.cola[Math.min(n - 1, i + 1)].p, p = G.cola[i].p;
+    tg.subVectors(p1, p0); if (tg.lengthSq() < 1e-6) tg.set(0, 0, 1);
+    ojo.subVectors(camara.position, p); lado.crossVectors(tg, ojo).normalize();
+    const t = i / (n - 1), w = 0.11 * Math.sin(Math.PI * Math.pow(t, 0.8));   // afilada en los dos extremos
+    a.set([p.x + lado.x * w, p.y + lado.y * w, p.z + lado.z * w, p.x - lado.x * w, p.y - lado.y * w, p.z - lado.z * w], i * 6);
+  }
+  G.luz.geometry.attributes.position.needsUpdate = true;
 }
 function moverBolas(dt) {
   moverGuia(dt);
@@ -4972,7 +4991,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, puzle, vel, pozoEn, bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, puzle, vel, pozoEn, guia: () => [guia.modo, +guia.t.toFixed(1), guia.p.toArray().map(v => +v.toFixed(1)), guia.cola[43].p.toArray().map(v => +v.toFixed(1))], bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
