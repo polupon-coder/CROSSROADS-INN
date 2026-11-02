@@ -30,6 +30,7 @@ const INGLES = {
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
+  "Caminante, no hay camino,\nse hace camino al andar.": "Wanderer, there is no road;\nthe road is made by walking.",
   "En desarrollo…": "In development…",
   "Desliza a los lados la bola de salto\npara girar la cámara.": "Swipe the jump ball sideways\nto turn the camera.",
   "V y B giran la cámara.": "V and B turn the camera.",
@@ -3100,6 +3101,9 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
+  #cita { position: fixed; inset: 0; display: grid; place-content: center; padding: 0 32px; text-align: center; font: italic 22px/1.5 Georgia, serif; color: #fff; text-shadow: 0 1px 12px rgba(31,42,61,.25); pointer-events: none; opacity: 0; z-index: 4; }
+  #cita.ver { animation: cita 6.5s ease forwards; }
+  @keyframes cita { 0% { opacity: 0; } 18% { opacity: 1; } 65% { opacity: 1; } 100% { opacity: 0; } }
   #desarrollo { position: fixed; left: 0; right: 0; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 13px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .8; pointer-events: none; }
   #portada .autor { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .7; pointer-events: none; }
   #portada .idioma button:focus-visible { outline: 2px solid var(--tinta-suave); outline-offset: 2px; border-radius: 4px; }
@@ -3194,6 +3198,7 @@ ui.innerHTML = `
   <div id="rotulo" aria-live="polite"></div>
   <div id="ayuda" hidden data-t="WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara">WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara</div>
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" data-t-aria="Salir a la portada" hidden>×</button>
+  <div id="cita" data-t="Caminante, no hay camino,\nse hace camino al andar.">Caminante, no hay camino,<br>se hace camino al andar.</div>
   <div id="desarrollo" hidden data-t="En desarrollo…">En desarrollo…</div>
   <div id="mandos" hidden>
     <div id="zona-palanca"></div>
@@ -3399,6 +3404,7 @@ function empezar(santuario = 0) {
   ayuda.hidden = tactil;
   cerrar.hidden = false;
   if (santuario) empezarEnSantuario(santuario);
+  else { const c = ui.querySelector("#cita"); c.innerHTML = tr("Caminante, no hay camino,\nse hace camino al andar.").replace("\n", "<br>"); c.classList.add("ver"); }   // al empezar el viaje, antes de ver a Blizzard
 }
 // Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
 // sin la toma inicial.
