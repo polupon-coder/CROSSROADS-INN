@@ -1393,7 +1393,7 @@ function pieza(gltf, x, z, tam, giro, hunde, inclina = 0) {
 for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -9, -40, 5, 1.1, 0.25, 0],
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
-  [gAnilloP, -6, -38, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
+  [gAnilloP, 10, -16, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
     else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
@@ -1548,18 +1548,23 @@ for (const H of huellasGigantes()) {
   const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
   d.scale.set(3.8 / t.x, 0.55 / t.y, 3.8 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
   d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = o.material.clone(); o.material.userData.suelo = true; } }); g.add(d);
-  g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.3, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
+  g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.47, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
 // paso, sin cerrarlo).
 { const rS = generador(2626);
-  for (let z = -8; z > ZONA_MIXTA[0]; z -= 2.5 + rS() * 3) {
-    const lado = rS() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (5.5 + rS() * 8);
-    if (solapa(x, z, 1.6) || PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3)) continue;
-    if (rS() < 0.75) enterrar(kitRocas[1 + Math.floor(rS() * 3)], x, z, 0.6 + rS() * (rS() < 0.3 ? 3.4 : 0.9), rS() * 6, 0.2 + rS() * 0.15);   // (alguna, grande)
-    else colocar(kitPilares[Math.floor(rS() * 3)], x, z, 0.7 + rS() * 0.9, rS() * 6, 0.25, masBajoEn(x, z, 0.8), false).children[0].material = nieveFina;
+  // (en grupos grandes: una roca mayor con dos o tres más a su lado; nada suelto y pequeño; libre alrededor del anillo tumbado)
+  const anillo = [caminoX(-16) + 10, -16];
+  for (let z = -8; z > ZONA_MIXTA[0]; z -= 8 + rS() * 6) {
+    const lado = rS() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (8 + rS() * 7);
+    if (Math.hypot(x - anillo[0], z - anillo[1]) < 9 || solapa(x, z, 3) || PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 4)) continue;
+    for (let k = 0, n = 2 + Math.floor(rS() * 3); k < n; k++) {
+      const a = k ? 1.8 + rS() * 2 : 3.5 + rS() * 2.5, an = rS() * 6.28, r = k ? 2.2 + rS() * 1.8 : 0;
+      enterrar(kitRocas[2 + Math.floor(rS() * 3)], x + Math.cos(an) * r, z + Math.sin(an) * r, a, rS() * 6, 0.25);
+    }
   } }
+
 
 {
   const rndU = generador(7171);
