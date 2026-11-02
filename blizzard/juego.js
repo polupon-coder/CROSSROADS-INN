@@ -1567,7 +1567,7 @@ function moverGuia(dt) {
     const objetivo = llega ? bast : puntoGuia(G.z, _gp);
     if (!llega) { objetivo.x += Math.sin(G.reloj * 2.6) * 0.6; objetivo.y += Math.sin(G.reloj * 5.2) * 0.12; }   // (avanza haciendo eses, como una serpiente)
     G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
-    if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 0.8);   // se funde con el bastón
+    if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 1.5);   // se convierte en la espiral del bastón
   }
   const vis = !tieneBaston && estado !== "portada" && estado !== "intro" && G.fin < 1;
   if (!G.luz.material.map) { G.luz.material.map = espiral.material.map; G.luz.material.needsUpdate = true; }   // (la textura de la cinta del viento)
@@ -3034,8 +3034,8 @@ function luzBaston(dt) {
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = brilloBaston * 0.55; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.28; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
-  piedra.emissive.setRGB(0.12, 0.14, 0.18).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
+  luz.material.opacity = brilloBaston * 0.3; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.14; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  piedra.emissive.setRGB(0.06, 0.07, 0.09).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
   luzBaston(dt);
@@ -4261,9 +4261,10 @@ function actualizar(dt) {
   // la soltada cae y vuelve a ser un obstáculo donde quede.
   espiralTam = null; if (!llevando && estado !== "llamando") espiralEn = null;
   // Ya cerca, y mientras se traza, el viento ya ronda el bastón clavado en la piedra.
-  if (!tieneBaston && !bastonEnMano && !rescate && !llevando && estado !== "llamando" && Math.hypot(baston.position.x - pos.x, baston.position.z - pos.z) < 18) {
+  // (la espiral del bastón es la propia guía al llegar: no aparece hasta que la guía se funde en ella)
+  if (!tieneBaston && !bastonEnMano && !rescate && !llevando && estado !== "llamando" && (guia.fin > 0 || estado === "trazando") && Math.hypot(baston.position.x - pos.x, baston.position.z - pos.z) < 18) {
     espiralEn = _espBaston.copy(baston.position); espiralEn.y += 0.25;
-    efectoEspiral = Math.max(efectoEspiral, estado === "trazando" ? 1 : 0.7);
+    efectoEspiral = Math.max(efectoEspiral, estado === "trazando" ? 1 : 0.7 * Math.max(guia.fin, estado === "trazando" ? 1 : 0));
   }
   for (const p of penascos) {
     if (p.estado === "llevada") {
