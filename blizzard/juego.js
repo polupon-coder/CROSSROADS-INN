@@ -1448,11 +1448,14 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   };
   // La cara: el modelo de muro de acantilado, en paños a casi su proporción (sin estirar), filas desplazadas
   // para no alinear juntas; todos con la cara al mismo plano (nada sale).
+  // (paños contiguos volteados en simetría: cada junta une un borde con su propio reflejo, sin corte)
   for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) for (let c = 0; c < 2; c++) {
-    const an = 74, desf = (f % 2) * 20, xc = cx + lado * (2.1 + an / 2 + c * (an - 10) - (c ? desf : 0));
-    encajar(gAcantilado, xc, y0 - 36 + f * 20, cara - 9, an, 25, 18, 0).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
+    const an = 74, al = 22, xc = cx + lado * (2.1 + an / 2 + c * an), esp = encajar(gAcantilado, xc, y0 - 36 + f * al, cara - 9, an, al, 18, 0);
+    if ((c + (lado > 0 ? 1 : 0)) % 2) esp.scale.x = -1;
+    if (f % 2) { esp.scale.y = -1; esp.position.y += al; }
+    esp.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
   }
-  for (const lado of [-1, 1]) for (let z2 = cara - 3.6, k = 0; z2 > ACANT.cima + 2; z2 -= 2.8, k++) pilarMuro(cx + lado * 3.0, z2, 26 + (k * 5 % 4) * 1.4, k + 3);
+  for (const lado of [-1, 1]) for (let z2 = cara - 19, k = 0; z2 > ACANT.cima + 2; z2 -= 2.8, k++) pilarMuro(cx + lado * 3.0, z2, 26 + (k * 5 % 4) * 1.4, k + 3);
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
   for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
