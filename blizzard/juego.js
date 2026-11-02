@@ -1589,7 +1589,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       m.position.copy(pieza.desplaza).add(new THREE.Vector3(0, -pieza.alto, 0)); m.castShadow = m.receiveShadow = true;
       cuerpo.add(m); cuerpo.scale.set(tam * 1.3 / pieza.ancho, 1.6 / pieza.alto, tam / pieza.ancho); g.add(cuerpo); g.position.set(x, top, z); g.rotation.y = rP() * 6; scene.add(g);
       const col = { x, z, r: tam * 0.62, techo: top }; colisiones.push(col);
-      piedrasCamino.push({ x, z }); movHex.push({ x, z, top, base: top, col, m: g, off: 0, tipo: i > 2 && rP() < 0.4 ? "cae" : "fija", A: 0, w: 0, ph: 0, t: 0, dy: 0, vy: 0, fuera: 0 });
+      piedrasCamino.push({ x, z }); movHex.push({ x, z, top, base: top, col, m: g, off: 0, tipo: i > 3 && i % 3 === 1 && rP() < 0.55 ? "cae" : "fija", A: 0, w: 0, ph: 0, t: 0, dy: 0, vy: 0, fuera: 0 });
     } }
   { const R = 1.35, rH = generador(4545), geo = new THREE.CylinderGeometry(R, R, 6, 6), lista = [];
     const texB = new THREE.TextureLoader().load("texturas/piedra.jpg"); texB.wrapS = texB.wrapT = THREE.RepeatWrapping; texB.repeat.set(1.5, 3);
@@ -1664,13 +1664,12 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
           const alto = 0.13 * Math.pow(1 - u * u, 0.6) * Math.min(1, ini * 0.3) * (0.8 + 0.2 * Math.sin(z * 3.1)) + 0.012;
           P.setXYZ(n, x, y0 + alto, z + (ini === 0 ? (Math.random() - 0.5) * 0.3 : 0)); uv.setXY(n, (x + 160) / 320, (80 - z) / 560); col.set([c.r, c.g, c.b], n * 3); }
         geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, matCinta); m.receiveShadow = true; m.raycast = () => {}; scene.add(m); } }
-    { const tn = new THREE.TextureLoader().load("texturas/niebla.png"); tn.wrapS = tn.wrapT = THREE.RepeatWrapping;   // (niebla muy baja en las hondonadas, y polvo de nieve que el viento arrastra y se posa)
-      for (let i = 0; i < 64; i++) { const t = new THREE.TextureLoader().load("texturas/niebla.png"); t.wrapS = t.wrapT = THREE.RepeatWrapping;   // (cada capa, su textura: un clon antes de cargar quedaba vacío)
-        t.repeat.set(2, 2); const m = new THREE.Mesh(new THREE.PlaneGeometry(56, 56), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, opacity: i < 54 ? 0.6 : 0.5, color: 0xffffff, fog: false }));
-        m.rotation.x = -Math.PI / 2; m.position.set(caminoX(HIELO.desde - 10 - i * 4) + (Math.random() - 0.5) * 50, y0 + (i < 54 ? [0.08, 0.3, 0.55, 0.8, 1.05, 1.3][i % 6] : 0.15), HIELO.desde - 6 - Math.floor((i % 54) / 2) * 3); m.renderOrder = 3; m.raycast = () => {}; scene.add(m);
-        brumaLago.push({ m, t, v: (i < 54 ? 0.02 : 0.05) * (0.6 + Math.random()), x0: m.position.x, y0: m.position.y, polvo: i >= 54, f: Math.random() * 6, vx: (1.2 + Math.random() * 1.6) * (i % 2 ? 1 : -1) }); } }
+    { const tn = new THREE.TextureLoader().load("texturas/niebla.png");   // (mucha niebla baja, difusa: nubes sueltas que se mueven de lado; sin cortes contra el suelo)
+      for (let i = 0; i < 90; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tn, transparent: true, depthWrite: false, depthTest: false, opacity: 0.5, color: 0xf3eef2, fog: false })), polvo = i >= 76;
+        const z = HIELO.desde + 8 - Math.random() * (HIELO.desde - HIELO.hasta + 40), sc = polvo ? 5 + Math.random() * 4 : 12 + Math.random() * 14; m.scale.set(sc * 1.6, sc * 0.55, 1); m.position.set(caminoX(z) + (Math.random() - 0.5) * 70, y0 + (polvo ? 0.3 : 0.4 + Math.random() * 1.6), z); m.renderOrder = 5; scene.add(m);
+        brumaLago.push({ m, x0: m.position.x, y0: m.position.y, polvo, f: Math.random() * 6, vx: (0.8 + Math.random() * 1.4) * (i % 2 ? 1 : -1) }); } }
     { const kitB = separarKit(gBloques), matT = new THREE.MeshStandardMaterial({ color: 0x9cc4ea, roughness: 0.05, metalness: 0.5, envMap: cieloRef, envMapIntensity: 1.3 });   // (el hielo roto: tus bloques de piedra, en hielo)
-      for (let i = 0; i < 24; i++) { const B = kitB[i % kitB.length], m = new THREE.Mesh(B.geo, matT), g = new THREE.Group(); m.position.copy(B.desplaza); g.add(m); const k = 0.9 / Math.max(B.radio * 2, B.alto); g.scale.setScalar(k); g.visible = false; scene.add(g); trozosHielo.push({ g, t: -1, vx: 0, vz: 0, giro: new THREE.Vector3() }); } }
+      for (let i = 0; i < 24; i++) { const B = kitB[i % kitB.length], m = new THREE.Mesh(B.geo, matT), g = new THREE.Group(); m.position.copy(B.desplaza); g.add(m); const k = 1.9 / Math.max(B.radio * 2, B.alto); g.scale.set(k, k * 0.35, k); /* (placas grandes) */ g.visible = false; scene.add(g); trozosHielo.push({ g, t: -1, vx: 0, vz: 0, giro: new THREE.Vector3() }); } }
     losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
     // Fuera del paso, el lago sigue: el mismo hielo, sin junta; debajo, el agua oscura.
     const largo = HIELO.desde - HIELO.hasta - 0.5, zc = (HIELO.desde + HIELO.hasta) / 2, xc = caminoX(zc);   // (justo el lago: ni el agua ni el hielo asoman sobre los hexágonos)
@@ -1681,7 +1680,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     { const sitios = [];   // (formas sueltas, cada una por su lado: unas lejos, otras acompañando el camino)
       for (let k = 0; k < 26; k++) { const z = HIELO.desde - 4 - rI() * (HIELO.desde - HIELO.hasta + 10), junto = k % 3 === 0, lado = rI() < 0.5 ? -1 : 1, x = caminoX(z) + 4 * Math.sin((HIELO.desde - z) * 0.07) + lado * (junto ? 5 + rI() * 3 : 14 + rI() * 45);
         if (sitios.some(([a, b]) => Math.hypot(a - x, b - z) < 14)) continue; sitios.push([x, z]);
-        const M = k % 2 ? gHieloA : gHieloB, h = junto ? 2.5 + rI() * 2 : 5 + rI() * 8, xx = x + lado * ancho(M, h) * 0.55, g = propio(M, xx, y0 - h * 0.15, z, h, rI() * 6);
+        const M = k % 2 ? gHieloA : gHieloB, h = junto ? 4 + rI() * 3 : 8 + rI() * 12, w = h * (0.22 + rI() * 0.12), xx = x + lado * w * 0.6, g = encajar(M, xx, y0 - h * 0.15, z, w, h, w * 0.9, rI() * 6);   /* (formas estiradas, altas) */
         g.rotation.z = (rI() - 0.5) * 0.9; g.rotation.x = (rI() - 0.5) * 0.4; g.traverse(claro); } }
     for (let z = HIELO.desde + 6, k = 0; false && z > HIELO.hasta - 30; z -= 8 + rI() * 6, k++) for (const lado of [-1, 1]) {
       const x = caminoX(z) + lado * (18 + rI() * 30), t = 8 + rI() * 14;
@@ -1800,9 +1799,8 @@ function moverZonas(dt) {
     }
   }
   if (pos.z < HIELO.desde + 40 && pos.z > HIELO.hasta - 60) for (const B of brumaLago) {   // (la bruma se desliza; el polvo va a ráfagas y se posa)
-    B.t.offset.x += B.v * dt; B.t.offset.y += B.v * 0.3 * dt;
-    if (!B.polvo) { B.f += dt * 0.35; B.m.position.x += B.vx * dt; const cx0 = caminoX(B.m.position.z); if (B.m.position.x > cx0 + 40) B.m.position.x -= 80; if (B.m.position.x < cx0 - 40) B.m.position.x += 80; const v = 0.5 + 0.5 * Math.sin(B.f); B.aparta = Math.max(0, (B.aparta || 0) - dt); const ap = B.aparta > 0 ? Math.max(0, 1 - Math.min(1, (5 - B.aparta) * 3)) + Math.max(0, 1 - B.aparta) : 1; B.m.material.opacity = (0.35 + 0.45 * v) * Math.min(1, ap); B.m.position.y = B.y0 + 0.25 * Math.sin(B.f * 0.7); }   // (de lado, tapando a ratos tobillos, rodillas o cintura)
-    if (B.polvo) { B.f += dt; const r = Math.max(0, Math.sin(B.f * 0.7)); B.m.material.opacity = 0.45 * r * r * (B.aparta > 0 ? 0 : 1); B.aparta = Math.max(0, (B.aparta || 0) - dt); B.m.position.x = B.x0 + Math.sin(B.f * 0.35) * 14; B.m.position.y = losasHielo.y0 + 0.1 + r * 0.9; }
+    if (!B.polvo) { B.f += dt * 0.35; B.m.position.x += B.vx * dt; const cx0 = caminoX(B.m.position.z); if (B.m.position.x > cx0 + 38) B.m.position.x -= 76; if (B.m.position.x < cx0 - 38) B.m.position.x += 76; const v = 0.5 + 0.5 * Math.sin(B.f); B.aparta = Math.max(0, (B.aparta || 0) - dt); const ap = B.aparta > 0 ? Math.max(0, 1 - Math.min(1, (5 - B.aparta) * 3)) + Math.max(0, 1 - B.aparta) : 1, lejos = Math.min(1, Math.abs(B.m.position.z - pos.z) / 6); B.m.material.opacity = (0.28 + 0.3 * v) * Math.min(1, ap) * (0.55 + 0.45 * lejos); B.m.position.y = B.y0 + 0.25 * Math.sin(B.f * 0.7); }   // (de lado, tapando a ratos tobillos, rodillas o cintura)
+    if (B.polvo) { B.f += dt; const r = Math.max(0, Math.sin(B.f * 0.7)); B.m.material.opacity = 0.5 * r * r * (B.aparta > 0 ? 0 : 1); B.aparta = Math.max(0, (B.aparta || 0) - dt); B.m.position.x = B.x0 + Math.sin(B.f * 0.35) * 14; B.m.position.y = losasHielo.y0 + 0.1 + r * 0.9; }
   }
   if (!losasHielo.length || pos.z > HIELO.desde + 2 || pos.z < HIELO.hasta - 2) return;
   for (const T of losasHielo) {
@@ -1815,10 +1813,10 @@ function moverZonas(dt) {
     if (T.t > 0.55) { T.temblor = true; T.im.setColorAt(T.i, _cH.setRGB(0.72, 0.8, 0.9)); T.im.instanceColor.needsUpdate = true; hieloMatriz(T); }   // (se agrieta: tiembla y se enturbia)
     else if (T.temblor) { T.temblor = false; T.im.setColorAt(T.i, _cH.setRGB(1, 1, 1)); T.im.instanceColor.needsUpdate = true; hieloMatriz(T); }
     if (T.t > 1.35) { for (const O of losasHielo) if (O !== T && O.tipo === "hielo" && !O.cae && !(O.fuera > 0) && Math.hypot(O.x - T.x, O.z - T.z) < 2.3) O.t = Math.max(O.t || 0, 1.3);   // (se hunde la estrella entera)
-      { let n = 0; for (const F of trozosHielo) if (F.t < 0 && n < 4) { n++; F.t = 0; F.g.visible = true; F.g.position.set(T.x + (Math.random() - 0.5) * 1.2, T.top - 0.05, T.z + (Math.random() - 0.5) * 1.2); F.g.rotation.set(0, Math.random() * 6, 0); F.giro.set((Math.random() - 0.5) * 1.6, 0, (Math.random() - 0.5) * 1.6); } T.dy = -40; hieloMatriz(T); }   // (se parte en trozos que se ladean y se hunden)
+      { let n = 0; for (const F of trozosHielo) if (F.t < 0 && n < 5) { n++; F.t = 0; F.g.visible = true; const a = n / 5 * 6.28 + Math.random() * 0.6; F.g.position.set(T.x + Math.cos(a) * 1.1, T.top - 0.1, T.z + Math.sin(a) * 1.1); F.g.rotation.set(0, Math.random() * 6, 0); F.giro.set(Math.sin(a) * 2.6, 0, -Math.cos(a) * 2.6); }   /* (se abren hacia fuera, como una flor) */ T.dy = -40; hieloMatriz(T); }   // (se parte en trozos que se ladean y se hunden)
       T.cae = true; T.temblor = false; T.vy = 0; T.dy = 0; const i = colisiones.indexOf(T.col); if (i >= 0) colisiones.splice(i, 1); musica.viento(0.2, 1.4); }   // (se quiebra)
   }
-  for (const F of trozosHielo) if (F.t >= 0) { F.t += dt; F.g.rotation.x += F.giro.x * dt; F.g.rotation.z += F.giro.z * dt; F.g.position.y -= dt * (0.3 + F.t * F.t * 0.9); if (F.t > 3.5) { F.t = -1; F.g.visible = false; } }
+  for (const F of trozosHielo) if (F.t >= 0) { F.t += dt; if (F.t < 0.9) { F.g.rotation.x += F.giro.x * dt * (1 - F.t); F.g.rotation.z += F.giro.z * dt * (1 - F.t); } F.g.position.y -= dt * (0.15 + F.t * F.t * 0.7); if (F.t > 3.5) { F.t = -1; F.g.visible = false; } }
   for (const G of grietasHielo) if (G.t >= 0) { G.t += dt; G.d.material.opacity = Math.min(1, G.t * 3) * (G.t > 5 ? Math.max(0, 1 - (G.t - 5)) : 1); if (G.t > 6) { G.t = -1; G.d.visible = false; } }
   if (!rescate && pos.y < losasHielo.y0 - 1.6) { empezarRescate(); rescate.hacia = (seguroHielo || new THREE.Vector3(caminoX(HIELO.desde + 2), losasHielo.y0 + 0.05, HIELO.desde + 2)).clone(); }
 }
@@ -1842,7 +1840,7 @@ function moverBolas(dt) {
   }
   for (const P of pilastrasOnda) if (P.t >= 0 && P.t < 1.4 + P.d) {   // caen hacia fuera, cada vez más deprisa
     P.t += dt; const f = clamp((P.t - P.d) / 1.3, 0, 1); P.piv.rotation.set(0, P.a, 0); P.piv.rotateX(P.ang * f * f); P.piv.rotateZ(P.tz * f);   // (las del paso quedan tumbadas como una rampa que baja; las demás, inclinadas)
-    if (P.cae && P.t >= 1.3 + P.d && !P.rampa) { const dir = new THREE.Vector3(Math.sin(P.a), 0, Math.cos(P.a)), A = P.piv.position.clone().add(new THREE.Vector3(0, 2.6, 0)), B = P.piv.position.clone().addScaledVector(dir, P.h * Math.sin(P.ang)).add(new THREE.Vector3(0, P.h * Math.cos(P.ang) + 1.2, 0)); P.rampa = { x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: P.h / 2 + 2, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: 1.1 } }; colisiones.push(P.rampa); }
+    if (P.cae && P.t >= 1.3 + P.d && !P.rampa) { const dir = new THREE.Vector3(Math.sin(P.a), 0, Math.cos(P.a)), A = P.piv.position.clone().add(new THREE.Vector3(0, 0.55, 0)), B = P.piv.position.clone().addScaledVector(dir, P.h * Math.sin(P.ang)).add(new THREE.Vector3(0, P.h * Math.cos(P.ang) + 0.5, 0));   /* (a ras de la pilastra tumbada) */ P.rampa = { x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: P.h / 2 + 2, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: 1.1 } }; colisiones.push(P.rampa); }
   }
   const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
   for (const b of bolas) {
@@ -4063,6 +4061,7 @@ function empezarEnSantuario(n) {
   if (n >= 3) abrePuertas = true;
   if (n >= 4) giraBloques = true;
   if (n >= 5) { barre = true; avisoPuzle = true; }
+  if (n >= 6) onda = true;   // (desde el panel: llegas con su magia, sin reseguir la runa)
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
@@ -4769,7 +4768,7 @@ function actualizar(dt) {
   sol.target.position.copy(pos).addScaledVector(_ejeR, Math.round(ea / texel) * texel - ea).addScaledVector(_ejeU, Math.round(eb / texel) * texel - eb);
   sol.position.copy(sol.target.position).add(haciaSol);
   // Más allá de la niebla no se ve nada: no se dibuja (era la mayor parte de lo que se dibujaba).
-  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) { scene.fog.far = lerp(scene.fog.far, 230, h); scene.fog.near = lerp(scene.fog.near, 25, h); } }   // (en el lago, el aire limpio)
+  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) { scene.fog.far = lerp(scene.fog.far, 85, h); scene.fog.near = lerp(scene.fog.near, 4, h); } }   // (en el lago, el aire limpio)
   { const f = Math.max(45, scene.fog.far + 22); if (Math.abs(camara.far - f) > 1) { camara.far = f; camara.updateProjectionMatrix(); } }
   const enCanon2 = enC2Z(pos.z);   // en el desfiladero final, el sol bajo no entra entre las paredes
   sol.intensity = lerp(0.02, 0.42, alba) * (1 - 0.92 * enCanon2); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
