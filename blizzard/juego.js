@@ -359,8 +359,9 @@ const franjasAbismos = () => _franjas || (_franjas = ABISMOS.map(([d, a]) => { l
 // paredes): se puede bajar a ellas andando.
 let _huellas = null;
 const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 8 }, (_, i) => {
-  const z = 5 - i * 5.4, lado = i % 2 ? 1 : -1, eje = caminoX(z) - 9 + Math.sin(i * 0.5) * 3, rumbo = Math.atan2(Math.cos(i * 0.5) * 0.5 * 3 / 5.4, 1);
-  return { x: eje + lado * 1.5 * Math.cos(rumbo), z: z + lado * 1.5 * Math.sin(rumbo), c: Math.cos(rumbo + lado * 0.1), s: Math.sin(rumbo + lado * 0.1) };
+  // En diagonal: cruzan el camino de un lado a otro.
+  const rumbo = -0.8 + Math.sin(i * 0.4) * 0.12, ex = caminoX(0) - 14 + i * 3.9, ez = 6 - i * 3.9, lado = i % 2 ? 1 : -1;
+  return { x: ex + lado * 1.5 * Math.cos(rumbo), z: ez - lado * 1.5 * Math.sin(rumbo), c: Math.cos(rumbo + lado * 0.1), s: Math.sin(rumbo + lado * 0.1) };
 }));
 function hoyoHuellas(x, z) {
   if (z > 10 || z < -38) return 0;
@@ -1377,7 +1378,8 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
   [gAnilloP, -6, -38, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
-    if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.8, 0.87, 1.0); } }); }   // (el anillo, azulado: su textura tira a amarillo)
+    if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
+    else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
 
 // Las huellas: el modelo del hoyo en la nieve (con su reborde), estirado a la forma de un pie.
 const matHuella = new THREE.MeshStandardMaterial({ color: 0xc8d5ec, roughness: 1 });   // (azulada)   // (el tono de la nieve del suelo; el relieve lo da la luz)
@@ -1391,7 +1393,7 @@ for (const H of huellasGigantes()) {
     o.material.onBeforeCompile = sh => { sh.uniforms.y0H = { value: y0 }; sh.vertexShader = "varying float vYH;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vYH = (modelMatrix * vec4(transformed, 1.0)).y;");
       sh.fragmentShader = "uniform float y0H; varying float vYH;\n" + sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= mix(1.0, 0.72, smoothstep(0.02, -0.3, vYH - y0H));"); };
     o.material.customProgramCacheKey = () => "huella"; } }); g.add(d);
-  g.position.set(H.x, y0 - 0.25, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
+  g.position.set(H.x, y0 - 0.34, H.z);   // (enterradas: solo asoma el reborde) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
