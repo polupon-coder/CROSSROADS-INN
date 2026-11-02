@@ -250,6 +250,7 @@ const enArena = (x, z) => ARENAS.find(A => Math.abs(z - A.z) < A.largo / 2 && Ma
 const generador = semilla => { let a = semilla; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
 const rnd = (() => { let a = 20261023; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
+const uPies = { value: new THREE.Vector3() };                     // dónde está Blizzard (para la nieve de hombros, brazos y pantorrillas)
 const suave = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function lerpAngulo(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
@@ -864,6 +865,7 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
   };
   ZONA_ROCAS.forEach((z, i) => {
     const lado = i % 2 ? -1 : 1, cx = caminoX(z);
+    if (i === 2) return;                                         // (delante del primer salto, nada)
     rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx + lado * (0.8 + rndA() * 0.8), z + (rndA() - 0.5) * 0.8, 0.9 + rndA() * 0.2, 0.9 + rndA() * 0.3);   // baja: se salta
     rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx - lado * (3.2 + rndA()), z + (rndA() - 0.5) * 1.2, 0.8 + rndA() * 0.2, 0.8 + rndA() * 0.2);
     if (i === 1) { arcoBajo(cx + lado * 6.5, z - 1, 1.4); arcoBajo(cx - lado * 7.5, z + 1.5, -1.3); }   // a los lados, agacharse
@@ -1071,11 +1073,14 @@ const pilarDeKit = (() => {
   PILARES.forEach(([px, pz, rp], i) => {
     const cx = caminoX(pz) + px, tope = alturaBase(caminoX(pz), PRECIPICIO.desde) * 0.3 - 0.05, pieza = kitPilares[[5, 4, 5, 3][i % 4]];
     // La cima de la pieza no es plana: su punto más alto sobresale algo, para que se pise a ras del borde.
-    pilarTallado(pieza, new THREE.Vector3(cx, tope - 18, pz), new THREE.Vector3(cx, tope + 0.62, pz), rp * 2, rndP() * 6);
-    // Arriba, una losa plana con nieve (se aterriza en llano, no en las facetas de la cima).
-    const losa = new THREE.Mesh(new THREE.CylinderGeometry(rp * 0.97, rp * 1.0, 0.34, 9), nieveFina);
-    losa.position.set(cx, tope + 0.55, pz); losa.rotation.y = i * 1.3; losa.castShadow = losa.receiveShadow = true; scene.add(losa);
-    colisiones.push({ x: cx, z: pz, r: rp * 0.95, techo: tope + 0.72 });
+    // Arriba, una roca tallada de cara de arriba casi plana (los bloques del kit); debajo, su columna,
+    // que baja recta hasta perderse en la niebla del fondo. Se aterriza en llano.
+    void pieza;
+    const B = kitPilares[i % 3], h = 1.7, base = tope + 0.7 - h, g = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina);
+    m.position.copy(B.desplaza); m.castShadow = m.receiveShadow = true; g.add(m);
+    g.scale.set(rp * 2 / (B.radio * 2), h / B.alto, rp * 2 / (B.radio * 2)); g.position.set(cx, base, pz); g.rotation.y = rndP() * 6; scene.add(g);
+    pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(cx, tope - 22, pz), new THREE.Vector3(cx, base + 0.4, pz), rp * 1.6, i * 1.7);
+    colisiones.push({ x: cx, z: pz, r: rp * 0.88, techo: tope + 0.7 });
   });
   for (let i = 0; i < 11; i++) rnd();                          // lo que gastaban los pilares de antes
 }
@@ -1208,7 +1213,7 @@ const ZONA_AGACHARSE = [-74.5, -80.5];                 // unos metros más allá
     }
     viga(pieza, eje(-5.4), eje(5.4), g);
     // Cierran los lados, para que haya que pasar por debajo.
-    for (const lado of [-1, 1]) monticulo(kitRocas[Math.floor(rndG() * kitRocas.length)], cx + lado * 7.2, z + (rndG() - 0.5) * 2, 4.2, 2.0, rndG() * 6);
+    // (sin muros a los lados: los rodea el viento, que te devuelve)
   });
 }
 
@@ -1315,6 +1320,16 @@ function enterrar(pieza, x, z, a, giro, hundir) {
   }
   return null;
 }
+// Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
+// paso, sin cerrarlo).
+{ const rS = generador(2626);
+  for (let z = -8; z > ZONA_MIXTA[0]; z -= 2.5 + rS() * 3) {
+    const lado = rS() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (5.5 + rS() * 8);
+    if (solapa(x, z, 1.6) || PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3)) continue;
+    if (rS() < 0.75) enterrar(kitRocas[1 + Math.floor(rS() * 3)], x, z, 0.6 + rS() * (rS() < 0.2 ? 1.8 : 0.9), rS() * 6, 0.2 + rS() * 0.15);
+    else colocar(kitPilares[Math.floor(rS() * 3)], x, z, 0.7 + rS() * 0.9, rS() * 6, 0.25, masBajoEn(x, z, 0.8), false).children[0].material = nieveFina;
+  } }
+
 {
   const rndU = generador(7171);
   for (let z = DUNAS.desde - 18; z > DUNAS.hasta + 6; z -= 6 + rndU() * 7) {
@@ -2619,15 +2634,15 @@ const capaTela = (() => {
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        P[k].add(_v).lerp(A[k], 0.012 + 0.07 * (1 - baja) * (1 - baja) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
+        P[k].add(_v).lerp(A[k], 0.008 + 0.045 * (1 - baja) * (1 - baja) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
       }
       for (let it = 0; it < 5; it++) {
         for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) {
           const k = i * NJ + j;
           atar(k - NJ, k, largoV, 1);
           if (j) atar(k - 1, k, largoH[j - 1] * lerp(1, VUELO_ABAJO, (i - 1) / (NI - 2)), 0.9);
-          if (i > 2) atar(k - 2 * NJ, k, largoV * 2, 0.9);           // doblado: sin «S» ni pliegues horizontales
-          if (i > 3) atar(k - 3 * NJ, k, largoV * 3, 0.6);           // larga, sin quebrarse
+          if (i > 2) atar(k - 2 * NJ, k, largoV * 2, 0.55);          // doblado: sin «S» ni pliegues horizontales (algo más suelta)
+          if (i > 3) atar(k - 3 * NJ, k, largoV * 3, 0.3);           // larga, sin quebrarse
         }
         for (let k = FIJAS; k < P.length; k++) {
           for (const c of CAPSULAS) {
@@ -3963,6 +3978,7 @@ function actualizar(dt) {
     if (hundimiento > 1.35) { hundimiento = 0; empezarRescate(); }
   } else hundimiento = Math.max(0, hundimiento - dt * 4);
   blizzard.position.copy(pos);
+  uPies.value.copy(pos);
   if (hundimiento > 0) blizzard.position.y -= hundimiento;
   // Al subir un escalón el cuerpo no salta de golpe: sube en un instante corto con la rodilla alta.
   if (escalon > 0) {
@@ -4456,7 +4472,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
       mat.uniforms.centro.value.set(x, 0, z); mat.uniforms.ojo.value.copy(camara.position); mat.uniforms.jugador.value.copy(pos);
     };
   }
-  const uni = { mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: scene.fog.color } };   // el velo sigue al color de la niebla (rosado al amanecer)
+  const uni = { piesY: uPies, mapaAlturas: { value: mapaAlturas }, texNievePie: { value: texNieve }, tonoNievePie: { value: new THREE.Color(TONO_NIEVE) }, veloPie: { value: scene.fog.color } };   // el velo sigue al color de la niebla (rosado al amanecer)
   // alto: hasta dónde sube la nieve (m); velo: cuánto se funde con el color del cielo.
   // amarilloVelo: velo de más solo en lo amarillo (capucha, capa), que se mantiene apagado.
   // polvo: nieve fina en lo que mira hacia arriba (hombros); fuerza: cuánto cubre la de la base.
@@ -4469,7 +4485,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
       if (prev) prev(sh, r);
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = "varying vec3 vMundoPie;\n" + sh.vertexShader.replace("#include <skinning_vertex>", "#include <skinning_vertex>\n vMundoPie = (MATMUNDO * vec4(transformed, 1.0)).xyz;");
-      sh.fragmentShader = `uniform sampler2D mapaAlturas; uniform sampler2D texNievePie; uniform vec3 tonoNievePie; uniform vec3 veloPie; varying vec3 vMundoPie;
+      sh.fragmentShader = `uniform vec3 piesY; uniform sampler2D mapaAlturas; uniform sampler2D texNievePie; uniform vec3 tonoNievePie; uniform vec3 veloPie; varying vec3 vMundoPie;
         vec2 sueloPie(vec2 xz) {                                    // (x: altura del suelo; y: cuánto cambia alrededor)
           vec2 c = xz - vec2(${X0}.0, ${Z0}.0), i = floor(c), f = c - i, t = vec2(${NX}.0, ${NZ}.0);
           vec2 a = texture2D(mapaAlturas, (i + 0.5) / t).rg, b = texture2D(mapaAlturas, (i + vec2(1.5, 0.5)) / t).rg;
@@ -4505,6 +4521,13 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           vec3 nWP = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
           ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.985, 0.992, 1.008)" : ""}, smoothstep(${piedra === "pista" ? "0.8, 0.95" : "0.35, 0.7"}, nWP.y + (motasP - 0.5) * ${piedra === "pista" ? "0.15" : "0.5"}) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
+          if (${piedra || apagar >= 1 ? "false" : "true"}) {   // hombros, brazo de arriba y pantorrillas: motas finas y apagadas, también sobre el traje negro
+            float hb = vMundoPie.y - piesY.y, lat = length(vMundoPie.xz - piesY.xz), granoH = fract(sin(dot(floor(vMundoPie * 95.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+            float hombro = smoothstep(1.05, 1.2, hb) * (1.0 - smoothstep(1.42, 1.56, hb)) * smoothstep(0.35, 0.8, nWP.y);
+            float brazo = smoothstep(0.88, 1.0, hb) * (1.0 - smoothstep(1.3, 1.42, hb)) * smoothstep(0.17, 0.24, lat) * smoothstep(-0.35, 0.25, nWP.y) * 0.75;
+            float pant = smoothstep(0.1, 0.18, hb) * (1.0 - smoothstep(0.45, 0.58, hb)) * smoothstep(-0.45, 0.15, nWP.y) * 0.7;
+            diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.72, max(hombro, max(brazo, pant * 0.8)) * step(0.83, granoH) * 0.75);
+          }
           if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
         #include <emissivemap_fragment>`).replace("#include <fog_fragment>", `${velo > 0 ? `gl_FragColor.rgb = mix(gl_FragColor.rgb, veloPie, ${velo.toFixed(3)} + ${amarilloVelo.toFixed(3)} * smoothstep(0.08, 0.2, gl_FragColor.r - gl_FragColor.b));` : ""}
@@ -4517,8 +4540,8 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   // Personaje (los pies y una ligera veladura), su capa y su esclavina (solo la veladura).
   const hechos = new Set();
   figura.traverse(o => { if (o.isSkinnedMesh && o !== esclavina.malla && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 1; nevar(o.material, 0.16, 0.2, 0.06, 0.6, 1, false, 0.42, 0.3); } });
-  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.2, 0, 0.3, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
-  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.5, 0.2, 0, 0, 0.8, false, 0.99, 0.3);   // sin motas: en la tela brillaban   // y suave abajo, junto al suelo
+  hechos.add(esclavina.malla.material); nevar(esclavina.malla.material, 0, 0.2, 0, 0.75, 1, false, 0.99, 0.3);    // nieve fina sobre los hombros
+  hechos.add(capaTela.malla.material); nevar(capaTela.malla.material, 0.8, 0.2, 0, 0, 0.55, false, 0.99, 0.3);   // sin motas: en la tela brillaban   // y suave abajo, junto al suelo
   baston.traverse(o => { if (o.isMesh && o.material.isMeshStandardMaterial && !hechos.has(o.material)) { hechos.add(o.material); o.material.roughness = 0.5; o.material.metalness = 0.15; nevar(o.material, 0.3, 0.08); } });   // con un ligero brillo; poca veladura (se veía muy claro)
   // Rocas, pilastras, ruinas, plataformas y piedras móviles: todo lo de piedra con material estándar.
   scene.traverse(o => {
