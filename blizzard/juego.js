@@ -2634,6 +2634,8 @@ const capaTela = (() => {
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
+        const ondea = Math.sin(reloj * 5.3 + j * 0.8 + i * 0.6) * 1.6 * baja * baja * baja;   // abajo, ondea suelta
+        _v.addScaledVector(lado, ondea * dt * dt).addScaledVector(atras, Math.abs(ondea) * 0.6 * dt * dt);
         P[k].add(_v).lerp(A[k], 0.008 + 0.045 * (1 - baja) * (1 - baja) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
       }
       for (let it = 0; it < 5; it++) {
@@ -2650,8 +2652,8 @@ const capaTela = (() => {
             if (d < c.r) { _w.subVectors(P[k], q); if (_w.lengthSq() < 1e-8) _w.copy(atras); _w.normalize(); P[k].copy(q).addScaledVector(_w, c.r); }
           }
           // Nunca por delante del cuerpo: detrás del plano de la espalda (con un margen a los lados).
-          const delante = _w.subVectors(P[k], centro).dot(atras);
-          if (delante < 0.04) P[k].addScaledVector(atras, 0.04 - delante);
+          const delante = _w.subVectors(P[k], centro).dot(atras), sep = 0.04 + 0.11 * Math.sin(Math.PI * Math.min(1, Math.floor(k / NJ) / (NI - 1) * 1.15));   // en medio, más despegada
+          if (delante < sep) P[k].addScaledVector(atras, sep - delante);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
       }
@@ -4522,11 +4524,13 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
           float motasP = texture2D(texNievePie, vMundoPie.xz * 2.3 + vMundoPie.y * 1.7).r;
           ${piedra ? `diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * texture2D(texNievePie, vMundoPie.xz * 0.28).rgb${piedra === "arco" ? " * vec3(0.985, 0.992, 1.008)" : ""}, smoothstep(${piedra === "pista" ? "0.8, 0.95" : "0.35, 0.7"}, nWP.y + (motasP - 0.5) * ${piedra === "pista" ? "0.15" : "0.5"}) * ${polvo.toFixed(3)}${piedra === "arco" ? " * smoothstep(0.32, 0.6, motasP)" : ""});` : ""}
           if (${piedra || apagar >= 1 ? "false" : "true"}) {   // hombros, brazo de arriba y pantorrillas: motas finas y apagadas, también sobre el traje negro
-            float hb = vMundoPie.y - piesY.y, lat = length(vMundoPie.xz - piesY.xz), granoH = fract(sin(dot(floor(vMundoPie * 95.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+            // (manchas suaves y juntas, no motas cuadradas: de la textura de la nieve, estirada a 0-1)
+            float m1 = clamp((texture2D(texNievePie, vMundoPie.xz * 4.2 + vMundoPie.y * 3.1).r - 0.9) / 0.05, 0.0, 1.0), m2 = clamp((texture2D(texNievePie, vMundoPie.xz * 0.9 + vMundoPie.yx * 0.7 + 0.3).g - 0.9) / 0.05, 0.0, 1.0);
+            float hb = vMundoPie.y - piesY.y, lat = length(vMundoPie.xz - piesY.xz), granoH = smoothstep(0.63, 0.78, m1 * 0.6 + m2 * 0.5);
             float hombro = smoothstep(1.05, 1.2, hb) * (1.0 - smoothstep(1.42, 1.56, hb)) * smoothstep(0.35, 0.8, nWP.y);
             float brazo = smoothstep(0.88, 1.0, hb) * (1.0 - smoothstep(1.3, 1.42, hb)) * smoothstep(0.17, 0.24, lat) * smoothstep(-0.35, 0.25, nWP.y) * 0.75;
             float pant = smoothstep(0.1, 0.18, hb) * (1.0 - smoothstep(0.45, 0.58, hb)) * smoothstep(-0.45, 0.15, nWP.y) * 0.7;
-            diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.72, max(hombro, max(brazo, pant * 0.8)) * step(0.83, granoH) * 0.75);
+            diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.72, max(hombro, max(brazo, pant * 0.5)) * granoH * 0.8);
           }
           if (${piedra ? "false" : "true"}) diffuseColor.rgb = mix(diffuseColor.rgb, tonoNievePie * 0.95, smoothstep(0.3, 0.8, nWP.y) * smoothstep(0.5, 0.85, motasP) * ${polvo.toFixed(3)} * ${apagar < 1 ? "smoothstep(0.06, 0.16, diffuseColor.r - diffuseColor.b)" : "1.0"});   // en el cuerpo, solo sobre lo amarillo (en el traje negro brillaba)
         }` : ""}
