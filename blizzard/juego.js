@@ -1412,8 +1412,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // que se montan sobre los bordes de la escalera (sin espacio entre pared y escalera).
   // (en losas de 14 m, a la proporción del modelo: estirado a 40 m su textura se veía estirada y borrosa)
   const losaMuro = (x, y, z, ax, ay, az, giro) => encajar(gAcantilado, x, y, z, ax, ay, az, giro).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
-  for (const lado of [-1, 1]) for (let c = 0; c < 4; c++) for (let f = 0; f < 4; f++) {
-    const ancho = 14, desf = (f % 2) * 5, xc = cx + lado * (1.25 + ancho / 2 + c * (ancho - 0.6) - desf * (c === 0 ? 0 : 1));
+  for (const lado of [-1, 1]) for (let c = 0; c < 2; c++) for (let f = 0; f < 4; f++) {
+    const ancho = 42, desf = (f % 2) * 9, xc = cx + lado * (1.25 + ancho / 2 + c * (ancho - 0.6) - desf * (c === 0 ? 0 : 1));
     losaMuro(xc, y0 - 34 + f * 14, ACANT.pie + 3 - fondo / 2 - (f % 2) * 0.4, ancho, 15, fondo, f % 2 ? Math.PI : 0);
   }
   // Las paredes a lado y lado de la escalera (cierran la grieta por dentro, sin asomar delante).
@@ -1421,7 +1421,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: ACANT.pie + 2.2, r: 1.3, techo: 99 });
   for (let z2 = ACANT.pie - 1.5; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 2.95, z: z2, r: 1.2, techo: 99 });
-  { const e = encajar(gEscalinata, cx, alturaTerreno(cx, ACANT.pie + 17) - 1.7, (ACANT.pie + ACANT.cima) / 2 - 0.4, 5.0, ACANT.alto + 1.8,   // (el primer peldaño, casi al nivel del puente)
+  { const e = encajar(gEscalinata, cx, alturaTerreno(cx, ACANT.pie + 17) - 2.3, (ACANT.pie + ACANT.cima) / 2 - 0.4, 5.0, ACANT.alto + 2.4,   // (el primer peldaño, casi al nivel del puente)
         // (el primer peldaño, a ras del suelo)
       ACANT.pie - ACANT.cima + 1.5, ESCALINATA_GIRO);
     void e;
@@ -1429,10 +1429,10 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     encajar(gAcantilado, cx, y0 - 60, (ACANT.pie + ACANT.cima) / 2 + 0.6, ACANT.pie - ACANT.cima + 3, 59.6, 3.2, Math.PI / 2).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
     // El puente: un tramo de piedra sobre el abismo, a ras del suelo (se pisa).
     const zp = ACANT.pie + 8.2, yp = alturaTerreno(cx, ACANT.pie + 17);
-    encajar(gPuente, cx, yp - 3.1, zp, 17.6, 3.1, 4.4, Math.PI / 2);   // (casi el doble)   // (el puente de arco, de borde a borde)
+    encajar(gPuente, cx, yp - 3.1, zp, 17.6, 3.1, 5.6, Math.PI / 2);   // (casi el doble)   // (el puente de arco, de borde a borde)
     // Rocas en el borde donde arranca el puente.
     for (const [dx, dz, a] of [[-3.2, 17.2, 1.4], [-4.6, 16.5, 0.9], [3.4, 17.0, 1.7], [4.9, 17.8, 1.0], [-6.2, 17.6, 2.2]]) enterrar(kitRocas[2 + Math.round(a * 3) % 3], cx + dx, ACANT.pie + dz, a, a * 4, 0.2);
-    colisiones.push({ x: cx, z: zp, r: 9.5, techo: yp, rampa: { a: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 16.6), b: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 0.8), ancho: 1.8 } });
+    colisiones.push({ x: cx, z: zp, r: 9.5, techo: yp, rampa: { a: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 16.6), b: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 0.8), ancho: 2.3 } });
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
     const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx + 8, ACANT.cima - 6) + 0.05, ACANT.cima - 0.4); const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 5);
     colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 1.6 } });   // (arriba, el rellano hasta el llano)
