@@ -367,7 +367,7 @@ function hoyoHuellas(x, z) {
   let hondo = -1;
   for (const H of huellasGigantes()) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 20) continue;
-    const u = (dx * H.c - dz * H.s) / 1.9, v = (dx * H.s + dz * H.c) / 1.9;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
+    const u = (dx * H.c - dz * H.s) / 2.5, v = (dx * H.s + dz * H.c) / 1.6;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
     hondo = Math.max(hondo, 0.16 * (1 - suave(0.75, 0.95, d)));   // (el hoyo, poco hondo: el modelo pone el reborde)
   }
@@ -1380,13 +1380,17 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.8, 0.87, 1.0); } }); }   // (el anillo, azulado: su textura tira a amarillo)
 
 // Las huellas: el modelo del hoyo en la nieve (con su reborde), estirado a la forma de un pie.
-const matHuella = new THREE.MeshStandardMaterial({ color: TONO_NIEVE, roughness: 1 });   // (el tono de la nieve del suelo; el relieve lo da la luz)
+const matHuella = new THREE.MeshStandardMaterial({ color: 0xc8d5ec, roughness: 1 });   // (azulada)   // (el tono de la nieve del suelo; el relieve lo da la luz)
 for (const H of huellasGigantes()) {
   const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
-  d.scale.set(2.6 / t.x, 0.7 / t.y, 5.2 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
+  d.scale.set(3.4 / t.x, 0.7 / t.y, 4.3 / t.z);   // (casi redonda) d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
   // Vacía por dentro (se recorta el fondo del modelo: se ve el hoyo del suelo) y del tono de la nieve del suelo.
   const y0 = alturaTerreno(H.x, H.z), corte = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(y0 + 0.06));
-  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = matHuella; o.material.clippingPlanes = [corte]; o.material = o.material.clone(); o.material.clippingPlanes = [corte]; } }); g.add(d);
+  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = matHuella; o.material.clippingPlanes = [corte]; o.material = o.material.clone(); o.material.clippingPlanes = [corte];
+    // La pared de dentro (lo que queda bajo el nivel de la nieve), más oscura: en sombra.
+    o.material.onBeforeCompile = sh => { sh.uniforms.y0H = { value: y0 }; sh.vertexShader = "varying float vYH;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vYH = (modelMatrix * vec4(transformed, 1.0)).y;");
+      sh.fragmentShader = "uniform float y0H; varying float vYH;\n" + sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= mix(1.0, 0.72, smoothstep(0.02, -0.3, vYH - y0H));"); };
+    o.material.customProgramCacheKey = () => "huella"; } }); g.add(d);
   g.position.set(H.x, y0 - 0.25, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
 }
 
