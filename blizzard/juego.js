@@ -424,7 +424,7 @@ function alturaTerreno(x, z) {
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
 PLATAFORMA5.base = alturaTerreno(PLATAFORMA5.x, PLATAFORMA5.z);
-PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z);
+PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z) + 0.5;   // (algo más alta: a la altura del camino)
 
 // ─── Escena ────────────────────────────────────────────────────────────────
 const CIELO = new THREE.Color("#c9d8ee");
@@ -1469,8 +1469,17 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   }
   // Las paredes de la grieta: el mismo modelo de muro, de canto a lo largo de la escalera, montadas sobre sus
   // bordes; paños volteados en simetría (como la cara) para que las juntas no se vean.
+  // Al otro lado del abismo (el de las dunas, bajo el arranque del puente): la misma pared de acantilado,
+  // mirando a la escalera, con su borde de arriba a ras del suelo.
+  { const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.25;
+    for (let f = 0; f < 3; f++) for (let c = -2; c < 2; c++) {
+      const an = 74, al = 22, w = encajar(gAcantilado, cx + (c + 0.5) * an, yb - (f + 1) * al, ACANT.pie + 6 + 9, an, al, 18, Math.PI);
+      if (c % 2) w.scale.x = -1;
+      if (f % 2) { w.scale.y = -1; w.position.y += al; }
+      w.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
+    } }
   for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) for (let c = 0; c < 2; c++) {
-    const lg = 32, al = 22, fo = 12, w = encajar(gAcantilado, cx + lado * (0.3 + fo / 2), y0 - 36 + f * al, cara - lg / 2 - c * lg, lg, al, fo, -lado * Math.PI / 2);
+    const lg = 32, al = 22, fo = 12, w = encajar(gAcantilado, cx + lado * (1.7 + fo / 2), y0 - 36 + f * al, cara - lg / 2 - c * lg, lg, al, fo, -lado * Math.PI / 2);
     if (c % 2) w.scale.x = -1;
     if (f % 2) { w.scale.y = -1; w.position.y += al; }
     w.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
@@ -1480,11 +1489,20 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   { const rv = generador(8383);
     for (const lado of [-1, 1]) for (let z2 = ACANT.pie + 6, k = 0; z2 > ACANT.cima - 1; z2 -= 1.25 + rv() * 0.4, k++) {
       const t = clamp((ACANT.pie + 0.6 - z2) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), y = lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t), w = 1.9 + rv() * 0.9, x = cx + lado * (1.85 + w / 2 + rv() * 0.2), a = new THREE.Vector3(x, y - 2, z2), b = new THREE.Vector3(x + lado * rv() * 0.3, y + 3 + rv() * 5, z2 + (rv() - 0.5) * 0.3);
-      pilarTallado(kitPilares[3 + k % 3], a, b, w, rv() * 6);   // (grandes; el paso nunca más estrecho que la bola)
+      { const pz = kitRocas[2 + k % 3], alto = 3.5 + rv() * 3, rr = pz.radio * alto / pz.alto, xr = cx + lado * (1.95 + rr); colocar(pz, xr, z2, alto, rv() * 6, 0.35, y, false); colisiones.pop(); }   // (rocas grandes; el paso nunca más estrecho que la bola)
+      void a; void b; void w; void x;
       if (false) { const xi = cx + lado * (2.15 + rv() * 0.2); pilarTallado(kitPilares[3 + (k + 1) % 3], new THREE.Vector3(xi, y - 2, z2 - 0.6), new THREE.Vector3(xi, y + 1.2 + rv() * 2.2, z2 - 0.6), 0.9 + rv() * 0.4, rv() * 6); }   // (en el tramo medio, más cerca: estrecha)
     } }
     // Al final de la escalera, el tramo de camino de piedra hasta la plataforma de la onda.
-    { const z0 = ACANT.cima - 0.5, z1 = PLATAFORMA6.z + PLATAFORMA6.r - 0.3, zc = (z0 + z1) / 2, xc = caminoX(zc); encajar(gCamino, xc, alturaTerreno(xc, zc) - 0.3, zc, 3.4, 0.9, z0 - z1 + 1, 0); }
+    { const z0 = ACANT.cima - 0.5, z1 = PLATAFORMA6.z + PLATAFORMA6.r - 0.3, zc = (z0 + z1) / 2, xc = caminoX(zc); encajar(gCamino, xc, alturaTerreno(xc, zc) + 0.15, zc, 3.4, 0.9, z0 - z1 + 1, 0);
+      const ya = alturaTerreno(cx, ACANT.cima - 2) + 0.05, yb = alturaTerreno(xc, zc) + 0.62, A = new THREE.Vector3(cx, ya, ACANT.cima - 0.4), B = new THREE.Vector3(xc, yb, z0 - 2.5), C = new THREE.Vector3(caminoX(z1), yb, z1);
+      colisiones.push({ x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: 3, techo: yb, rampa: { a: A, b: B, ancho: 1.6 } }, { x: (B.x + C.x) / 2, z: (B.z + C.z) / 2, r: B.distanceTo(C) / 2 + 2, techo: yb, rampa: { a: B, b: C, ancho: 1.6 } }); }
+    // A los lados del camino, desde la salida de la escalera hasta las pilastras: rocas grandes.
+    { const rs = generador(4242);
+      for (let z2 = ACANT.cima - 1.5, k = 0; z2 > PLATAFORMA6.z + PLATAFORMA6.r + 1; z2 -= 2.6 + rs() * 1.2, k++) for (const lado of [-1, 1]) {
+        const pz = kitRocas[2 + (k + (lado > 0 ? 1 : 0)) % 3], alto = 3 + rs() * 3, rr = pz.radio * alto / pz.alto, x = caminoX(z2) + lado * (2.3 + rr);
+        colocar(pz, x, z2, alto, rs() * 6, 0.3, masBajoEn(x, z2, rr), false);
+      } }
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
   for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
@@ -1668,7 +1686,7 @@ function moverBolas(dt) {
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1e9; b.g.visible = false; continue; }   // (solo dos: pasan una vez cada una)   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
     b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
-    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.y + 0.8 - (y + b.R), pos.z - z) < b.R + 0.55)   // (al tocarla, por donde sea, el viento te devuelve) { const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; });   // (al pie de la escalera, con el viento; las bolas vuelven a salir) vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (grande: se salta con salto e impulso)
+    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.z - z) < b.R + 0.5 && pos.y < y + 2 * b.R + 0.2 && pos.y > y - 1.5)   // (al tocarla, por donde sea, el viento te devuelve) { const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; });   // (al pie de la escalera, con el viento; las bolas vuelven a salir) vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (grande: se salta con salto e impulso)
     void largo;
   }
 }
