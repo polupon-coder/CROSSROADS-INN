@@ -3033,7 +3033,7 @@ let brilloBaston = 0;
 let estelaT = 0;
 // (la misma cinta que la guía: continua, de canto, afilada en los extremos)
 const estela = (() => {
-  const N = 16, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3));
+  const N = 10, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3));
   const uv = new Float32Array(N * 4), idx = []; for (let i = 0; i < N; i++) uv.set([i / (N - 1), 0, i / (N - 1), 1], i * 4); for (let i = 0; i < N - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
@@ -3051,7 +3051,7 @@ function moverEstela(dt) {
   E.m.visible = ver; if (!ver) return;
   E.m.material.opacity = 0.5 * Math.min(1, estelaT / 0.3);
   const a = E.m.geometry.attributes.position.array, n = E.pts.length;
-  for (let i = 0; i < n; i++) { const p = E.pts[i], w = 0.1 * Math.sin(Math.PI * Math.pow(i / (n - 1), 0.8)); a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6); }
+  for (let i = 0; i < n; i++) { const p = E.pts[i], w = 0.16 * Math.sin(Math.PI * Math.pow(i / (n - 1), 0.8)); a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6); }
   E.m.geometry.attributes.position.needsUpdate = true;
 }
 function luzBaston(dt) {
