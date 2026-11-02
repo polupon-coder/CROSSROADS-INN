@@ -30,6 +30,11 @@ const INGLES = {
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
+  "Todo gran viaje comienza con un pequeño paso.": "Every great journey begins with a small step.",
+  "Lo importante no es el destino, sino el camino.": "What matters is not the destination, but the path.",
+  "Para encontrarse, a veces hay que perderse.": "To find yourself, sometimes you must get lost.",
+  "El mayor viaje es hacia uno mismo.": "The greatest journey is the one within.",
+  "Lo que buscas cambia mientras caminas.": "What you seek changes as you walk.",
   "Caminante, no hay camino,\nse hace camino al andar.": "Wanderer, there is no road;\nthe road is made by walking.",
   "En desarrollo…": "In development…",
   "Desliza a los lados la bola de salto\npara girar la cámara.": "Swipe the jump ball sideways\nto turn the camera.",
@@ -3164,6 +3169,8 @@ estilo.textContent = `
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
   body:has(#trazo:not([hidden])) #rotulo, body:has(#trazo:not([hidden])) #ayuda { color: #fff; text-shadow: none; }   /* sobre el velo de las runas: blanco, sin sombra */
+  #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); top: calc(52px + env(safe-area-inset-top, 0px)); width: min(560px, calc(100% - 120px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9), 0 0 3px rgba(255,255,255,.8); pointer-events: none; }
+  @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; transform: translateY(-50%); width: min(38vw, 520px); } }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
   #trazo .guia { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 5; }
@@ -3292,10 +3299,18 @@ const FIGURAS = {
   // (unidos por una vertical larga en un extremo: de un solo trazo, sin volver atrás)
   barrido: { velocidad: 50, puntos: [[74, 14], [50, 38], [26, 14], [26, 62], [50, 86], [74, 62]] },
 };
+// Una frase para cada santuario, mientras se resigue su runa.
+const FRASES_TRAZO = {
+  giro: "Todo gran viaje comienza con un pequeño paso.",
+  runa: "Lo importante no es el destino, sino el camino.",
+  puerta: "Para encontrarse, a veces hay que perderse.",
+  espiral: "El mayor viaje es hacia uno mismo.",
+  barrido: "Lo que buscas cambia mientras caminas.",
+};
 const trazo = (() => {
   const capa = document.createElement("div");
   capa.id = "trazo"; capa.hidden = true;
-  capa.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="guia"/><path class="hecho"/><circle class="inicio" r="3.6"/><circle class="dedo" r="4"/></svg>`;
+  capa.innerHTML = `<p class="frase"></p><svg viewBox="0 0 100 100" aria-hidden="true"><path class="guia"/><path class="hecho"/><circle class="inicio" r="3.6"/><circle class="dedo" r="4"/></svg>`;
   document.body.appendChild(capa);
   const svg = capa.querySelector("svg"), guia = capa.querySelector(".guia"), hecho = capa.querySelector(".hecho");
   const inicio = capa.querySelector(".inicio"), dedo = capa.querySelector(".dedo");
@@ -3349,6 +3364,7 @@ const trazo = (() => {
   return {
     empezar(nombre, fin) {
       preparar(nombre); alAcabar = fin; capa.hidden = false; reiniciar();
+      capa.querySelector(".frase").textContent = tr(FRASES_TRAZO[nombre] || "");   // la frase de cada santuario, mientras se traza
       mandos.style.visibility = "hidden";                         // la palanca y los botones, fuera mientras se traza
       rotular(tactil ? "Pon el dedo en el punto. Resigue la figura." : "Pulsa en el punto. Resigue sin soltar.", 5);
     },
