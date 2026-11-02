@@ -1427,11 +1427,15 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const [, B, bb] = [0, 1, 2, 3, 4, 5].map(i => { const P = kitPilares[i], b = caja(P), t = b.getSize(new THREE.Vector3()); return [Math.abs(t.x - t.z) / Math.max(t.x, t.z) + (t.y < Math.max(t.x, t.z) ? 0.5 : 0), P, b]; }).sort((a, b) => a[0] - b[0])[0];   // (la pieza más recta y de sección más cuadrada)
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(B.geo.index.array));
       g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
+    const geoPr2 = (() => { const B = kitPilares[4], bb = new THREE.Box3(), v = new THREE.Vector3(), pa = B.geo.attributes.position, ix = B.geo.index.array;   // (otra pieza: el pilar tallado)
+      for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
+      const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
+      g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
     const rc = generador(3131), d = P6.r + 2;
     for (let a0 = 0.5; a0 < Math.PI * 2 - 0.5;) {   // (hueco de llegada; cada una de su tamaño, no repetidas)
       const w = 0.8 + rc() * 0.7, h = 4 + rc() * 4.5, da = (w + 0.06) / d, a = a0 + da / 2; a0 += da;
       const x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
-      const piv = new THREE.Group(), m = new THREE.Mesh(geoPr, nieveFina);   // (la pieza del kit: recta, de pie)
+      const piv = new THREE.Group(), m = new THREE.Mesh(rc() < 0.5 ? geoPr : geoPr2, nieveFina);   // (dos piezas del kit, alternadas sin orden)
       m.scale.set(w, h / 6, w * (0.75 + rc() * 0.4)); m.rotation.y = (rc() - 0.5) * 0.5; m.position.y = -rc() * 0.6; m.castShadow = m.receiveShadow = true;
       piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
       const col = { x, z, r: w * 0.6, techo: 99 }; colisiones.push(col);
@@ -1472,9 +1476,18 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Al otro lado del abismo (el de las dunas, bajo el arranque del puente): la misma pared de acantilado,
   // mirando a la escalera, con su borde de arriba a ras del suelo.
   { const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.1;
-    { const tapa = new THREE.Mesh(new THREE.BoxGeometry(300, 0.5, 2.2), new THREE.MeshStandardMaterial({ color: 0xdfe8f5, roughness: 1 }));   // (la nieve que cubre la cara de arriba del muro, hasta el filo)
-      tapa.position.set(cx, yb + 0.05, ACANT.pie + 16.2); tapa.receiveShadow = true; scene.add(tapa);
-      const bajoPuente = new THREE.Mesh(new THREE.BoxGeometry(6.4, 30, 4), nieveFina); bajoPuente.position.set(cx, yb - 15, ACANT.pie + 17.4); scene.add(bajoPuente); }   // (tapa el hueco bajo el arranque del puente)
+    { // La nieve que cubre la cara de arriba del muro hasta el filo: con la textura del suelo, borde irregular y algo de volumen.
+      const geo = new THREE.PlaneGeometry(300, 3.6, 300, 8); geo.rotateX(-Math.PI / 2);
+      const P = geo.attributes.position, uv = geo.attributes.uv, col = new Float32Array(P.count * 3), c = new THREE.Color(TONO_NIEVE);
+      for (let i = 0; i < P.count; i++) {
+        const x = cx + P.getX(i), v = (P.getZ(i) + 1.8) / 3.6, ruido = Math.sin(x * 0.9) * 0.5 + Math.sin(x * 2.3 + 1.7) * 0.3 + Math.sin(x * 0.27) * 0.6;   // (v: 0 en el filo, 1 hacia las dunas)
+        const z = ACANT.pie + 14.6 + v * 3.6 + (v < 0.01 ? ruido * 0.7 : v < 0.2 ? ruido * 0.35 : 0);
+        const alto = v < 0.01 ? -0.35 : 0.08 + 0.32 * Math.sin(Math.PI * Math.min(1, v * 1.25)) * (0.75 + 0.25 * Math.sin(x * 1.3)) - v * 0.1;
+        P.setXYZ(i, x, Math.max(yb + 0.05, alturaTerreno(x, Math.max(z, ACANT.pie + 16.9))) + alto, z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560); col.set([c.r, c.g, c.b], i * 3);
+      }
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
+      const tapa = new THREE.Mesh(geo, MAT_SUELO); tapa.receiveShadow = true; tapa.raycast = () => {}; scene.add(tapa);
+      const bajoPuente = new THREE.Mesh(new THREE.BoxGeometry(6.4, 30, 4), nieveFina); bajoPuente.position.set(cx, yb - 15.8, ACANT.pie + 17.4); scene.add(bajoPuente); }   // (tapa el hueco bajo el arranque del puente)
     for (let f = 0; f < 2; f++) for (let c = -3; c < 3; c++) {
       const an = 50, al = 18, w = encajar(gAcantilado, cx + (c + 0.5) * an, yb - (f + 1) * al, ACANT.pie + 17.3, an, al, 10, Math.PI);
       if (c % 2) w.scale.x = -1;
@@ -3620,7 +3633,7 @@ estilo.textContent = `
   @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; bottom: auto; transform: translateY(-50%); width: min(38vw, 520px); } }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
-  #trazo .guia { fill: none; stroke: rgba(255,255,255,.42); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 2.6; filter: blur(0.35px); }
+  #trazo .guia { fill: none; stroke: rgba(255,255,255,.4); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
   #trazo .hecho { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
   #trazo .inicio { fill: rgba(255,255,255,.9); animation: latido 1.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   #trazo .dedo { fill: none; stroke: #fff; stroke-width: .8; }
