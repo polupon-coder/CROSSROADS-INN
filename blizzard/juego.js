@@ -115,7 +115,7 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 // Los modelos nuevos traen la piedra tirando a amarillo: su textura de color se pasa a gris azulado, el
 // tono de la piedra del juego (se conserva el dibujo y el contraste).
@@ -127,7 +127,7 @@ for (const g of [gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP]) g.scene.tra
   for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114; a[i] = l * 0.9; a[i + 1] = l * 0.96; a[i + 2] = Math.min(255, l * 1.1); }
   x.putImageData(d, 0, 0); m.map.image = c; m.map.needsUpdate = true; m.map.userData = Object.assign(m.map.userData || {}, { gris: true });
 });
-for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa]) if (g) g.scene.traverse(o => {
+for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
   if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
@@ -369,11 +369,9 @@ function hoyoHuellas(x, z) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 7) continue;
     const u = dx * H.c - dz * H.s, v = dx * H.s + dz * H.c;          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    // Como al hundir la nieve: fondo plano, pared corta y un reborde de nieve levantada, grumoso.
-    const grumo = 0.5 + 0.5 * Math.sin(Math.atan2(v, u) * 13 + H.x) * Math.sin(Math.atan2(v, u) * 7 + H.z);
-    hondo = Math.max(hondo, d > 1.5 ? -1 : 0.5 * (1 - suave(0.82, 0.98, d)) - (0.12 + 0.07 * grumo) * suave(0.9, 1.06, d) * (1 - suave(1.12, 1.5, d)));
+    hondo = Math.max(hondo, 0.16 * (1 - suave(0.75, 0.95, d)));   // (el hoyo, poco hondo: el modelo pone el reborde)
   }
-  return hondo === -1 ? 0 : hondo;
+  return Math.max(0, hondo);
 }
 function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
@@ -511,7 +509,7 @@ let MAT_SUELO = null;                                        // el material del 
     pos.setZ(i, z);
     { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
-    { const hh = Math.max(0, hoyoHuellas(x, z)) / 0.5, k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
+    { const hh = 0 * hoyoHuellas(x, z), k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   // Cada cuadro se parte por la diagonal cuyos extremos están a alturas más parecidas: junto a un
@@ -1380,6 +1378,14 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gAnilloP, -6, -38, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.8, 0.87, 1.0); } }); }   // (el anillo, azulado: su textura tira a amarillo)
+
+// Las huellas: el modelo del hoyo en la nieve (con su reborde), estirado a la forma de un pie.
+for (const H of huellasGigantes()) {
+  const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
+  d.scale.set(1.35 / t.x, 0.5 / t.y, 2.7 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
+  d.traverse(o => { if (o.isMesh) o.receiveShadow = true; }); g.add(d);
+  g.position.set(H.x, alturaTerreno(H.x, H.z) - 0.2, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
+}
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
 // paso, sin cerrarlo).
