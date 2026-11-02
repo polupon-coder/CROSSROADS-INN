@@ -952,6 +952,9 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -65, -78], ZONA_MIXTA
   ZONA_PILASTRAS.forEach((z, i) => { for (const lado of [-1, 1]) { const x = caminoX(z) + lado * (8.5 + rndA() * 3), zz = z + (rndA() - 0.5) * 3, s0 = alturaTerreno(x, zz), alto = 3.5 + rndA() * 3;
     pilarTallado(kitPilares[3 + (i + (lado > 0 ? 1 : 0)) % 3], new THREE.Vector3(x, s0 - 0.6, zz), new THREE.Vector3(x + (rndA() - 0.5) * 0.3, s0 + alto, zz), 1.3 + rndA() * 0.5, rndA() * 6);
     colisiones.push({ x, z: zz, r: 0.75, techo: s0 + alto, obj: pilarTallado.ultimo }); } });
+  { const z = ZONA_PILASTRAS[0], c = caminoX(z) + PASO_SALTO[0];   // (la primera fila: grupos de tres rocas muy altas a cada lado, distintos)
+    for (const [dx, dz, alto, R] of [[-5.6, 0.4, 9, 2.4], [-7.6, -2.2, 6, 1.8], [-8.4, 1.6, 12, 2.8], [5.4, -0.8, 7, 2.0], [7.8, 1.2, 13, 3.0], [9.2, -2.6, 5, 1.6]]) {
+      const x = c + dx, zz = z + dz; rocaEntera(kitRocas[kitRocas.length - 1 - (Math.round(alto) % 2)], x, zz, alto, R); } }
   { const z = ZONA_PILASTRAS[2], c = caminoX(z) + PASO_SALTO[2];   // (la tercera fila: verticales en los extremos, rompen su horizontal)
     for (const [dx, dz, alto] of [[-4.4, 0.6, 4.2], [4.6, -0.5, 5.5], [-6.2, -1.2, 3.2], [6.6, 0.9, 3.6]]) { const x = c + dx, zz = z + dz, s0 = alturaTerreno(x, zz);
       pilarTallado(kitPilares[3 + Math.floor(Math.abs(dx)) % 3], new THREE.Vector3(x, s0 - 0.6, zz), new THREE.Vector3(x + 0.15, s0 + alto, zz), 1.5, dx); colisiones.push({ x, z: zz, r: 0.8, techo: s0 + alto, obj: pilarTallado.ultimo }); } }
@@ -1414,13 +1417,15 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
 {
   // Alrededor de la plataforma de la onda, un corro de pilastras en pie: caen con la primera onda.
   { const P6 = PLATAFORMA6;
-    for (let k = 0; k < 14; k++) {
-      const a = (k + 0.5) / 14 * Math.PI * 2, d = P6.r + 3.4, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;   // (en círculo entero; por delante, el hueco justo para llegar)
-      const B = kitPilares[3 + (k % 3)], bb = (B.geo.computeBoundingBox(), B.geo.boundingBox), h = 13 + (k % 3) * 2.5, w = 2.6;
-      const piv = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina), sx = w / (bb.max.x - bb.min.x), sy = h / (bb.max.y - bb.min.y), sz = w / (bb.max.z - bb.min.z);
-      m.scale.set(sx, sy, sz); m.position.set(-(bb.min.x + bb.max.x) / 2 * sx, -bb.min.y * sy, -(bb.min.z + bb.max.z) / 2 * sz); m.castShadow = m.receiveShadow = true;
+    // Un cilindro de pilastras rectas y muy altas, juntas, que cierran todo el perímetro (solo el hueco de llegada).
+    const texP = new THREE.TextureLoader().load("texturas/piedra.jpg"); texP.wrapS = texP.wrapT = THREE.RepeatWrapping; texP.repeat.set(1, 8);
+    const matP = new THREE.MeshStandardMaterial({ map: texP, color: 0x9aa3b4, roughness: 0.95 }); matP.userData.nevada = true;
+    for (let k = 1; k < 18; k++) {
+      const a = k / 18 * Math.PI * 2, d = P6.r + 2.6, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
+      const h = 30 + (k % 4) * 3, w = 2.4, geoP = new THREE.BoxGeometry(w, h, w); geoP.translate(0, h / 2, 0);
+      const piv = new THREE.Group(), m = new THREE.Mesh(geoP, matP); m.castShadow = m.receiveShadow = true;
       piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
-      const col = { x, z, r: 1.5, techo: 99 }; colisiones.push(col);
+      const col = { x, z, r: 1.3, techo: 99 }; colisiones.push(col);
       pilastrasOnda.push({ piv, col, t: -1, a, cae: Math.cos(a) < -0.75 });   // (caen del todo solo las que abren el paso a lo siguiente)
     } }
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
@@ -1432,29 +1437,35 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // que se montan sobre los bordes de la escalera (sin espacio entre pared y escalera).
   // (en losas de 14 m, a la proporción del modelo: estirado a 40 m su textura se veía estirada y borrosa)
   const losaMuro = (x, y, z, ax, ay, az, giro) => encajar(gAcantilado, x, y, z, ax, ay, az, giro).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
-  // (piezas grandes, a la proporción del modelo: pocas juntas a la vista)
-  for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) {
-    const ancho = 90, xc = cx + lado * (1.25 + ancho / 2);
-    losaMuro(xc, y0 - 40 + f * 31, cara - fondo / 2 - (f % 2) * 0.5, ancho, 33, fondo, f % 2 ? Math.PI : 0);
-  }
-  // Las paredes a lado y lado de la escalera (cierran la grieta por dentro, sin asomar delante).
-  for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) losaMuro(cx + lado * (1.25 + 2.5), y0 - 40 + f * 31, cara - 0.5 - (cara - ACANT.cima) / 2, cara - ACANT.cima, 33, 5, -lado * Math.PI / 2);
+  // El muro y la grieta, de pilastras talladas de pie, juntas (textura nítida): la cara, recta y continua; la
+  // grieta, dos paredes que se montan sobre los bordes de la escalera. Nada sale por delante.
+  const pilarMuro = (x, z, alto, k) => {
+    pilarTallado(kitPilares[3 + (k % 3)], new THREE.Vector3(x, y0 - 42, z), new THREE.Vector3(x, y0 - 6, z), 2.7, k * 1.7);
+    pilarTallado(kitPilares[3 + ((k + 1) % 3)], new THREE.Vector3(x, y0 - 7, z), new THREE.Vector3(x, y0 + alto, z), 2.7, k * 2.3);
+  };
+  for (const lado of [-1, 1]) for (let d = 3.4, k = 0; d < 62; d += 2.3, k++) pilarMuro(cx + lado * d, cara - 1.3, 24 + (k * 7 % 5) * 1.5, k);
+  for (const lado of [-1, 1]) for (let z2 = cara - 3.6, k = 0; z2 > ACANT.cima - 1; z2 -= 2.3, k++) pilarMuro(cx + lado * 3.4, z2, 26 + (k * 5 % 4) * 1.4, k + 3);
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
-  for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 2.95, z: z2, r: 1.2, techo: 99 });
-  { // La escalera: copias del modelo a su proporción (sin estirar), una tras otra; debajo de cada una, roca.
-    const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.45, n = 7, largo = (ACANT.pie - ACANT.cima) / n, sube = ACANT.alto / n;
-    for (let k = 0; k < n; k++) {
-      const zc = ACANT.pie - largo * (k + 0.5), base = yb + k * sube;
-      encajar(gEscalinata, cx, base, zc, 5.0, sube * 1.02, largo + 0.15, ESCALINATA_GIRO);
-      if (k) losaMuro(cx, y0 - 60, zc, largo, base - (y0 - 60) + 0.1, 5, Math.PI / 2);
-    }
-    losaMuro(cx, y0 - 60, ACANT.pie - largo / 2, largo, yb - (y0 - 60) + 0.1, 5, Math.PI / 2);
+  for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
+  { // La escalera: peldaños de piedra continuos, de 30 cm, de pared a pared de la grieta; bajo ellos, roca.
+    const yA = alturaTerreno(cx, ACANT.pie + 17) + 0.05, yB = alturaTerreno(cx, ACANT.cima - 2) + 0.05, n = Math.round((yB - yA) / 0.3), hp = (yB - yA) / n, fondoP = (ACANT.pie + 0.15 - (ACANT.cima - 0.2)) / n;
+    const texE = new THREE.TextureLoader().load("texturas/piedra.jpg"); texE.wrapS = texE.wrapT = THREE.RepeatWrapping; texE.repeat.set(2, 1);
+    const matE = new THREE.MeshStandardMaterial({ map: texE, color: 0x9aa3b4, roughness: 0.95 }); matE.userData.nevada = true;
+    const geoE = new THREE.BoxGeometry(5.2, 1, fondoP + 0.02); geoE.translate(0, -0.5, 0);
+    const im = new THREE.InstancedMesh(geoE, matE, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+    for (let k = 0; k < n; k++) { const top = yA + (k + 0.5) * hp, zk = ACANT.pie + 0.15 - fondoP * (k + 0.5); im.setMatrixAt(k, m4.compose(new THREE.Vector3(cx, top, zk), q, new THREE.Vector3(1, top - (y0 - 45), 1))); }
+    im.castShadow = im.receiveShadow = true; scene.add(im);
+    // Un rellano de la misma piedra entre el final del puente y el primer peldaño (sin hueco entre ellos).
+    { const r = new THREE.Mesh(geoE, matE); r.scale.set(1, yA - 0.02 - (y0 - 45), 5.6 / (fondoP + 0.02)); r.position.set(cx, yA - 0.02, ACANT.pie + 2.9); r.receiveShadow = true; scene.add(r); }
     // El puente: un tramo de piedra sobre el abismo, a ras del suelo (se pisa).
     const zp = ACANT.pie + 8.2, yp = alturaTerreno(cx, ACANT.pie + 17);
     encajar(gPuente, cx, yp - 3.1, zp, 17.6, 3.1, 5.6, Math.PI / 2);   // (casi el doble)   // (el puente de arco, de borde a borde)
     // Rocas en el borde donde arranca el puente.
-    for (const [dx, dz, a] of [[-3.2, 17.2, 1.4], [-4.6, 16.5, 0.9], [3.4, 17.0, 1.7], [4.9, 17.8, 1.0], [-6.2, 17.6, 2.2]]) enterrar(kitRocas[2 + Math.round(a * 3) % 3], cx + dx, ACANT.pie + dz, a, a * 4, 0.2);
+    // A lado y lado del arranque del puente, un grupo de 3 y otro de 4 rocas grandes; y más por el borde del abismo.
+    for (const [dx, dz, a] of [[-4.2, 17.4, 3.2], [-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [4.4, 17.2, 2.6], [6.4, 18.0, 4.6], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
+      [-14, 18, 3.5], [-22, 17.6, 2.6], [-31, 18.2, 4.0], [15, 18.3, 3.0], [24, 17.8, 4.4], [33, 18.4, 2.8]]) enterrar(kitRocas[2 + Math.round(a * 3) % 3], cx + dx, ACANT.pie + dz, a, a * 4, 0.2);
+    if (false) for (const [dx, dz, a] of [[-3.2, 17.2, 1.4], [-4.6, 16.5, 0.9], [3.4, 17.0, 1.7], [4.9, 17.8, 1.0], [-6.2, 17.6, 2.2]]) enterrar(kitRocas[2 + Math.round(a * 3) % 3], cx + dx, ACANT.pie + dz, a, a * 4, 0.2);
     colisiones.push({ x: cx, z: zp, r: 9.5, techo: yp, rampa: { a: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 16.6), b: new THREE.Vector3(cx, yp + 0.02, ACANT.pie + 0.8), ancho: 2.3 } });
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
     const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.cima - 2) + 0.05, ACANT.cima - 0.2); const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 3.5);
@@ -1521,7 +1532,7 @@ const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite
 // sigue; al final se funde con el bastón.
 const guia = (() => {
   // Una cinta continua como la del viento mágico (borde marcado, centro suave), afilada en los dos extremos.
-  const N = 28, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
+  const N = 20, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
   const uv = new Float32Array(N * 4), idx = []; for (let i = 0; i < N; i++) { uv.set([i / (N - 1), 0, i / (N - 1), 1], i * 4); } for (let i = 0; i < N - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
   const luz = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
@@ -1554,6 +1565,7 @@ function moverGuia(dt) {
     if (!llega && (G.quieto > 5 || Math.abs(pos.x - caminoX(pos.z)) > 7 || delante > 18)) { G.modo = "vuelta"; G.t = 0; }
     if (!llega && delante < 7) G.z -= dt * 4.2;
     const objetivo = llega ? bast : puntoGuia(G.z, _gp);
+    if (!llega) { objetivo.x += Math.sin(G.reloj * 2.6) * 0.6; objetivo.y += Math.sin(G.reloj * 5.2) * 0.12; }   // (avanza haciendo eses, como una serpiente)
     G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
     if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 0.8);   // se funde con el bastón
   }
@@ -1567,7 +1579,7 @@ function moverGuia(dt) {
   const a = G.luz.geometry.attributes.position.array, n = G.cola.length;
   for (let i = 0; i < n; i++) {
     // Como la cinta del viento: de canto vertical, sin plegarse nunca; afilada en los dos extremos.
-    const p = G.cola[i].p, t = i / (n - 1), w = 0.1 * Math.sin(Math.PI * Math.pow(t, 0.8));
+    const p = G.cola[i].p, t = i / (n - 1), w = 0.065 * Math.sin(Math.PI * Math.pow(t, 0.8));
     a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6);
   }
   G.luz.geometry.attributes.position.needsUpdate = true;
