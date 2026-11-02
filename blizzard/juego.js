@@ -278,7 +278,7 @@ const texHalo = (() => {
   d.addColorStop(0, "rgba(255,255,255,0.8)"); d.addColorStop(0.25, "rgba(235,245,255,0.45)"); d.addColorStop(0.6, "rgba(200,225,255,0.14)"); d.addColorStop(1, "rgba(190,215,255,0)");   // (más difuso)
   g.fillStyle = d; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
 })();
-const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.renderOrder = 4; h.raycast = () => {}; return h; };   // (los rayos lo ignoran)
+const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, depthTest: false })); h.renderOrder = 4; h.raycast = () => {}; return h; };   // (los rayos lo ignoran)   // (sin probar profundidad: el suelo no lo corta en una línea recta)
 const suave = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function lerpAngulo(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
@@ -1400,7 +1400,7 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -15, -48, 5, 1.1, 0.25, 0],
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
   [gAnilloP, -0.3, -38, 8, 0.2, 0.3, 0.3],   // (sobre el paso, poco inclinado: se pasa por dentro)
-  [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
+  [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6], [gAnilloP, -10, -722, 10, 0.9, 0.32, 0.28]])   // (otro en las dunas, más erguido)
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
     else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
