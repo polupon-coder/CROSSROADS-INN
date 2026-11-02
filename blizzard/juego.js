@@ -106,7 +106,7 @@ const INGLES = {
 const tr = t => idioma === "en" ? INGLES[t] ?? t : t;
 document.documentElement.lang = idioma;
 const aviso = document.createElement("p");
-aviso.innerHTML = `<span class="medita">${tr("Meditando…")}</span><small>${tr("La paciencia es amarga, pero sus frutos son dulces.").replace(/,\s*/, ",<br>")}</small><style>@keyframes medita { 0%, 100% { opacity: 1 } 50% { opacity: .25 } } .medita { animation: medita 2.4s ease-in-out infinite; } #carga { text-align: center; } #carga small { display: block; margin-top: 14px; font-size: 15px; font-style: italic; opacity: .7; }</style>`; aviso.id = "carga";
+aviso.innerHTML = `<span class="medita">${tr("Meditando…")}</span><small>${tr("La paciencia es amarga, pero sus frutos son dulces.").replace(/,\s*/, ",<br>")}</small><style>@keyframes medita { 0%, 100% { opacity: 1 } 50% { opacity: .25 } } .medita { animation: medita 2.4s ease-in-out infinite; } #carga { text-align: center; } #carga small { display: block; margin-top: 44px; font-size: 15px; font-style: italic; opacity: .7; }</style>`; aviso.id = "carga";
 aviso.style.cssText = "position:fixed;inset:0;margin:0;display:grid;place-content:center;font:20px Georgia,serif;color:#1f2a3d;background:#c9d8ee;z-index:9";
 document.body.appendChild(aviso);
 const cargador = new THREE.GLTFLoader();
@@ -1423,12 +1423,12 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     const texP = new THREE.TextureLoader().load("texturas/piedra.jpg"); texP.wrapS = texP.wrapT = THREE.RepeatWrapping; texP.repeat.set(1, 8);
     const matP = new THREE.MeshStandardMaterial({ map: texP, color: 0x9aa3b4, roughness: 0.95 }); matP.userData.nevada = true;
     for (let k = 1; k < 18; k++) {
-      const a = k / 18 * Math.PI * 2, d = P6.r + 2.6, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
-      const B = kitPilares[3 + (k % 3)], bb = (B.geo.computeBoundingBox(), B.geo.boundingBox), h = 24 + (k % 4) * 2.5, w = 2.6, sx = w / (bb.max.x - bb.min.x), sy = h / (bb.max.y - bb.min.y), sz = w / (bb.max.z - bb.min.z);
+      const a = k / 18 * Math.PI * 2, d = P6.r + 3.4, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
+      const B = kitRocas[kitRocas.length - 1 - (k % 2)], bb = (B.geo.computeBoundingBox(), B.geo.boundingBox), h = 24 + (k % 4) * 2.5, w = 4.4, sx = w / (bb.max.x - bb.min.x), sy = h / (bb.max.y - bb.min.y), sz = w / (bb.max.z - bb.min.z);
       const piv = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina); void matP;   // (la pieza del kit: recta, de pie)
       m.scale.set(sx, sy, sz); m.position.set(-(bb.min.x + bb.max.x) / 2 * sx, -bb.min.y * sy, -(bb.min.z + bb.max.z) / 2 * sz); m.castShadow = m.receiveShadow = true;
       piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
-      const col = { x, z, r: 1.3, techo: 99 }; colisiones.push(col);
+      const col = { x, z, r: 2.0, techo: 99 }; colisiones.push(col);
       pilastrasOnda.push({ piv, col, t: -1, a, h, cae: Math.cos(a) < -0.75 });   // (caen del todo solo las que abren el paso a lo siguiente)
     } }
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
@@ -1448,17 +1448,17 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   };
   // La cara: el modelo de muro de acantilado, en paños a casi su proporción (sin estirar), filas desplazadas
   // para no alinear juntas; todos con la cara al mismo plano (nada sale).
-  for (const lado of [-1, 1]) for (let f = 0; f < 5; f++) for (let c = 0; c < 3; c++) {
-    const an = 40, desf = (f % 2) * 14, xc = cx + lado * (2.1 + an / 2 + c * (an - 1) - (c ? desf : 0));
-    encajar(gAcantilado, xc, y0 - 36 + f * 11.5, cara - 7, an, 12.5, 14, 0).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
+  for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) for (let c = 0; c < 2; c++) {
+    const an = 74, desf = (f % 2) * 20, xc = cx + lado * (2.1 + an / 2 + c * (an - 10) - (c ? desf : 0));
+    encajar(gAcantilado, xc, y0 - 36 + f * 20, cara - 9, an, 25, 18, 0).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
   }
-  for (const lado of [-1, 1]) for (let z2 = cara - 3.6, k = 0; z2 > ACANT.cima + 2; z2 -= 2.8, k++) pilarMuro(cx + lado * 3.6, z2, 26 + (k * 5 % 4) * 1.4, k + 3);
+  for (const lado of [-1, 1]) for (let z2 = cara - 3.6, k = 0; z2 > ACANT.cima + 2; z2 -= 2.8, k++) pilarMuro(cx + lado * 3.0, z2, 26 + (k * 5 % 4) * 1.4, k + 3);
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
   for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
   { // La escalera: copias del modelo de escalinata a su proporción, montadas un poco unas sobre otras (sin saltos).
     const yA = alturaTerreno(cx, ACANT.pie + 17) + 0.05, n = 7, largo = (ACANT.pie - ACANT.cima) / n, sube = ACANT.alto / n;
-    for (let k = 0; k < n; k++) encajar(gEscalinata, cx, yA - 0.35 + k * sube - 0.12, ACANT.pie - largo * (k + 0.5), 5.0, sube * 1.06, largo * 1.08, ESCALINATA_GIRO);
+    for (let k = 0; k < n; k++) encajar(gEscalinata, cx, yA - 0.35 + k * sube - 0.12, ACANT.pie - largo * (k + 0.5), 5.0, sube * 1.15, largo * 1.3, ESCALINATA_GIRO);
     { const geoR = new THREE.BoxGeometry(5, 1, 1); geoR.translate(0, -0.5, 0); const r = new THREE.Mesh(geoR, nieveFina); r.scale.set(1, yA - (y0 - 45), ACANT.pie - ACANT.cima); r.position.set(cx, yA - 0.6, (ACANT.pie + ACANT.cima) / 2); scene.add(r);   // (roca bajo la escalera)
       const rl = new THREE.Mesh(geoR, nieveFina); rl.scale.set(5, yA - 0.02 - (y0 - 45), 5.6); rl.position.set(cx, yA - 0.02, ACANT.pie + 2.9); rl.scale.x = 1; scene.add(rl); }   // (rellano junto al puente)
     // El puente: un tramo de piedra sobre el abismo, a ras del suelo (se pisa).
@@ -1519,10 +1519,10 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     for (let k = 0; k < 3; k++) { const xr = x - lado * (5 + rP() * 4), zr = z + (rP() - 0.5) * 18; enterrar(kitRocas[1 + Math.floor(rP() * 4)], xr, zr, 1 + rP() * 2.5, rP() * 6, 0.25); }
   } }
 // Bolas de piedra que bajan rodando por la escalera: hay que saltarlas.
-const bolas = [0].map(i => {
+const bolas = [0, 1].map(i => {
   const R = 1.3, g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group();   // (se saltan)
   g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false;   // (gira sobre su centro)
-  return { g, giro, R, t: -i * 2.6 };
+  return { g, giro, R, t: -i * 2.2 };
 });
 // La altura de la escalera en una z (la de su rampa).
 const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), cx = caminoX(ACANT.cima); return lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t); };
@@ -1619,7 +1619,7 @@ function moverBolas(dt) {
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1.8 - Math.random() * 1.6; b.g.visible = false; continue; }   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
     b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
-    if (!rescate && z < ACANT.pie - 0.4 && Math.abs(pos.x - cx) < b.R + 0.35 && Math.abs(pos.z - z) < b.R + 0.35 && pos.y < Math.max(y, rampaY(z)) + b.R * 0.72) { pos.z = z + b.R + 0.5; vel.set(0, 5, 7); enSuelo = false; arrastre = 0.9; musica.viento(0.3, 0.9); }   // (grande: se salta con salto e impulso)
+    if (!rescate && z < ACANT.pie - 0.4 && Math.abs(pos.x - cx) < b.R + 0.35 && Math.abs(pos.z - z) < b.R + 0.35 && pos.y < Math.max(y, rampaY(z)) + b.R * 0.72) { const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 3); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 0.6 }; vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (grande: se salta con salto e impulso)
     void largo;
   }
 }
@@ -4011,7 +4011,7 @@ function actualizar(dt) {
 
   if (rescate) {
     // El viento lo lleva en una curva suave hasta el último punto seguro (lámina 29).
-    rescate.t = Math.min(1, rescate.t + dt / 1.4);
+    rescate.t = Math.min(1, rescate.t + dt / (rescate.dura || 1.4));
     const t = suave(0, 1, rescate.t), alto = Math.max(rescate.desde.y, rescate.hacia.y) + 1.6;
     const a = rescate.desde, b = rescate.hacia;
     pos.set(lerp(a.x, b.x, t), (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * alto + t * t * b.y, lerp(a.z, b.z, t));
