@@ -3169,8 +3169,8 @@ estilo.textContent = `
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
   body:has(#trazo:not([hidden])) #rotulo, body:has(#trazo:not([hidden])) #ayuda { color: #fff; text-shadow: none; }   /* sobre el velo de las runas: blanco, sin sombra */
-  #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); top: calc(52px + env(safe-area-inset-top, 0px)); width: min(560px, calc(100% - 120px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9), 0 0 3px rgba(255,255,255,.8); pointer-events: none; }
-  @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; transform: translateY(-50%); width: min(38vw, 520px); } }
+  #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 64px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9), 0 0 3px rgba(255,255,255,.8); pointer-events: none; }
+  @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; bottom: auto; transform: translateY(-50%); width: min(38vw, 520px); } }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
   #trazo .guia { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0.1 5; }
