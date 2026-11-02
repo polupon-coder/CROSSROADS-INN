@@ -257,6 +257,13 @@ const generador = semilla => { let a = semilla; return () => { a |= 0; a = a + 0
 const rnd = (() => { let a = 20261023; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const uPies = { value: new THREE.Vector3() };                     // dónde está Blizzard (para la nieve de hombros, brazos y pantorrillas)
+// Resplandor mágico: un halo borroso y aditivo (se suma a la luz) para todo lo que brilla.
+const texHalo = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d"), d = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  d.addColorStop(0, "rgba(255,255,255,1)"); d.addColorStop(0.18, "rgba(235,245,255,0.75)"); d.addColorStop(0.45, "rgba(200,225,255,0.28)"); d.addColorStop(1, "rgba(190,215,255,0)");
+  g.fillStyle = d; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+})();
+const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.renderOrder = 4; return h; };
 const suave = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function lerpAngulo(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
@@ -352,7 +359,7 @@ function hoyoHuellas(x, z) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 4) continue;
     const u = dx * H.c - dz * H.s, v = dx * H.s + dz * H.c;          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    hondo = Math.max(hondo, 0.3 * (1 - suave(0.3, 1.0, d)));
+    hondo = Math.max(hondo, 0.6 * (1 - suave(0.55, 1.0, d)));   // (fondo plano y borde en pendiente suave)
   }
   return hondo;
 }
@@ -492,7 +499,7 @@ let MAT_SUELO = null;                                        // el material del 
     pos.setZ(i, z);
     { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
-    colores.push(nieve.r, nieve.g, nieve.b);             // mismo tono también en las paredes: sin degradado
+    { const hh = hoyoHuellas(x, z) / 0.6, k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   // Cada cuadro se parte por la diagonal cuyos extremos están a alturas más parecidas: junto a un
@@ -2403,6 +2410,7 @@ function crearBaston(etapa) {
   horquilla.position.y = LARGO_BASTON + 0.04;
   const luz = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, fog: false }));
   luz.position.y = remate.position.y;                            // en el centro del futuro círculo
+  const hl = halo(0xe8f2ff); hl.scale.setScalar(0.9); luz.add(hl); luz.userData.halo = hl;   // su resplandor
   g.add(fuste, remate, horquilla, luz);
   g.userData = { luz, piedra };
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
@@ -2755,7 +2763,7 @@ function luzBaston(dt) {
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = brilloBaston; luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  luz.material.opacity = brilloBaston; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.9; luz.userData.halo.scale.setScalar(0.9 + 0.12 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
   piedra.emissive.setRGB(0.12, 0.14, 0.18).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
@@ -2821,6 +2829,8 @@ const bancos = (() => {
 
 // Viento mágico (láminas 114 y 115): una sola cinta continua en espiral, fina en los extremos
 // y más ancha en el centro, con los bordes blancos y definidos y el interior transparente.
+// Halo grande y suave que acompaña a la espiral del viento.
+const haloEspiral = halo(); scene.add(haloEspiral);
 const espiral = (() => {
   const N = 90, geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
@@ -4301,6 +4311,7 @@ function efectos(dt, adelante) {
   efectoEspiral = Math.max(0, efectoEspiral - dt);
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
   espiral.material.opacity = intensidad * 0.68;                      // algo más suave
+  { const c0 = espiralEn || pos; haloEspiral.position.set(c0.x, c0.y + (espiralEn ? 0 : 1), c0.z); const r = espiralTam ? espiralTam.r : 1; haloEspiral.scale.setScalar((2.6 + r * 2.2) * (1 + 0.06 * Math.sin(reloj * 3))); haloEspiral.material.opacity = intensidad * 0.55; }
   const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
   const centro = espiralEn || pos;
   for (let i = 0; i < n; i++) {
