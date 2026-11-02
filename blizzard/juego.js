@@ -2579,7 +2579,7 @@ const capaTela = (() => {
     atras.set(-Math.sin(rumbo), 0, -Math.cos(rumbo)); lado.set(Math.cos(rumbo), 0, -Math.sin(rumbo));
     esclavina.anclas(T, T2, atras);
     _l.subVectors(T2[NJ - 1], T2[0]).setY(0); const anchoT = _l.length() / 2; _l.normalize();
-    const giro = lerp(Math.atan(0.4), 1.25, alzado);              // hacia dónde cae: en diagonal; al saltar, levantada
+    const giro = lerp(Math.atan(0.2), 1.25, alzado);   // (cae casi recta: pegada a la espalda)              // hacia dónde cae: en diagonal; al saltar, levantada
     _cae.set(0, -Math.cos(giro), 0).addScaledVector(atras, Math.sin(giro));
     for (let j = 0; j < NJ; j++) {
       const t = j / (NJ - 1) * 2 - 1;
@@ -2593,7 +2593,7 @@ const capaTela = (() => {
       for (let i = 2; i < NI; i++) {
         const g = (i - 1) / (NI - 2);
         A[i * NJ + j].addScaledVector(_l, t * anchoT * ((VUELO_ABAJO - 1) * g + 0.08 * Math.min(1, g * 4))).addScaledVector(lado, desvio * g)
-          .addScaledVector(atras, 0.06 + 0.16 * Math.min(1, g * 4));   // algo más ancha arriba y separada en ángulo (sin quiebro a media espalda); despegada ya desde el anclaje
+          .addScaledVector(atras, 0.03 + 0.04 * Math.min(1, g * 4));   // algo más ancha arriba y separada en ángulo (sin quiebro a media espalda); despegada ya desde el anclaje
         if (i === NI - 1) A[i * NJ + j].y -= 0.06 * Math.cos(t * Math.PI / 2);   // borde de abajo algo convexo
       }
     }
@@ -2635,18 +2635,18 @@ const capaTela = (() => {
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        const ondea = Math.sin(reloj * (2.4 + 1.4 * corre) + j * 0.5 + i * 0.4) * (1.2 + 4 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
-        _v.addScaledVector(atras, 4 * corre * (0.3 + baja) * dt * dt);   // al correr, el aire la echa atrás
+        const ondea = Math.sin(reloj * (1.5 + 0.9 * corre) + j * 0.45 + i * 0.35) * (0.6 + 2.4 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
+        _v.addScaledVector(atras, 1.2 * corre * (0.3 + baja) * dt * dt);   // al correr, el aire la echa atrás
         _v.addScaledVector(lado, ondea * dt * dt).addScaledVector(atras, Math.abs(ondea) * 0.6 * dt * dt);
-        P[k].add(_v).lerp(A[k], 0.008 + 0.045 * (1 - baja) * (1 - baja) * (1 - 0.65 * corre) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
+        P[k].add(_v).lerp(A[k], 0.01 + 0.035 * (1 - baja) * (1 - baja) + 0.02 * corre + 0.08 * alzado);   // (cae a su aire: poca forma impuesta)   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
       }
       for (let it = 0; it < 5; it++) {
         for (let i = 1; i < NI; i++) for (let j = 0; j < NJ; j++) {
           const k = i * NJ + j;
           atar(k - NJ, k, largoV, 1);
           if (j) atar(k - 1, k, largoH[j - 1] * lerp(1, VUELO_ABAJO, (i - 1) / (NI - 2)), 0.9);
-          if (i > 2) atar(k - 2 * NJ, k, largoV * 2, 0.55);          // doblado: sin «S» ni pliegues horizontales (algo más suelta)
-          if (i > 3) atar(k - 3 * NJ, k, largoV * 3, 0.3);           // larga, sin quebrarse
+          if (i > 2) atar(k - 2 * NJ, k, largoV * 2, 0.45);          // doblado: sin «S» ni pliegues horizontales (algo más suelta)
+          if (i > 3) atar(k - 3 * NJ, k, largoV * 3, 0.22);           // larga, sin quebrarse
         }
         for (let k = FIJAS; k < P.length; k++) {
           for (const c of CAPSULAS) {
@@ -2654,7 +2654,7 @@ const capaTela = (() => {
             if (d < c.r) { _w.subVectors(P[k], q); if (_w.lengthSq() < 1e-8) _w.copy(atras); _w.normalize(); P[k].copy(q).addScaledVector(_w, c.r); }
           }
           // Nunca por delante del cuerpo: detrás del plano de la espalda (con un margen a los lados).
-          const delante = _w.subVectors(P[k], centro).dot(atras), fr = Math.floor(k / NJ) / (NI - 1), sep = 0.12 + (0.11 + 0.14 * corre) * Math.sin(Math.PI / 2 * Math.min(1, fr * 1.6)) + 0.13 * fr;   // despegada desde el medio y aún más abajo, en la zona baja de la espalda
+          const delante = _w.subVectors(P[k], centro).dot(atras), fr = Math.floor(k / NJ) / (NI - 1), sep = 0.05 + (0.04 + 0.04 * corre) * Math.sin(Math.PI / 2 * Math.min(1, fr * 1.6));   // despegada desde el medio y aún más abajo, en la zona baja de la espalda
           if (delante < sep) P[k].addScaledVector(atras, sep - delante);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
@@ -2669,10 +2669,10 @@ const capaTela = (() => {
             vert[o + e] = catmull(fila(-1), fila(0), fila(1), fila(2), ti);
           }
           const u = c / (NC - 1), onda = Math.sin(u * Math.PI * 5 + 0.5) * 0.65 + Math.sin(u * Math.PI * 11 + 1.3) * 0.35, pl = onda * 0.026 * (0.15 + 0.85 * r / (NR - 1));
-          const sombra = (1 - 0.3 * (0.5 - 0.5 * onda) * (0.3 + 0.7 * r / (NR - 1))) * (0.8 + 0.2 * Math.min(1, r / (NR - 1) * 2.5)) * (1 - 0.14 * (2 * u - 1) * (2 * u - 1));   // el fondo de cada pliegue, más oscuro; y volumen: más oscura bajo la esclavina y hacia los bordes
+          const sombra = 1.1 * (1 - 0.13 * (0.5 - 0.5 * onda) * (0.3 + 0.7 * r / (NR - 1))) * (0.95 + 0.05 * Math.min(1, r / (NR - 1) * 2.5)) * (1 - 0.05 * (2 * u - 1) * (2 * u - 1));   // (más clara)   // el fondo de cada pliegue, más oscuro; y volumen: más oscura bajo la esclavina y hacia los bordes
           // Manchas de nieve en la zona baja, pegadas a la tela (no resbalan): más hacia el borde de abajo.
           const rr = r / (NR - 1), n = (Math.sin(u * 23 + rr * 9.3) * Math.sin(u * 8.7 - rr * 5.1 + 1.3) * 0.5 + 0.5) * 0.65 + (Math.sin(u * 41 + rr * 17) * 0.5 + 0.5) * 0.35;
-          const nv = suave(0.5, 0.68, n * 0.75 + (rr - 0.62) * 1.3);
+          const nv = suave(0.6, 0.76, n * 0.75 + (rr - 0.72) * 1.3) * 0.6;   // (sutil)
           const cr = lerp(amaC.r, nieveCapa.r, nv) * sombra, cg = lerp(amaC.g, nieveCapa.g, nv) * sombra, cb = lerp(amaC.b, nieveCapa.b, nv) * sombra;
           for (const l of [0, N]) { const q = (l + r * NC + c) * 3; tono[q] = cr; tono[q + 1] = cg; tono[q + 2] = cb; }
           vert[o] += atras.x * pl; vert[o + 2] += atras.z * pl;
@@ -3629,7 +3629,6 @@ function actualizar(dt) {
     tIntro += dt;
     if (tIntro >= INTRO_DURA) {
       estado = "juego";
-      rotular("La llanura nevada", 4);
       avisoCamara = reloj + 5;                                   // y un poco después, cómo girar la cámara
     }
   } else if (estado === "llamando") {
