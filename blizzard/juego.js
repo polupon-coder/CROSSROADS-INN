@@ -30,6 +30,8 @@ const INGLES = {
   "Santuario del giro": "Sanctuary of the Turn",
   "Santuario de la revelación": "Sanctuary of Revelation",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
+  "Mantén ◇ unos instantes:\nla magia se carga y estalla en una onda.": "Hold ◇ for a moment:\nthe magic charges and bursts into a wave.",
+  "Mantén E unos instantes:\nla magia se carga y estalla en una onda.": "Hold E for a moment:\nthe magic charges and bursts into a wave.",
   "Todo gran viaje comienza con un pequeño paso.": "Every great journey begins with a small step.",
   "Lo importante no es el destino, sino el camino.": "What matters is not the destination, but the path.",
   "Para encontrarse, a veces hay que perderse.": "To find yourself, sometimes you must get lost.",
@@ -163,7 +165,7 @@ const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2,
   .concat([[-5, -641], [6, -691], [-3, -736], [0, -800], [6, -818], [-5, -840], [6, -862], [-5, -884], [5, -906], [-4, -928], [1, -946], [0, -965],
     // tras el desfiladero: dunas con un paso serpenteante entre la nieve que se hunde; luego, las columnas de basalto
     [0, -990], [3.5, -1002], [-3.5, -1015], [4, -1028], [-4, -1041], [3.5, -1054], [-3.5, -1067], [3, -1080], [0, -1093], [0, -1100],
-    [0, -1150], [-2.5, -1168], [2.5, -1186], [0, -1204], [0, -1300]]);   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
+    [0, -1168], [-2.5, -1182], [2.5, -1196], [0, -1210], [0, -1300]]);   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -225,7 +227,8 @@ const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1232, PUZLE_Z = -786, PU
 const FIN_Z = ANILLO_Z + 6;
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
-const DUNAS2 = { desde: -990, hasta: -1094 }, ACANT = { pie: -1121, cima: -1141, alto: 10 }, PLAT_ANTIGUA_Z = -1106, BASALTO = { desde: -1098, hasta: -1220 };
+const DUNAS2 = { desde: -990, hasta: -1094 }, ACANT = { pie: -1121, cima: -1161, alto: 20 }, PLAT_ANTIGUA_Z = -1106, BASALTO = { desde: -1098, hasta: -1220 };
+const PLATAFORMA6 = { x: 0, z: ACANT.cima - 11, r: 3.6, alto: 0.7 }; PLATAFORMAS.push(PLATAFORMA6);   // (arriba del acantilado: la runa de la onda)
 const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2.hasta + 2, CANON2.hasta - 8, z));   // dentro del desfiladero final
 // Desfiladero final, tras el puzle de las columnas: estrecho y serpenteante, con una grieta que se salta,
 // una pilastra caída que saltar, un paso bajo, una gran escalera de piedras caídas sobre un precipicio
@@ -274,7 +277,7 @@ const texHalo = (() => {
   d.addColorStop(0, "rgba(255,255,255,0.8)"); d.addColorStop(0.25, "rgba(235,245,255,0.45)"); d.addColorStop(0.6, "rgba(200,225,255,0.14)"); d.addColorStop(1, "rgba(190,215,255,0)");   // (más difuso)
   g.fillStyle = d; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
 })();
-const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.renderOrder = 4; return h; };
+const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.renderOrder = 4; h.raycast = () => {}; return h; };   // (los rayos lo ignoran)
 const suave = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function lerpAngulo(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
@@ -415,6 +418,7 @@ function alturaTerreno(x, z) {
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
 PLATAFORMA5.base = alturaTerreno(PLATAFORMA5.x, PLATAFORMA5.z);
+PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z);
 
 // ─── Escena ────────────────────────────────────────────────────────────────
 const CIELO = new THREE.Color("#c9d8ee");
@@ -1387,6 +1391,7 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
 
 // ─── Tras las ruedas: plataforma antigua, acantilado de columnas con su escalera, campo de columnas ───
 // Coloca un modelo ajustado a una caja (ancho x, alto y, fondo z), con su base en y.
+const pilastrasOnda = [];
 function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   const g = new THREE.Group(), d = gltf.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3());
   d.scale.set(ax / t.x, ay / t.y, az / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
@@ -1394,15 +1399,18 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   return g;
 }
 {
-  // La plataforma redonda con su escalera y sus pilares (se sube y se pisa).
-  const z = ACANT.cima - 10, x = caminoX(z), y = alturaTerreno(x, z) - 1.5,   // (al final de la escalera, en lo alto)
-   g = encajar(gPlatAntigua, x, y, z, 11, 2.2, 11, Math.PI);
-  // Sin la figurita del centro (se recorta: lo que sube sobre el suelo de la plataforma, en el medio).
-  g.traverse(o => { if (!o.isMesh) return; o.material = o.material.clone(); const prev = o.material.onBeforeCompile;
-    o.material.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); sh.vertexShader = 'varying vec3 vLocP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLocP = position;');
-      sh.fragmentShader = 'varying vec3 vLocP;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (length(vLocP.xz) < 0.34 && vLocP.y > 0.93) discard;'); };
-    o.material.customProgramCacheKey = () => 'platSinFigura'; });
-  colisiones.push({ x, z, r: 5.2, techo: y + 2.2 * 0.91, plataforma: true });   // (se sube de un paso a su suelo)
+  // Alrededor de la plataforma de la onda, un corro de pilastras en pie: caen con la primera onda.
+  { const P6 = PLATAFORMA6;
+    for (let k = 0; k < 7; k++) {
+      const a = k / 7 * Math.PI * 2 + 0.2, d = P6.r + 2.6, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
+      if (Math.abs(Math.cos(a)) > 0.85) continue;                 // (el paso, delante y detrás, libre)
+      const B = kitPilares[3 + (k % 3)], bb = (B.geo.computeBoundingBox(), B.geo.boundingBox), h = 6 + (k % 3) * 1.5, w = 1.3;
+      const piv = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina), sx = w / (bb.max.x - bb.min.x), sy = h / (bb.max.y - bb.min.y), sz = w / (bb.max.z - bb.min.z);
+      m.scale.set(sx, sy, sz); m.position.set(-(bb.min.x + bb.max.x) / 2 * sx, -bb.min.y * sy, -(bb.min.z + bb.max.z) / 2 * sz); m.castShadow = m.receiveShadow = true;
+      piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
+      const col = { x, z, r: 0.75, techo: 99 }; colisiones.push(col);
+      pilastrasOnda.push({ piv, col, t: -1, a });
+    } }
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
   const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx, ACANT.pie + 17) - 0.6;   // (el suelo del pasillo de la escalera)   // (el suelo detrás del abismo)
   // La cara del acantilado, al pie de la escalera, de lado a lado; la escalera sube metida dentro, entre dos
@@ -1412,12 +1420,13 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // que se montan sobre los bordes de la escalera (sin espacio entre pared y escalera).
   // (en losas de 14 m, a la proporción del modelo: estirado a 40 m su textura se veía estirada y borrosa)
   const losaMuro = (x, y, z, ax, ay, az, giro) => encajar(gAcantilado, x, y, z, ax, ay, az, giro).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
-  for (const lado of [-1, 1]) for (let c = 0; c < 2; c++) for (let f = 0; f < 4; f++) {
-    const ancho = 42, desf = (f % 2) * 9, xc = cx + lado * (1.25 + ancho / 2 + c * (ancho - 0.6) - desf * (c === 0 ? 0 : 1));
-    losaMuro(xc, y0 - 34 + f * 14, ACANT.pie + 3 - fondo / 2 - (f % 2) * 0.4, ancho, 15, fondo, f % 2 ? Math.PI : 0);
+  // (piezas grandes, a la proporción del modelo: pocas juntas a la vista)
+  for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) {
+    const ancho = 90, xc = cx + lado * (1.25 + ancho / 2);
+    losaMuro(xc, y0 - 40 + f * 31, ACANT.pie + 3 - fondo / 2 - (f % 2) * 0.5, ancho, 33, fondo, f % 2 ? Math.PI : 0);
   }
   // Las paredes a lado y lado de la escalera (cierran la grieta por dentro, sin asomar delante).
-  for (const lado of [-1, 1]) for (let f = 0; f < 4; f++) losaMuro(cx + lado * (1.25 + 2.5), y0 - 34 + f * 14, ACANT.pie + 2.5 - (ACANT.pie + 3.5 - ACANT.cima) / 2, ACANT.pie + 3.5 - ACANT.cima, 15, 5, -lado * Math.PI / 2);
+  for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) losaMuro(cx + lado * (1.25 + 2.5), y0 - 40 + f * 31, ACANT.pie + 2.5 - (ACANT.pie + 3.5 - ACANT.cima) / 2, ACANT.pie + 3.5 - ACANT.cima, 33, 5, -lado * Math.PI / 2);
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: ACANT.pie + 2.2, r: 1.3, techo: 99 });
   for (let z2 = ACANT.pie - 1.5; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 2.95, z: z2, r: 1.2, techo: 99 });
@@ -1440,15 +1449,17 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Arriba, todo el suelo de prismas hexagonales de basalto, a alturas distintas y con nieve encima
   // (junto al paso, escalones suaves; hacia los lados, más altos).
   { const R = 1.35, rH = generador(4545), geo = new THREE.CylinderGeometry(R, R, 6, 6), lista = [];
+    const texB = new THREE.TextureLoader().load("texturas/piedra.jpg"); texB.wrapS = texB.wrapT = THREE.RepeatWrapping; texB.repeat.set(1.5, 3);
+    const matHex = new THREE.MeshStandardMaterial({ map: texB, color: 0x9aa3b4, roughness: 0.95 }); matHex.userData.nevada = true;   // (piedra con su textura; nieve encima, como las rocas)
     for (let fz = 0, z2 = ACANT.cima - 2; z2 > ANILLO_Z + 5; z2 -= 1.5 * R, fz++) for (let k = -9; k <= 9; k++) {
       const xx = caminoX(z2) + k * Math.sqrt(3) * R + (fz % 2) * Math.sqrt(3) * R / 2, d = Math.abs(xx - caminoX(z2));
-      if (Math.hypot(xx - caminoX(ACANT.cima - 10), z2 - (ACANT.cima - 10)) < 6.2) continue;   // (donde la plataforma)
-      const h = (d < 3 ? rH() * 0.45 : Math.min(3.5, (d - 3) * 0.28 + rH() * 0.7)), top = alturaTerreno(xx, z2) + 0.15 + h;
-      lista.push([xx, top, z2]);
-      if (d < 13) colisiones.push({ x: xx, z: z2, r: R * 0.92, techo: top });
+      if (Math.hypot(xx - PLATAFORMA6.x, z2 - PLATAFORMA6.z) < 7.2 || Math.hypot(xx - caminoX(ANILLO_Z), z2 - ANILLO_Z) < 10) continue;   // (donde la plataforma y ante el anillo)
+      const esc = 0.75 + rH() * 0.6, h = (d < 3 ? rH() * 0.55 : Math.min(5, (d - 3) * 0.32 + rH() * (rH() < 0.2 ? 2.2 : 0.9))), top = alturaTerreno(xx, z2) + 0.15 + h;
+      lista.push([xx, top, z2, esc]);
+      if (d < 13) colisiones.push({ x: xx, z: z2, r: R * 0.9 * esc, techo: top });
     }
-    const im = new THREE.InstancedMesh(geo, nieveFina, lista.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
-    lista.forEach(([x, y, z], n) => im.setMatrixAt(n, m4.compose(new THREE.Vector3(x, y - 3, z), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6), new THREE.Vector3(1, 1, 1))));
+    const im = new THREE.InstancedMesh(geo, matHex, lista.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+    lista.forEach(([x, y, z, e], n) => im.setMatrixAt(n, m4.compose(new THREE.Vector3(x, y - 3, z), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6 + (n % 3) * 0.05), new THREE.Vector3(e, 1, e))));   // (de tamaños distintos)
     im.castShadow = im.receiveShadow = true; scene.add(im); }
   const rB = generador(9797);
   for (let i = 0; i < 9; i++) {
@@ -1466,9 +1477,24 @@ const bolas = [0].map(i => {
 });
 // La altura de la escalera en una z (la de su rampa).
 const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), cx = caminoX(ACANT.cima); return lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t); };
-let arrastre = 0;
+let arrastre = 0; const _espOnda = new THREE.Vector3();
 function moverBolas(dt) {
   arrastre = Math.max(0, arrastre - dt);
+  // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
+  // espiral que se abre y lo aparta todo; las pilastras de alrededor de su plataforma caen.
+  if (onda && estado === "juego" && enSuelo && !llevando && teclas.has("KeyE") && ondaT < 0) {
+    cargaOnda += dt; espiralEn = _espOnda.set(pos.x, pos.y + 0.9, pos.z); espiralTam = { r: 0.6 + cargaOnda * 0.5, alto: 1.6 }; efectoEspiral = Math.max(efectoEspiral, 0.4 + cargaOnda * 0.5);
+    if (cargaOnda > 1.1) { ondaT = 0; cargaOnda = 0; musica.viento(0.6, 0.5); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
+  } else if (!teclas.has("KeyE")) cargaOnda = 0;
+  if (ondaT >= 0) {
+    ondaT += dt; const r = 1 + ondaT * 9;
+    espiralEn = _espOnda.set(pos.x, pos.y + 0.5, pos.z); espiralTam = { r, alto: 0.9 }; efectoEspiral = Math.max(efectoEspiral, 1.2 - ondaT * 0.6);
+    for (const P of pilastrasOnda) if (P.t < 0 && Math.hypot(P.piv.position.x - pos.x, P.piv.position.z - pos.z) < r) { P.t = 0; const i = colisiones.indexOf(P.col); if (i >= 0) colisiones.splice(i, 1); }
+    if (ondaT > 1.6) ondaT = -1;
+  }
+  for (const P of pilastrasOnda) if (P.t >= 0 && P.t < 1.4) {   // caen hacia fuera, cada vez más deprisa
+    P.t += dt; const f = Math.min(1, P.t / 1.3); P.piv.rotation.set(0, P.a, 0); P.piv.rotateX(Math.PI / 2 * 0.94 * f * f);
+  }
   const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
   for (const b of bolas) {
     if (pos.z > ACANT.pie + 1.5) { b.g.visible = false; b.t = -0.5; continue; }   // (solo pasado el puente)
@@ -2159,6 +2185,7 @@ montarPlataforma(PLATAFORMA2, gPlataforma.scene.clone(), 2.4);
 montarPlataforma(PLATAFORMA3, gPlataforma.scene.clone(), 0.9);
 montarPlataforma(PLATAFORMA4, gPlataforma.scene.clone(), 1.7);   // (antes que la primera, que usa el modelo original)
 montarPlataforma(PLATAFORMA5, gPlataforma.scene.clone(), 0.4);
+montarPlataforma(PLATAFORMA6, gPlataforma.scene.clone(), 2.0);
 PLATAFORMA4.obj.position.y -= 0.22; PLATAFORMA4.obj.updateMatrixWorld(true); PLATAFORMA4.techo -= 0.22; PLATAFORMA4.rejilla.h = PLATAFORMA4.rejilla.h.map(v => v - 0.22);   // (y su rejilla de alturas)   // algo más hundida en la nieve
 montarPlataforma(PLATAFORMA, gPlatSimple.scene, 4.0);   // la primera, la del bastón: la plataforma arcana sencilla (un disco de losas roto)    // los pilares altos, detrás del bastón al llegar
 
@@ -3481,6 +3508,8 @@ const FIGURAS = {
   // La runa del barrido (lámina 80): dos cheurones, uno sobre otro, en un solo trazo.
   // (unidos por una vertical larga en un extremo: de un solo trazo, sin volver atrás)
   barrido: { velocidad: 50, puntos: [[74, 14], [50, 38], [26, 14], [26, 62], [50, 86], [74, 62]] },
+  // La runa de la onda: una espiral hexagonal que se abre desde el centro.
+  onda: { velocidad: 46, puntos: Array.from({ length: 16 }, (_, i) => { const a = -Math.PI / 2 + i * Math.PI / 3, r = 6 + i * 2.6; return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r]; }) },
 };
 // Una frase para cada santuario, mientras se resigue su runa.
 const FRASES_TRAZO = {
@@ -3686,7 +3715,7 @@ let seguro = pos.clone(), seguroReloj = 0;
 let rescate = null, arrodillado = 0, reloj = 0, avisoGrieta = false, avisoRellano = false, finMostrado = false;
 let avisoCamara = 0, avisoRocas = false, avisoSalto = false, avisoAgacharse = false, avisoAlza = false, avisoMixta = false, avisoPuente = false;
 const _espMono = new THREE.Vector3();
-let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, avisoCilindros = false, avisoCol4 = false;
+let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, onda = false, cargaOnda = 0, ondaT = -1, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3();
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
@@ -3866,6 +3895,9 @@ function actualizar(dt) {
     if (arrodillado > 2.8 && aprende === "giro") {
       estado = "juego"; giraBloques = true;
       rotular(tactil ? "◇ gira la piedra marcada por la espiral;\nagachado, la de abajo." : "E gira la piedra marcada por la espiral;\nagachado (C), la de abajo.", 6);
+    } else if (arrodillado > 2.8 && aprende === "onda") {
+      estado = "juego"; onda = true;
+      rotular(tactil ? "Mantén ◇ unos instantes:\nla magia se carga y estalla en una onda." : "Mantén E unos instantes:\nla magia se carga y estalla en una onda.", 6);
     } else if (arrodillado > 2.8 && aprende === "barrido") {
       estado = "juego"; barre = true;
       rotular(tactil ? "Ante un monolito, agáchate y pulsa ◇:\nel viento barre su nieve." : "Ante un monolito, agáchate (C) y pulsa E:\nel viento barre su nieve.", 6);
@@ -4028,6 +4060,13 @@ function actualizar(dt) {
       musica.viento(0.3, 0.85);
     }
     if (giraBloques && !avisoCol4 && pos.z < COLUMNA4_Z + 6 && puzle.col4.t < 0) { avisoCol4 = true; rotular(tactil ? "◇ gira la piedra marcada.\nAgachado, ◇ baja la marca." : "E gira la piedra marcada.\nAgachado (C) y E, la marca baja.", 6); }
+    if (barre && !onda && enSuelo && s.sobre === PLATAFORMA6 && Math.hypot(pos.x - PLATAFORMA6.x, pos.z - PLATAFORMA6.z) < 2.4 && estado === "juego") {
+      // Sexta plataforma: la runa de la onda (cargar la magia y soltarla en una gran espiral).
+      estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
+      ladoLlamada = elegirLado();
+      trazo.empezar("onda", () => { estado = "despertando"; arrodillado = 0; aprende = "onda"; });
+      musica.viento(0.3, 0.85);
+    }
     if (giraBloques && !barre && enSuelo && s.sobre === PLATAFORMA5 && Math.hypot(pos.x - PLATAFORMA5.x, pos.z - PLATAFORMA5.z) < 2.4 && estado === "juego") {
       // Quinta plataforma: la runa de los dos cheurones, la del barrido (el viento que quita la nieve).
       estado = "trazando"; arrodillado = 0; vel.set(0, 0, 0);
