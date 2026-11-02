@@ -893,7 +893,7 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -64, -76], ZONA_MIXTA
     if (i === 2) return;                                         // (delante del primer salto, nada)
     rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx + lado * (0.8 + rndA() * 0.8), z + (rndA() - 0.5) * 0.8, 0.9 + rndA() * 0.2, 0.9 + rndA() * 0.3);   // baja: se salta
     rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx - lado * (3.2 + rndA()), z + (rndA() - 0.5) * 1.2, 0.8 + rndA() * 0.2, 0.8 + rndA() * 0.2);
-    if (i === 1) { arcoBajo(cx + lado * 6.5, z - 1, 1.4); arcoBajo(cx - lado * 7.5, z + 1.5, -1.3); }   // a los lados, agacharse
+    if (i === 1) { arcoBajo(cx + lado * 6.5, z - 1, 0.55); rocaEntera(kitRocas[3], cx - lado * 7.5, z + 1.5, 1.4, 1.1); rocaEntera(kitRocas[4], cx - lado * 9.2, z + 0.3, 0.9, 0.8); }   // a un lado, un arco bajo girado; al otro, unas rocas
     else rndA(), rndA();
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
@@ -1358,8 +1358,9 @@ function pieza(gltf, x, z, tam, giro, hunde, inclina = 0) {
 for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -9, -40, 5, 1.1, 0.25, 0],
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
-  [gAnilloP, -16, -24, 8, 0.7, 0.35, 0.55], [gAnilloP, 19, -662, 11, -0.5, 0.38, -0.6]])
-  pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
+  [gAnilloP, -6, -38, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
+  { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
+    if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.8, 0.87, 1.0); } }); }   // (el anillo, azulado: su textura tira a amarillo)
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
 // paso, sin cerrarlo).
@@ -1367,7 +1368,7 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   for (let z = -8; z > ZONA_MIXTA[0]; z -= 2.5 + rS() * 3) {
     const lado = rS() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (5.5 + rS() * 8);
     if (solapa(x, z, 1.6) || PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3)) continue;
-    if (rS() < 0.75) enterrar(kitRocas[1 + Math.floor(rS() * 3)], x, z, 0.6 + rS() * (rS() < 0.2 ? 1.8 : 0.9), rS() * 6, 0.2 + rS() * 0.15);
+    if (rS() < 0.75) enterrar(kitRocas[1 + Math.floor(rS() * 3)], x, z, 0.6 + rS() * (rS() < 0.3 ? 3.4 : 0.9), rS() * 6, 0.2 + rS() * 0.15);   // (alguna, grande)
     else colocar(kitPilares[Math.floor(rS() * 3)], x, z, 0.7 + rS() * 0.9, rS() * 6, 0.25, masBajoEn(x, z, 0.8), false).children[0].material = nieveFina;
   } }
 
@@ -1519,7 +1520,7 @@ for (let i = 0; i < 34; i++) {
     const pieza = distinta(kit, kit[Math.floor(rndR() * (ruina ? 5 : kit.length))], x, z);
     // Las pilastras de ruina en pie, el doble de altas (los bloques no): apartadas lo que crecen.
     const pilastra = ruina && kitRuinas.indexOf(pieza) >= 2, alto = (ruina ? 1 + rndR() * 2.2 : 0.6 + rndR() * 1.8) * (pilastra ? 3 : 1.5);
-    if (pilastra) x += lado * pieza.radio * alto / pieza.alto * 0.5;
+    if (pilastra) continue;                                      // (sin pilastras de ruina en pie: asomaban como un trozo suelto)
     if (PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 3) || solapa(x, z, pieza.radio * alto / pieza.alto * 0.85)) continue;
     colocar(pieza, x, z, alto, rndR() * Math.PI * 2, ruina ? 0.12 : 0.25);
     colisiones[colisiones.length - 1].r = pieza.radio * alto / pieza.alto * 0.85;
@@ -2886,6 +2887,11 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
   ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, nieveC, cambia: false, nx: NX + 1, nz: NZ + 1, tocado: new Uint8Array(p.count) });
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
+// Nieve acumulada contra parte del borde de la primera plataforma (del lado de fuera del camino).
+for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.1, 3.6, 2.8, 0.45]]) {
+  const d = PLATAFORMA.r + 1.0, x = PLATAFORMA.x - Math.cos(ang) * d, z = PLATAFORMA.z + Math.sin(ang) * d;
+  ventisquero(x, z, an, la, al, null, true);
+}
 // Al pie de cada montículo de nieve, su falda de nieve blanda; y más acumulaciones a lo largo de todo el
 // recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
@@ -3152,7 +3158,7 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
-  #cita { position: fixed; left: 0; right: 0; top: 14%; padding: 0 32px; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.5; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9); pointer-events: none; z-index: 4; }
+  #cita { position: fixed; left: 0; right: 0; top: 14%; padding: 0 32px; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.5; color: var(--tinta); pointer-events: none; z-index: 4; }
   #cita span { display: block; opacity: 0; }
   #cita.ver span { animation: cita 6.5s ease 1s forwards; }
   #cita.ver span + span { animation-delay: 2.2s; }       /* la segunda frase, un poco después */
@@ -3177,7 +3183,7 @@ estilo.textContent = `
   #portada .teclas { margin: 6px auto 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; text-align: left; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
-  #rotulo { white-space: pre-line; position: fixed; z-index: 4; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); text-shadow: 0 0 12px rgba(255,255,255,.9); opacity: 0; transition: opacity .9s ease; }
+  #rotulo { white-space: pre-line; position: fixed; z-index: 4; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); opacity: 0; transition: opacity .9s ease; }
   #cerrar { z-index: 5; position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px; border: 1px solid rgba(31,42,61,.25); border-radius: 50%; background: rgba(240,245,252,.7); color: var(--tinta); font: 26px/1 Georgia, serif; cursor: pointer; pointer-events: auto; }
   #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
   #mandos { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
@@ -3209,7 +3215,7 @@ estilo.textContent = `
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
   body:has(#trazo:not([hidden])) #rotulo, body:has(#trazo:not([hidden])) #ayuda { color: #fff; text-shadow: none; }   /* sobre el velo de las runas: blanco, sin sombra */
-  #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 64px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); text-shadow: 0 0 12px rgba(255,255,255,.9), 0 0 3px rgba(255,255,255,.8); pointer-events: none; }
+  #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 64px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; bottom: auto; transform: translateY(-50%); width: min(38vw, 520px); } }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
   #trazo svg { width: min(72vw, 40vh); height: min(72vw, 40vh); overflow: visible; filter: drop-shadow(0 0 6px rgba(255,255,255,.8)); }
