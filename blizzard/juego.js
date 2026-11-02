@@ -1472,6 +1472,9 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Al otro lado del abismo (el de las dunas, bajo el arranque del puente): la misma pared de acantilado,
   // mirando a la escalera, con su borde de arriba a ras del suelo.
   { const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.1;
+    { const tapa = new THREE.Mesh(new THREE.BoxGeometry(300, 0.5, 2.2), new THREE.MeshStandardMaterial({ color: 0xdfe8f5, roughness: 1 }));   // (la nieve que cubre la cara de arriba del muro, hasta el filo)
+      tapa.position.set(cx, yb + 0.05, ACANT.pie + 16.2); tapa.receiveShadow = true; scene.add(tapa);
+      const bajoPuente = new THREE.Mesh(new THREE.BoxGeometry(6.4, 30, 4), nieveFina); bajoPuente.position.set(cx, yb - 15, ACANT.pie + 17.4); scene.add(bajoPuente); }   // (tapa el hueco bajo el arranque del puente)
     for (let f = 0; f < 2; f++) for (let c = -3; c < 3; c++) {
       const an = 50, al = 18, w = encajar(gAcantilado, cx + (c + 0.5) * an, yb - (f + 1) * al, ACANT.pie + 17.3, an, al, 10, Math.PI);
       if (c % 2) w.scale.x = -1;
@@ -1535,7 +1538,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     // Todo el margen del abismo del lado de las dunas, rocas grandes en fila (cierran el borde de nieve y el
     // hueco junto al arranque del puente).
     { const rm = generador(6161), sueloM = alturaTerreno(cx, ACANT.pie + 18);
-      for (const lado of [-1, 1]) for (let d = 3.4, k = 0; d < 60; k++) {   // (columnas de piedra de pie, del fondo hasta el filo: cierran el canto)
+      for (const lado of [-1, 1]) for (let d = 2.4, k = 0; d < 60; k++) {   // (columnas de piedra de pie, del fondo hasta el filo: cierran el canto)
         const w = 1.6 + rm() * 1.2, x = cx + lado * (d + w / 2), z = ACANT.pie + 16.4 + rm() * 0.6, top = sueloM + (d < 8 ? 0.4 : 0.2 + rm() * 1.6);
         pilarTallado(kitPilares[3 + k % 3], new THREE.Vector3(x, sueloM - 26, z), new THREE.Vector3(x + (rm() - 0.5) * 0.2, top, z), w, rm() * 6); d += w * 0.85;
       } }
@@ -1694,7 +1697,7 @@ function moverBolas(dt) {
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1e9; b.g.visible = false; continue; }   // (solo dos: pasan una vez cada una)   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
     b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
-    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.z - z) < b.R + 0.35 && pos.y < y + 1.45 * b.R && pos.y > y - 1.5) {   /* (al tocarla, por donde sea, el viento te devuelve) */ const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; }); vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (al pie de la escalera, con el viento; las bolas vuelven a salir)
+    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.z - z) < b.R + 0.35 && pos.y < y + 1.0 * b.R && pos.y > y - 1.5) {   /* (al tocarla, por donde sea, el viento te devuelve) */ const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; }); vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (al pie de la escalera, con el viento; las bolas vuelven a salir)
     void largo;
   }
 }
