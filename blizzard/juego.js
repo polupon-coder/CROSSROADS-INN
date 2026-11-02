@@ -1076,10 +1076,11 @@ const pilarDeKit = (() => {
     // Arriba, una roca tallada de cara de arriba casi plana (los bloques del kit); debajo, su columna,
     // que baja recta hasta perderse en la niebla del fondo. Se aterriza en llano.
     void pieza;
-    const B = kitPilares[i % 3], h = 1.7, base = tope + 0.7 - h, g = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina);
+    const B = kitPilares[i % 3], h = 3.4, base = tope + 0.7 - h, g = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina);
     m.position.copy(B.desplaza); m.castShadow = m.receiveShadow = true; g.add(m);
     g.scale.set(rp * 2 / (B.radio * 2), h / B.alto, rp * 2 / (B.radio * 2)); g.position.set(cx, base, pz); g.rotation.y = rndP() * 6; scene.add(g);
-    pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(cx, tope - 22, pz), new THREE.Vector3(cx, base + 0.4, pz), rp * 1.6, i * 1.7);
+    // (la columna, del mismo ancho que la roca de arriba: un prisma entero, algo quebrado, que baja hasta la niebla)
+    pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(cx + 0.08, tope - 22, pz - 0.05), new THREE.Vector3(cx, base + 0.5, pz), rp * 2.05, i * 1.7);
     colisiones.push({ x: cx, z: pz, r: rp * 0.88, techo: tope + 0.7 });
   });
   for (let i = 0; i < 11; i++) rnd();                          // lo que gastaban los pilares de antes
