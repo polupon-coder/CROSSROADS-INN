@@ -1540,11 +1540,11 @@ const _gp = new THREE.Vector3();
 function moverGuia(dt) {
   const G = guia, activa = !tieneBaston && estado === "juego" && !rescate && G.fin < 1;
   if (!activa && G.fin === 0) { G.luz.visible = false; if (!tieneBaston && G.z === null) return; }
-  if (G.z === null) { G.z = pos.z - 2; puntoGuia(G.z, G.p); G.p.set(pos.x + 1.5, pos.y + 1.2, pos.z); for (const c of G.cola) c.p.copy(G.p); }   // (la cinta empieza recogida en un punto)
+  if (G.z === null) { G.z = pos.z - 2; puntoGuia(G.z, G.p); G.p.set(pos.x + 0.75, pos.y + 0.45, pos.z); for (const c of G.cola) c.p.copy(G.p); }   // (la cinta empieza recogida en un punto)
   G.reloj += dt;
   const bast = baston.userData.luz.getWorldPosition(_gp.clone()), llega = G.z <= PLATAFORMA.z + 2;
   if (G.modo === "vuelta") {                                       // rodea a Blizzard y sigue
-    G.t += dt; const a = G.t * 3.2, objetivo = _gp.set(pos.x + Math.cos(a) * 1.5, pos.y + 1.2 + Math.sin(G.t * 5) * 0.2, pos.z + Math.sin(a) * 1.5);
+    G.t += dt; const a = G.t * 3.2, objetivo = _gp.set(pos.x + Math.cos(a) * 0.75, pos.y + 0.45 + Math.min(1, G.t / 3.9) * 1.0, pos.z + Math.sin(a) * 0.75);   // (pegada a Blizzard: de las rodillas hacia arriba)
     G.p.lerp(objetivo, 1 - Math.exp(-dt * 5));
     if (G.t > 3.9) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.quieto = 0; G.z = pos.z - 1; }   // (dos vueltas y luego, delante: que la sigan)
   } else {
