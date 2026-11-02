@@ -117,6 +117,16 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
 const CON_CAPA = false;
 const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
+// Los modelos nuevos traen la piedra tirando a amarillo: su textura de color se pasa a gris azulado, el
+// tono de la piedra del juego (se conserva el dibujo y el contraste).
+for (const g of [gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP]) g.scene.traverse(o => {
+  const m = o.isMesh && o.material, img = m && m.map && m.map.image;
+  if (!img || (m.map.userData && m.map.userData.gris)) return;
+  const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height), a = d.data;
+  for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114; a[i] = l * 0.9; a[i + 1] = l * 0.96; a[i + 2] = Math.min(255, l * 1.1); }
+  x.putImageData(d, 0, 0); m.map.image = c; m.map.needsUpdate = true; m.map.userData = Object.assign(m.map.userData || {}, { gris: true });
+});
 for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
@@ -354,14 +364,16 @@ const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 11 },
 }));
 function hoyoHuellas(x, z) {
   if (z > 8 || z < -29) return 0;
-  let hondo = 0;
+  let hondo = -1;
   for (const H of huellasGigantes()) {
-    const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 4) continue;
+    const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 7) continue;
     const u = dx * H.c - dz * H.s, v = dx * H.s + dz * H.c;          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    hondo = Math.max(hondo, 0.6 * (1 - suave(0.55, 1.0, d)));   // (fondo plano y borde en pendiente suave)
+    // Como al hundir la nieve: fondo plano, pared corta y un reborde de nieve levantada, grumoso.
+    const grumo = 0.5 + 0.5 * Math.sin(Math.atan2(v, u) * 13 + H.x) * Math.sin(Math.atan2(v, u) * 7 + H.z);
+    hondo = Math.max(hondo, d > 1.5 ? -1 : 0.5 * (1 - suave(0.82, 0.98, d)) - (0.12 + 0.07 * grumo) * suave(0.9, 1.06, d) * (1 - suave(1.12, 1.5, d)));
   }
-  return hondo;
+  return hondo === -1 ? 0 : hondo;
 }
 function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
@@ -499,7 +511,7 @@ let MAT_SUELO = null;                                        // el material del 
     pos.setZ(i, z);
     { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
-    { const hh = hoyoHuellas(x, z) / 0.6, k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
+    { const hh = Math.max(0, hoyoHuellas(x, z)) / 0.5, k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   // Cada cuadro se parte por la diagonal cuyos extremos están a alturas más parecidas: junto a un
