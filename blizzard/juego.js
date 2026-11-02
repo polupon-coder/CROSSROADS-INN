@@ -1427,6 +1427,11 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const [, B, bb] = [0, 1, 2, 3, 4, 5].map(i => { const P = kitPilares[i], b = caja(P), t = b.getSize(new THREE.Vector3()); return [Math.abs(t.x - t.z) / Math.max(t.x, t.z) + (t.y < Math.max(t.x, t.z) ? 0.5 : 0), P, b]; }).sort((a, b) => a[0] - b[0])[0];   // (la pieza más recta y de sección más cuadrada)
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(B.geo.index.array));
       g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
+    const normaliza = i => { const B = kitPilares[i], bb = new THREE.Box3(), v = new THREE.Vector3(), pa = B.geo.attributes.position, ix = B.geo.index.array;
+      for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
+      const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
+      g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; };
+    const geoPr3 = normaliza(3), geoPr4 = normaliza(5);
     const geoPr2 = (() => { const B = kitPilares[4], bb = new THREE.Box3(), v = new THREE.Vector3(), pa = B.geo.attributes.position, ix = B.geo.index.array;   // (otra pieza: el pilar tallado)
       for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
@@ -1435,7 +1440,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     for (let a0 = 0.5; a0 < Math.PI * 2 - 0.5;) {   // (hueco de llegada; cada una de su tamaño, no repetidas)
       const w = 0.8 + rc() * 0.7, h = 4 + rc() * 4.5, da = (w + 0.06) / d, a = a0 + da / 2; a0 += da;
       const x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
-      const piv = new THREE.Group(), m = new THREE.Mesh(rc() < 0.5 ? geoPr : geoPr2, nieveFina);   // (dos piezas del kit, alternadas sin orden)
+      const piv = new THREE.Group(), m = new THREE.Mesh([geoPr, geoPr2, geoPr3, geoPr4][Math.floor(rc() * 4)], nieveFina);   // (dos piezas del kit, alternadas sin orden)
       m.scale.set(w, h / 6, w * (0.75 + rc() * 0.4)); m.rotation.y = (rc() - 0.5) * 0.5; m.position.y = -rc() * 0.6; m.castShadow = m.receiveShadow = true;
       piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
       const col = { x, z, r: w * 0.6, techo: 99 }; colisiones.push(col);
@@ -1482,7 +1487,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       for (let i = 0; i < P.count; i++) {
         const x = cx + P.getX(i), v = (P.getZ(i) + 1.8) / 3.6, ruido = Math.sin(x * 0.9) * 0.5 + Math.sin(x * 2.3 + 1.7) * 0.3 + Math.sin(x * 0.27) * 0.6;   // (v: 0 en el filo, 1 hacia las dunas)
         const z = ACANT.pie + 14.6 + v * 3.6 + (v < 0.01 ? ruido * 0.7 : v < 0.2 ? ruido * 0.35 : 0);
-        const alto = v < 0.01 ? -0.35 : 0.08 + 0.32 * Math.sin(Math.PI * Math.min(1, v * 1.25)) * (0.75 + 0.25 * Math.sin(x * 1.3)) - v * 0.1;
+        const alto = v < 0.01 ? -1.6 : v < 0.14 ? -0.25 : 0.08 + 0.32 * Math.sin(Math.PI * Math.min(1, v * 1.25)) * (0.75 + 0.25 * Math.sin(x * 1.3)) - v * 0.1;
         P.setXYZ(i, x, Math.max(yb + 0.05, alturaTerreno(x, Math.max(z, ACANT.pie + 16.9))) + alto, z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560); col.set([c.r, c.g, c.b], i * 3);
       }
       geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
@@ -1504,13 +1509,13 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Entre la escalera y los muros (y en el desembarco del puente): piedras verticales del kit, juntas.
   { const rv = generador(8383);
     for (const lado of [-1, 1]) for (let z2 = ACANT.pie + 6, k = 0; z2 > ACANT.cima - 1; z2 -= 1.25 + rv() * 0.4, k++) {
-      const t = clamp((ACANT.pie + 0.6 - z2) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), y = lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t), w = 1.9 + rv() * 0.9, x = cx + lado * (1.85 + w / 2 + rv() * 0.2), a = new THREE.Vector3(x, y - 2, z2), b = new THREE.Vector3(x + lado * rv() * 0.3, y + 3 + rv() * 5, z2 + (rv() - 0.5) * 0.3);
+      const t = clamp((ACANT.pie + 0.6 - z2) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), y = lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t), w = 1.9 + rv() * 0.9, x = cx + lado * (1.45 + w / 2 + rv() * 0.1), a = new THREE.Vector3(x, y - 2, z2), b = new THREE.Vector3(x + lado * rv() * 0.3, y + 3 + rv() * 5, z2 + (rv() - 0.5) * 0.3);
       pilarTallado(kitPilares[3 + k % 3], a, b, w, rv() * 6);   // (grandes; el paso nunca más estrecho que la bola)
       if (false) { const xi = cx + lado * (2.15 + rv() * 0.2); pilarTallado(kitPilares[3 + (k + 1) % 3], new THREE.Vector3(xi, y - 2, z2 - 0.6), new THREE.Vector3(xi, y + 1.2 + rv() * 2.2, z2 - 0.6), 0.9 + rv() * 0.4, rv() * 6); }   // (en el tramo medio, más cerca: estrecha)
     } }
     // Al final de la escalera, el tramo de camino de piedra hasta la plataforma de la onda.
     { const z0 = ACANT.cima - 0.5, z1 = PLATAFORMA6.z + PLATAFORMA6.r - 0.3, zc = (z0 + z1) / 2, xc = caminoX(zc); encajar(gCamino, xc, alturaTerreno(xc, zc) + 0.15, zc, 3.4, 0.9, z0 - z1 + 1, 0);
-      const ya = alturaTerreno(cx, ACANT.cima - 2) + 0.05, yb = alturaTerreno(xc, zc) + 0.62, A = new THREE.Vector3(cx, ya, ACANT.cima - 0.4), B = new THREE.Vector3(xc, yb, z0 - 2.5), C = new THREE.Vector3(caminoX(z1), yb, z1);
+      const ya = alturaTerreno(cx, ACANT.cima - 2) + 0.85, yb = alturaTerreno(xc, zc) + 0.62, A = new THREE.Vector3(cx, ya, ACANT.cima - 3.5), B = new THREE.Vector3(xc, yb, ACANT.cima - 6.5), C = new THREE.Vector3(caminoX(z1), yb, z1);
       colisiones.push({ x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: 3, techo: yb, rampa: { a: A, b: B, ancho: 1.6 } }, { x: (B.x + C.x) / 2, z: (B.z + C.z) / 2, r: B.distanceTo(C) / 2 + 2, techo: yb, rampa: { a: B, b: C, ancho: 1.6 } }); }
     // A los lados del camino, desde la salida de la escalera hasta las pilastras: rocas grandes.
     { const rs = generador(4242);
@@ -1520,7 +1525,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       } }
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
-  for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
+  for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.2) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 2.75, z: z2, r: 1.3, techo: 99 });   // (sin rincones a los lados: la bola alcanza todo el paso)
   { // La escalera: copias del modelo de escalinata a su proporción, montadas un poco unas sobre otras (sin saltos).
     const yA = alturaTerreno(cx, ACANT.pie + 17) + 0.05, n = 7, largo = (ACANT.pie - ACANT.cima) / n, sube = ACANT.alto / n;
     for (let k = 0; k < n; k++) { const e = encajar(gEscalinata, cx, yA - 0.3 + (k - 0.35) * sube, ACANT.pie - largo * (k + 0.5), 5.0, sube * 1.7, largo * 1.4, ESCALINATA_GIRO); if (k % 2) e.scale.x = -1; }   // (una sí y otra no, en simetría: sin repetición)
@@ -1564,7 +1569,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       colisiones.push({ x: cx, z: ACANT.pie + 17, r: 3, techo: yt, rampa: { a: V(ACANT.pie + 18.6, yp + 0.02), b: V(ACANT.pie + 15.4, yt), ancho: 2.3 } });
       colisiones.push({ x: cx, z: ACANT.pie + 1.3, r: 3, techo: yt, rampa: { a: V(ACANT.pie + 2.4, yt), b: V(ACANT.pie + 0.2, yp + 0.05), ancho: 2.3 } }); }
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
-    const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.cima - 2) + 0.05, ACANT.cima - 0.2); const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 3.5);
+    const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.cima - 2) + 0.85, ACANT.cima - 0.2);   // (a la altura del último peldaño: no se hunde) const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 3.5);
     colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 2.3 } });   // (arriba, el rellano hasta el llano)
     colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 2.3 } }); }   // (toda la anchura del paso: no hay huecos por donde caer)
   // Arriba, todo el suelo de prismas hexagonales de basalto, a alturas distintas y con nieve encima
@@ -3295,6 +3300,8 @@ for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.
 // Al pie de cada montículo de nieve, su falda de nieve blanda; y más acumulaciones a lo largo de todo el
 // recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
+{ const P6 = PLATAFORMA6;   // (nieve alrededor de la plataforma de la onda y al pie de sus pilastras)
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + 0.3, d = P6.r + 2.2 + (k % 3) * 0.6; ventisquero(P6.x + Math.sin(a) * d, P6.z + Math.cos(a) * d, 4.5, 4.5, 0.45 + (k % 2) * 0.2, null, true); } }
 // (antes: nieve acumulada en los bordes de la escalera; ahora piedras verticales, junto a la escalera)
 if (false) { const cx = caminoX(ACANT.cima), L = ACANT.pie - ACANT.cima + 4, NZ = 160, NX = 8;
   for (const lado of [-1, 1]) {
@@ -3760,8 +3767,8 @@ const FIGURAS = {
   barrido: { velocidad: 50, puntos: [[74, 14], [50, 38], [26, 14], [26, 62], [50, 86], [74, 62]] },
   // La runa de la onda: una espiral hexagonal que se abre desde el centro.
   // La runa de la onda: el círulo abierto, doble: el de fuera, un tramo hacia dentro y el de dentro, de vuelta.
-  onda: { velocidad: 48, puntos: [...Array.from({ length: 31 }, (_, i) => { const a = -Math.PI / 2 + 0.45 + i / 30 * (Math.PI * 2 - 0.9); return [50 + Math.cos(a) * 40, 50 + Math.sin(a) * 40]; }),
-    ...Array.from({ length: 25 }, (_, i) => { const a = -Math.PI / 2 - 0.45 - i / 24 * (Math.PI * 2 - 0.9); return [50 + Math.cos(a) * 22, 50 + Math.sin(a) * 22]; })] },
+  onda: { velocidad: 48, puntos: [...Array.from({ length: 121 }, (_, i) => { const a = -Math.PI / 2 + 0.45 + i / 120 * (Math.PI * 2 - 0.9); return [50 + Math.cos(a) * 40, 50 + Math.sin(a) * 40]; }),
+    ...Array.from({ length: 97 }, (_, i) => { const a = -Math.PI / 2 - 0.45 - i / 96 * (Math.PI * 2 - 0.9); return [50 + Math.cos(a) * 22, 50 + Math.sin(a) * 22]; })] },
 };
 // Una frase para cada santuario, mientras se resigue su runa.
 const FRASES_TRAZO = {
@@ -4344,7 +4351,7 @@ function actualizar(dt) {
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
-    { const d = ui.querySelector("#desarrollo"), ver = pos.z < PLATAFORMA5.z + 14; if (d.hidden === ver) d.hidden = !ver; }   // (desde el Santuario de la revelación: lo que sigue, a medio hacer)
+    { const d = ui.querySelector("#desarrollo"), ver = pos.z < PLATAFORMA6.z - 6; if (d.hidden === ver) d.hidden = !ver; }   // (desde el Santuario de la revelación: lo que sigue, a medio hacer)
     if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a los lados la bola de salto\npara girar la cámara." : "V y B giran la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
