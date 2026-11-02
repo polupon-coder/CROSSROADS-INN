@@ -3022,19 +3022,35 @@ function centroDelPuno(destino) {
 let brilloBaston = 0;
 // Al impulsarse en el aire, una estela corta tras la esfera del bastón.
 let estelaT = 0;
-const estela = Array.from({ length: 12 }, () => { const h = halo(0xdfeeff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
+// (la misma cinta que la guía: continua, de canto, afilada en los extremos)
+const estela = (() => {
+  const N = 16, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3));
+  const uv = new Float32Array(N * 4), idx = []; for (let i = 0; i < N; i++) uv.set([i / (N - 1), 0, i / (N - 1), 1], i * 4); for (let i = 0; i < N - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  m.frustumCulled = false; m.renderOrder = 3; m.visible = false; m.raycast = () => {}; scene.add(m);
+  return { m, pts: Array.from({ length: N }, () => new THREE.Vector3()), paso: 0 };
+})();
 function moverEstela(dt) {
-  const ver = estelaT > 0; estelaT = Math.max(0, estelaT - dt);
-  for (let i = estela.length - 1; i > 0; i--) estela[i].p.copy(estela[i - 1].p);
-  baston.userData.luz.getWorldPosition(estela[0].p);
-  estela.forEach((e, i) => { e.h.visible = ver; if (!ver) return; const k = 1 - i / estela.length; e.h.position.copy(e.p); e.h.scale.setScalar(0.18 + 0.32 * k); e.h.material.opacity = 0.5 * k * Math.min(1, estelaT / 0.3); });
+  const E = estela, ver = estelaT > 0; estelaT = Math.max(0, estelaT - dt);
+  if (!E.m.material.map) { E.m.material.map = espiral.material.map; E.m.material.needsUpdate = true; }
+  const cab = baston.userData.luz.getWorldPosition(new THREE.Vector3());
+  if (!E.m.visible && ver) for (const p of E.pts) p.copy(cab);
+  E.paso += dt;
+  if (E.pts[0].distanceToSquared(cab) > 0.01 || E.paso > 0.04) { E.paso = 0; for (let i = E.pts.length - 1; i > 0; i--) E.pts[i].copy(E.pts[i - 1]); }
+  E.pts[0].copy(cab);
+  E.m.visible = ver; if (!ver) return;
+  E.m.material.opacity = 0.5 * Math.min(1, estelaT / 0.3);
+  const a = E.m.geometry.attributes.position.array, n = E.pts.length;
+  for (let i = 0; i < n; i++) { const p = E.pts[i], w = 0.045 * Math.sin(Math.PI * Math.pow(i / (n - 1), 0.8)); a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6); }
+  E.m.geometry.attributes.position.needsUpdate = true;
 }
 function luzBaston(dt) {
   moverEstela(dt);
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = brilloBaston * 0.3; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.14; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  luz.material.opacity = brilloBaston * 0.18; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.08; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
   piedra.emissive.setRGB(0.06, 0.07, 0.09).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
