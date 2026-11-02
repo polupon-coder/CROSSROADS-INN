@@ -509,7 +509,7 @@ let MAT_SUELO = null;                                        // el material del 
     pos.setZ(i, z);
     { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
-    { const hh = 0 * hoyoHuellas(x, z), k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada
+    { const hh = 0.55 * Math.min(1, hoyoHuellas(x, z) / 0.16), k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada   // (dentro de las huellas, la nieve algo más oscura)
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   // Cada cuadro se parte por la diagonal cuyos extremos están a alturas más parecidas: junto a un
