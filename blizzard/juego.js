@@ -1650,8 +1650,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
         x.strokeStyle = "rgba(235,245,255,0.95)"; x.shadowColor = "rgba(120,170,230,0.9)"; x.shadowBlur = 6; const n = 9 + Math.floor(Math.random() * 5);
         for (let i = 0; i < n; i++) rama(i / n * Math.PI * 2 + Math.random() * 0.4, 60 + Math.random() * 64, 3.2, 1);
         x.beginPath(); for (let k = 0; k < 3; k++) { x.arc(0, 0, 22 + k * 26 + Math.random() * 8, 0, Math.PI * 2); } x.lineWidth = 1.2; x.stroke(); return new THREE.CanvasTexture(c); };
-      const texE = [estrella(), estrella(), estrella()];
-      for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 6.5), new THREE.MeshBasicMaterial({ map: texE[i % 3], transparent: true, depthWrite: false, opacity: 0 })); d.rotation.x = -Math.PI / 2; d.visible = false; d.renderOrder = 2; scene.add(d); grietasHielo.push({ d, x: 0, z: 0, t: -1 }); } }
+      const texG = new THREE.TextureLoader().load("texturas/grieta.png"), texE = [texG, texG, texG]; void estrella;   // (tu textura de hielo roto en estrella)
+      for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 7.5), new THREE.MeshBasicMaterial({ map: texE[i % 3], transparent: true, depthWrite: false, opacity: 0, color: 0xd8e6f4 })); d.rotation.x = -Math.PI / 2; d.visible = false; d.renderOrder = 2; scene.add(d); grietasHielo.push({ d, x: 0, z: 0, t: -1 }); } }
     { // El camino: una cinta de nieve acumulada sobre el hielo, fina, sinuosa y de borde irregular (a tramos, donde hay nieve).
       const centro = z => caminoX(z) + 4 * Math.sin((HIELO.desde - z) * 0.07), hay = z => z <= A3 || z > A1 || (z > A2 && Math.floor((HIELO.desde - z) / 3) % 2 === 0);
       const tramos = []; let cur = null;
@@ -1668,7 +1668,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       for (let i = 0; i < 90; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tn, transparent: true, depthWrite: false, depthTest: false, opacity: 0.5, color: 0xf3eef2, fog: false })), polvo = i >= 76;
         const z = HIELO.desde + 8 - Math.random() * (HIELO.desde - HIELO.hasta + 40), sc = polvo ? 5 + Math.random() * 4 : 12 + Math.random() * 14; m.scale.set(sc * 1.6, sc * 0.55, 1); m.position.set(caminoX(z) + (Math.random() - 0.5) * 70, y0 + (polvo ? 0.3 : 0.4 + Math.random() * 1.6), z); m.renderOrder = 5; scene.add(m);
         brumaLago.push({ m, x0: m.position.x, y0: m.position.y, polvo, f: Math.random() * 6, vx: (0.8 + Math.random() * 1.4) * (i % 2 ? 1 : -1) }); } }
-    { const kitB = separarKit(gBloques), matT = new THREE.MeshStandardMaterial({ color: 0x9cc4ea, roughness: 0.05, metalness: 0.5, envMap: cieloRef, envMapIntensity: 1.3 });   // (el hielo roto: tus bloques de piedra, en hielo)
+    { const kitB = separarKit(gBloques), texPl = new THREE.TextureLoader().load("texturas/placas.jpg"), matT = new THREE.MeshStandardMaterial({ map: texPl, color: 0xd6e8f8, roughness: 0.05, metalness: 0.45, envMap: cieloRef, envMapIntensity: 1.2 });   /* (las placas, con tu textura de hielo roto) */   // (el hielo roto: tus bloques de piedra, en hielo)
       for (let i = 0; i < 24; i++) { const B = kitB[i % kitB.length], m = new THREE.Mesh(B.geo, matT), g = new THREE.Group(); m.position.copy(B.desplaza); g.add(m); const k = 1.9 / Math.max(B.radio * 2, B.alto); g.scale.set(k, k * 0.35, k); /* (placas grandes) */ g.visible = false; scene.add(g); trozosHielo.push({ g, t: -1, vx: 0, vz: 0, giro: new THREE.Vector3() }); } }
     losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
     // Fuera del paso, el lago sigue: el mismo hielo, sin junta; debajo, el agua oscura.
