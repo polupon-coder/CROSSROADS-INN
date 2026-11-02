@@ -115,9 +115,9 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
-for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gCapa]) if (g) g.scene.traverse(o => {
+for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
   if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
@@ -337,6 +337,25 @@ function alturaDunas(x, z, lado) {
 // Cada abismo con la franja de z que ocupa (medida una vez): fuera de ella no se calculan sus bordes.
 let _franjas = null;
 const franjasAbismos = () => _franjas || (_franjas = ABISMOS.map(([d, a]) => { let hi = -Infinity, lo = Infinity; for (let x = -90; x <= 90; x += 0.5) { hi = Math.max(hi, d(x)); lo = Math.min(lo, a(x)); } return [d, a, hi + 0.1, lo - 0.1]; }));
+// Huellas inmensas en la nieve, en una zona tranquila del principio: alguien enorme pasó por aquí, paso a
+// paso, izquierdo y derecho, en una línea que se curva. Son hoyos del propio suelo, de bordes suaves (sin
+// paredes): se puede bajar a ellas andando.
+let _huellas = null;
+const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 11 }, (_, i) => {
+  const z = 5 - i * 2.9, lado = i % 2 ? 1 : -1, eje = caminoX(z) - 8 + Math.sin(i * 0.3) * 3, rumbo = Math.atan2(Math.cos(i * 0.3) * 0.3 * 3 / 2.9, 1);
+  return { x: eje + lado * 0.75 * Math.cos(rumbo), z: z + lado * 0.75 * Math.sin(rumbo), c: Math.cos(rumbo + lado * 0.1), s: Math.sin(rumbo + lado * 0.1) };
+}));
+function hoyoHuellas(x, z) {
+  if (z > 8 || z < -29) return 0;
+  let hondo = 0;
+  for (const H of huellasGigantes()) {
+    const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 4) continue;
+    const u = dx * H.c - dz * H.s, v = dx * H.s + dz * H.c;          // u: a lo ancho; v: a lo largo (v < 0, la punta)
+    const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
+    hondo = Math.max(hondo, 0.3 * (1 - suave(0.3, 1.0, d)));
+  }
+  return hondo;
+}
 function alturaTerreno(x, z) {
   let h = alturaBase(x, z) * lerp(0.3, 1, suave(14, 30, Math.abs(x - caminoX(z))));
   const dp = Math.hypot(x - PLATAFORMA.x, z - PLATAFORMA.z);
@@ -370,7 +389,7 @@ function alturaTerreno(x, z) {
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
   if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
-  return h;
+  return h - hoyoHuellas(x, z);
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
 PLATAFORMA5.base = alturaTerreno(PLATAFORMA5.x, PLATAFORMA5.z);
@@ -441,7 +460,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-1296, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, 140, 1), 140];
+  const zs = [...filas(-1296, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -30, 1), ...filas(-30, 9, 0.3), ...filas(9, 140, 1), 140];   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -1324,6 +1343,24 @@ function enterrar(pieza, x, z, a, giro, hundir) {
   }
   return null;
 }
+// Piezas de los modelos nuevos: muros y ladrillos rotos en la llanura y en las dunas, medio enterrados,
+// y dos anillos arcanos clavados en diagonal. Su tamaño, el del lado mayor; colisión a lo largo.
+function pieza(gltf, x, z, tam, giro, hunde, inclina = 0) {
+  const g = new THREE.Group(), d = gltf.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), k = tam / Math.max(t.x, t.z, t.y);
+  d.scale.setScalar(k); d.position.set(-(caja.min.x + caja.max.x) / 2 * k, -caja.min.y * k, -(caja.min.z + caja.max.z) / 2 * k);
+  d.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); g.add(d);
+  const suelo = masBajoEn(x, z, tam * 0.3); g.position.set(x, suelo - t.y * k * hunde, z); g.rotation.set(inclina, giro, 0, "YXZ"); scene.add(g);
+  const largo = t.x * k, alto = t.y * k * (1 - hunde), ux = Math.cos(giro), uz = -Math.sin(giro);
+  for (const f of [-0.38, -0.13, 0.13, 0.38]) colisiones.push({ x: x + ux * largo * f, z: z + uz * largo * f, r: Math.max(0.6, t.z * k * 0.55), techo: suelo + alto });
+  g.userData.tapa = true;
+  return g;
+}
+for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
+  [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -9, -40, 5, 1.1, 0.25, 0],
+  [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
+  [gAnilloP, -16, -24, 8, 0.7, 0.35, 0.55], [gAnilloP, 19, -662, 11, -0.5, 0.38, -0.6]])
+  pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
+
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
 // paso, sin cerrarlo).
 { const rS = generador(2626);
@@ -1989,7 +2026,7 @@ montarPlataforma(PLATAFORMA3, gPlataforma.scene.clone(), 0.9);
 montarPlataforma(PLATAFORMA4, gPlataforma.scene.clone(), 1.7);   // (antes que la primera, que usa el modelo original)
 montarPlataforma(PLATAFORMA5, gPlataforma.scene.clone(), 0.4);
 PLATAFORMA4.obj.position.y -= 0.22; PLATAFORMA4.obj.updateMatrixWorld(true); PLATAFORMA4.techo -= 0.22; PLATAFORMA4.rejilla.h = PLATAFORMA4.rejilla.h.map(v => v - 0.22);   // (y su rejilla de alturas)   // algo más hundida en la nieve
-montarPlataforma(PLATAFORMA, gPlataforma.scene, 4.0);    // los pilares altos, detrás del bastón al llegar
+montarPlataforma(PLATAFORMA, gPlatSimple.scene, 4.0);   // la primera, la del bastón: la plataforma arcana sencilla (un disco de losas roto)    // los pilares altos, detrás del bastón al llegar
 
 // Alrededor de la cuarta plataforma, un corro de columnas en ruina (rotas a distintas alturas, alguna
 // ladeada y algún trozo caído), abierto por delante y por detrás para el paso.
@@ -2941,7 +2978,10 @@ const matsRueda = [kitPilares[0].material.clone(), new THREE.MeshStandardMateria
 matsRueda[2] = matsRueda[1];
 const ruedas = [-1024, -1040, -1052, -1061, -1068, -1074, -1079, -1084].map((z, i) => {
   const R = 2.6, g = new THREE.Group();
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 1.1, 24, 1), matsRueda); m.rotation.x = Math.PI / 2; m.castShadow = true; g.add(m);
+  // El disco de piedra con runas (su cara, de frente al paso); gira sobre su eje.
+  const m = new THREE.Group(), d = gEscudo.scene.clone(), caja = new THREE.Box3().setFromObject(d), c = caja.getCenter(new THREE.Vector3()), tam = caja.getSize(new THREE.Vector3()), k = 2 * R / Math.max(tam.x, tam.y);
+  d.scale.setScalar(k); d.position.copy(c).multiplyScalar(-k); d.traverse(o => { if (o.isMesh) o.castShadow = true; }); m.add(d); g.add(m);
+  void matsRueda;
   scene.add(g);
   return { g, m, z, R, cx: caminoX(z), fase: i * 2.1 + i * i * 0.37, vx: 0, x: caminoX(z) };
 });
@@ -2962,7 +3002,7 @@ function surcoEnNieve(x, z, rad, prof) {
 function moverRuedas(dt) {
   for (const w of ruedas) {
     w.fase += dt; const x = w.cx + Math.sin(w.fase * 0.38) * 13, vx = (x - w.x) / Math.max(dt, 1e-4);
-    w.m.rotation.y -= (x - w.x) / w.R; w.x = x; w.vx = vx;
+    w.m.rotation.z -= (x - w.x) / w.R; w.x = x; w.vx = vx;
     w.g.position.set(x, alturaTerreno(x, w.z) + w.R - 0.25, w.z);
     surcoEnNieve(x, w.z, 0.55, 0.85);                             // su surco en la nieve (se rellena despacio)
     // Empuje: Blizzard, al alcance del canto de la rueda, sale despedido hacia donde rueda.
