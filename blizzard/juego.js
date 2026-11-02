@@ -1471,7 +1471,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // bordes; paños volteados en simetría (como la cara) para que las juntas no se vean.
   // Al otro lado del abismo (el de las dunas, bajo el arranque del puente): la misma pared de acantilado,
   // mirando a la escalera, con su borde de arriba a ras del suelo.
-  { const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.4;
+  { const yb = alturaTerreno(cx, ACANT.pie + 17) - 0.1;
     for (let f = 0; f < 2; f++) for (let c = -3; c < 3; c++) {
       const an = 50, al = 18, w = encajar(gAcantilado, cx + (c + 0.5) * an, yb - (f + 1) * al, ACANT.pie + 17.3, an, al, 10, Math.PI);
       if (c % 2) w.scale.x = -1;
@@ -1515,7 +1515,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     }   // (rellano junto al puente)
     // El puente: un tramo de piedra sobre el abismo, a ras del suelo (se pisa).
     const zp = ACANT.pie + 8.2, yp = alturaTerreno(cx, ACANT.pie + 17);
-    encajar(gPuente, cx, yp - 2.2, zp, 17.6, 3.1, 5.6, Math.PI / 2).traverse(o => { if (!o.isMesh) return;   // (sin los cuernos de los extremos: fuera de la malla)
+    encajar(gPuente, cx, yp - 2.2, zp + 0.6, 19.4, 3.1, 5.6, Math.PI / 2).traverse(o => { if (!o.isMesh) return;   // (sin los cuernos de los extremos: fuera de la malla)
       const g = o.geometry.clone(); g.computeBoundingBox(); const bb = g.boundingBox, P = g.attributes.position, ix = g.index.array, bien = [];
       const ejeL = (bb.max.x - bb.min.x) > (bb.max.z - bb.min.z) ? "x" : "z", ejeA = ejeL === "x" ? "z" : "x", n = (v, e) => (P["get" + e.toUpperCase()](v) - bb.min[e]) / (bb.max[e] - bb.min[e]);
       const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), nor = new THREE.Vector3();
@@ -1540,8 +1540,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       colisiones.push({ x: cx, z: ACANT.pie + 1.3, r: 3, techo: yt, rampa: { a: V(ACANT.pie + 2.4, yt), b: V(ACANT.pie + 0.2, yp + 0.05), ancho: 2.3 } }); }
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
     const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.cima - 2) + 0.05, ACANT.cima - 0.2); const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 3.5);
-    colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 1.6 } });   // (arriba, el rellano hasta el llano)
-    colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 1.6 } }); }
+    colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 2.3 } });   // (arriba, el rellano hasta el llano)
+    colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 2.3 } }); }   // (toda la anchura del paso: no hay huecos por donde caer)
   // Arriba, todo el suelo de prismas hexagonales de basalto, a alturas distintas y con nieve encima
   // (junto al paso, escalones suaves; hacia los lados, más altos).
   { const R = 1.35, rH = generador(4545), geo = new THREE.CylinderGeometry(R, R, 6, 6), lista = [];
@@ -1586,7 +1586,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   } }
 // Bolas de piedra que bajan rodando por la escalera: hay que saltarlas.
 const bolas = [0, 1].map(i => {
-  const R = 1.3, g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group();   // (se saltan)
+  const R = 1.1, g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group();   // (se saltan)
   g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false;   // (gira sobre su centro)
   return { g, giro, R, t: -i * 3.6 };
 });
