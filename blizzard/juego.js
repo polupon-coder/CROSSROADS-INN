@@ -409,9 +409,7 @@ function alturaTerreno(x, z) {
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
   if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
   // El acantilado de columnas: de lado a lado; solo se sube por la escalera del centro.
-  if (z < ACANT.pie + 0.5) { const d = Math.abs(x - caminoX(z)), r = clamp((ACANT.pie - z) / (ACANT.pie - ACANT.cima), 0, 1);
-    h += ACANT.alto * Math.max(suave(ACANT.cima - 3.6, ACANT.cima - 4.4, z),   // (el escalón, metido dentro del modelo del acantilado: no se ve)
-       r * suave(2.9, 2.4, d)) - 1.2 * Math.min(1, r * 6) * (1 - suave(ACANT.cima + 0.6, ACANT.cima - 0.2, z)) * suave(2.9, 2.4, d); }   // (bajo la escalera, más bajo: se ve y se pisa la escalera)
+  if (z < ACANT.pie + 0.5) h += ACANT.alto * suave(ACANT.cima - 3.6, ACANT.cima - 4.4, z);   // (el escalón, metido dentro del acantilado; la escalera, aparte)
   return h - hoyoHuellas(x, z);
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -1405,11 +1403,11 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // paredes de columnas en perpendicular.
   const fondo = ACANT.pie - ACANT.cima + 8;
   for (const lado of [-1, 1]) for (const k of [0, 1]) {
-    const ancho = 34, xc = cx + lado * (5.4 + ancho / 2 + k * (ancho - 1));
-    encajar(gAcantilado, xc, y0, ACANT.pie + 2.5 - fondo / 2 - k * 1.5, ancho, ACANT.alto + 2.5 + k * 3, fondo, lado * 0.03);
+    const ancho = 40, xc = cx + lado * (2.7 + ancho / 2 + k * (ancho - 1));   // (el muro, grande; en medio, solo la grieta)
+    encajar(gAcantilado, xc, y0, ACANT.pie + 1 - fondo / 2 - k * 1.5, ancho, 22 + k * 4, fondo, lado * 0.02);
   }
   // (giradas 90°, con la cara de columnas hacia el pasillo)
-  for (const lado of [-1, 1]) encajar(gAcantilado, cx + lado * (2.55 + 3), y0, (ACANT.pie + ACANT.cima) / 2 - 1, ACANT.pie - ACANT.cima + 4, ACANT.alto + 3, 6, -lado * Math.PI / 2);
+  for (const lado of [-1, 1]) encajar(gAcantilado, cx + lado * (2.55 + 3), y0, ACANT.pie - 1.5 - (ACANT.pie - ACANT.cima + 6) / 2, ACANT.pie - ACANT.cima + 6, 22, 6, -lado * Math.PI / 2);   // (por dentro de la grieta, sin asomar)
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.6; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: ACANT.pie - 0.6, r: 1.3, techo: 99 });
   for (let z2 = ACANT.pie - 1.5; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.75, z: z2, r: 1.2, techo: 99 });
@@ -1417,7 +1415,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       ACANT.pie - ACANT.cima + 1.5, ESCALINATA_GIRO);
     void e;
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
-    const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 1.5) + 0.05, ACANT.pie + 0.6), B = new THREE.Vector3(cx, alturaTerreno(cx + 8, ACANT.cima - 6) + 0.05, ACANT.cima - 0.4);
+    const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 1.5) + 0.05, ACANT.pie + 0.6), B = new THREE.Vector3(cx, alturaTerreno(cx + 8, ACANT.cima - 6) + 0.05, ACANT.cima - 0.4); const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 5);
+    colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 2.5 } });   // (arriba, el rellano hasta el llano)
     colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 2.5 } }); }
   // Arriba, el campo de columnas: prismas de alturas distintas, apiñados a los lados del paso; a lo lejos, agujas.
   const rB = generador(9797);
