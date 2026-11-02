@@ -2574,6 +2574,7 @@ const capaTela = (() => {
   // (sin quiebro de perfil) y se va dejando caer, abriéndose hacia abajo.
   const T = Array.from({ length: NJ }, () => new THREE.Vector3()), T2 = Array.from({ length: NJ }, () => new THREE.Vector3());
   const _l = new THREE.Vector3(), _dir = new THREE.Vector3(), _cae = new THREE.Vector3(), _paso = new THREE.Vector3();
+  let correS = 0;
   const formar = () => {
     hCuello.getWorldPosition(centro);
     atras.set(-Math.sin(rumbo), 0, -Math.cos(rumbo)); lado.set(Math.cos(rumbo), 0, -Math.sin(rumbo));
@@ -2619,7 +2620,7 @@ const capaTela = (() => {
       let aparta = 0;
       for (const h of hManos) { h.getWorldPosition(_m).sub(centro); aparta -= Math.sign(_m.dot(lado)) * clamp((_m.dot(atras) - 0.02) / 0.2, 0, 1); }
       desvio = lerp(desvio, clamp(aparta, -1, 1) * 0.5, 1 - Math.exp(-dt * 8));
-      const corre = clamp(Math.hypot(vel.x, vel.z) / V_CORRER, 0, 1);   // cuánto corre: la capa, más suelta
+      correS = lerp(correS, clamp(Math.hypot(vel.x, vel.z) / V_CORRER, 0, 1), 1 - Math.exp(-dt * 1.8)); const corre = correS;   // cuánto corre (suavizado: sin cambios bruscos): la capa, más suelta
       formar();
       for (const c of CAPSULAS) { c.a.getWorldPosition(c.pa); c.b.getWorldPosition(c.pb); }
       if (!iniciada || A[0].distanceTo(ultimo) > 1.2) {
@@ -2631,11 +2632,11 @@ const capaTela = (() => {
       for (let k = 0; k < P.length; k++) {
         if (k < FIJAS) { P[k].copy(A[k]); Q[k].copy(A[k]); continue; }
         const i = Math.floor(k / NJ), j = k % NJ, baja = i / (NI - 1);
-        _v.subVectors(P[k], Q[k]).multiplyScalar(0.95); Q[k].copy(P[k]);   // (más amortiguada: se mueve más suave)
+        _v.subVectors(P[k], Q[k]).multiplyScalar(0.935); Q[k].copy(P[k]);   // (más amortiguada: se mueve más suave)
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        const ondea = Math.sin(reloj * (1.5 + 0.9 * corre) + j * 0.45 + i * 0.35) * (0.6 + 2.4 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
+        const ondea = Math.sin(reloj * (1.2 + 0.6 * corre) + j * 0.4 + i * 0.3) * (0.6 + 2.2 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
         _v.addScaledVector(atras, 1.2 * corre * (0.3 + baja) * dt * dt);   // al correr, el aire la echa atrás
         _v.addScaledVector(lado, ondea * dt * dt).addScaledVector(atras, Math.abs(ondea) * 0.6 * dt * dt);
         P[k].add(_v).lerp(A[k], 0.01 + 0.035 * (1 - baja) * (1 - baja) + 0.02 * corre + 0.08 * alzado);   // (cae a su aire: poca forma impuesta)   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
