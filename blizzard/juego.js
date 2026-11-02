@@ -1479,12 +1479,12 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Entre la escalera y los muros (y en el desembarco del puente): piedras verticales del kit, juntas.
   { const rv = generador(8383);
     for (const lado of [-1, 1]) for (let z2 = ACANT.pie + 6, k = 0; z2 > ACANT.cima - 1; z2 -= 1.25 + rv() * 0.4, k++) {
-      const t = clamp((ACANT.pie + 0.6 - z2) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), y = lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t), x = cx + lado * (2.75 + rv() * 0.35), a = new THREE.Vector3(x, y - 2, z2), b = new THREE.Vector3(x + lado * rv() * 0.3, y + 2.2 + rv() * 3.5, z2 + (rv() - 0.5) * 0.3);
-      pilarTallado(kitPilares[3 + k % 3], a, b, 1.2 + rv() * 0.5, rv() * 6);
-      if (z2 < ACANT.pie - 8 && z2 > ACANT.cima + 8 && k % 2 === 0) { const xi = cx + lado * (2.15 + rv() * 0.2); pilarTallado(kitPilares[3 + (k + 1) % 3], new THREE.Vector3(xi, y - 2, z2 - 0.6), new THREE.Vector3(xi, y + 1.2 + rv() * 2.2, z2 - 0.6), 0.9 + rv() * 0.4, rv() * 6); }   // (en el tramo medio, más cerca: estrecha)
+      const t = clamp((ACANT.pie + 0.6 - z2) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), y = lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t), w = 1.9 + rv() * 0.9, x = cx + lado * (1.85 + w / 2 + rv() * 0.2), a = new THREE.Vector3(x, y - 2, z2), b = new THREE.Vector3(x + lado * rv() * 0.3, y + 3 + rv() * 5, z2 + (rv() - 0.5) * 0.3);
+      pilarTallado(kitPilares[3 + k % 3], a, b, w, rv() * 6);   // (grandes; el paso nunca más estrecho que la bola)
+      if (false) { const xi = cx + lado * (2.15 + rv() * 0.2); pilarTallado(kitPilares[3 + (k + 1) % 3], new THREE.Vector3(xi, y - 2, z2 - 0.6), new THREE.Vector3(xi, y + 1.2 + rv() * 2.2, z2 - 0.6), 0.9 + rv() * 0.4, rv() * 6); }   // (en el tramo medio, más cerca: estrecha)
     } }
     // Al final de la escalera, el tramo de camino de piedra hasta la plataforma de la onda.
-    { const z0 = ACANT.cima - 0.5, z1 = PLATAFORMA6.z + PLATAFORMA6.r - 0.3, zc = (z0 + z1) / 2, xc = caminoX(zc); encajar(gCamino, xc, alturaTerreno(xc, zc) - 0.5, zc, 3.4, 0.9, z0 - z1 + 1, 0); }
+    { const z0 = ACANT.cima - 0.5, z1 = PLATAFORMA6.z + PLATAFORMA6.r - 0.3, zc = (z0 + z1) / 2, xc = caminoX(zc); encajar(gCamino, xc, alturaTerreno(xc, zc) - 0.3, zc, 3.4, 0.9, z0 - z1 + 1, 0); }
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: cara - 0.8, r: 1.3, techo: 99 });
   for (let z2 = cara - 1; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.4, z: z2, r: 1.3, techo: 99 });
@@ -1500,15 +1500,21 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     const zp = ACANT.pie + 8.2, yp = alturaTerreno(cx, ACANT.pie + 17);
     encajar(gPuente, cx, yp - 2.2, zp, 17.6, 3.1, 5.6, Math.PI / 2).traverse(o => { if (!o.isMesh) return;   // (sin los cuernos de los extremos: fuera de la malla)
       const g = o.geometry.clone(); g.computeBoundingBox(); const bb = g.boundingBox, P = g.attributes.position, ix = g.index.array, bien = [];
-      const alto = v => (P.getY(v) - bb.min.y) / (bb.max.y - bb.min.y) > 0.9 && Math.abs((P.getX(v) - bb.min.x) / (bb.max.x - bb.min.x) - 0.5) > 0.3;
-      for (let t = 0; t < ix.length; t += 3) if (!(alto(ix[t]) || alto(ix[t + 1]) || alto(ix[t + 2]))) bien.push(ix[t], ix[t + 1], ix[t + 2]);
+      const ejeL = (bb.max.x - bb.min.x) > (bb.max.z - bb.min.z) ? "x" : "z", ejeA = ejeL === "x" ? "z" : "x", n = (v, e) => (P["get" + e.toUpperCase()](v) - bb.min[e]) / (bb.max[e] - bb.min[e]);
+      const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), nor = new THREE.Vector3();
+      for (let t = 0; t < ix.length; t += 3) {
+        const [a, b, c] = [ix[t], ix[t + 1], ix[t + 2]], y = (n(a, "y") + n(b, "y") + n(c, "y")) / 3, l = (n(a, ejeL) + n(b, ejeL) + n(c, ejeL)) / 3;
+        va.fromBufferAttribute(P, a); vb.fromBufferAttribute(P, b); vc.fromBufferAttribute(P, c); nor.subVectors(vc, vb).cross(vb.clone().sub(va)).normalize();
+        const an = (n(a, ejeA) + n(b, ejeA) + n(c, ejeA)) / 3, extremo = Math.abs(l - 0.5) > 0.28, cuerno = extremo && (y > 0.915 || (y > 0.87 && Math.abs(nor.y) < 0.8 && Math.abs(an - 0.5) < 0.3) || (y > 0.8 && Math.abs(nor.y) < 0.6 && Math.abs(an - 0.5) < 0.16 && Math.abs(l - 0.5) > 0.36) || (y > 0.55 && Math.abs(nor.y) < 0.85 && Math.abs(an - 0.5) < 0.22 && Math.abs(l - 0.5) > 0.4));   // (el cuerno: lo que asoma sobre el tablero en las puntas)
+        if (!cuerno) bien.push(a, b, c);
+      }
       g.setIndex(bien); o.geometry = g; });
     // Rocas en el borde donde arranca el puente.
     // Antes del puente, un arco en ruinas por el que se pasa.
-    { const za = ACANT.pie + 21, xa = caminoX(za), sa = alturaTerreno(xa, za); encajar(gArcoRuina, xa, sa - 0.4, za, 6.5, 9.5, 1.8);
+    { const za = ACANT.pie + 19.4, xa = caminoX(za), sa = alturaTerreno(xa, za); encajar(gArcoRuina, xa, sa - 0.4, za, 6.5, 9.5, 1.8).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.5, 0.53, 0.58); o.material.roughness = 1; } });   // (oscuro, como las rocas)
       for (const lado of [-1, 1]) colisiones.push({ x: xa + lado * 3.6, z: za, r: 1.1, techo: 99 }); }
     // A lado y lado del arranque del puente, un grupo de 3 y otro de 4 rocas grandes; y más por el borde del abismo.
-    for (const [dx, dz, a] of [[-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [6.4, 18.0, 4.6], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
+    for (const [dx, dz, a] of [[-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [6.4, 18.0, 4.6], [-6.0, 21.8, 3.6], [-8.4, 20.2, 5.2], [-7.2, 23.6, 2.4], [5.8, 21.4, 3.0], [8.2, 22.6, 5.6], [7.0, 19.8, 2.0], [-10.5, 22.4, 3.0], [10.8, 20.8, 3.4], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
       [-14, 18, 3.5], [-22, 17.6, 2.6], [-31, 18.2, 4.0], [15, 18.3, 3.0], [24, 17.8, 4.4], [33, 18.4, 2.8]]) { const xx = cx + dx, zz = ACANT.pie + dz + 1.5; colocar(kitRocas[2 + Math.round(a * 3) % 3], xx, zz, a, a * 4, 0.25, masBajoEn(xx, zz, 1), false); }
     if (false) for (const [dx, dz, a] of [[-3.2, 17.2, 1.4], [-4.6, 16.5, 0.9], [3.4, 17.0, 1.7], [4.9, 17.8, 1.0], [-6.2, 17.6, 2.2]]) enterrar(kitRocas[2 + Math.round(a * 3) % 3], cx + dx, ACANT.pie + dz, a, a * 4, 0.2);
     { const yt = yp + 0.6, V = (z, y) => new THREE.Vector3(cx, y, z);   // (el tablero: el personaje pisa encima, no hundido)
@@ -1662,7 +1668,7 @@ function moverBolas(dt) {
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1e9; b.g.visible = false; continue; }   // (solo dos: pasan una vez cada una)   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
     b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
-    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.y + 0.8 - (y + b.R), pos.z - z) < b.R + 0.55)   // (al tocarla, por donde sea, el viento te devuelve) { const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 3); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (grande: se salta con salto e impulso)
+    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.y + 0.8 - (y + b.R), pos.z - z) < b.R + 0.55)   // (al tocarla, por donde sea, el viento te devuelve) { const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; });   // (al pie de la escalera, con el viento; las bolas vuelven a salir) vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (grande: se salta con salto e impulso)
     void largo;
   }
 }
@@ -4639,7 +4645,8 @@ function animar(dt, v, agachado) {
   if (estado === "portada" || estado === "intro") poner("quieto_libre", 0.3);
   // El gesto de tender la mano se hace una vez, al completar el trazo; mientras se traza, espera quieto.
   else if (estado === "trazando") poner("quieto" + libre, 0.3);
-  else if (estado === "llamando" || estado === "despertando" || estado === "empujando") poner("llamar", 0.3);
+  else if (estado === "llamando") poner("llamar", 0.3);   // (el gesto de coger el bastón: solo en el primer santuario)
+  else if (estado === "despertando" || estado === "empujando") poner("quieto" + libre, 0.3);
   else if (rescate) poner("tambalearse", 0.2);
   else if (!enSuelo) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }
   else if (agachado) v > 0.25 ? poner("andar_agachado", 0.2, clamp(v / PASO_ANIM.andar_agachado, 0.5, 2)) : poner("agachado", 0.25);
