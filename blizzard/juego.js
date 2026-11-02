@@ -2556,7 +2556,8 @@ const capaTela = (() => {
   for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
   for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
   geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3)); geo.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: AMARILLO, roughness: 1, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha (el amarillo va en el color de cada vértice: así caben manchas de nieve)
+  const amaC = new THREE.Color(AMARILLO), nieveCapa = new THREE.Color(TONO_NIEVE).multiplyScalar(0.93);
   // Por dentro, algo más oscura.
   mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n if (!gl_FrontFacing) diffuseColor.rgb *= 0.9;"); };
   const malla = new THREE.Mesh(geo, mat); malla.frustumCulled = false; malla.castShadow = false; malla.receiveShadow = false;   // sin sombra sobre el cuerpo
@@ -2592,7 +2593,7 @@ const capaTela = (() => {
       for (let i = 2; i < NI; i++) {
         const g = (i - 1) / (NI - 2);
         A[i * NJ + j].addScaledVector(_l, t * anchoT * ((VUELO_ABAJO - 1) * g + 0.08 * Math.min(1, g * 4))).addScaledVector(lado, desvio * g)
-          .addScaledVector(atras, 0.1 * Math.min(1, g * 3));   // algo más ancha arriba y separada en ángulo (sin quiebro a media espalda)
+          .addScaledVector(atras, 0.06 + 0.16 * Math.min(1, g * 4));   // algo más ancha arriba y separada en ángulo (sin quiebro a media espalda); despegada ya desde el anclaje
         if (i === NI - 1) A[i * NJ + j].y -= 0.06 * Math.cos(t * Math.PI / 2);   // borde de abajo algo convexo
       }
     }
@@ -2653,7 +2654,7 @@ const capaTela = (() => {
             if (d < c.r) { _w.subVectors(P[k], q); if (_w.lengthSq() < 1e-8) _w.copy(atras); _w.normalize(); P[k].copy(q).addScaledVector(_w, c.r); }
           }
           // Nunca por delante del cuerpo: detrás del plano de la espalda (con un margen a los lados).
-          const delante = _w.subVectors(P[k], centro).dot(atras), fr = Math.floor(k / NJ) / (NI - 1), sep = 0.04 + (0.11 + 0.14 * corre) * Math.sin(Math.PI / 2 * Math.min(1, fr * 1.6)) + 0.13 * fr;   // despegada desde el medio y aún más abajo, en la zona baja de la espalda
+          const delante = _w.subVectors(P[k], centro).dot(atras), fr = Math.floor(k / NJ) / (NI - 1), sep = 0.12 + (0.11 + 0.14 * corre) * Math.sin(Math.PI / 2 * Math.min(1, fr * 1.6)) + 0.13 * fr;   // despegada desde el medio y aún más abajo, en la zona baja de la espalda
           if (delante < sep) P[k].addScaledVector(atras, sep - delante);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
@@ -2668,8 +2669,12 @@ const capaTela = (() => {
             vert[o + e] = catmull(fila(-1), fila(0), fila(1), fila(2), ti);
           }
           const u = c / (NC - 1), onda = Math.sin(u * Math.PI * 5 + 0.5) * 0.65 + Math.sin(u * Math.PI * 11 + 1.3) * 0.35, pl = onda * 0.026 * (0.15 + 0.85 * r / (NR - 1));
-          const sombra = 1 - 0.16 * (0.5 - 0.5 * onda) * (0.3 + 0.7 * r / (NR - 1));    // el fondo de cada pliegue, más oscuro
-          for (const l of [0, N]) for (let e = 0; e < 3; e++) tono[(l + r * NC + c) * 3 + e] = sombra;
+          const sombra = (1 - 0.3 * (0.5 - 0.5 * onda) * (0.3 + 0.7 * r / (NR - 1))) * (0.8 + 0.2 * Math.min(1, r / (NR - 1) * 2.5)) * (1 - 0.14 * (2 * u - 1) * (2 * u - 1));   // el fondo de cada pliegue, más oscuro; y volumen: más oscura bajo la esclavina y hacia los bordes
+          // Manchas de nieve en la zona baja, pegadas a la tela (no resbalan): más hacia el borde de abajo.
+          const rr = r / (NR - 1), n = (Math.sin(u * 23 + rr * 9.3) * Math.sin(u * 8.7 - rr * 5.1 + 1.3) * 0.5 + 0.5) * 0.65 + (Math.sin(u * 41 + rr * 17) * 0.5 + 0.5) * 0.35;
+          const nv = suave(0.5, 0.68, n * 0.75 + (rr - 0.62) * 1.3);
+          const cr = lerp(amaC.r, nieveCapa.r, nv) * sombra, cg = lerp(amaC.g, nieveCapa.g, nv) * sombra, cb = lerp(amaC.b, nieveCapa.b, nv) * sombra;
+          for (const l of [0, N]) { const q = (l + r * NC + c) * 3; tono[q] = cr; tono[q + 1] = cg; tono[q + 2] = cb; }
           vert[o] += atras.x * pl; vert[o + 2] += atras.z * pl;
         }
       }
