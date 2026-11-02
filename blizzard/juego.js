@@ -115,11 +115,11 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", "plataforma_antigua", "acantilado", "esfera", "escalinata", "ruina_alta", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 // Los modelos nuevos traen la piedra tirando a amarillo: su textura de color se pasa a gris azulado, el
 // tono de la piedra del juego (se conserva el dibujo y el contraste).
-for (const g of [gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP]) g.scene.traverse(o => {
+for (const g of [gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta]) g.scene.traverse(o => {
   const m = o.isMesh && o.material, img = m && m.map && m.map.image;
   if (!img || (m.map.userData && m.map.userData.gris)) return;
   const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const x = c.getContext("2d"); x.drawImage(img, 0, 0);
@@ -127,7 +127,7 @@ for (const g of [gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP]) g.scene.tra
   for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114; a[i] = l * 0.9; a[i + 1] = l * 0.96; a[i + 2] = Math.min(255, l * 1.1); }
   x.putImageData(d, 0, 0); m.map.image = c; m.map.needsUpdate = true; m.map.userData = Object.assign(m.map.userData || {}, { gris: true });
 });
-for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gCapa]) if (g) g.scene.traverse(o => {
+for (const g of [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gCapa]) if (g) g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.castShadow = o.receiveShadow = true;
   if (o.material.map) { o.material.map.encoding = THREE.LinearEncoding; o.material.map.anisotropy = 8; o.material.map.needsUpdate = true; }
@@ -163,7 +163,7 @@ const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2,
   .concat([[-5, -641], [6, -691], [-3, -736], [0, -800], [6, -818], [-5, -840], [6, -862], [-5, -884], [5, -906], [-4, -928], [1, -946], [0, -965],
     // tras el desfiladero: dunas con un paso serpenteante entre la nieve que se hunde; luego, las columnas de basalto
     [0, -990], [3.5, -1002], [-3.5, -1015], [4, -1028], [-4, -1041], [3.5, -1054], [-3.5, -1067], [3, -1080], [0, -1093], [0, -1100],
-    [-2, -1120], [2, -1140], [-2, -1160], [1.5, -1180], [0, -1200], [0, -1300]]);       // dunas: ya en coordenadas finales
+    [0, -1150], [-2.5, -1168], [2.5, -1186], [0, -1204], [0, -1300]]);   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -225,7 +225,7 @@ const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1232, PUZLE_Z = -786, PU
 const FIN_Z = ANILLO_Z + 6;
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
-const DUNAS2 = { desde: -990, hasta: -1094 }, BASALTO = { desde: -1098, hasta: -1220 };
+const DUNAS2 = { desde: -990, hasta: -1094 }, ACANT = { pie: -1121, cima: -1141, alto: 10 }, PLAT_ANTIGUA_Z = -1106, BASALTO = { desde: -1098, hasta: -1220 };
 const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2.hasta + 2, CANON2.hasta - 8, z));   // dentro del desfiladero final
 // Desfiladero final, tras el puzle de las columnas: estrecho y serpenteante, con una grieta que se salta,
 // una pilastra caída que saltar, un paso bajo, una gran escalera de piedras caídas sobre un precipicio
@@ -235,6 +235,7 @@ const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hast
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
 // En lugar de la segunda puerta: una columna de cuatro piedras giratorias al borde de una sima de pared a
 // pared. Resuelta, se tumba hacia delante y queda sobre la sima como un puente.
+const ESCALINATA_GIRO = 0;
 const COLUMNA4_Z = -980, SIMA4 = { desde: COLUMNA4_Z - 1.25, hasta: COLUMNA4_Z - 6.5 };
 const anchoC2 = z => 4.4 + Math.sin(z * 0.13) * 0.7;
 // Nieve que se hunde (como arenas movedizas, en espiral): de pared a pared; hay que saltarla corriendo.
@@ -407,6 +408,10 @@ function alturaTerreno(x, z) {
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, Math.hypot(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
   if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
+  // El acantilado de columnas: de lado a lado; solo se sube por la escalera del centro.
+  if (z < ACANT.pie + 0.5) { const d = Math.abs(x - caminoX(z)), r = clamp((ACANT.pie - z) / (ACANT.pie - ACANT.cima), 0, 1);
+    h += ACANT.alto * Math.max(suave(ACANT.cima - 3.6, ACANT.cima - 4.4, z),   // (el escalón, dentro del acantilado: su cara es la del modelo)
+       r * suave(2.9, 2.4, d)) - 1.2 * Math.min(1, r * 6) * (1 - suave(ACANT.cima + 0.6, ACANT.cima - 0.2, z)) * suave(2.9, 2.4, d); }   // (bajo la escalera, más bajo: se ve y se pisa la escalera)
   return h - hoyoHuellas(x, z);
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -1381,6 +1386,63 @@ for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
     else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
 
+// ─── Tras las ruedas: plataforma antigua, acantilado de columnas con su escalera, campo de columnas ───
+// Coloca un modelo ajustado a una caja (ancho x, alto y, fondo z), con su base en y.
+function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
+  const g = new THREE.Group(), d = gltf.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3());
+  d.scale.set(ax / t.x, ay / t.y, az / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
+  d.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); g.add(d); g.position.set(x, y, z); g.rotation.y = giro; scene.add(g); g.updateMatrixWorld(true);
+  return g;
+}
+{
+  // La plataforma redonda con su escalera y sus pilares (se sube y se pisa).
+  const z = PLAT_ANTIGUA_Z, x = caminoX(z) + 9, y = masBajoEn(x, z, 5) - 0.3,   // (a un lado del paso)
+   g = encajar(gPlatAntigua, x, y, z, 11, 2.2, 11, Math.PI);
+  colisiones.push({ x, z, r: 5.3, techo: y + 2.4, obj: g });
+  // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
+  const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx + 8, ACANT.pie + 2) - 0.6;
+  for (const lado of [-1, 1]) for (const k of [0, 1]) {
+    const ancho = 34, xc = cx + lado * (3.2 + ancho / 2 + k * (ancho - 1));
+    encajar(gAcantilado, xc, y0, ACANT.cima - 4.5 - k * 2.5, ancho, ACANT.alto + 2.5 + k * 3, 9, lado * 0.03);   // (su cara, a ras del escalón)
+  }
+  { const e = encajar(gEscalinata, cx, alturaTerreno(cx, ACANT.pie) - 0.4, (ACANT.pie + ACANT.cima) / 2, 5.4, ACANT.alto + 0.5, ACANT.pie - ACANT.cima + 1.5, ESCALINATA_GIRO);
+    void e;
+    // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
+    const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 1.5) + 0.05, ACANT.pie + 0.6), B = new THREE.Vector3(cx, alturaTerreno(cx + 8, ACANT.cima - 6) + 0.05, ACANT.cima - 0.4);
+    colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 2.5 } }); }
+  // Arriba, el campo de columnas: prismas de alturas distintas, apiñados a los lados del paso; a lo lejos, agujas.
+  const rB = generador(9797);
+  for (let z2 = ACANT.cima - 6; z2 > ANILLO_Z + 4; z2 -= 2.2 + rB() * 1.5) for (const lado of [-1, 1]) for (let k = 0; k < 3; k++) {
+    const d = 3.4 + k * 2.6 + rB() * 1.6, xx = caminoX(z2) + lado * d, R = 1.0 + rB() * 0.5, alto = 0.8 + k * 1.6 + rB() * (k ? 3 : 1), suelo = alturaTerreno(xx, z2);
+    pilarTallado(kitPilares[3 + Math.floor(rB() * 3)], new THREE.Vector3(xx, suelo - 1.5, z2), new THREE.Vector3(xx, suelo + alto, z2), R * 2, rB() * 6);
+    colisiones.push({ x: xx, z: z2, r: R * 0.9, techo: suelo + alto, obj: pilarTallado.ultimo });
+  }
+  for (let i = 0; i < 9; i++) {
+    const z2 = ACANT.cima - 20 - rB() * 90, xx = caminoX(z2) + (rB() < 0.5 ? -1 : 1) * (22 + rB() * 30), alto = 18 + rB() * 30, suelo = alturaTerreno(xx, z2);
+    pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(xx, suelo - 2, z2), new THREE.Vector3(xx, suelo + alto, z2), 4 + rB() * 4, rB() * 6);
+  }
+  // Al final, tras el anillo, la gran ruina de columnas con su arco.
+  const zr = ANILLO_Z - 14, xr = caminoX(zr) + 3; encajar(gRuinaAlta, xr, alturaTerreno(xr, zr) - 1.5, zr, 24, 26, 6, 0.15);
+}
+// Bolas de piedra que bajan rodando por la escalera: hay que saltarlas.
+const bolas = [0, 1].map(i => {
+  const R = 0.65, g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group();   // (se saltan)
+  g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false;   // (gira sobre su centro)
+  return { g, giro, R, t: -i * 2.6 };
+});
+// La altura de la escalera en una z (la de su rampa).
+const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), cx = caminoX(ACANT.cima); return lerp(alturaTerreno(cx, ACANT.pie + 1.5), alturaTerreno(cx + 8, ACANT.cima - 6), t); };
+function moverBolas(dt) {
+  const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
+  for (const b of bolas) {
+    b.t += dt; if (b.t < 0) { b.g.visible = false; continue; }
+    const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1.8 - Math.random() * 1.6; b.g.visible = false; continue; }   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
+    b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
+    b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
+    if (!rescate && z < ACANT.pie - 0.4 && Math.abs(pos.x - cx) < b.R + 0.35 && Math.abs(pos.z - z) < b.R + 0.35 && pos.y < Math.max(y, rampaY(z)) + b.R * 1.1) { pos.z = z + b.R + 0.5; vel.set(0, 5, 7); enSuelo = false; musica.viento(0.3, 0.9); }
+    void largo;
+  }
+}
 // Las huellas: el modelo del hoyo en la nieve (con su reborde), estirado a la forma de un pie.
 const matHuella = new THREE.MeshStandardMaterial({ color: 0xc8d5ec, roughness: 1 });   // (azulada)   // (el tono de la nieve del suelo; el relieve lo da la luz)
 for (const H of huellasGigantes()) {
@@ -1393,7 +1455,7 @@ for (const H of huellasGigantes()) {
     o.material.onBeforeCompile = sh => { sh.uniforms.y0H = { value: y0 }; sh.vertexShader = "varying float vYH;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vYH = (modelMatrix * vec4(transformed, 1.0)).y;");
       sh.fragmentShader = "uniform float y0H; varying float vYH;\n" + sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= mix(1.0, 0.72, smoothstep(0.02, -0.3, vYH - y0H));"); };
     o.material.customProgramCacheKey = () => "huella"; } }); g.add(d);
-  g.position.set(H.x, y0 - 0.34, H.z);   // (enterradas: solo asoma el reborde) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
+  g.position.set(H.x, y0 - 0.25, H.z);   // (algo enterradas, con el reborde a la vista) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
@@ -3057,6 +3119,7 @@ function moverRuedas(dt) {
 }
 function animarPaso(dt) {
   moverRuedas(dt);
+  moverBolas(dt);
   for (const L of losasPaso) if (L.t !== -1 && L.t < 1) { L.t = Math.min(1, L.t + dt * 1.6); const k = suave(0, 1, Math.max(0, L.t)); L.m.scale.y = 0.02 + 0.98 * k; }
 }
 {
@@ -4723,7 +4786,7 @@ function bucle(ahora) {
 }
 requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
-window.__blizzard = { TRAS, puzle, vel, pozoEn, medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
+window.__blizzard = { TRAS, puzle, vel, pozoEn, bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
   secciones: () => [3, 4, 6].map(i => [i, kitRuinas[i].radio, kitRuinas[i].ancho, seccion(kitRuinas[i], 0.5)]),
