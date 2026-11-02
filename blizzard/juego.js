@@ -853,16 +853,21 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
     colisiones[colisiones.length - 1].r = (radio || pieza.radio * esc) * 0.85;
     return g;
   };
-  // Cada fila tapa un lado del camino; la siguiente, el otro.
+  // Zona abierta (sin muros que tapen): en cada fila, rocas bajas que se saltan y, a los lados, una
+  // pilastra caída o un arco bajo por el que se pasa agachado. A los lados, solo el viento frena.
+  const arcoBajo = (x, z, giro) => {
+    const libre = 1.45, g = 1.0, c = Math.cos(giro), s = -Math.sin(giro), suelo = alturaTerreno(x, z);
+    for (const t of [-1.9, 1.9]) colocar(kitPilares[0], x + c * t, z + s * t, libre + 0.3, giro + rndA(), 0.12, alturaTerreno(x + c * t, z + s * t), false).children[0].material = nieveFina;
+    const a = new THREE.Vector3(x - c * 2.4, suelo + libre + g / 2, z - s * 2.4), b = new THREE.Vector3(x + c * 2.4, suelo + libre + g / 2, z + s * 2.4);
+    pilarTallado(kitPilares[5], a, b, g, rndA() * 6);
+    for (let t = 0.25; t <= 4.55; t += 0.45) { const q = a.clone().lerp(b, t / 4.8); colisiones.push({ x: q.x, z: q.z, r: g * 0.55, techo: q.y + g / 2, bajo: q.y - g / 2 }); }
+  };
   ZONA_ROCAS.forEach((z, i) => {
     const lado = i % 2 ? -1 : 1, cx = caminoX(z);
-    // Pocas y grandes, y nunca iguales: piezas, anchos, alturas y posiciones distintas.
-    const i0 = 3 + Math.floor(rndA() * 3), i1 = 3 + (i0 - 3 + 1 + Math.floor(rndA() * 2)) % 3;
-    const R0 = 1.3 + rndA() * 0.5, R1 = 0.9 + rndA() * 0.5, x0 = 0.3 + R0, x1 = x0 + R0 + R1 - 0.3;
-    rocaEntera(kitRocas[Math.min(kitRocas.length - 1, i0)], cx + lado * x0, z + (rndA() - 0.5) * 0.8, 2.4 + rndA() * 0.9, R0);
-    rocaEntera(kitRocas[Math.min(kitRocas.length - 1, i1)], cx + lado * x1, z - 0.6 + rndA() * 1.4, 1.5 + rndA() * 0.8, R1);
-    monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx + lado * 7.5, z - 1, 3.5, 1.2, rndA() * 6);
-    monticulo(kitRocas[Math.floor(rndA() * kitRocas.length)], cx - lado * 7, z + 1.5, 2.8, 0.9, rndA() * 6);
+    rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx + lado * (0.8 + rndA() * 0.8), z + (rndA() - 0.5) * 0.8, 0.9 + rndA() * 0.2, 0.9 + rndA() * 0.3);   // baja: se salta
+    rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx - lado * (3.2 + rndA()), z + (rndA() - 0.5) * 1.2, 0.8 + rndA() * 0.2, 0.8 + rndA() * 0.2);
+    if (i === 1) { arcoBajo(cx + lado * 6.5, z - 1, 1.4); arcoBajo(cx - lado * 7.5, z + 1.5, -1.3); }   // a los lados, agacharse
+    else rndA(), rndA();
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
   const pilastraCaida = (x, z, largo, grueso, giro) => {
@@ -883,6 +888,8 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
   const roca = (k, dx, z, alto, radio) => (z = TRAS(z), rocaEntera(kitRocas[Math.min(kitRocas.length - 1, k)], caminoX(z) + dx, z, alto, radio));
   const pil = (dx, z, largo, grueso, giro) => (z = TRAS(z), pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro));
   // (La zona mixta de antes la sustituye el bosque de columnas, más abajo.)
+  // A los lados de la zona abierta, pilastras caídas bajas que se saltan.
+  ZONA_ROCAS.forEach((z, i) => { const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
 }
 
 // ─── Runas (lámina 80) ─────────────────────────────────────────────────────
@@ -1064,8 +1071,11 @@ const pilarDeKit = (() => {
   PILARES.forEach(([px, pz, rp], i) => {
     const cx = caminoX(pz) + px, tope = alturaBase(caminoX(pz), PRECIPICIO.desde) * 0.3 - 0.05, pieza = kitPilares[[5, 4, 5, 3][i % 4]];
     // La cima de la pieza no es plana: su punto más alto sobresale algo, para que se pise a ras del borde.
-    pilarTallado(pieza, new THREE.Vector3(cx, tope - 18, pz), new THREE.Vector3(cx, tope + 0.7, pz), rp * 2, rndP() * 6);
-    colisiones.push({ x: cx, z: pz, r: rp * 0.92, techo: tope + 0.7, obj: pilarTallado.ultimo });
+    pilarTallado(pieza, new THREE.Vector3(cx, tope - 18, pz), new THREE.Vector3(cx, tope + 0.62, pz), rp * 2, rndP() * 6);
+    // Arriba, una losa plana con nieve (se aterriza en llano, no en las facetas de la cima).
+    const losa = new THREE.Mesh(new THREE.CylinderGeometry(rp * 0.97, rp * 1.0, 0.34, 9), nieveFina);
+    losa.position.set(cx, tope + 0.55, pz); losa.rotation.y = i * 1.3; losa.castShadow = losa.receiveShadow = true; scene.add(losa);
+    colisiones.push({ x: cx, z: pz, r: rp * 0.95, techo: tope + 0.72 });
   });
   for (let i = 0; i < 11; i++) rnd();                          // lo que gastaban los pilares de antes
 }
@@ -1191,7 +1201,7 @@ const ZONA_AGACHARSE = [-74.5, -80.5];                 // unos metros más allá
   ZONA_AGACHARSE.forEach((z, i) => {
     const cx = caminoX(z), suelo = alturaTerreno(cx, z);
     const [giro, sube, g, pieza] = [[0.42, 0.14, 1.3, kitPilares[5]], [-0.36, -0.15, 1.45, kitPilares[4]]][i];
-    const libre = t => 1.3 + sube * t, eje = t => enLinea(cx, z, giro, t, suelo + libre(t) + g / 2);
+    const libre = t => 1.45 + sube * t, eje = t => enLinea(cx, z, giro, t, suelo + libre(t) + g / 2);   // (algo más altos: agacharse era difícil)
     for (const t of [-4.6, 4.6]) {
       const p = enLinea(cx, z, giro, t, 0), alto = libre(t) + 0.25;
       rndG(); bloque(kitPilares[t * sube > 0 ? 2 : 0], p.x, p.z, alto, giro + rndG());   // bloque tallado, sin falda
