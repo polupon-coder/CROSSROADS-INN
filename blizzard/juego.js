@@ -2891,22 +2891,41 @@ const losasPaso = (() => {
 })();
 function revelarPaso(z0) {
   let n = 0;
-  for (const L of losasPaso) if (L.t === -1 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; hundirNieve(L.x, L.z, 0.55 * L.s0 + 0.25); n++; }   // (las de más lejos, un poco después)
+  for (const L of losasPaso) if (L.t === -1 && L.z < z0 + 2 && L.z > z0 - 16) { L.t = -(z0 - L.z) * 0.05 - 0.05; L.m.visible = true; hundirNieve(L.x, L.z, 0.55 * L.s0 + 0.25); colisiones.push({ x: L.x, z: L.z, r: 0.5 * L.s0, techo: L.m.position.y + 0.12 }); n++; }   // (y se pisan)   // (las de más lejos, un poco después)
   return n;
 }
 // Ruedas de piedra inmensas que cruzan el paso de lado a lado, rodando: si te alcanzan, te empujan hacia
 // los pozos.
-const ruedas = [-1012, -1038, -1064].map((z, i) => {
+// (la primera, ya dentro; luego más y cada vez más juntas). En las caras, un mosaico de losas en círculo.
+const texRueda = new THREE.TextureLoader().load("texturas/rueda.jpg");
+const matsRueda = [kitPilares[0].material.clone(), new THREE.MeshStandardMaterial({ map: texRueda, roughness: 0.95 }), null];
+matsRueda[2] = matsRueda[1];
+const ruedas = [-1024, -1040, -1052, -1061, -1068, -1074, -1079, -1084].map((z, i) => {
   const R = 2.6, g = new THREE.Group();
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 1.1, 20, 1), nieveFina); m.rotation.x = Math.PI / 2; m.castShadow = true; g.add(m);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 1.1, 24, 1), matsRueda); m.rotation.x = Math.PI / 2; m.castShadow = true; g.add(m);
   scene.add(g);
-  return { g, m, z, R, cx: caminoX(z), fase: i * 2.1, vx: 0, x: caminoX(z) };
+  return { g, m, z, R, cx: caminoX(z), fase: i * 2.1 + i * i * 0.37, vx: 0, x: caminoX(z) };
 });
+// Hunde la nieve acumulada bajo un punto (como al pisar, y se rellena igual).
+function surcoEnNieve(x, z, rad, prof) {
+  for (const v of ventisqueros) {
+    if (Math.abs(x - v.cx) > v.ancho / 2 + rad || Math.abs(z - v.cz) > v.largo / 2 + rad) continue;
+    if (!v.activos) { v.activos = new Set(); if (v.fijo) for (let i = 0; i < v.fijo.length; i++) if (v.fijo[i] > 0) v.activos.add(i); }   // (como en pisarVentisqueros)
+    const p = v.geo.attributes.position, nx = v.nx, nz = v.nz, dx = v.ancho / (nx - 1), dz = v.largo / (nz - 1);
+    const c0 = Math.max(0, Math.floor((x - rad - (v.cx - v.ancho / 2)) / dx)), c1 = Math.min(nx - 1, Math.ceil((x + rad - (v.cx - v.ancho / 2)) / dx));
+    const r0 = Math.max(0, Math.floor((z - rad * 1.6 - (v.cz - v.largo / 2)) / dz)), r1 = Math.min(nz - 1, Math.ceil((z + rad * 1.6 - (v.cz - v.largo / 2)) / dz));
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const i = r * nx + c, d = Math.hypot((p.getX(i) - x) / rad, (p.getZ(i) - z) / (rad * 1.6));
+      if (d < 1) { const k = (1 - d * d) * prof; if (k > v.hundido[i]) { v.hundido[i] = k + 1e-4; v.activos.add(i); } }
+    }
+  }
+}
 function moverRuedas(dt) {
   for (const w of ruedas) {
     w.fase += dt; const x = w.cx + Math.sin(w.fase * 0.38) * 13, vx = (x - w.x) / Math.max(dt, 1e-4);
     w.m.rotation.y -= (x - w.x) / w.R; w.x = x; w.vx = vx;
     w.g.position.set(x, alturaTerreno(x, w.z) + w.R - 0.25, w.z);
+    surcoEnNieve(x, w.z, 0.55, 0.85);                             // su surco en la nieve (se rellena despacio)
     // Empuje: Blizzard, al alcance del canto de la rueda, sale despedido hacia donde rueda.
     if (!rescate && Math.abs(pos.z - w.z) < 1.1 && Math.abs(pos.x - x) < w.R * 0.75 && pos.y < w.g.position.y + w.R * 0.6) {
       const lado = Math.sign(pos.x - x) || Math.sign(vx);
