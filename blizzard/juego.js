@@ -1458,7 +1458,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // Las paredes de la grieta: el mismo modelo de muro, de canto a lo largo de la escalera, montadas sobre sus
   // bordes; paños volteados en simetría (como la cara) para que las juntas no se vean.
   for (const lado of [-1, 1]) for (let f = 0; f < 3; f++) for (let c = 0; c < 2; c++) {
-    const lg = 32, al = 22, fo = 12, w = encajar(gAcantilado, cx + lado * (2.4 + fo / 2), y0 - 36 + f * al, cara - lg / 2 - c * lg, lg, al, fo, -lado * Math.PI / 2);
+    const lg = 32, al = 22, fo = 12, w = encajar(gAcantilado, cx + lado * (0.9 + fo / 2), y0 - 36 + f * al, cara - lg / 2 - c * lg, lg, al, fo, -lado * Math.PI / 2);
     if (c % 2) w.scale.x = -1;
     if (f % 2) { w.scale.y = -1; w.position.y += al; }
     w.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
@@ -1526,7 +1526,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
 { const rP = generador(6464);
   for (let z = DUNAS2.desde - 8; z > DUNAS2.hasta + 4; z -= 26 + rP() * 8) for (const lado of [-1, 1]) {
     const x = caminoX(z) + lado * (24 + rP() * 5), s0 = alturaTerreno(x, z);
-    encajar(gAcantilado, x, s0 - 6, z, 30, 14 + rP() * 8, 8, Math.PI / 2 + (rP() - 0.5) * 0.3).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
+    encajar(gAcantilado, x, s0 - 6, z, 30, 14 + rP() * 8, 8, -lado * Math.PI / 2 + (rP() - 0.5) * 0.3).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
     for (let k = 0; k < 3; k++) { const xr = x - lado * (5 + rP() * 4), zr = z + (rP() - 0.5) * 18; enterrar(kitRocas[1 + Math.floor(rP() * 4)], xr, zr, 1 + rP() * 2.5, rP() * 6, 0.25); }
   } }
 // Bolas de piedra que bajan rodando por la escalera: hay que saltarlas.
