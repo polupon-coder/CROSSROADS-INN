@@ -226,7 +226,7 @@ const CANON_DESDE = RELLANO.z - 2, CAMARA_R = 8.5, ANILLO_R = 7.3;
 const anchoCanon = z => Math.max(DESFILADERO.media, Math.sqrt(Math.max(0, CAMARA_R * CAMARA_R - (z - PLATAFORMA2.z) ** 2)));
 // Desfiladero de los arcos (lámina de los arcos en ruinas), tras el desfiladero de los peñascos; al final, el anillo.
 const DUNAS = { desde: -558, hasta: -756 };                   // campo de dunas tras la pasarela que cae
-const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1420, HEX_FIN = -1292, HIELO = { desde: -1298, hasta: -1404 }, PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
+const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1462, HEX_FIN = -1292, HIELO = { desde: -1298, hasta: -1372 }, PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
 const FIN_Z = ANILLO_Z + 6;
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
@@ -493,7 +493,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-1480, ACANT.pie, 0.7), ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
+  const zs = [...filas(-1540, ACANT.pie, 0.7), ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -1584,7 +1584,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const xx = caminoX(z2) + k * Math.sqrt(3) * R + (fz % 2) * Math.sqrt(3) * R / 2, d = Math.abs(xx - caminoX(z2));
       if (Math.hypot(xx - PLATAFORMA6.x, z2 - PLATAFORMA6.z) < 7.2 || Math.hypot(xx - caminoX(HEX_FIN), z2 - HEX_FIN) < 10) continue;   // (donde la plataforma y ante el anillo)
       const esc = 0.75 + rH() * 0.6, h = (d < 3 ? rH() * 0.55 : Math.min(5, (d - 3) * 0.32 + rH() * (rH() < 0.2 ? 2.2 : 0.9))), top = alturaTerreno(xx, z2) + 0.15 + h;
-      if (d < 3 && z2 < PLATAFORMA6.z - 13 && rH() < 0.45) { const col = { x: xx, z: z2, r: R * 0.9 * esc, techo: top }; colisiones.push(col); movHex.push({ x: xx, z: z2, top, base: top, esc, col, tipo: rH() < 0.5 ? "cae" : "sube", A: 0.8 + rH() * 1.6, w: 0.5 + rH() * 0.9, ph: rH() * 6, t: 0, dy: 0, vy: 0, fuera: 0 }); continue; }   // (en el paso: unos caen al pisarlos, otros suben y bajan)
+      if (d < 3 && z2 < PLATAFORMA6.z - 13 && rH() < 0.45) { const col = { x: xx, z: z2, r: R * 0.9 * esc, techo: top }; colisiones.push(col); movHex.push({ x: xx, z: z2, top, base: top, esc, col, tipo: rH() < 0.5 ? "cae" : "sube", A: 2.2 + rH() * 3, w: 0.6 + rH() * 1.1, ph: rH() * 6, t: 0, dy: 0, vy: 0, fuera: 0 }); continue; }   // (en el paso: unos caen al pisarlos, otros suben y bajan)
       lista.push([xx, top, z2, esc]);
       if (d < 13) colisiones.push({ x: xx, z: z2, r: R * 0.9 * esc, techo: top });
     }
@@ -1610,37 +1610,44 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     pilarTallado(kitPilares[3 + (i % 3)], new THREE.Vector3(xx, suelo - 2, z2), new THREE.Vector3(xx, suelo + alto, z2), 4 + rB() * 4, rB() * 6);
   }
   // Al final, tras el anillo, la gran ruina de columnas con su arco.
-  // La zona de hielo: losas hexagonales sobre el vacío. Las de hielo se quiebran si te quedas encima; las de
-  // nieve, a tramos, aguantan. Entre unas y otras, algún hueco que hay que saltar.
-  { const R = 1.52, y0 = alturaTerreno(caminoX(HIELO.desde + 3), HIELO.desde + 3), geo = new THREE.CylinderGeometry(R, R * 0.92, 0.9, 6); geo.translate(0, -0.45, 0);
-    const tex = ["texturas/hielo1.jpg", "texturas/hielo2.jpg"].map(f => { const t = new THREE.TextureLoader().load(f); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; });
+  // El lago helado: un único plano de hielo (por dentro, celdas que encajan sin junta: la textura va por
+  // posición). Primero un camino de nieve; luego la nieve, a trozos; luego hielo que se quiebra tras de ti:
+  // hay que correr y saltar a la nieve del otro lado. Después, entre icebergs, y un paso entre acantilados de hielo.
+  { const C = 2, y0 = alturaTerreno(caminoX(HIELO.desde + 3), HIELO.desde + 3), geo = new THREE.BoxGeometry(C + 0.02, 0.5, C + 0.02); geo.translate(0, -0.25, 0);
     const cieloRef = (() => { const c = document.createElement("canvas"); c.width = 64; c.height = 32; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 32); g.addColorStop(0, "#e9dde0"); g.addColorStop(0.5, "#f4f1f2"); g.addColorStop(1, "#9fb3c9"); x.fillStyle = g; x.fillRect(0, 0, 64, 32); const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; return t; })();   // (lo que refleja el hielo)
-    const matH = tex.map(t => new THREE.MeshStandardMaterial({ map: t, color: 0xe4f0fa, roughness: 0.08, metalness: 0.3, envMap: cieloRef, envMapIntensity: 0.9 }));   // (las losas del paso: el mismo hielo del lago)
-    const matN = new THREE.MeshStandardMaterial({ color: 0xe6edf6, roughness: 1 });
-    const filas = [];
-    for (let fz = 0, z = HIELO.desde - 0.5; z > HIELO.hasta + 0.5; z -= 1.5 * R, fz++) {
-      const tipo = fz < 2 || fz % 9 < 2 || z < HIELO.hasta + 4 ? "nieve" : fz % 9 === 5 ? "hueco" : "hielo";
-      if (tipo === "hueco") continue;
-      for (let k = -3; k <= 3; k++) filas.push({ x: caminoX(z) + k * Math.sqrt(3) * R + (fz % 2) * Math.sqrt(3) * R / 2, z, top: y0, tipo, v: (fz + k) & 1 });
+    const tex = new THREE.TextureLoader().load("texturas/hielo1.jpg"); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    const porMundo = (m, inst) => { m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace("#include <uv_vertex>", "#include <uv_vertex>\n  vUv = (modelMatrix * " + (inst ? "instanceMatrix * " : "") + "vec4(position, 1.0)).xz * 0.06;"); }; return m; };   // (la textura por posición: sin juntas)
+    const matH = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xe4f0fa, roughness: 0.08, metalness: 0.3, envMap: cieloRef, envMapIntensity: 0.9 }), true);
+    const matL = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xe4f0fa, roughness: 0.08, metalness: 0.3, envMap: cieloRef, envMapIntensity: 0.9 }), false);
+    const matN = new THREE.MeshStandardMaterial({ color: 0xe8eef6, roughness: 1 });
+    const A1 = HIELO.desde - 20, A2 = HIELO.desde - 46, A3 = HIELO.hasta + 6;   // (fin del camino de nieve; fin de la nieve a trozos; donde empieza la nieve del otro lado)
+    const celdas = [];
+    for (let z = HIELO.desde - 1; z > HIELO.hasta + 1; z -= C) for (let k = -7; k <= 7; k++) {
+      const x = caminoX(z) + k * C, dx = Math.abs(k * C);
+      if (z < A3 + 4 && z > A3 + 1) continue;   // (un tajo de agua antes de la nieve del otro lado: se salta)
+      const nieve = z <= A3 ? dx < 5 : z > A1 ? dx < 3 : z > A2 ? dx < 3 && Math.floor((HIELO.desde - z) / 3) % 2 === 0 : false;
+      celdas.push({ x, z, top: y0, tipo: nieve ? "nieve" : "hielo", rapida: z <= A2 && z > A3 });
     }
-    const grupos = [["hielo", 0], ["hielo", 1], ["nieve", 0]].map(([tipo, v]) => { const L = filas.filter(T => T.tipo === tipo && (tipo === "nieve" || T.v === v)), im = new THREE.InstancedMesh(geo, tipo === "nieve" ? matN : matH[v], L.length);
-      im.castShadow = im.receiveShadow = true; scene.add(im); L.forEach((T, i) => { T.im = im; T.i = i; T.col = { x: T.x, z: T.z, r: R * 1.06, techo: T.top }; colisiones.push(T.col); im.setColorAt(i, new THREE.Color(1, 1, 1)); }); return im; });
-    losasHielo.push(...filas); losasHielo.y0 = y0; losasHielo.R = R; void grupos;
-    losasHielo.forEach(hieloMatriz);
-    // Un gran lago helado: a los lados del paso, la misma capa de hielo; debajo, el agua oscura (se ve donde
-    // falta una losa o se ha quebrado).
-    const largo = HIELO.desde - HIELO.hasta + 30, zc = (HIELO.desde + HIELO.hasta) / 2, xc = caminoX(zc);
-    const texL = new THREE.TextureLoader().load("texturas/hielo1.jpg"); texL.wrapS = texL.wrapT = THREE.RepeatWrapping; texL.repeat.set(12, largo / 10);
-    const matL = new THREE.MeshStandardMaterial({ map: texL, color: 0xe4f0fa, roughness: 0.08, metalness: 0.3, envMap: cieloRef, envMapIntensity: 0.9 });
-    for (const lado of [-1, 1]) { const lago = new THREE.Mesh(new THREE.PlaneGeometry(120, largo), matL); lago.rotation.x = -Math.PI / 2; lago.position.set(xc + lado * (9.4 + 60), y0 - 0.02, zc); lago.receiveShadow = true; scene.add(lago); }
-    const agua = new THREE.Mesh(new THREE.PlaneGeometry(260, largo + 20), new THREE.MeshStandardMaterial({ color: 0x2e4762, roughness: 0.08, metalness: 0.2 })); agua.rotation.x = -Math.PI / 2; agua.position.set(xc, y0 - 1.1, zc); scene.add(agua);
-    // Formas que salen del agua helada: bloques de hielo, y algún iceberg al fondo.
+    [["hielo", matH], ["nieve", matN]].forEach(([tipo, mat]) => { const L = celdas.filter(T => T.tipo === tipo), im = new THREE.InstancedMesh(geo, mat, L.length); im.receiveShadow = true; scene.add(im);
+      L.forEach((T, i) => { T.im = im; T.i = i; T.col = { x: T.x, z: T.z, r: C * 0.72, techo: T.top }; colisiones.push(T.col); im.setColorAt(i, new THREE.Color(1, 1, 1)); }); });
+    losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
+    // Fuera del paso, el lago sigue: el mismo hielo, sin junta; debajo, el agua oscura.
+    const largo = HIELO.desde - HIELO.hasta + 40, zc = (HIELO.desde + HIELO.hasta) / 2, xc = caminoX(zc);
+    for (const lado of [-1, 1]) { const lago = new THREE.Mesh(new THREE.PlaneGeometry(200, largo), matL); lago.rotation.x = -Math.PI / 2; lago.position.set(xc + lado * (15 + 100), y0 - 0.01, zc); lago.receiveShadow = true; scene.add(lago); }
+    const agua = new THREE.Mesh(new THREE.PlaneGeometry(500, largo + 40), new THREE.MeshStandardMaterial({ color: 0x2e4762, roughness: 0.08, metalness: 0.2 })); agua.rotation.x = -Math.PI / 2; agua.position.set(xc, y0 - 1.1, zc); scene.add(agua);
+    // Estructuras de hielo grandes saliendo del lago, e icebergs al fondo.
     const rI = generador(9191), claro = o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(1, 1, 1); o.material.emissive = new THREE.Color(0x3a4656); o.material.envMap = cieloRef; o.material.envMapIntensity = 0.6; } };   // (claritos, con algo de brillo)
-    for (let z = HIELO.desde - 4, k = 0; z > HIELO.hasta; z -= 7 + rI() * 5, k++) for (const lado of [-1, 1]) {
-      const x = caminoX(z) + lado * (12 + rI() * 26), t = 3 + rI() * 8;
-      encajar(k % 2 ? gHieloA : gHieloB, x, y0 - t * (0.3 + rI() * 0.3), z, t, t * (0.8 + rI() * 0.7), t, rI() * 6).traverse(claro);
+    for (let z = HIELO.desde + 6, k = 0; z > HIELO.hasta - 30; z -= 8 + rI() * 6, k++) for (const lado of [-1, 1]) {
+      const x = caminoX(z) + lado * (18 + rI() * 30), t = 8 + rI() * 14;
+      encajar(k % 2 ? gHieloA : gHieloB, x, y0 - t * (0.25 + rI() * 0.2), z, t, t * (1 + rI() * 1.2), t, rI() * 6).traverse(claro);
     }
-    for (const [dx, dz, t] of [[-34, -30, 26], [38, -70, 32], [-40, -100, 22], [52, -20, 20]]) encajar(gIceberg, caminoX(HIELO.desde + dz) + dx, y0 - t * 0.35, HIELO.desde + dz, t, t * 0.9, t, dx * 0.1).traverse(claro);
+    for (const [dx, dz, t] of [[-80, -20, 60], [95, -55, 75], [-110, -90, 70], [70, 10, 50], [-60, -140, 80], [120, -120, 65]]) encajar(gIceberg, caminoX(HIELO.desde + dz) + dx, y0 - t * 0.3, HIELO.desde + dz, t, t * 0.8, t, dx * 0.02).traverse(claro);
+    // Después del lago: por nieve, pasando al lado de icebergs...
+    for (const [dx, dz, t] of [[-15, 8, 22], [17, 18, 28], [-19, 30, 26], [14, 38, 18]]) encajar(gIceberg, caminoX(HIELO.hasta - dz) + dx, alturaTerreno(caminoX(HIELO.hasta - dz), HIELO.hasta - dz) - t * 0.25, HIELO.hasta - dz, t, t * 0.85, t, dz * 0.3).traverse(claro);
+    // ... y luego un paso de nieve entre acantilados de hielo.
+    for (let z = HIELO.hasta - 44, k = 0; z > ANILLO_Z + 12; z -= 6.5, k++) for (const lado of [-1, 1]) {
+      const t = 10 + rI() * 4, x = caminoX(z) + lado * (4.2 + t * 0.4); encajar(k % 2 ? gHieloB : gHieloA, x, alturaTerreno(x, z) - 3, z, t, 22 + rI() * 10, t, rI() * 6).traverse(claro); colisiones.push({ x, z, r: t * 0.42, techo: 99 });
+    }
   }
   const zr = ANILLO_Z - 16, xr = caminoX(zr) + 3; encajar(gRuinaAlta, xr, alturaTerreno(xr, zr) - 1.5, zr, 36, 35, 14.5, 0.15);   // (a su proporción, grande)
 }
@@ -1739,7 +1746,7 @@ function moverZonas(dt) {
     if (M.t > 0 || sobre) {   // (al pisarlo tiembla y cae)
       M.t += dt;
       if (M.t < 0.5) M.m.position.x = M.x + (Math.random() - 0.5) * 0.1;
-      else { if (M.vy === 0) { const i = colisiones.indexOf(M.col); if (i >= 0) colisiones.splice(i, 1); } M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top - 3 + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
+      else { if (M.vy === 0) { const i = colisiones.indexOf(M.col); if (i >= 0) colisiones.splice(i, 1); if (Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r + 0.3 && !rescate) { empezarRescate(); const z0 = PLATAFORMA6.z - 9; rescate.hacia = new THREE.Vector3(caminoX(z0), alturaTerreno(caminoX(z0), z0) + 0.6, z0); } }   /* (cae del todo: el viento te lleva al principio de los hexágonos) */ M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top - 3 + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
     }
   }
   if (!losasHielo.length || pos.z > HIELO.desde + 2 || pos.z < HIELO.hasta - 2) return;
@@ -1748,7 +1755,7 @@ function moverZonas(dt) {
     if (T.tipo === "nieve") { if (sobre) seguroHielo = new THREE.Vector3(T.x, T.top + 0.05, T.z); continue; }
     if (T.fuera > 0) { T.fuera -= dt; if (T.fuera <= 0) { if (Math.hypot(pos.x - T.x, pos.z - T.z) < 3) T.fuera = 0.5; else { T.dy = 0; T.vy = 0; T.t = 0; T.im.setColorAt(T.i, _cH.setRGB(1, 1, 1)); T.im.instanceColor.needsUpdate = true; colisiones.push(T.col); hieloMatriz(T); } } continue; }
     if (T.cae) { T.vy += 14 * dt; T.dy -= T.vy * dt; hieloMatriz(T); if (T.dy < -30) { T.cae = false; T.fuera = 5; } continue; }
-    if (sobre) T.t = (T.t || 0) + dt; else if (T.t) T.t = Math.max(0, T.t - dt * 0.4);
+    if (T.rapida) { if (sobre || T.t > 0) T.t = (T.t || 0) + dt * 1.6; } else if (sobre) T.t = (T.t || 0) + dt; else if (T.t) T.t = Math.max(0, T.t - dt * 0.4);   // (el de la carrera: pisado, se quiebra aunque sigas)
     if (T.t > 0.55) { T.temblor = true; T.im.setColorAt(T.i, _cH.setRGB(0.72, 0.8, 0.9)); T.im.instanceColor.needsUpdate = true; hieloMatriz(T); }   // (se agrieta: tiembla y se enturbia)
     else if (T.temblor) { T.temblor = false; T.im.setColorAt(T.i, _cH.setRGB(1, 1, 1)); T.im.instanceColor.needsUpdate = true; hieloMatriz(T); }
     if (T.t > 1.35) { T.cae = true; T.temblor = false; T.vy = 0; T.dy = 0; const i = colisiones.indexOf(T.col); if (i >= 0) colisiones.splice(i, 1); musica.viento(0.2, 1.4); }   // (se quiebra)
