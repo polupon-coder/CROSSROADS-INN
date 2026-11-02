@@ -898,6 +898,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
 // En cada fila de pilastras de salto, el tramo que se salta queda a un lado (hay que buscarlo).
 const PASO_SALTO = [4.5, -4.5, 3];
+const libreAnillo = (x, z) => Math.hypot(x - (caminoX(-38) - 6), z + 38) > 8;   // (el anillo tumbado, sin nada que lo solape)
 const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -65, -78], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
@@ -922,9 +923,9 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -65, -78], ZONA_MIXTA
   ZONA_ROCAS.forEach((z, i) => {
     const lado = i % 2 ? -1 : 1, cx = caminoX(z);
     if (i === 2) return;                                         // (delante del primer salto, nada)
-    rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx + lado * (0.8 + rndA() * 0.8), z + (rndA() - 0.5) * 0.8, 0.9 + rndA() * 0.2, 0.9 + rndA() * 0.3);   // baja: se salta
-    rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], cx - lado * (3.2 + rndA()), z + (rndA() - 0.5) * 1.2, 0.8 + rndA() * 0.2, 0.8 + rndA() * 0.2);
-    if (i === 1) { arcoBajo(cx + lado * 6.5, z - 1, 0.55); rocaEntera(kitRocas[3], cx - lado * 7.5, z + 1.5, 1.4, 1.1); rocaEntera(kitRocas[4], cx - lado * 9.2, z + 0.3, 0.9, 0.8); }   // a un lado, un arco bajo girado; al otro, unas rocas
+    { const x1 = cx + lado * (1.6 + rndA() * 0.8), z1 = z + (rndA() - 0.5) * 0.8, a1 = rndA(), b1 = rndA(); if (libreAnillo(x1, z1)) rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], x1, z1, 2.2 + a1 * 0.8, 1.9 + b1 * 0.5); else rndA(); }   // (grandes: nada pequeño)
+    { const x1 = cx - lado * (5.5 + rndA()), z1 = z + (rndA() - 0.5) * 1.2, a1 = rndA(), b1 = rndA(); if (libreAnillo(x1, z1)) rocaEntera(kitRocas[3 + Math.floor(rndA() * 3)], x1, z1, 2.6 + a1 * 0.8, 2.2 + b1 * 0.4); else rndA(); }
+    if (i === 1) { if (libreAnillo(cx + lado * 6.5, z - 1)) arcoBajo(cx + lado * 6.5, z - 1, 0.55); if (libreAnillo(cx - lado * 8, z + 1)) { rocaEntera(kitRocas[3], cx - lado * 8, z + 1.5, 3, 2.4); rocaEntera(kitRocas[4], cx - lado * 10.5, z + 0.3, 2.2, 1.8); } }   // a un lado, un arco bajo girado; al otro, unas rocas
     else rndA(), rndA();
   });
   // Pilastra de ruinas caída, tumbada en el suelo; se puede saltar o, si es baja, pisar.
@@ -951,7 +952,10 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -65, -78], ZONA_MIXTA
   ZONA_PILASTRAS.forEach((z, i) => { for (const lado of [-1, 1]) { const x = caminoX(z) + lado * (8.5 + rndA() * 3), zz = z + (rndA() - 0.5) * 3, s0 = alturaTerreno(x, zz), alto = 3.5 + rndA() * 3;
     pilarTallado(kitPilares[3 + (i + (lado > 0 ? 1 : 0)) % 3], new THREE.Vector3(x, s0 - 0.6, zz), new THREE.Vector3(x + (rndA() - 0.5) * 0.3, s0 + alto, zz), 1.3 + rndA() * 0.5, rndA() * 6);
     colisiones.push({ x, z: zz, r: 0.75, techo: s0 + alto, obj: pilarTallado.ultimo }); } });
-  ZONA_ROCAS.forEach((z, i) => { if (i === 2) return; const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
+  { const z = ZONA_PILASTRAS[2], c = caminoX(z) + PASO_SALTO[2];   // (la tercera fila: verticales en los extremos, rompen su horizontal)
+    for (const [dx, dz, alto] of [[-4.4, 0.6, 4.2], [4.6, -0.5, 5.5], [-6.2, -1.2, 3.2], [6.6, 0.9, 3.6]]) { const x = c + dx, zz = z + dz, s0 = alturaTerreno(x, zz);
+      pilarTallado(kitPilares[3 + Math.floor(Math.abs(dx)) % 3], new THREE.Vector3(x, s0 - 0.6, zz), new THREE.Vector3(x + 0.15, s0 + alto, zz), 1.5, dx); colisiones.push({ x, z: zz, r: 0.8, techo: s0 + alto, obj: pilarTallado.ultimo }); } }
+  ZONA_ROCAS.forEach((z, i) => { if (i === 2 || !libreAnillo(caminoX(z) + (i % 2 ? 6 : -6), z + 2.5)) return; const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
 }
 
 // ─── Runas (lámina 80) ─────────────────────────────────────────────────────
@@ -1391,9 +1395,9 @@ function pieza(gltf, x, z, tam, giro, hunde, inclina = 0) {
   return g;
 }
 for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
-  [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -9, -40, 5, 1.1, 0.25, 0],
+  [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -15, -48, 5, 1.1, 0.25, 0],
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gLadrillos, -13, -625, 6, -0.4, 0.3, 0], [gMuro, -17, -690, 9, 2.2, 0.4, 0], [gLadrillos, 12, -735, 5, 0.3, 0.25, 0],
-  [gAnilloP, 10, -16, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
+  [gAnilloP, -6, -38, 8, 0.7, 0.35, 0.55], [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6]])
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
     if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
     else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
@@ -1548,14 +1552,14 @@ for (const H of huellasGigantes()) {
   const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
   d.scale.set(3.8 / t.x, 0.55 / t.y, 3.8 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
   d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = o.material.clone(); o.material.color.setRGB(0.88, 0.9, 0.94); o.material.userData.suelo = true; } }); g.add(d);   // (algo más oscuras y azuladas, como la nieve del suelo)
-  g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.47, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
+  g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.53, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
 // paso, sin cerrarlo).
 { const rS = generador(2626);
   // (en grupos grandes: una roca mayor con dos o tres más a su lado; nada suelto y pequeño; libre alrededor del anillo tumbado)
-  const anillo = [caminoX(-16) + 10, -16];
+  const anillo = [caminoX(-38) - 6, -38];
   for (let z = -8; z > ZONA_MIXTA[0]; z -= 8 + rS() * 6) {
     const lado = rS() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (8 + rS() * 7);
     if (Math.hypot(x - anillo[0], z - anillo[1]) < 9 || solapa(x, z, 3) || PLATAFORMAS.some(P => Math.hypot(x - P.x, z - P.z) < P.r + 4)) continue;
@@ -1697,7 +1701,7 @@ for (const H of huellasGigantes()) {
 // Pequeñas formaciones de nieve sueltas, en grupos, a los lados del camino.
 for (let i = 0; i < 34; i++) {
   const z = -26 - rndF() * (979 - 26), lado = rndF() < 0.5 ? -1 : 1, cx = caminoX(z) + lado * (3 + rndF() * 11);   // (979: hasta donde acababa antes el recorrido)
-  if (PLATAFORMAS.some(P => Math.hypot(cx - P.x, z - P.z) < P.r + 3) || (z < CANON_DESDE + 2 && z > DESFILADERO.hasta - 2)) continue;
+  if (PLATAFORMAS.some(P => Math.hypot(cx - P.x, z - P.z) < P.r + 3) || (z < CANON_DESDE + 2 && z > DESFILADERO.hasta - 2) || z > -100) continue;   // (al principio, nada pequeño)
   for (let k = 0, n = 2 + Math.floor(rndF() * 3); k < n; k++) {
     const x = cx + (rndF() - 0.5) * 4, zz = z + (rndF() - 0.5) * 4, w = 0.8 + rndF() * 2.2, h = alturaTerreno(x, zz);
     if (h > -1 && firme(x, zz, w / 2, h)) monton(kitRocas[1 + Math.floor(rndF() * (kitRocas.length - 1))], x, zz, w, 0.25 + rndF() * 0.55, rndF() * 6.28, h);
