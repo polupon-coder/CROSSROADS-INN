@@ -1530,6 +1530,14 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     // Antes del puente, un arco en ruinas por el que se pasa.
     { const za = ACANT.pie + 19.4, xa = caminoX(za), sa = alturaTerreno(xa, za); encajar(gArcoRuina, xa, sa - 0.4, za, 6.5, 9.5, 1.8).traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.5, 0.53, 0.58); o.material.roughness = 1; } });   // (oscuro, como las rocas)
       for (const lado of [-1, 1]) colisiones.push({ x: xa + lado * 3.6, z: za, r: 1.1, techo: 99 }); }
+    // Todo el margen del abismo del lado de las dunas, rocas grandes en fila (cierran el borde de nieve y el
+    // hueco junto al arranque del puente).
+    { const rm = generador(6161), sueloM = alturaTerreno(cx, ACANT.pie + 18);
+      for (const lado of [-1, 1]) for (let d = 3.3, k = 0; d < 48; k++) {
+        const pz = kitRocas[2 + (k + (lado > 0 ? 1 : 0)) % 3], alto = (d < 6 ? 2.6 : 3.2) + rm() * 2.8, rr = pz.radio * alto / pz.alto;
+        const x = cx + lado * (d + rr * 0.6), z = ACANT.pie + 16.6 + rm() * 1.2;
+        colocar(pz, x, z, alto, rm() * 6, 0.25, sueloM, false); d += rr * 1.3 + 0.2;
+      } }
     // A lado y lado del arranque del puente, un grupo de 3 y otro de 4 rocas grandes; y más por el borde del abismo.
     for (const [dx, dz, a] of [[-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [6.4, 18.0, 4.6], [-6.0, 21.8, 3.6], [-8.4, 20.2, 5.2], [-7.2, 23.6, 2.4], [5.8, 21.4, 3.0], [8.2, 22.6, 5.6], [7.0, 19.8, 2.0], [-10.5, 22.4, 3.0], [10.8, 20.8, 3.4], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
       [-14, 18, 3.5], [-22, 17.6, 2.6], [-31, 18.2, 4.0], [15, 18.3, 3.0], [24, 17.8, 4.4], [33, 18.4, 2.8]]) { const xx = cx + dx, zz = ACANT.pie + dz + 1.5; colocar(kitRocas[2 + Math.round(a * 3) % 3], xx, zz, a, a * 4, 0.25, masBajoEn(xx, zz, 1), false); }
