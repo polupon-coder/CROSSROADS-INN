@@ -1511,6 +1511,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     // Debajo, un lecho inclinado de tus ladrillos a lo largo de toda la escalera: tapa los huecos entre tramos.
     { const inc = Math.atan2(sube, largo);
       if (false) for (let k = 0; k < n; k++) { const zc = ACANT.pie - largo * (k + 0.5), l = encajar(gLadrillos, cx, yA + (k + 0.5) * sube - 2.0, zc, 4.6, 0.4, Math.hypot(largo, sube) * 1.15, k % 2 ? Math.PI : 0); l.rotation.x = inc; } }
+    { const L = Math.hypot(ACANT.pie - ACANT.cima, ACANT.alto), lecho = new THREE.Mesh(new THREE.BoxGeometry(10, 4, L + 6), nieveFina);   // (bajo la escalera, una losa continua de muro a muro: no se ve ningún hueco)
+      lecho.position.set(cx, yA + ACANT.alto / 2 - 2.9, (ACANT.pie + ACANT.cima) / 2); lecho.rotation.x = Math.atan2(ACANT.alto, ACANT.pie - ACANT.cima); lecho.castShadow = lecho.receiveShadow = true; scene.add(lecho); }
     { const geoR = new THREE.BoxGeometry(5, 1, 1); geoR.translate(0, -0.5, 0); const r = new THREE.Mesh(geoR, nieveFina); r.scale.set(1, yA - (y0 - 45), ACANT.pie - ACANT.cima); r.position.set(cx, yA - 2.5, (ACANT.pie + ACANT.cima) / 2); scene.add(r);   // (roca bajo la escalera)
     }   // (rellano junto al puente)
     // El puente: un tramo de piedra sobre el abismo, a ras del suelo (se pisa).
@@ -1533,10 +1535,9 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     // Todo el margen del abismo del lado de las dunas, rocas grandes en fila (cierran el borde de nieve y el
     // hueco junto al arranque del puente).
     { const rm = generador(6161), sueloM = alturaTerreno(cx, ACANT.pie + 18);
-      for (const lado of [-1, 1]) for (let d = 3.3, k = 0; d < 48; k++) {
-        const pz = kitRocas[2 + (k + (lado > 0 ? 1 : 0)) % 3], alto = (d < 6 ? 2.6 : 3.2) + rm() * 2.8, rr = pz.radio * alto / pz.alto;
-        const x = cx + lado * (d + rr * 0.6), z = ACANT.pie + 16.6 + rm() * 1.2;
-        colocar(pz, x, z, alto, rm() * 6, 0.25, sueloM, false); d += rr * 1.3 + 0.2;
+      for (const lado of [-1, 1]) for (let d = 3.4, k = 0; d < 60; k++) {   // (columnas de piedra de pie, del fondo hasta el filo: cierran el canto)
+        const w = 1.6 + rm() * 1.2, x = cx + lado * (d + w / 2), z = ACANT.pie + 16.4 + rm() * 0.6, top = sueloM + (d < 8 ? 0.4 : 0.2 + rm() * 1.6);
+        pilarTallado(kitPilares[3 + k % 3], new THREE.Vector3(x, sueloM - 26, z), new THREE.Vector3(x + (rm() - 0.5) * 0.2, top, z), w, rm() * 6); d += w * 0.85;
       } }
     // A lado y lado del arranque del puente, un grupo de 3 y otro de 4 rocas grandes; y más por el borde del abismo.
     for (const [dx, dz, a] of [[-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [6.4, 18.0, 4.6], [-6.0, 21.8, 3.6], [-8.4, 20.2, 5.2], [-7.2, 23.6, 2.4], [5.8, 21.4, 3.0], [8.2, 22.6, 5.6], [7.0, 19.8, 2.0], [-10.5, 22.4, 3.0], [10.8, 20.8, 3.4], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
@@ -1693,7 +1694,7 @@ function moverBolas(dt) {
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1e9; b.g.visible = false; continue; }   // (solo dos: pasan una vez cada una)   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
     b.g.position.set(cx, y, z); b.giro.rotation.x = b.t * 5.5 / b.R;
-    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.z - z) < b.R + 0.5 && pos.y < y + 2 * b.R + 0.2 && pos.y > y - 1.5) {   /* (al tocarla, por donde sea, el viento te devuelve) */ const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; }); vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (al pie de la escalera, con el viento; las bolas vuelven a salir)
+    if (!rescate && z < ACANT.pie - 0.4 && Math.hypot(pos.x - cx, pos.z - z) < b.R + 0.35 && pos.y < y + 1.45 * b.R && pos.y > y - 1.5) {   /* (al tocarla, por donde sea, el viento te devuelve) */ const h = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.2, ACANT.pie + 0.5); rescate = { t: 0, desde: pos.clone(), hacia: h, dura: 2.6 }; bolas.forEach((o, i) => { o.t = -2.5 - i * 3.6; o.g.visible = false; }); vel.set(0, 0, 0); efectoEspiral = 2; musica.viento(0.35, 0.8); }   // (al pie de la escalera, con el viento; las bolas vuelven a salir)
     void largo;
   }
 }
