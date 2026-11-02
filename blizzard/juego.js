@@ -1466,7 +1466,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     encajar(gPuente, cx, yp - 3.1, zp, 17.6, 3.1, 5.6, Math.PI / 2);   // (casi el doble)   // (el puente de arco, de borde a borde)
     // Rocas en el borde donde arranca el puente.
     // Antes del puente, un arco en ruinas por el que se pasa.
-    { const za = ACANT.pie + 21, xa = caminoX(za), sa = alturaTerreno(xa, za); encajar(gArcoRuina, xa, sa - 0.4, za, 9, 9, 2.2);
+    { const za = ACANT.pie + 21, xa = caminoX(za), sa = alturaTerreno(xa, za); encajar(gArcoRuina, xa, sa - 0.4, za, 6.5, 9.5, 1.8);
       for (const lado of [-1, 1]) colisiones.push({ x: xa + lado * 3.6, z: za, r: 1.1, techo: 99 }); }
     // A lado y lado del arranque del puente, un grupo de 3 y otro de 4 rocas grandes; y más por el borde del abismo.
     for (const [dx, dz, a] of [[-4.2, 17.4, 3.2], [-6.3, 18.6, 2.2], [-5.0, 19.9, 4.2], [4.4, 17.2, 2.6], [6.4, 18.0, 4.6], [5.0, 19.6, 2.0], [7.8, 19.4, 3.0],
