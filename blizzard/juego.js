@@ -363,13 +363,13 @@ const franjasAbismos = () => _franjas || (_franjas = ABISMOS.map(([d, a]) => { l
 // paso, izquierdo y derecho, en una línea que se curva. Son hoyos del propio suelo, de bordes suaves (sin
 // paredes): se puede bajar a ellas andando.
 let _huellas = null;
-const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 8 }, (_, i) => {
-  // En diagonal: cruzan el camino de un lado a otro.
-  const rumbo = -0.8 + Math.sin(i * 0.4) * 0.12, ex = caminoX(0) - 14 + i * 3.9, ez = 6 - i * 3.9, lado = i % 2 ? 1 : -1;
+const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 5 }, (_, i) => {
+  // Justo después de los pasos bajos, en diagonal: cruzan el camino de un lado a otro.
+  const rumbo = -0.8, ez = -99 - i * 3.6, ex = caminoX(ez) - 6 + i * 3, lado = i % 2 ? 1 : -1;
   return { x: ex + lado * 1.5 * Math.cos(rumbo), z: ez - lado * 1.5 * Math.sin(rumbo), c: Math.cos(rumbo + lado * 0.1), s: Math.sin(rumbo + lado * 0.1) };
 }));
 function hoyoHuellas(x, z) {
-  if (z > 10 || z < -38) return 0;
+  if (z > -93 || z < -120) return 0;
   let hondo = -1;
   for (const H of huellasGigantes()) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 20) continue;
@@ -489,7 +489,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-1380, ACANT.pie, 0.7), ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -30, 1), ...filas(-30, 11, 0.3), ...filas(11, 140, 1), 140];   // (fina donde las huellas)
+  const zs = [...filas(-1380, ACANT.pie, 0.7), ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -521,7 +521,7 @@ let MAT_SUELO = null;                                        // el material del 
     pos.setZ(i, z);
     { const rz = z - RAMPA3.desde, rx = Math.abs(x - PLATAFORMA3.x); if (rz > 0 && rz < RAMPA3.largo && rx < 2.1 && !RAMPA3.rotos.includes(Math.floor(rz / RAMPA3.largo * RAMPA3.n))) h -= 0.45 * suave(2.1, 1.7, rx); }   // bajo los escalones de piedra: que se vean enteros
     pos.setY(i, h);
-    { const hh = 0.55 * Math.min(1, hoyoHuellas(x, z) / 0.16), k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada   // (dentro de las huellas, la nieve algo más oscura)
+    { const hh = 1.1 * Math.min(1, hoyoHuellas(x, z) / 0.16), k = 1 - 0.16 * hh; colores.push(nieve.r * k, nieve.g * (1 - 0.12 * hh), nieve.b * (1 - 0.05 * hh)); }   // mismo tono también en las paredes; en las huellas, sombra azulada   // (dentro de las huellas, la nieve algo más oscura)
   }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colores, 3));
   // Cada cuadro se parte por la diagonal cuyos extremos están a alturas más parecidas: junto a un
@@ -896,7 +896,7 @@ function monticulo(pieza, x, z, ancho, alto, giro) {
 // que saltar. Tienen su propia semilla, para no mover lo que se coloca después.
 // En cada fila de pilastras de salto, el tramo que se salta queda a un lado (hay que buscarlo).
 const PASO_SALTO = [4.5, -4.5, 3];
-const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -64, -76], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
+const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -65, -78], ZONA_MIXTA = [-70, -91].map(TRAS);      // ya en el plano estirado
 {
   const rndA = generador(808);
   // Roca con colisión del tamaño que se ve, para no meterse dentro.
@@ -945,6 +945,10 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-52, -64, -76], ZONA_MIXTA
   const pil = (dx, z, largo, grueso, giro) => (z = TRAS(z), pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro));
   // (La zona mixta de antes la sustituye el bosque de columnas, más abajo.)
   // A los lados de la zona abierta, pilastras caídas bajas que se saltan.
+  // Piedras verticales a los lados de cada fila de salto.
+  ZONA_PILASTRAS.forEach((z, i) => { for (const lado of [-1, 1]) { const x = caminoX(z) + lado * (8.5 + rndA() * 3), zz = z + (rndA() - 0.5) * 3, s0 = alturaTerreno(x, zz), alto = 3.5 + rndA() * 3;
+    pilarTallado(kitPilares[3 + (i + (lado > 0 ? 1 : 0)) % 3], new THREE.Vector3(x, s0 - 0.6, zz), new THREE.Vector3(x + (rndA() - 0.5) * 0.3, s0 + alto, zz), 1.3 + rndA() * 0.5, rndA() * 6);
+    colisiones.push({ x, z: zz, r: 0.75, techo: s0 + alto, obj: pilarTallado.ultimo }); } });
   ZONA_ROCAS.forEach((z, i) => { if (i === 2) return; const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
 }
 
@@ -1239,7 +1243,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-87, -94];   // (bien separada de las pilastras de salto, que ahora son tres)                 // unos metros más allá de la segunda pilastra de salto
+const ZONA_AGACHARSE = [-88, -95];   // (bien separada de las pilastras de salto, que ahora son tres)                 // unos metros más allá de la segunda pilastra de salto
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -1404,15 +1408,14 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
 {
   // Alrededor de la plataforma de la onda, un corro de pilastras en pie: caen con la primera onda.
   { const P6 = PLATAFORMA6;
-    for (let k = 0; k < 13; k++) {
-      const a = k / 13 * Math.PI * 2, d = P6.r + 3.4, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;
-      if (Math.cos(a) > 0.9) continue;                            // (solo abierto por donde se llega: el resto, cerrado hasta la onda)
+    for (let k = 0; k < 14; k++) {
+      const a = (k + 0.5) / 14 * Math.PI * 2, d = P6.r + 3.4, x = P6.x + Math.sin(a) * d, z = P6.z + Math.cos(a) * d;   // (en círculo entero; por delante, el hueco justo para llegar)
       const B = kitPilares[3 + (k % 3)], bb = (B.geo.computeBoundingBox(), B.geo.boundingBox), h = 13 + (k % 3) * 2.5, w = 2.6;
       const piv = new THREE.Group(), m = new THREE.Mesh(B.geo, nieveFina), sx = w / (bb.max.x - bb.min.x), sy = h / (bb.max.y - bb.min.y), sz = w / (bb.max.z - bb.min.z);
       m.scale.set(sx, sy, sz); m.position.set(-(bb.min.x + bb.max.x) / 2 * sx, -bb.min.y * sy, -(bb.min.z + bb.max.z) / 2 * sz); m.castShadow = m.receiveShadow = true;
       piv.add(m); piv.position.set(x, alturaTerreno(x, z) - 0.3, z); piv.rotation.y = a; scene.add(piv);
       const col = { x, z, r: 1.5, techo: 99 }; colisiones.push(col);
-      pilastrasOnda.push({ piv, col, t: -1, a });
+      pilastrasOnda.push({ piv, col, t: -1, a, cae: Math.cos(a) < -0.75 });   // (caen del todo solo las que abren el paso a lo siguiente)
     } }
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
   const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx, ACANT.pie + 17) - 0.6;   // (el suelo del pasillo de la escalera)   // (el suelo detrás del abismo)
@@ -1518,12 +1521,12 @@ function moverBolas(dt) {
   if (ondaT >= 0) {
     ondaT += dt; const r = 1 + ondaT * 9;
     espiralEn = _espOnda.set(pos.x, pos.y + 0.5, pos.z); espiralTam = { r, alto: 0.9 }; efectoEspiral = Math.max(efectoEspiral, 1.2 - ondaT * 0.6);
-    for (const P of pilastrasOnda) if (P.t < 0 && Math.hypot(P.piv.position.x - pos.x, P.piv.position.z - pos.z) < r) { P.t = 0; const i = colisiones.indexOf(P.col); if (i >= 0) colisiones.splice(i, 1); }
+    for (const P of pilastrasOnda) if (P.t < 0 && Math.hypot(P.piv.position.x - pos.x, P.piv.position.z - pos.z) < r) { P.t = 0; const i = P.cae ? colisiones.indexOf(P.col) : -1; if (i >= 0) colisiones.splice(i, 1); }
     for (let k = 0; k < nieblaOnda.length; k++) { const n = nieblaOnda[k], a = k / nieblaOnda.length * Math.PI * 2 + ondaT * 0.6; n.visible = true; n.position.set(pos.x + Math.cos(a) * r * 0.85, pos.y + 0.8, pos.z + Math.sin(a) * r * 0.85); n.scale.setScalar(3 + r * 0.5); n.material.opacity = 0.55 * (1 - suave(0.3, 1.6, ondaT)); }
     if (ondaT > 1.6) { ondaT = -1; for (const n of nieblaOnda) n.visible = false; }
   }
   for (const P of pilastrasOnda) if (P.t >= 0 && P.t < 1.4) {   // caen hacia fuera, cada vez más deprisa
-    P.t += dt; const f = Math.min(1, P.t / 1.3); P.piv.rotation.set(0, P.a, 0); P.piv.rotateX(Math.PI / 2 * 0.94 * f * f);
+    P.t += dt; const f = Math.min(1, P.t / 1.3); P.piv.rotation.set(0, P.a, 0); P.piv.rotateX((P.cae ? Math.PI / 2 * 0.94 : 0.32) * f * f);   // (las demás se inclinan y quedan apoyadas)
   }
   const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
   for (const b of bolas) {
@@ -1548,7 +1551,7 @@ for (const H of huellasGigantes()) {
     o.material.onBeforeCompile = sh => { sh.uniforms.y0H = { value: y0 }; sh.vertexShader = "varying float vYH;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vYH = (modelMatrix * vec4(transformed, 1.0)).y;");
       sh.fragmentShader = "uniform float y0H; varying float vYH;\n" + sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= mix(1.0, 0.72, smoothstep(0.02, -0.3, vYH - y0H));"); };
     o.material.customProgramCacheKey = () => "huella"; } }); g.add(d);
-  g.position.set(H.x, y0 - 0.25, H.z);   // (algo enterradas, con el reborde a la vista) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
+  g.position.set(H.x, y0 - 0.15, H.z);   // (algo enterradas, con el reborde a la vista) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
@@ -2942,11 +2945,21 @@ function centroDelPuno(destino) {
 }
 // Luz del bastón: se enciende con la magia y se apaga despacio.
 let brilloBaston = 0;
+// Al impulsarse en el aire, una estela corta tras la esfera del bastón.
+let estelaT = 0;
+const estela = Array.from({ length: 12 }, () => { const h = halo(0xdfeeff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
+function moverEstela(dt) {
+  const ver = estelaT > 0; estelaT = Math.max(0, estelaT - dt);
+  for (let i = estela.length - 1; i > 0; i--) estela[i].p.copy(estela[i - 1].p);
+  baston.userData.luz.getWorldPosition(estela[0].p);
+  estela.forEach((e, i) => { e.h.visible = ver; if (!ver) return; const k = 1 - i / estela.length; e.h.position.copy(e.p); e.h.scale.setScalar(0.18 + 0.32 * k); e.h.material.opacity = 0.5 * k * Math.min(1, estelaT / 0.3); });
+}
 function luzBaston(dt) {
+  moverEstela(dt);
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = brilloBaston; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.6; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  luz.material.opacity = brilloBaston * 0.55; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.28; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
   piedra.emissive.setRGB(0.12, 0.14, 0.18).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
@@ -3558,6 +3571,7 @@ const trazo = (() => {
   document.body.appendChild(capa);
   const svg = capa.querySelector("svg"), guia = capa.querySelector(".guia"), hecho = capa.querySelector(".hecho");
   const inicio = capa.querySelector(".inicio"), dedo = capa.querySelector(".dedo");
+  const trozos = Array.from({ length: 28 }, (_, k) => { const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("fill", "none"); p.setAttribute("stroke", k < 14 ? "#ffffff" : "#dfeeff"); p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round"); if (k >= 14) p.style.filter = "blur(1.5px)"; svg.insertBefore(p, hecho); return p; });
   let pts = [], s = [], L = 0, figura = null, fase = "nada", progreso = 0, cazador = 0, espera = 0, alAcabar = null;
   // La figura en puntos cada unidad, con la distancia recorrida hasta cada uno.
   function preparar(nombre) {
@@ -3576,7 +3590,15 @@ const trazo = (() => {
   function dibujar() {
     // Lo trazado se va borrando desde el principio: solo queda la línea entre lo borrado y el dedo.
     const i0 = indice(Math.max(0, cazador)), i1 = indice(progreso);
-    hecho.setAttribute("d", progreso > 0 && i1 > i0 ? "M" + pts.slice(i0, i1 + 1).map(q => q.join(" ")).join(" L") : "");
+    hecho.setAttribute("d", "");
+    // El trazo como la magia: afinado en los extremos y con un halo suave alrededor (en tramos de grosor variable).
+    const n = trozos.length / 2, tramo = Math.max(1, (i1 - i0) / n);
+    for (let k = 0; k < n; k++) {
+      const a = Math.floor(i0 + k * tramo), b = Math.min(i1, Math.ceil(i0 + (k + 1) * tramo)), t = (k + 0.5) / n, g = Math.sin(Math.PI * t);
+      const d = progreso > 0 && i1 > i0 && b > a ? "M" + pts.slice(a, b + 1).map(q => q.join(" ")).join(" L") : "";
+      trozos[k].setAttribute("d", d); trozos[k].setAttribute("stroke-width", (0.6 + 3.2 * g).toFixed(2)); trozos[k].setAttribute("stroke-opacity", (0.35 + 0.65 * g).toFixed(2));
+      trozos[n + k].setAttribute("d", d); trozos[n + k].setAttribute("stroke-width", (2 + 9 * g).toFixed(2)); trozos[n + k].setAttribute("stroke-opacity", (0.18 * g).toFixed(2));
+    }
     inicio.style.opacity = fase === "esperando" ? 1 : 0;
   }
   function reiniciar() { fase = "esperando"; progreso = 0; cazador = 0; dedo.style.opacity = 0; dibujar(); }
@@ -4043,7 +4065,7 @@ function actualizar(dt) {
       }
     }
     if (pulsada("KeyE", "KeyJ") && !enSuelo && tieneBaston && !impulsoUsado) {
-      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; musica.viento(0.3, 1.25);
+      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; estelaT = 0.7; musica.viento(0.3, 1.25);
     }
 
     const xAntes = pos.x, zAntes = pos.z;
@@ -4515,7 +4537,7 @@ function efectos(dt, adelante) {
   efectoEspiral = Math.max(0, efectoEspiral - dt);
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
   espiral.material.opacity = intensidad * 0.68;                      // algo más suave
-  { const c0 = espiralEn || pos; haloEspiral.position.set(c0.x, c0.y + (espiralEn ? 0 : 1), c0.z); const r = espiralTam ? espiralTam.r : 1; haloEspiral.scale.setScalar((3.6 + r * 3) * (1 + 0.06 * Math.sin(reloj * 3))); haloEspiral.material.opacity = intensidad * 0.36; }
+  { const c0 = espiralEn || pos; haloEspiral.position.set(c0.x, c0.y + (espiralEn ? 0 : 1), c0.z); const r = espiralTam ? espiralTam.r : 1; haloEspiral.scale.setScalar((3.6 + r * 3) * (1 + 0.06 * Math.sin(reloj * 3))); haloEspiral.material.opacity = intensidad * 0.18; }
   const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
   const centro = espiralEn || pos;
   for (let i = 0; i < n; i++) {
