@@ -2630,11 +2630,11 @@ const capaTela = (() => {
       for (let k = 0; k < P.length; k++) {
         if (k < FIJAS) { P[k].copy(A[k]); Q[k].copy(A[k]); continue; }
         const i = Math.floor(k / NJ), j = k % NJ, baja = i / (NI - 1);
-        _v.subVectors(P[k], Q[k]).multiplyScalar(0.97); Q[k].copy(P[k]);
+        _v.subVectors(P[k], Q[k]).multiplyScalar(0.95); Q[k].copy(P[k]);   // (más amortiguada: se mueve más suave)
         const racha = 0.5 + 0.5 * Math.sin(reloj * 2.1 + j * 0.6 + i * 0.4) * Math.sin(reloj * 0.8 + j * 0.25);
         _v.x += viento.x * racha * baja * baja * dt * dt; _v.z += viento.z * racha * baja * baja * dt * dt;
         _v.y += ((viento.y || 0) * baja * baja - 9.8) * dt * dt;
-        const ondea = Math.sin(reloj * (5.3 + 3 * corre) + j * 0.8 + i * 0.6) * (1.6 + 6 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
+        const ondea = Math.sin(reloj * (2.4 + 1.4 * corre) + j * 0.5 + i * 0.4) * (1.2 + 4 * corre) * baja * baja * baja;   // abajo, ondea suelta (más al correr)
         _v.addScaledVector(atras, 4 * corre * (0.3 + baja) * dt * dt);   // al correr, el aire la echa atrás
         _v.addScaledVector(lado, ondea * dt * dt).addScaledVector(atras, Math.abs(ondea) * 0.6 * dt * dt);
         P[k].add(_v).lerp(A[k], 0.008 + 0.045 * (1 - baja) * (1 - baja) * (1 - 0.65 * corre) + 0.08 * alzado);   // arriba sigue su forma: sin arco        // tiende a su caída, suelta
@@ -3101,8 +3101,10 @@ estilo.textContent = `
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
   #portada .idioma button[aria-pressed="true"] { color: var(--tinta); text-decoration: underline; text-underline-offset: 4px; }
-  #cita { position: fixed; inset: 0; display: grid; place-content: center; padding: 0 32px; text-align: center; font: italic 22px/1.5 Georgia, serif; color: #fff; text-shadow: 0 1px 12px rgba(31,42,61,.25); pointer-events: none; opacity: 0; z-index: 4; }
-  #cita.ver { animation: cita 6.5s ease forwards; }
+  #cita { position: fixed; left: 0; right: 0; top: 14%; padding: 0 32px; text-align: center; font: italic 22px/1.5 Georgia, serif; color: #fff; text-shadow: 0 1px 12px rgba(31,42,61,.25); pointer-events: none; z-index: 4; }
+  #cita span { display: block; opacity: 0; }
+  #cita.ver span { animation: cita 6.5s ease 1s forwards; }
+  #cita.ver span + span { animation-delay: 2.2s; }       /* la segunda frase, un poco después */
   @keyframes cita { 0% { opacity: 0; } 18% { opacity: 1; } 65% { opacity: 1; } 100% { opacity: 0; } }
   #desarrollo { position: fixed; left: 0; right: 0; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 13px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .8; pointer-events: none; }
   #portada .autor { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); text-align: center; font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); opacity: .7; pointer-events: none; }
@@ -3198,7 +3200,7 @@ ui.innerHTML = `
   <div id="rotulo" aria-live="polite"></div>
   <div id="ayuda" hidden data-t="WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara">WASD mover · Mayús correr · Espacio saltar · C agacharse · E viento · V B cámara</div>
   <button id="cerrar" type="button" aria-label="Salir a la portada" title="Salir a la portada" data-t-aria="Salir a la portada" hidden>×</button>
-  <div id="cita" data-t="Caminante, no hay camino,\nse hace camino al andar.">Caminante, no hay camino,<br>se hace camino al andar.</div>
+  <div id="cita"></div>
   <div id="desarrollo" hidden data-t="En desarrollo…">En desarrollo…</div>
   <div id="mandos" hidden>
     <div id="zona-palanca"></div>
@@ -3404,7 +3406,7 @@ function empezar(santuario = 0) {
   ayuda.hidden = tactil;
   cerrar.hidden = false;
   if (santuario) empezarEnSantuario(santuario);
-  else { const c = ui.querySelector("#cita"); c.innerHTML = tr("Caminante, no hay camino,\nse hace camino al andar.").replace("\n", "<br>"); c.classList.add("ver"); }   // al empezar el viaje, antes de ver a Blizzard
+  else { const c = ui.querySelector("#cita"); c.innerHTML = tr("Caminante, no hay camino,\nse hace camino al andar.").split("\n").map(t => `<span>${t}</span>`).join(""); c.classList.add("ver"); }   // al empezar el viaje, antes de ver a Blizzard
 }
 // Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
 // sin la toma inicial.
