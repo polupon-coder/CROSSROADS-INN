@@ -1547,7 +1547,7 @@ for (const H of huellasGigantes()) {
   // El modelo tal cual (su textura, sin teñir ni recortar), redondo, a ras de la nieve.
   const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
   d.scale.set(3.8 / t.x, 0.55 / t.y, 3.8 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
-  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = o.material.clone(); o.material.userData.suelo = true; } }); g.add(d);
+  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = o.material.clone(); o.material.color.setRGB(0.86, 0.89, 0.95); o.material.userData.suelo = true; } }); g.add(d);   // (algo más oscuras y azuladas, como la nieve del suelo)
   g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.47, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
 }
 
