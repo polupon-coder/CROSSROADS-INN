@@ -891,7 +891,7 @@ const ZONA_ROCAS = [-26, -35, -44], ZONA_PILASTRAS = [-54, -64], ZONA_MIXTA = [-
   const pil = (dx, z, largo, grueso, giro) => (z = TRAS(z), pilastraCaida(caminoX(z) + dx, z, largo, grueso, giro));
   // (La zona mixta de antes la sustituye el bosque de columnas, más abajo.)
   // A los lados de la zona abierta, pilastras caídas bajas que se saltan.
-  ZONA_ROCAS.forEach((z, i) => { const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
+  ZONA_ROCAS.forEach((z, i) => { if (i === 2) return; const lado = i % 2 ? 1 : -1; pilastraCaida(caminoX(z) + lado * (5.5 + rndA() * 1.5), z + 2.5, 3.5 + rndA() * 1.5, 0.9, (rndA() - 0.5) * 0.8); });
 }
 
 // ─── Runas (lámina 80) ─────────────────────────────────────────────────────
@@ -1123,7 +1123,7 @@ for (let x = -18, n = 0; x <= 18; x += 2.2, n++) {
       const R = 0.9 + rndI() * 0.6, alto = 8 + rndI() * 7, suelo = alturaTerreno(x, z);
       pilarTallado(kitPilares[3 + Math.floor(rndI() * 3)], new THREE.Vector3(x, suelo - 1, z), new THREE.Vector3(x + (rndI() - 0.5) * 0.4, suelo + alto, z), R * 2, rndI() * 6);
       colisiones.push({ x, z, r: R * 0.95, techo: suelo + alto, obj: pilarTallado.ultimo });
-    } else if (!solapa(x, z, 2.5)) colocar(kitRocas[2 + Math.floor(rndI() * 2)], x, z, 2.8 + rndI() * 3.2, rndI() * 6);
+    }                                                            // (sin rocas grandes: no hay muros al principio)
   }
 }
 
@@ -1134,7 +1134,7 @@ for (const [x, z, alto, k, giro] of [[-27, -34, 17, 5, 0.4], [19, -20, 19, 4, 2.
 }
 
 // Algunas rocas de 1 B en mitad del camino, para practicar el salto.
-[[-2, -58], [2.5, -84], [1, -137]].forEach(([x, z]) => roca(x, LARGO(z), 0.9, 1.2));
+[[1, -137]].forEach(([x, z]) => roca(x, LARGO(z), 0.9, 1.2));   // (las de antes del puente, fuera: nada delante de las pilastras)
 // Monolitos tallados que anuncian el final del capítulo.
 monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolito(-8, LARGO(-184), 8, 0.15); monolito(8.5, LARGO(-188), 6.5, -0.2);
 
@@ -1184,7 +1184,7 @@ monolito(-8, LARGO(-150), 7.5, 0.3); monolito(9, LARGO(-158), 9, -0.25); monolit
 // En el hueco tras las pilastras de salto: tres pasos bajos distintos, grandes, separados (con aire
 // entre ellos para volver a ver a Blizzard) y no paralelos. De pie no se pasa; agachado, sí.
 // Bajo cada pilastra hay un techo bajo que empuja hacia fuera si no se va agachado.
-const ZONA_AGACHARSE = [-74.5, -80.5];                 // unos metros más allá de la segunda pilastra de salto
+const ZONA_AGACHARSE = [-80, -86.5];   // (bien separada de las pilastras de salto)                 // unos metros más allá de la segunda pilastra de salto
 {
   const rndG = generador(3131);
   // Pilastra tumbada con su eje de a a b; a lo largo, techo bajo (su cara de abajo) y techo (la de arriba).
@@ -1234,10 +1234,7 @@ for (const [dx, z, R, alto] of [[7.5, ZONA_MIXTA[0] - 4, 1.4, 15], [9.8, ZONA_MI
   const z0 = ZONA_MIXTA[0] - 6, x0 = caminoX(z0) - 9, s0 = alturaTerreno(x0, z0);
   pilarTallado(kitPilares[4], new THREE.Vector3(x0, s0 - 1, z0), new THREE.Vector3(x0 - 0.3, s0 + 17, z0 + 0.2), 2.6, 1.3);
   colisiones.push({ x: x0, z: z0, r: 1.25, techo: s0 + 17, obj: pilarTallado.ultimo });
-  for (let z = ZONA_MIXTA[0] + 2; z > PUENTE.desde + 4; z -= 3.2 + rndV() * 2) for (const lado of [-1, 1]) {
-    const x = caminoX(z) + lado * (6 + rndV() * 5);
-    if (!solapa(x, z, 2.4)) colocar(kitRocas[2 + Math.floor(rndV() * 2)], x, z, 2.6 + rndV() * 2.8, rndV() * 6);
-  }
+  // (sin la fila de rocas grandes a los lados: antes del puente no hay muros)
 }
 
 // Paredes de roca a los lados de las pilastras de salto y de los pasos bajos: no se pueden rodear,
@@ -1471,7 +1468,7 @@ for (let i = 0; i < 34; i++) {
 // Tramos entre zonas: rocas y ruinas a los lados del camino, dejando libre el paso.
 {
   const rndR = generador(2718);
-  const tramos = [[-43, -53, 10], [TRAS(-114), TRAS(-123), 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
+  const tramos = [[TRAS(-114), TRAS(-123), 8], [GRIETA.z - 6, PRECIPICIO.desde + 5, 9], [PRECIPICIO.hasta - 4, RELLANO.z + 4, 8]];
   for (const [desde, hasta, n] of tramos) for (let i = 0; i < n; i++) {
     const z = lerp(desde, hasta, (i + rndR()) / n), lado = i % 2 ? 1 : -1; let x = caminoX(z) + lado * (4.5 + rndR() * 6.5);
     const ruina = rndR() < 0.45, kit = ruina ? kitRuinas : kitRocas;
