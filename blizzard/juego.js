@@ -410,7 +410,7 @@ function alturaTerreno(x, z) {
   if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
   // El acantilado de columnas: de lado a lado; solo se sube por la escalera del centro.
   if (z < ACANT.pie + 0.5) { const d = Math.abs(x - caminoX(z)), r = clamp((ACANT.pie - z) / (ACANT.pie - ACANT.cima), 0, 1);
-    h += ACANT.alto * Math.max(suave(ACANT.pie - 1.1, ACANT.pie - 1.9, z) * (1 - suave(2.9, 2.4, d)),   // (el escalón, dentro del acantilado: su cara es la del modelo, al pie de la escalera)
+    h += ACANT.alto * Math.max(suave(ACANT.cima - 3.6, ACANT.cima - 4.4, z),   // (el escalón, metido dentro del modelo del acantilado: no se ve)
        r * suave(2.9, 2.4, d)) - 1.2 * Math.min(1, r * 6) * (1 - suave(ACANT.cima + 0.6, ACANT.cima - 0.2, z)) * suave(2.9, 2.4, d); }   // (bajo la escalera, más bajo: se ve y se pisa la escalera)
   return h - hoyoHuellas(x, z);
 }
@@ -561,7 +561,7 @@ let MAT_SUELO = null;                                        // el material del 
       pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.46, 0.5, 0.58);
       float roca = 1.0 - smoothstep(0.4, 0.66, nS.y + (n1.r - 0.5) * 0.35 + (pr2.r - 0.6) * 0.6);
       float dunaS = smoothstep(-562.0, -554.0, vMundo.z);           // en las dunas: todo nieve
-      roca *= max(max(dunaS, 1.0 - smoothstep(-797.0, -792.0, vMundo.z)) * smoothstep(-980.0, -972.0, vMundo.z), 1.0 - smoothstep(-1121.0, -1119.0, vMundo.z));   // (tras el desfiladero, otra vez todo nieve; en el acantilado, roca)   // (en el desfiladero final, otra vez paredes de roca)
+      roca *= max(max(dunaS, 1.0 - smoothstep(-797.0, -792.0, vMundo.z)) * smoothstep(-980.0, -972.0, vMundo.z), 0.0);   // (tras el desfiladero, otra vez todo nieve)   // (en el desfiladero final, otra vez paredes de roca)
       // Barlovento claro, sotavento algo azulado (la cresta se marca); poco a poco al entrar en las dunas
       // y solo en las caras de verdad empinadas (en los bultos pequeños y montones salía a manchas).
       float leeS = smoothstep(-592.0, -558.0, vMundo.z);
@@ -1408,8 +1408,13 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     const ancho = 34, xc = cx + lado * (5.4 + ancho / 2 + k * (ancho - 1));
     encajar(gAcantilado, xc, y0, ACANT.pie + 2.5 - fondo / 2 - k * 1.5, ancho, ACANT.alto + 2.5 + k * 3, fondo, lado * 0.03);
   }
-  for (const lado of [-1, 1]) encajar(gAcantilado, cx + lado * (2.55 + 3), y0, (ACANT.pie + ACANT.cima) / 2 - 1, ACANT.pie - ACANT.cima + 4, ACANT.alto + 3, 6, Math.PI / 2);
-  { const e = encajar(gEscalinata, cx, alturaTerreno(cx, ACANT.pie) - 0.4, (ACANT.pie + ACANT.cima) / 2, 5.0, ACANT.alto + 0.5, ACANT.pie - ACANT.cima + 1.5, ESCALINATA_GIRO);
+  // (giradas 90°, con la cara de columnas hacia el pasillo)
+  for (const lado of [-1, 1]) encajar(gAcantilado, cx + lado * (2.55 + 3), y0, (ACANT.pie + ACANT.cima) / 2 - 1, ACANT.pie - ACANT.cima + 4, ACANT.alto + 3, 6, -lado * Math.PI / 2);
+  // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
+  for (let d = 3.6; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: ACANT.pie - 0.6, r: 1.3, techo: 99 });
+  for (let z2 = ACANT.pie - 1.5; z2 > ACANT.cima - 2; z2 -= 1.4) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * 3.75, z: z2, r: 1.2, techo: 99 });
+  { const e = encajar(gEscalinata, cx, alturaTerreno(cx, ACANT.pie + 2) - 1.1, (ACANT.pie + ACANT.cima) / 2 + 0.8, 5.0, ACANT.alto + 1.2,   // (el primer peldaño, a ras del suelo)
+      ACANT.pie - ACANT.cima + 1.5, ESCALINATA_GIRO);
     void e;
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
     const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 1.5) + 0.05, ACANT.pie + 0.6), B = new THREE.Vector3(cx, alturaTerreno(cx + 8, ACANT.cima - 6) + 0.05, ACANT.cima - 0.4);
