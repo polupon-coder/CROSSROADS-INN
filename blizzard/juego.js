@@ -376,7 +376,7 @@ function hoyoHuellas(x, z) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 20) continue;
     const u = (dx * H.c - dz * H.s) / 1.9, v = (dx * H.s + dz * H.c) / 1.9;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    hondo = Math.max(hondo, 0.45 * (1 - suave(0.45, 1.0, Math.hypot(u, v))));   // (pared suave: empinada, el suelo la pintaba de roca en hilos negros)   // (el hoyo, bajo el fondo del modelo)
+    hondo = Math.max(hondo, 0.45 * (1 - suave(0.8, 0.95, Math.hypot(u, v))));   // (el hoyo, bajo el fondo del modelo)
     void d;   // (el hoyo, poco hondo: el modelo pone el reborde)
   }
   return Math.max(0, hondo);
@@ -1520,9 +1520,9 @@ const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite
 // sobre las pilastras por su paso, baja bajo los pasos bajos); de vez en cuando vuelve, rodea a Blizzard y
 // sigue; al final se funde con el bastón.
 const guia = (() => {
-  const luz = halo(0xe6f2ff); luz.scale.setScalar(0.55); luz.visible = false; scene.add(luz);
-  const cola = Array.from({ length: 10 }, () => { const h = halo(0xdcecff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
-  return { luz, cola, z: null, modo: "guia", t: 0, reloj: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
+  const luz = halo(0xe6f2ff); luz.scale.setScalar(0.45); luz.visible = false; scene.add(luz);
+  const cola = Array.from({ length: 26 }, () => { const h = halo(0xdcecff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
+  return { luz, cola, z: null, modo: "vuelta", t: 0, reloj: 0, paso: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
 })();
 function puntoGuia(z, out) {
   let x = caminoX(z), dy = 0;
@@ -1541,20 +1541,19 @@ function moverGuia(dt) {
   if (G.modo === "vuelta") {                                       // rodea a Blizzard y sigue
     G.t += dt; const a = G.t * 3.2, objetivo = _gp.set(pos.x + Math.cos(a) * 1.5, pos.y + 1.2 + Math.sin(G.t * 5) * 0.2, pos.z + Math.sin(a) * 1.5);
     G.p.lerp(objetivo, 1 - Math.exp(-dt * 5));
-    if (G.t > 2.6) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.z = Math.min(G.z, pos.z - 1); }
+    if (G.t > 3.9) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.z = pos.z - 1; }   // (dos vueltas y luego, delante: que la sigan)
   } else {
     const delante = pos.z - G.z;                                   // lo que lleva de ventaja
     if (!llega && delante < 7) G.z -= dt * 4.2;
-    if (!llega && (delante > 16 || G.reloj > 14) && !G.fin) { G.modo = "vuelta"; G.t = 0; }
     const objetivo = llega ? bast : puntoGuia(G.z, _gp);
     G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
     if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 0.8);   // se funde con el bastón
   }
   const vis = !tieneBaston && estado !== "portada" && estado !== "intro" && G.fin < 1;
-  G.luz.visible = vis; G.luz.position.copy(G.p); G.luz.material.opacity = 0.75 * (1 - G.fin) * (0.85 + 0.15 * Math.sin(G.reloj * 6));
-  for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p);
-  G.cola[0].p.copy(G.p);
-  G.cola.forEach((c, i) => { const k = 1 - i / G.cola.length; c.h.visible = vis; c.h.position.copy(c.p); c.h.scale.setScalar(0.12 + 0.3 * k); c.h.material.opacity = 0.35 * k * (1 - G.fin); });
+  G.luz.visible = vis; G.luz.position.copy(G.p); G.luz.material.opacity = 0.42 * (1 - G.fin) * (0.85 + 0.15 * Math.sin(G.reloj * 6));
+  G.paso += dt;                                                    // (la estela guarda un punto cada poco: larga y tarda en irse)
+  if (G.paso > 0.06) { G.paso = 0; for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p); G.cola[0].p.copy(G.p); }
+  G.cola.forEach((c, i) => { const k = 1 - i / G.cola.length; c.h.visible = vis; c.h.position.copy(c.p); c.h.scale.setScalar(0.1 + 0.28 * k); c.h.material.opacity = 0.22 * Math.pow(k, 0.7) * (1 - G.fin); });
 }
 function moverBolas(dt) {
   moverGuia(dt);
@@ -3120,7 +3119,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
       base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
       afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
     }
-    if (cercaHuella(x, z) < 2.4) base[i] = -0.7;                    // (nunca dentro de las huellas)
+    if (cercaHuella(x, z) < 2.6) base[i] = -0.02;                   // (nunca dentro de las huellas: allí, a ras)
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
   // Fuera los triángulos que caen en un desnivel (borde de abismo, escalón, pared): si no, el manto
@@ -3128,7 +3127,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
   { const ix = geo.index.array, bien = [];
     for (let t = 0; t < ix.length; t += 3) {
       const a = suelo[ix[t]], b = suelo[ix[t + 1]], c = suelo[ix[t + 2]];
-      if (Math.max(a, b, c) - Math.min(a, b, c) < (manto ? 6 : 0.35) && Math.min(a, b, c) > -2 && Math.min(base[ix[t]], base[ix[t + 1]], base[ix[t + 2]]) > -0.5) bien.push(ix[t], ix[t + 1], ix[t + 2]);   // (fuera también lo que cae en una huella: dejaba una grieta)
+      if (Math.max(a, b, c) - Math.min(a, b, c) < (manto ? 6 : 0.35) && Math.min(a, b, c) > -2) bien.push(ix[t], ix[t + 1], ix[t + 2]);
     }
     geo.setIndex(bien); }
   geo.computeVertexNormals();
@@ -3142,8 +3141,6 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
 // Nieve acumulada alrededor de cada huella (por fuera del reborde).
-{ const L = huellasGigantes(); for (let i = 0; i < L.length - 1; i++) ventisquero((L[i].x + L[i + 1].x) / 2, (L[i].z + L[i + 1].z) / 2 + 1.2, 2.6, 2.2, 0.4, null, true); }   // (entre pisada y pisada)
-for (const H of huellasGigantes()) for (let k = 0; k < 4; k++) { const a = k * 1.6 + H.x, d = 3.1; ventisquero(H.x + Math.cos(a) * d, H.z + Math.sin(a) * d, 3, 2.2, 0.35, null, true); }
 
 // Nieve acumulada contra parte del borde de la primera plataforma (del lado de fuera del camino).
 for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.1, 3.6, 2.8, 0.45]]) {
