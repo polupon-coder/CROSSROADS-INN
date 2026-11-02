@@ -410,7 +410,7 @@ function alturaTerreno(x, z) {
   if (Math.abs(x) < 90) for (const [d, a, zMax, zMin] of franjasAbismos()) if (z < zMax && z > zMin && z < d(x) && z > a(x)) h = -60;   // hondo: el fondo no se ve
   // El acantilado de columnas: de lado a lado; solo se sube por la escalera del centro.
   if (z < ACANT.pie + 0.5) h += ACANT.alto * suave(ACANT.cima - 3.6, ACANT.cima - 4.4, z);
-  if (z < ACANT.pie + 7.8 && z > ACANT.pie + 0.1 && Math.abs(x) < 90) h = -60;   // el abismo delante del muro (se cruza por el puente)   // (el escalón, metido dentro del acantilado; la escalera, aparte)
+  if (z < ACANT.pie + 7.8 && z > ACANT.pie - 1.2 && Math.abs(x) < 90 && (z > ACANT.pie + 0.1 || Math.abs(x - caminoX(z)) > 2.6)) h = -60;   // (la nieve no llega al pie del muro)   // el abismo delante del muro (se cruza por el puente)   // (el escalón, metido dentro del acantilado; la escalera, aparte)
   return h - hoyoHuellas(x, z);
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -1399,7 +1399,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
    g = encajar(gPlatAntigua, x, y, z, 11, 2.2, 11, Math.PI);
   colisiones.push({ x, z, r: 5.3, techo: y + 2.4, obj: g });
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
-  const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx + 8, ACANT.pie - 0.5) - 0.6;   // (el suelo detrás del abismo)
+  const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx + 8, ACANT.pie - 2.5) - 0.6;   // (el suelo detrás del abismo)
   // La cara del acantilado, al pie de la escalera, de lado a lado; la escalera sube metida dentro, entre dos
   // paredes de columnas en perpendicular.
   const fondo = ACANT.pie - ACANT.cima + 8;
@@ -1407,7 +1407,9 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // que se montan sobre los bordes de la escalera (sin espacio entre pared y escalera).
   for (const lado of [-1, 1]) for (const k of [0, 1]) {
     const ancho = 40, xc = cx + lado * (1.25 + ancho / 2 + k * (ancho - 1)), alto = 58 + k * 4;
-    encajar(gAcantilado, xc, y0 - 34, ACANT.pie + 0.2 - fondo / 2 - k * 1.2, ancho, alto, fondo, 0);
+    // (y otra copia debajo, para que la roca siga hasta el fondo; sin la nieve al pie que pone el sombreado)
+    for (const abajo of [0, 1]) encajar(gAcantilado, xc, y0 - 34 - abajo * (alto - 2), ACANT.pie + 0.2 - fondo / 2 - k * 1.2, ancho, alto, fondo, 0)
+      .traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.suelo = true; } });
   }
   // El choque: a lo largo de la cara del acantilado y de las dos paredes del pasillo (no se entra en la roca).
   for (let d = 3.0; d < 72; d += 1.6) for (const lado of [-1, 1]) colisiones.push({ x: cx + lado * d, z: ACANT.pie - 0.6, r: 1.3, techo: 99 });
