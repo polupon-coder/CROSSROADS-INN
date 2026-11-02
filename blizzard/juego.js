@@ -13,6 +13,8 @@ let idioma = "es";
 try { idioma = localStorage.getItem("blizzard-idioma") || ((navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"); } catch { idioma = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"; }
 const INGLES = {
   "Cargando…": "Loading…",
+  "Meditando…": "Meditating…",
+  "La paciencia es amarga, pero sus frutos son dulces.": "Patience is bitter, but its fruit is sweet.",
   "Una puerta sellada.\nSube a la plataforma.": "A sealed door.\nClimb onto the platform.",
   "Cruza por la pilastra.": "Cross on the fallen pillar.",
   "E alza las rocas.": "E lifts the rocks.",
@@ -104,7 +106,7 @@ const INGLES = {
 const tr = t => idioma === "en" ? INGLES[t] ?? t : t;
 document.documentElement.lang = idioma;
 const aviso = document.createElement("p");
-aviso.textContent = tr("Cargando…");
+aviso.innerHTML = `<span class="medita">${tr("Meditando…")}</span><small>${tr("La paciencia es amarga, pero sus frutos son dulces.")}</small><style>@keyframes medita { 0%, 100% { opacity: 1 } 50% { opacity: .25 } } .medita { animation: medita 2.4s ease-in-out infinite; } #carga small { display: block; margin-top: 14px; font-size: 15px; font-style: italic; opacity: .7; }</style>`; aviso.id = "carga";
 aviso.style.cssText = "position:fixed;inset:0;margin:0;display:grid;place-content:center;font:20px Georgia,serif;color:#1f2a3d;background:#c9d8ee;z-index:9";
 document.body.appendChild(aviso);
 const cargador = new THREE.GLTFLoader();
