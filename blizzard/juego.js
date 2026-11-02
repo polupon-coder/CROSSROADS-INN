@@ -3605,9 +3605,11 @@ function empezar(santuario = 0) {
 // Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
 // sin la toma inicial.
 function empezarEnSantuario(n) {
-  const P = PLATAFORMAS[n - 1];
+  const P = PLATAFORMAS[Math.min(n, 5) - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
-  pos.set(x, alturaSuelo(x, z) + 0.05, z); vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
+  pos.set(x, alturaSuelo(x, z) + 0.05, z);
+  if (n === 6) { const zz = DUNAS2.hasta - 4, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); }   // (provisional: tras las dunas)
+  vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
   tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false;
   if (n >= 2) { muevePiedras = true; yaAlzada = true; }
   if (n >= 3) abrePuertas = true;
@@ -3619,6 +3621,7 @@ function empezarEnSantuario(n) {
   if (n >= 2) avisoPuente = avisoSalto = avisoAgacharse = avisoMixta = avisoRocas = avisoGrieta = avisoRellano = true;
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
   rotular(SANTUARIOS[n - 1].nombre, 4);
+  if (n === 6) puzle.col4.t = 99;   // (la columna, ya caída)
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -3636,6 +3639,7 @@ const SANTUARIOS = [
   { runa: "puerta", nombre: "Santuario de la puerta", texto: "Con bastón y rocas. Aquí aprendes a abrir la puerta." },
   { runa: "espiral", nombre: "Santuario del giro", texto: "Al final de las dunas. Aquí aprendes a girar las piedras de runas." },
   { runa: "barrido", nombre: "Santuario de la revelación", texto: "Tras el desfiladero. Aquí aprendes a barrer la nieve con el viento y revelar las runas." },
+  { runa: "barrido", nombre: "Prueba: tras las dunas", texto: "" },   // (provisional, para probar el acantilado)
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
