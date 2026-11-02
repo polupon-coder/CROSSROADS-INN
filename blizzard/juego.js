@@ -3083,7 +3083,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
   { const ix = geo.index.array, bien = [];
     for (let t = 0; t < ix.length; t += 3) {
       const a = suelo[ix[t]], b = suelo[ix[t + 1]], c = suelo[ix[t + 2]];
-      if (Math.max(a, b, c) - Math.min(a, b, c) < (manto ? 6 : 0.35) && Math.min(a, b, c) > -2) bien.push(ix[t], ix[t + 1], ix[t + 2]);
+      if (Math.max(a, b, c) - Math.min(a, b, c) < (manto ? 6 : 0.35) && Math.min(a, b, c) > -2 && Math.min(base[ix[t]], base[ix[t + 1]], base[ix[t + 2]]) > -0.5) bien.push(ix[t], ix[t + 1], ix[t + 2]);   // (fuera también lo que cae en una huella: dejaba una grieta)
     }
     geo.setIndex(bien); }
   geo.computeVertexNormals();
@@ -3097,7 +3097,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
 // Nieve acumulada alrededor de cada huella (por fuera del reborde).
-for (const H of huellasGigantes()) for (let k = 0; k < 3; k++) { const a = k * 2.1 + H.x, d = 3.3; ventisquero(H.x + Math.cos(a) * d, H.z + Math.sin(a) * d, 3, 2.2, 0.35, null, true); }
+for (const H of huellasGigantes()) for (let k = 0; k < 4; k++) { const a = k * 1.6 + H.x, d = 3.1; ventisquero(H.x + Math.cos(a) * d, H.z + Math.sin(a) * d, 3, 2.2, 0.35, null, true); }
 
 // Nieve acumulada contra parte del borde de la primera plataforma (del lado de fuera del camino).
 for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.1, 3.6, 2.8, 0.45]]) {
