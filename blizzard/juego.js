@@ -376,7 +376,7 @@ function hoyoHuellas(x, z) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 20) continue;
     const u = (dx * H.c - dz * H.s) / 1.9, v = (dx * H.s + dz * H.c) / 1.9;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    hondo = Math.max(hondo, 0.45 * (1 - suave(0.8, 0.95, Math.hypot(u, v))));   // (el hoyo, bajo el fondo del modelo)
+    hondo = Math.max(hondo, 0.45 * (1 - suave(0.45, 1.0, Math.hypot(u, v))));   // (pared suave: empinada, el suelo la pintaba de roca en hilos negros)   // (el hoyo, bajo el fondo del modelo)
     void d;   // (el hoyo, poco hondo: el modelo pone el reborde)
   }
   return Math.max(0, hondo);
@@ -1516,7 +1516,48 @@ const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 -
 let arrastre = 0; const _espOnda = new THREE.Vector3();
 // La niebla que levanta la onda: un anillo de bocanadas que se abre con ella.
 const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color: 0xe8eef8, transparent: true, opacity: 0, depthWrite: false })); n.raycast = () => {}; n.visible = false; scene.add(n); return n; });
+// La esfera guía: hasta encontrar el bastón, una luz con estela va por delante por donde hay que ir (salta
+// sobre las pilastras por su paso, baja bajo los pasos bajos); de vez en cuando vuelve, rodea a Blizzard y
+// sigue; al final se funde con el bastón.
+const guia = (() => {
+  const luz = halo(0xe6f2ff); luz.scale.setScalar(0.55); luz.visible = false; scene.add(luz);
+  const cola = Array.from({ length: 10 }, () => { const h = halo(0xdcecff); h.visible = false; scene.add(h); return { h, p: new THREE.Vector3() }; });
+  return { luz, cola, z: null, modo: "guia", t: 0, reloj: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
+})();
+function puntoGuia(z, out) {
+  let x = caminoX(z), dy = 0;
+  ZONA_PILASTRAS.forEach((zp, i) => { const k = 1 - suave(1.5, 5, Math.abs(z - zp)); x += PASO_SALTO[i] * k; dy += 1.8 * (1 - suave(0, 2.4, Math.abs(z - zp))); });
+  for (const za of ZONA_AGACHARSE) dy -= 0.75 * (1 - suave(0.8, 3, Math.abs(z - za)));
+  const s0 = alturaSuelo(x, z); if (s0 > -5) guia.y = s0;
+  return out.set(x, guia.y + 1.2 + dy, z);
+}
+const _gp = new THREE.Vector3();
+function moverGuia(dt) {
+  const G = guia, activa = !tieneBaston && estado === "juego" && !rescate && G.fin < 1;
+  if (!activa && G.fin === 0) { G.luz.visible = false; for (const c of G.cola) c.h.visible = false; if (!tieneBaston && G.z === null) return; }
+  if (G.z === null) { G.z = pos.z - 2; puntoGuia(G.z, G.p); }
+  G.reloj += dt;
+  const bast = baston.userData.luz.getWorldPosition(_gp.clone()), llega = G.z <= PLATAFORMA.z + 2;
+  if (G.modo === "vuelta") {                                       // rodea a Blizzard y sigue
+    G.t += dt; const a = G.t * 3.2, objetivo = _gp.set(pos.x + Math.cos(a) * 1.5, pos.y + 1.2 + Math.sin(G.t * 5) * 0.2, pos.z + Math.sin(a) * 1.5);
+    G.p.lerp(objetivo, 1 - Math.exp(-dt * 5));
+    if (G.t > 2.6) { G.modo = "guia"; G.t = 0; G.reloj = 0; G.z = Math.min(G.z, pos.z - 1); }
+  } else {
+    const delante = pos.z - G.z;                                   // lo que lleva de ventaja
+    if (!llega && delante < 7) G.z -= dt * 4.2;
+    if (!llega && (delante > 16 || G.reloj > 14) && !G.fin) { G.modo = "vuelta"; G.t = 0; }
+    const objetivo = llega ? bast : puntoGuia(G.z, _gp);
+    G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
+    if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 0.8);   // se funde con el bastón
+  }
+  const vis = !tieneBaston && estado !== "portada" && estado !== "intro" && G.fin < 1;
+  G.luz.visible = vis; G.luz.position.copy(G.p); G.luz.material.opacity = 0.75 * (1 - G.fin) * (0.85 + 0.15 * Math.sin(G.reloj * 6));
+  for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p);
+  G.cola[0].p.copy(G.p);
+  G.cola.forEach((c, i) => { const k = 1 - i / G.cola.length; c.h.visible = vis; c.h.position.copy(c.p); c.h.scale.setScalar(0.12 + 0.3 * k); c.h.material.opacity = 0.35 * k * (1 - G.fin); });
+}
 function moverBolas(dt) {
+  moverGuia(dt);
   arrastre = Math.max(0, arrastre - dt);
   // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
   // espiral que se abre y lo aparta todo; las pilastras de alrededor de su plataforma caen.
@@ -3101,6 +3142,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
 // Nieve acumulada alrededor de cada huella (por fuera del reborde).
+{ const L = huellasGigantes(); for (let i = 0; i < L.length - 1; i++) ventisquero((L[i].x + L[i + 1].x) / 2, (L[i].z + L[i + 1].z) / 2 + 1.2, 2.6, 2.2, 0.4, null, true); }   // (entre pisada y pisada)
 for (const H of huellasGigantes()) for (let k = 0; k < 4; k++) { const a = k * 1.6 + H.x, d = 3.1; ventisquero(H.x + Math.cos(a) * d, H.z + Math.sin(a) * d, 3, 2.2, 0.35, null, true); }
 
 // Nieve acumulada contra parte del borde de la primera plataforma (del lado de fuera del camino).
