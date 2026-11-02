@@ -271,7 +271,7 @@ const uPies = { value: new THREE.Vector3() };                     // dónde est�
 // Resplandor mágico: un halo borroso y aditivo (se suma a la luz) para todo lo que brilla.
 const texHalo = (() => {
   const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d"), d = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  d.addColorStop(0, "rgba(255,255,255,1)"); d.addColorStop(0.18, "rgba(235,245,255,0.75)"); d.addColorStop(0.45, "rgba(200,225,255,0.28)"); d.addColorStop(1, "rgba(190,215,255,0)");
+  d.addColorStop(0, "rgba(255,255,255,0.8)"); d.addColorStop(0.25, "rgba(235,245,255,0.45)"); d.addColorStop(0.6, "rgba(200,225,255,0.14)"); d.addColorStop(1, "rgba(190,215,255,0)");   // (más difuso)
   g.fillStyle = d; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
 })();
 const halo = (color = 0xdcecff) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.renderOrder = 4; return h; };
@@ -1395,14 +1395,19 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
 }
 {
   // La plataforma redonda con su escalera y sus pilares (se sube y se pisa).
-  const z = PLAT_ANTIGUA_Z, x = caminoX(z) + 9, y = masBajoEn(x, z, 5) - 0.3,   // (a un lado del paso)
+  const z = ACANT.cima - 10, x = caminoX(z), y = alturaTerreno(x, z) - 1.5,   // (al final de la escalera, en lo alto)
    g = encajar(gPlatAntigua, x, y, z, 11, 2.2, 11, Math.PI);
-  colisiones.push({ x, z, r: 5.3, techo: y + 2.4, obj: g });
+  // Sin la figurita del centro (se recorta: lo que sube sobre el suelo de la plataforma, en el medio).
+  g.traverse(o => { if (!o.isMesh) return; o.material = o.material.clone(); const prev = o.material.onBeforeCompile;
+    o.material.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); sh.vertexShader = 'varying vec3 vLocP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLocP = position;');
+      sh.fragmentShader = 'varying vec3 vLocP;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (length(vLocP.xz) < 0.34 && vLocP.y > 0.93) discard;'); };
+    o.material.customProgramCacheKey = () => 'platSinFigura'; });
+  colisiones.push({ x, z, r: 5.2, techo: y + 2.2 * 0.91, plataforma: true });   // (se sube de un paso a su suelo)
   // El acantilado: dos paños de columnas, uno a cada lado de la escalera, y la escalera larga en medio.
   const cx = caminoX(ACANT.cima), y0 = alturaTerreno(cx, ACANT.pie + 9) - 0.6;   // (el suelo del pasillo de la escalera)   // (el suelo detrás del abismo)
   // La cara del acantilado, al pie de la escalera, de lado a lado; la escalera sube metida dentro, entre dos
   // paredes de columnas en perpendicular.
-  const fondo = ACANT.pie - ACANT.cima + 8;
+  const fondo = ACANT.pie + 3 - (ACANT.cima - 1);   // (acaba al final de la escalera: arriba, al aire libre)
   // Un muro inmenso y plano que sale del fondo del abismo; la grieta es solo el hueco entre sus dos mitades,
   // que se montan sobre los bordes de la escalera (sin espacio entre pared y escalera).
   for (const lado of [-1, 1]) for (const k of [0, 1]) {
@@ -1445,7 +1450,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   const zr = ANILLO_Z - 14, xr = caminoX(zr) + 3; encajar(gRuinaAlta, xr, alturaTerreno(xr, zr) - 1.5, zr, 24, 26, 6, 0.15);
 }
 // Bolas de piedra que bajan rodando por la escalera: hay que saltarlas.
-const bolas = [0, 1].map(i => {
+const bolas = [0].map(i => {
   const R = 1.3, g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group();   // (se saltan)
   g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false;   // (gira sobre su centro)
   return { g, giro, R, t: -i * 2.6 };
@@ -1455,6 +1460,7 @@ const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 -
 function moverBolas(dt) {
   const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
   for (const b of bolas) {
+    if (pos.z > ACANT.pie + 1.5) { b.g.visible = false; b.t = -0.5; continue; }   // (solo pasado el puente)
     b.t += dt; if (b.t < 0) { b.g.visible = false; continue; }
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1.8 - Math.random() * 1.6; b.g.visible = false; continue; }   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
@@ -2519,7 +2525,7 @@ function crearBaston(etapa) {
   horquilla.position.y = LARGO_BASTON + 0.04;
   const luz = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, fog: false }));
   luz.position.y = remate.position.y;                            // en el centro del futuro círculo
-  const hl = halo(0xe8f2ff); hl.scale.setScalar(0.9); luz.add(hl); luz.userData.halo = hl;   // su resplandor
+  const hl = halo(0xe8f2ff); hl.scale.setScalar(1.3); luz.add(hl); luz.userData.halo = hl;   // su resplandor
   g.add(fuste, remate, horquilla, luz);
   g.userData = { luz, piedra };
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
@@ -2872,7 +2878,7 @@ function luzBaston(dt) {
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = brilloBaston; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.9; luz.userData.halo.scale.setScalar(0.9 + 0.12 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  luz.material.opacity = brilloBaston; if (luz.userData.halo) { luz.userData.halo.material.opacity = brilloBaston * 0.6; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
   piedra.emissive.setRGB(0.12, 0.14, 0.18).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
@@ -4421,7 +4427,7 @@ function efectos(dt, adelante) {
   efectoEspiral = Math.max(0, efectoEspiral - dt);
   const intensidad = Math.max(clamp(efectoEspiral, 0, 1), rachaViento * 0.8);
   espiral.material.opacity = intensidad * 0.68;                      // algo más suave
-  { const c0 = espiralEn || pos; haloEspiral.position.set(c0.x, c0.y + (espiralEn ? 0 : 1), c0.z); const r = espiralTam ? espiralTam.r : 1; haloEspiral.scale.setScalar((2.6 + r * 2.2) * (1 + 0.06 * Math.sin(reloj * 3))); haloEspiral.material.opacity = intensidad * 0.55; }
+  { const c0 = espiralEn || pos; haloEspiral.position.set(c0.x, c0.y + (espiralEn ? 0 : 1), c0.z); const r = espiralTam ? espiralTam.r : 1; haloEspiral.scale.setScalar((3.6 + r * 3) * (1 + 0.06 * Math.sin(reloj * 3))); haloEspiral.material.opacity = intensidad * 0.36; }
   const e = espiral.geometry.attributes.position.array, n = espiral.userData.N;
   const centro = espiralEn || pos;
   for (let i = 0; i < n; i++) {
