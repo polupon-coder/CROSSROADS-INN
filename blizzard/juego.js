@@ -368,14 +368,16 @@ const huellasGigantes = () => _huellas || (_huellas = Array.from({ length: 5 }, 
   const rumbo = -0.8, ez = -99 - i * 3.6, ex = caminoX(ez) - 6 + i * 3, lado = i % 2 ? 1 : -1;
   return { x: ex + lado * 1.5 * Math.cos(rumbo), z: ez - lado * 1.5 * Math.sin(rumbo), c: Math.cos(rumbo + lado * 0.1), s: Math.sin(rumbo + lado * 0.1) };
 }));
+const cercaHuella = (x, z) => z > -93 || z < -120 ? 99 : Math.min(...huellasGigantes().map(H => Math.hypot(x - H.x, z - H.z)));
 function hoyoHuellas(x, z) {
   if (z > -93 || z < -120) return 0;
   let hondo = -1;
   for (const H of huellasGigantes()) {
     const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 20) continue;
-    const u = (dx * H.c - dz * H.s) / 2.5, v = (dx * H.s + dz * H.c) / 1.6;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
+    const u = (dx * H.c - dz * H.s) / 1.9, v = (dx * H.s + dz * H.c) / 1.9;   // (casi el doble de grandes)          // u: a lo ancho; v: a lo largo (v < 0, la punta)
     const planta = Math.hypot(u / 0.62, (v + 0.35) / 0.95), talon = Math.hypot(u / 0.46, (v - 0.85) / 0.48), d = Math.min(planta, talon);
-    hondo = Math.max(hondo, 0.16 * (1 - suave(0.75, 0.95, d)));   // (el hoyo, poco hondo: el modelo pone el reborde)
+    hondo = Math.max(hondo, 0.45 * (1 - suave(0.8, 0.95, Math.hypot(u, v))));   // (el hoyo, bajo el fondo del modelo)
+    void d;   // (el hoyo, poco hondo: el modelo pone el reborde)
   }
   return Math.max(0, hondo);
 }
@@ -1542,16 +1544,11 @@ function moverBolas(dt) {
 // Las huellas: el modelo del hoyo en la nieve (con su reborde), estirado a la forma de un pie.
 const matHuella = new THREE.MeshStandardMaterial({ color: 0xc8d5ec, roughness: 1 });   // (azulada)   // (el tono de la nieve del suelo; el relieve lo da la luz)
 for (const H of huellasGigantes()) {
+  // El modelo tal cual (su textura, sin teñir ni recortar), redondo, a ras de la nieve.
   const d = gHuella.scene.clone(), caja = new THREE.Box3().setFromObject(d), t = caja.getSize(new THREE.Vector3()), g = new THREE.Group();
-  d.scale.set(3.4 / t.x, 0.7 / t.y, 4.3 / t.z);   // (casi redonda) d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
-  // Vacía por dentro (se recorta el fondo del modelo: se ve el hoyo del suelo) y del tono de la nieve del suelo.
-  const y0 = alturaTerreno(H.x, H.z), corte = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(y0 + 0.06));
-  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = matHuella; o.material.clippingPlanes = [corte]; o.material = o.material.clone(); o.material.clippingPlanes = [corte];
-    // La pared de dentro (lo que queda bajo el nivel de la nieve), más oscura: en sombra.
-    o.material.onBeforeCompile = sh => { sh.uniforms.y0H = { value: y0 }; sh.vertexShader = "varying float vYH;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vYH = (modelMatrix * vec4(transformed, 1.0)).y;");
-      sh.fragmentShader = "uniform float y0H; varying float vYH;\n" + sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= mix(1.0, 0.72, smoothstep(0.02, -0.3, vYH - y0H));"); };
-    o.material.customProgramCacheKey = () => "huella"; } }); g.add(d);
-  g.position.set(H.x, y0 - 0.15, H.z);   // (algo enterradas, con el reborde a la vista) g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);
+  d.scale.set(3.8 / t.x, 0.55 / t.y, 3.8 / t.z); d.position.set(-(caja.min.x + caja.max.x) / 2 * d.scale.x, -caja.min.y * d.scale.y, -(caja.min.z + caja.max.z) / 2 * d.scale.z);
+  d.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.material = o.material.clone(); o.material.userData.suelo = true; } }); g.add(d);
+  g.position.set(H.x, alturaTerreno(H.x, H.z) + hoyoHuellas(H.x, H.z) - 0.3, H.z); g.rotation.y = Math.atan2(H.s, H.c); scene.add(g);   // (hundido: solo asoma el reborde)
 }
 
 // Al principio, a los lados del camino: rocas y piedras sueltas, dispersas, medio enterradas (lejos del
@@ -3073,6 +3070,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
       base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
       afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
     }
+    if (cercaHuella(x, z) < 2.4) base[i] = -0.7;                    // (nunca dentro de las huellas)
     suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
   // Fuera los triángulos que caen en un desnivel (borde de abismo, escalón, pared): si no, el manto
@@ -3093,6 +3091,9 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
   ventisqueros.push({ cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, nieveC, cambia: false, nx: NX + 1, nz: NZ + 1, tocado: new Uint8Array(p.count) });
 }
 ventisquero(0.6, -4, 8.5, 6, 0.55);
+// Nieve acumulada alrededor de cada huella (por fuera del reborde).
+for (const H of huellasGigantes()) for (let k = 0; k < 3; k++) { const a = k * 2.1 + H.x, d = 3.3; ventisquero(H.x + Math.cos(a) * d, H.z + Math.sin(a) * d, 3, 2.2, 0.35, null, true); }
+
 // Nieve acumulada contra parte del borde de la primera plataforma (del lado de fuera del camino).
 for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.1, 3.6, 2.8, 0.45]]) {
   const d = PLATAFORMA.r + 1.0, x = PLATAFORMA.x - Math.cos(ang) * d, z = PLATAFORMA.z + Math.sin(ang) * d;
