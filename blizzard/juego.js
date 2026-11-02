@@ -1521,7 +1521,7 @@ const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite
 // sigue; al final se funde con el bastón.
 const guia = (() => {
   // Una cinta continua como la del viento mágico (borde marcado, centro suave), afilada en los dos extremos.
-  const N = 44, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
+  const N = 28, geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
   const uv = new Float32Array(N * 4), idx = []; for (let i = 0; i < N; i++) { uv.set([i / (N - 1), 0, i / (N - 1), 1], i * 4); } for (let i = 0; i < N - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
   const luz = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }));
@@ -1564,13 +1564,11 @@ function moverGuia(dt) {
   G.paso += dt;
   if (G.cola[0].p.distanceToSquared(G.p) > 0.0225 || G.paso > 0.05) { G.paso = 0; for (let i = G.cola.length - 1; i > 0; i--) G.cola[i].p.copy(G.cola[i - 1].p); }   // (también con el tiempo: la cola se recoge despacio)
   G.cola[0].p.copy(G.p);
-  const a = G.luz.geometry.attributes.position.array, n = G.cola.length, tg = new THREE.Vector3(), lado = new THREE.Vector3(), ojo = new THREE.Vector3();
+  const a = G.luz.geometry.attributes.position.array, n = G.cola.length;
   for (let i = 0; i < n; i++) {
-    const p0 = G.cola[Math.max(0, i - 1)].p, p1 = G.cola[Math.min(n - 1, i + 1)].p, p = G.cola[i].p;
-    tg.subVectors(p1, p0); if (tg.lengthSq() < 1e-6) tg.set(0, 0, 1);
-    ojo.subVectors(camara.position, p); lado.crossVectors(tg, ojo).normalize();
-    const t = i / (n - 1), w = 0.11 * Math.sin(Math.PI * Math.pow(t, 0.8));   // afilada en los dos extremos
-    a.set([p.x + lado.x * w, p.y + lado.y * w, p.z + lado.z * w, p.x - lado.x * w, p.y - lado.y * w, p.z - lado.z * w], i * 6);
+    // Como la cinta del viento: de canto vertical, sin plegarse nunca; afilada en los dos extremos.
+    const p = G.cola[i].p, t = i / (n - 1), w = 0.1 * Math.sin(Math.PI * Math.pow(t, 0.8));
+    a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6);
   }
   G.luz.geometry.attributes.position.needsUpdate = true;
 }
