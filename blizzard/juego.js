@@ -2652,7 +2652,7 @@ const capaTela = (() => {
             if (d < c.r) { _w.subVectors(P[k], q); if (_w.lengthSq() < 1e-8) _w.copy(atras); _w.normalize(); P[k].copy(q).addScaledVector(_w, c.r); }
           }
           // Nunca por delante del cuerpo: detrás del plano de la espalda (con un margen a los lados).
-          const delante = _w.subVectors(P[k], centro).dot(atras), sep = 0.04 + (0.11 + 0.14 * corre) * Math.sin(Math.PI * Math.min(1, Math.floor(k / NJ) / (NI - 1) * 1.15));   // en medio, más despegada
+          const delante = _w.subVectors(P[k], centro).dot(atras), fr = Math.floor(k / NJ) / (NI - 1), sep = 0.04 + (0.11 + 0.14 * corre) * Math.sin(Math.PI / 2 * Math.min(1, fr * 1.6)) + 0.13 * fr;   // despegada desde el medio y aún más abajo, en la zona baja de la espalda
           if (delante < sep) P[k].addScaledVector(atras, sep - delante);
           if (P[k].y < suelo + 0.03) P[k].y = suelo + 0.03;
         }
