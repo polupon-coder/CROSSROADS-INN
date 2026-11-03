@@ -4097,14 +4097,17 @@ const trazo = (() => {
     // Lo trazado se va borrando desde el principio: solo queda la línea entre lo borrado y el dedo.
     const i0 = indice(Math.max(0, cazador)), i1 = indice(progreso);
     hecho.setAttribute("d", "");
-    // El trazo como la magia: afinado en los extremos y con un halo suave alrededor (en tramos de grosor variable).
-    const n = trozos.length / 2, tramo = Math.max(1, (i1 - i0) / n);
-    for (let k = 0; k < n; k++) {
-      const a = Math.floor(i0 + k * tramo), b = Math.min(i1, Math.ceil(i0 + (k + 1) * tramo)), t = (k + 0.5) / n, g = Math.sin(Math.PI * t);
-      const d = progreso > 0 && i1 > i0 && b > a ? "M" + pts.slice(a, b + 1).map(q => q.join(" ")).join(" L") : "";
-      // (opaco: con transparencia, donde se pisan dos tramos salía un punto más claro y la línea parecía punteada)
-      trozos[k].setAttribute("d", d); trozos[k].setAttribute("stroke-width", (0.6 + 3.2 * g).toFixed(2)); trozos[k].setAttribute("stroke-opacity", "1");
-      trozos[n + k].setAttribute("d", ""); }
+    // El trazo como la magia: una sola forma rellena, de grosor que crece y mengua sin saltos (afinada en los
+    // extremos). Con tramos de grosor distinto, en las puntas se veían cuentas: parecía punteada.
+    for (let k = 0; k < trozos.length; k++) if (k !== trozos.length / 2) trozos[k].setAttribute("d", "");
+    const Q = progreso > 0 && i1 > i0 ? pts.slice(i0, i1 + 1) : [];
+    if (Q.length > 1) {
+      const izq = [], der = [], m = Q.length - 1;
+      for (let i = 0; i <= m; i++) { const a = Q[Math.max(0, i - 1)], c = Q[Math.min(m, i + 1)]; let tx = c[0] - a[0], ty = c[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+        const h = (0.3 + 3.5 * Math.sin(Math.PI * Math.pow(i / m, 0.9))) / 2; izq.push([Q[i][0] - ty * h, Q[i][1] + tx * h]); der.push([Q[i][0] + ty * h, Q[i][1] - tx * h]); }
+      const f = q => q[0].toFixed(2) + " " + q[1].toFixed(2), d = "M" + izq.map(f).join(" L") + " L" + der.reverse().map(f).join(" L") + " Z";
+      trozos[0].setAttribute("d", d); trozos[0].setAttribute("fill", "#ffffff"); trozos[0].setAttribute("stroke", "#ffffff"); trozos[0].setAttribute("stroke-width", "0.25"); trozos[0].setAttribute("stroke-opacity", "1");
+    }
     // El halo, de una pieza (los tramos sueltos, al solaparse, también dejaban puntos).
     trozos[n].setAttribute("d", progreso > 0 && i1 > i0 ? "M" + pts.slice(i0, i1 + 1).map(q => q.join(" ")).join(" L") : ""); trozos[n].setAttribute("stroke-width", "7"); trozos[n].setAttribute("stroke-opacity", "0.16");
     inicio.style.opacity = fase === "esperando" ? 1 : 0;
