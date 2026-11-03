@@ -1703,7 +1703,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       nieblaLago.u.base.value = y0; nieblaLago.u.desde.value = HIELO.desde; nieblaLago.u.hasta.value = HIELO.hasta; }
     { const kitB = separarKit(gBloques), texPl = new THREE.TextureLoader().load("texturas/placas.jpg"), matT = new THREE.MeshStandardMaterial({ map: texPl, emissive: 0x2a4050, color: 0xb4cadb, roughness: 0.05, metalness: 0.45, envMap: cieloRef, envMapIntensity: 1.2 });   /* (las placas, con tu textura de hielo roto) */   // (el hielo roto: tus bloques de piedra, en hielo)
       for (let i = 0; i < 24; i++) { const B = kitB[i % kitB.length], m = new THREE.Mesh(B.geo, matT), g = new THREE.Group(); m.position.copy(B.desplaza); g.add(m); const k = 1.9 / Math.max(B.radio * 2, B.alto); g.scale.set(k, k * 0.35, k); /* (placas grandes) */ g.visible = false; scene.add(g); trozosHielo.push({ g, t: -1, vx: 0, vz: 0, giro: new THREE.Vector3() }); } }
-    losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
+    losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.cols = new Set(celdas.filter(T => T.tipo === "hielo").map(T => T.col)); losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
     // Fuera del paso, el lago sigue: el mismo hielo, sin junta; debajo, el agua oscura.
     const largo = HIELO.desde - HIELO.hasta - 0.5, zc = (HIELO.desde + HIELO.hasta) / 2, xc = caminoX(zc);   // (justo el lago: ni el agua ni el hielo asoman sobre los hexágonos)
     for (const lado of [-1, 1]) { const lago = new THREE.Mesh(new THREE.PlaneGeometry(200, largo), matL); lago.rotation.x = -Math.PI / 2; lago.position.set(xc + lado * (15 + 100), y0 - 0.01, zc); lago.receiveShadow = true; scene.add(lago); }
@@ -4179,7 +4179,7 @@ const tecla = (...c) => c.some(k => teclas.has(k));
 const pulsada = (...c) => c.some(k => pulsadas.has(k));
 
 // ─── Estado de Blizzard ────────────────────────────────────────────────────
-const pos = new THREE.Vector3(0, alturaTerreno(0, 12), 12);
+const pos = new THREE.Vector3(0, alturaTerreno(0, 12), 12); let sobreAntes = null;
 const vel = new THREE.Vector3();
 let rumbo = Math.PI, enSuelo = true, coyote = 0, impulsoUsado = false, tieneBaston = false;
 let fase = 0, ultimoPaso = 0, rachaViento = 0, efectoEspiral = 0;
@@ -4416,7 +4416,10 @@ function actualizar(dt) {
     if (hundimiento > 0) deseo.multiplyScalar(0.2);            // hundiéndose en la nieve, apenas se avanza
     if (llevando) deseo.multiplyScalar(0.6);                  // con una roca en el aire se anda despacio
     if (escalon > 0) deseo.multiplyScalar(0.65);              // al subir un escalón alto, el paso se acorta
-    const agarre = enSuelo ? 12 : 2.5;
+    // Sobre el hielo (el del lago y el de la cueva) se resbala: poco agarre y una deriva suave y cambiante.
+    const resbala = enSuelo && !rescate && ((losasHielo.cols && losasHielo.cols.has(sobreAntes)) || (Math.hypot(pos.x - PLATAFORMA7.x, pos.z - PLATAFORMA7.z) < 26 && sobreAntes !== PLATAFORMA7 && pos.z < CUEVA_Z + 30));
+    if (resbala) { deseo.x += 0.9 * Math.sin(reloj * 0.71 + 3 * Math.sin(reloj * 0.23)); deseo.z += 0.5 * Math.sin(reloj * 0.53 + 1.7); }
+    const agarre = enSuelo ? (resbala ? 2.4 : 12) : 2.5;
     vel.x = lerp(vel.x, deseo.x, 1 - Math.exp(-dt * agarre));
     vel.z = lerp(vel.z, deseo.z, 1 - Math.exp(-dt * agarre));
 
@@ -4497,7 +4500,7 @@ function actualizar(dt) {
     }
     vel.y -= GRAVEDAD * dt;
     pos.y += vel.y * dt;
-    const s = sueloEn(pos.x, pos.z, pos.y);
+    const s = sueloEn(pos.x, pos.z, pos.y); sobreAntes = s.sobre;
     if (enSuelo && s.h - pos.y > 0.25 && s.h - pos.y <= PASO) {
       // Subida: cuanto más alto el escalón, más dura y más se levantan las piernas.
       escalonAlto = s.h - pos.y; escalonDura = 0.3 + escalonAlto * 0.6; escalon = escalonDura; escalonDesde = alturaVisual = pos.y;
@@ -4575,7 +4578,8 @@ function actualizar(dt) {
 
     // Orientación y huellas.
     const v = Math.hypot(vel.x, vel.z);
-    if (v > 0.3) rumbo = lerpAngulo(rumbo, Math.atan2(vel.x, vel.z), 1 - Math.exp(-dt * 10));
+    if (v > 0.3) rumbo = lerpAngulo(rumbo, Math.atan2(vel.x, vel.z), 1 - Math.exp(-dt * (resbala ? 3 : 10)));
+    if (resbala) rumbo += (Math.sin(reloj * 0.8) + 0.5 * Math.sin(reloj * 1.9 + 1)) * 0.35 * dt;   // (y gira un poco, solo)
     fase += v * dt * 2.4;
     if (enSuelo && v > 0.4 && !s.sobre && Math.floor(fase / Math.PI) !== ultimoPaso) {
       ultimoPaso = Math.floor(fase / Math.PI);
