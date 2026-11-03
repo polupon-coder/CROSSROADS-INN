@@ -4192,7 +4192,7 @@ const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEs
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
-let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0;
+let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
 const INTRO_DURA = 8;
 
 // Rampa (pilastra tumbada): punto más cercano del eje, su altura y la distancia en planta.
@@ -4502,8 +4502,11 @@ function actualizar(dt) {
     pos.y += vel.y * dt;
     const s = sueloEn(pos.x, pos.z, pos.y); sobreAntes = s.sobre;
     if (enSuelo && s.h - pos.y > 0.25 && s.h - pos.y <= PASO) {
-      // Subida: cuanto más alto el escalón, más dura y más se levantan las piernas.
-      escalonAlto = s.h - pos.y; escalonDura = 0.3 + escalonAlto * 0.6; escalon = escalonDura; escalonDesde = alturaVisual = pos.y;
+      // Subida: cuanto más alto el escalón, más dura y más se levantan las piernas. En una escalera (escalones
+      // seguidos) no se repite el gesto: el cuerpo sube suave y continuo.
+      const seguido = reloj - ultimoEscalon < 0.75; ultimoEscalon = reloj;
+      if (!seguido && s.h - pos.y > 0.33) {
+      escalonAlto = s.h - pos.y; escalonDura = 0.3 + escalonAlto * 0.6; escalon = escalonDura; escalonDesde = alturaVisual = pos.y; }
     }
     if (pos.y <= s.h) { pos.y = s.h; vel.y = 0; enSuelo = true; }
     else if (enSuelo && vel.y <= 0 && pos.y - s.h < 0.45) { pos.y = s.h; vel.y = 0; }    // bajando una pendiente o un escalón bajo: pegado al suelo
@@ -4725,6 +4728,9 @@ function actualizar(dt) {
     const t = 1 - escalon / escalonDura;
     alturaVisual = lerp(escalonDesde, pos.y, suave(0.12, 0.8, t)); blizzard.position.y = alturaVisual;
   }
+  // La altura que se ve sigue a la real con suavidad (escaleras, piedras y suelos a saltos: sin tirones).
+  if (yVis === null || !enSuelo || rescate || Math.abs(blizzard.position.y - yVis) > 1.4) yVis = blizzard.position.y;
+  else { yVis = lerp(yVis, blizzard.position.y, 1 - Math.exp(-dt * 11)); blizzard.position.y = yVis; }
   blizzard.rotation.y = arrastre > 0 ? Math.PI : rumbo;   // (arrastrado por la bola: de espaldas)
   huellas.actualizar();
   pisarVentisqueros(dt);
@@ -4904,6 +4910,7 @@ const PASO_ANIM = { andar: 0.99, andar_libre: 1.58, correr: 4.0, correr_libre: 5
 let enAireAntes = false;
 let animForzada = null;
 function animar(dt, v, agachado) {
+  tAire = enSuelo ? 0 : tAire + dt; const aire = !enSuelo && !rescate && (tAire > 0.2 || vel.y > 0.8);
   if (animForzada) { poner(animForzada, 0.2); mixer.update(dt); return; }
   const libre = tieneBaston ? "" : "_libre";
   if (estado === "portada" || estado === "intro") poner("quieto_libre", 0.3);
@@ -4913,12 +4920,12 @@ function animar(dt, v, agachado) {
   else if (estado === "empujando") poner("llamar", 0.25);   // (la mano hacia delante: la magia sale del bastón)
   else if (estado === "despertando") poner("quieto" + libre, 0.3);
   else if (rescate) poner("tambalearse", 0.2);
-  else if (!enSuelo) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }
+  else if (aire) { if (!enAireAntes) poner("saltar", 0.12, 1, 0.2); }   // (solo en el aire de verdad: bajar un escalón no es saltar)
   else if (agachado) v > 0.25 ? poner("andar_agachado", 0.2, clamp(v / PASO_ANIM.andar_agachado, 0.5, 2)) : poner("agachado", 0.25);
   else if (v > (V_ANDAR + V_CORRER) / 2) poner("correr" + libre, 0.2, clamp(v / PASO_ANIM["correr" + libre], 0.7, 2));
   else if (v > 0.25) poner("andar" + libre, 0.25, clamp(v / PASO_ANIM["andar" + libre], 0.6, 2));
   else poner("quieto" + libre, 0.3);
-  enAireAntes = !enSuelo && !rescate;
+  enAireAntes = aire;
   mixer.update(dt);
   posturaReposo(dt);
   gestoEscalon();
