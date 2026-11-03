@@ -3634,6 +3634,7 @@ const ruedas = [-1024, -1040, -1052, -1061, -1068, -1074, -1079, -1084].map((z, 
   const m = new THREE.Group(), d = gEscudo.scene.clone(), caja = new THREE.Box3().setFromObject(d), c = caja.getCenter(new THREE.Vector3()), tam = caja.getSize(new THREE.Vector3()), k = 2 * R / Math.max(tam.x, tam.y);
   d.scale.setScalar(k); d.position.copy(c).multiplyScalar(-k); d.traverse(o => { if (o.isMesh) o.castShadow = true; }); m.add(d); g.add(m);
   void matsRueda;
+  g.position.set(caminoX(z), alturaTerreno(caminoX(z), z) + R - 0.25, z);   // (ya en su sitio: no amontonadas en el origen hasta moverse)
   scene.add(g);
   return { g, m, z, R, cx: caminoX(z), fase: i * 2.1 + i * i * 0.37, vx: 0, x: caminoX(z) };
 });
