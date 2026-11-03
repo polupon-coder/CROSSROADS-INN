@@ -70,8 +70,8 @@
   escT.background = new THREE.Color(0x3a4252); escT.add(new THREE.HemisphereLight(0xf2f4ff, 0x4a5262, 1.1)); { const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(3, 5, 4); escT.add(dl); }
   const hacerMiniatura = id => {
     const r0 = E.crearPiezaEd({ id: "__mini", tipo: "objeto", modelo: id, p: [0, 0, 0], r: [0, 0.6, 0], s: [1, 1, 1], colision: false }); if (!r0.g) return null;
-    const g = r0.g; escT.add(g); const b = new THREE.Box3().setFromObject(g), c = b.getCenter(new THREE.Vector3()), t = b.getSize(new THREE.Vector3()), d = Math.max(t.x, t.y, t.z) * 1.7;
-    camT.position.set(c.x + d * 0.75, c.y + d * 0.5, c.z + d * 0.9); camT.lookAt(c); camT.near = d * 0.01; camT.far = d * 10; camT.updateProjectionMatrix();
+    const g = r0.g; escT.add(g); const b = E.cajaReal(g), c = b.getCenter(new THREE.Vector3()), rad = b.getSize(new THREE.Vector3()).length() / 2, d = rad / Math.sin(THREE.MathUtils.degToRad(16)) * 0.92;   /* (encuadrada en su esfera) */
+    camT.position.copy(c).add(new THREE.Vector3(0.62, 0.45, 0.64).normalize().multiplyScalar(d)); camT.lookAt(c); camT.near = d * 0.01; camT.far = d * 10; camT.updateProjectionMatrix();
     const R = E.renderer; R.setRenderTarget(rtT); R.render(escT, camT); R.readRenderTargetPixels(rtT, 0, 0, 112, 84, buf); R.setRenderTarget(null); escT.remove(g);
     const cv = document.createElement("canvas"); cv.width = 112; cv.height = 84; const x = cv.getContext("2d"), im = x.createImageData(112, 84);
     for (let y = 0; y < 84; y++) im.data.set(buf.subarray((83 - y) * 112 * 4, (84 - y) * 112 * 4), y * 112 * 4);
@@ -89,11 +89,10 @@
 
   // ── Selección y gizmo ─────────────────────────────────────────────────
   // Sobre la pieza, a la vez: flechas para moverla y anillos para girarla (como en 3ds Max). Escalar, con su botón o R.
-  const tcM = new THREE.TransformControls(cam, dom), tcR = new THREE.TransformControls(cam, dom); tcR.setMode("rotate"); tcR.setSize(1.4); scene.add(tcM, tcR);
-  let conGiro = true;
-  const tc = { attach(g) { tcM.attach(g); if (conGiro && sel && (sel.tipo === "objeto" || sel.tipo === "mundo")) tcR.attach(g); else tcR.detach(); }, detach() { tcM.detach(); tcR.detach(); },
-    setMode(m) { conGiro = m !== "scale"; tcM.setMode(m === "scale" ? "scale" : "translate"); if (tcM.object) tc.attach(tcM.object); }, get dragging() { return tcM.dragging || tcR.dragging; } };
-  for (const t of [tcM, tcR]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
+  // Como en 3ds Max: un solo manejador a la vez (mover W, girar E, escalar R), grande y claro.
+  const tcM = new THREE.TransformControls(cam, dom), tcR = { dragging: false }; tcM.setSize(1.25); scene.add(tcM);
+  const tc = { attach(g) { tcM.attach(g); }, detach() { tcM.detach(); }, setMode(m) { tcM.setMode(m); }, get dragging() { return tcM.dragging; } };
+  for (const t of [tcM]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
   let sel = null;
   const grupoDe = id => E.escenaEd.get(id)?.g;
   const leerGrupo = () => { const g = grupoDe(sel.id); if (!g) return; sel.p = g.position.toArray().map(v => +v.toFixed(2));
@@ -141,7 +140,7 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacer(); return; }
     if (e.key === "Escape") { colocando = null; aviso(""); pintarLista(); seleccionar(null); }
     if (!sel || !(sel.tipo === "objeto" || sel.tipo === "mundo")) { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
-    if (e.key === "w" || e.key === "e") modo("translate"); if (e.key === "r") modo("scale");
+    if (e.key === "w") modo("translate"); if (e.key === "e") modo("rotate"); if (e.key === "r") modo("scale");
     if (e.key === "Delete" || e.key === "Backspace") borrar();
   }
 
@@ -150,7 +149,7 @@
   const cajasMundo = new Map();
   const cajaMundo = o => { if (!cajasMundo.has(o)) { let b = null; const suelo = E.sueloMat();
       if (!o.isLight && !o.isCamera && !o.isInstancedMesh && !o.isPoints && !o.isSprite && !o.userData.pivoteEd) { let malla = false, esSuelo = false; o.traverse(m => { if (m.isMesh && !m.isInstancedMesh) { malla = true; if (m.material === suelo) esSuelo = true; } });
-        if (malla && !esSuelo) { b = new THREE.Box3().setFromObject(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
+        if (malla && !esSuelo) { b = E.cajaReal(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
       cajasMundo.set(o, b); } return cajasMundo.get(o); };
   let abajo = null;
   dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY]; });
@@ -165,7 +164,7 @@
       if (colocando === "esp:niebla") it = { id, tipo: "niebla", p, radio: 8, alto: 1.5, densidad: 0.5, color: "#efe6ee" };
       else if (colocando === "esp:nota") it = { id, tipo: "nota", p, texto: "" };
       else { it = { id, tipo: "objeto", modelo: colocando, p, r: [0, 0, 0], s: [1, 1, 1], colision: true };
-        const g = E.ponerEd(it); if (g) { const t = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), k = +(3 / Math.max(t.x, t.y, t.z, 0.001)).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m)
+        const g = E.ponerEd(it); if (g) { const t = E.cajaReal(g).getSize(new THREE.Vector3()), k = +(3 / Math.max(t.x, t.y, t.z, 0.001)).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m)
       items.set(id, it); E.ponerEd(it); guardar(it); seleccionar(it);
       if (!e.shiftKey) { colocando = null; aviso(""); pintarLista(); }   // (con Mayús se siguen colocando)
       return;
