@@ -1865,7 +1865,7 @@ const crearChispas = () => {
 function moverChispas(dt) {
   if (!chispas) chispas = crearChispas();
   for (const C of chispas) {
-    if (C.abs >= 1 || Math.abs(C.z - pos.z) > 70) { C.m.visible = false; continue; }
+    if (!tieneBaston || C.abs >= 1 || Math.abs(C.z - pos.z) > 70) { C.m.visible = false; continue; }   // (solo cuando ya se tiene el bastón)
     if (!C.m.material.map) { C.m.material.map = espiral.material.map; C.m.material.needsUpdate = true; }
     C.t += dt; C.m.visible = estado !== "portada" && estado !== "intro";
     if (C.abs < 0) {
