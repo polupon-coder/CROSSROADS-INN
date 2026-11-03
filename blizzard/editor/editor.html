@@ -1,0 +1,99 @@
+<title>Editor de Blizzard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Panel de herramienta sobre el mundo: oscuro, fino, que no tape la escena. */
+  :root { --panel: rgba(22, 26, 36, 0.92); --linea: #39404f; --texto: #e7eaf1; --tenue: #9aa3b6; --acento: #ffb020; --campo: #2a3040; --peligro: #ff6b6b;
+    --fuente: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; color-scheme: dark; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
+  body > *:not(canvas):not(#ed):not(#aviso):not(script) { display: none !important; }
+  #ed { position: fixed; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); bottom: 0; width: min(310px, 82vw); background: var(--panel); color: var(--texto);
+    font: 13px/1.4 var(--fuente); display: flex; flex-direction: column; border-right: 1px solid var(--linea); z-index: 50; }
+  #ed header { padding: 12px 14px 10px; border-bottom: 1px solid var(--linea); display: grid; gap: 8px; }
+  #ed h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .02em; }
+  #estado { font: 11px var(--mono); color: var(--tenue); }
+  #estado.mal { color: var(--peligro); }
+  .seccion { padding: 10px 14px; border-bottom: 1px solid var(--linea); display: grid; gap: 8px; }
+  .seccion h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--tenue); margin: 0; font-weight: 600; }
+  #scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .fila { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .fila label { color: var(--tenue); min-width: 58px; }
+  input, select, textarea, button { font: inherit; color: var(--texto); background: var(--campo); border: 1px solid var(--linea); border-radius: 6px; padding: 5px 7px; }
+  input[type=number] { width: 66px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  input[type=color] { padding: 1px; width: 40px; height: 28px; }
+  textarea { width: 100%; min-height: 70px; box-sizing: border-box; resize: vertical; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--tenue); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+  button.activo { background: var(--acento); color: #1b1404; border-color: var(--acento); }
+  button.peligro { color: var(--peligro); }
+  #lista { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 210px; overflow-y: auto; }
+  #lista button { text-align: left; font-size: 12px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #buscar { width: 100%; box-sizing: border-box; }
+  #sel[hidden], .solo[hidden] { display: none !important; }
+  .ayuda { color: var(--tenue); font-size: 12px; }
+  .ayuda kbd { font: 11px var(--mono); background: var(--campo); border: 1px solid var(--linea); border-radius: 4px; padding: 0 4px; }
+  #aviso { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--panel); color: var(--texto); font: 13px var(--fuente);
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--linea); z-index: 60; pointer-events: none; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+<script>window.BLIZZARD_MODELOS_JSON = true; window.BLIZZARD_EDITOR = true;</script>
+
+<aside id="ed" aria-label="Editor">
+  <header>
+    <h1>Editor de Blizzard</h1>
+    <div id="estado">Cargando el mundo…</div>
+  </header>
+  <div id="scroll">
+    <section class="seccion">
+      <h2>Ir a</h2>
+      <div class="fila">
+        <select id="zona">
+          <option value="0">Inicio</option><option value="-40">Plataforma del bastón</option><option value="-420">Arcos</option><option value="-700">Dunas</option>
+          <option value="-980">Columnas</option><option value="-1110">Puente y acantilado</option><option value="-1190">Santuario de la onda</option>
+          <option value="-1260">Pilares movedizos</option><option value="-1350">Lago helado</option><option value="-1420">Iceberg y pasillo</option><option value="-1500">Cueva de hielo</option>
+        </select>
+        <button id="ir">Ir</button>
+      </div>
+    </section>
+    <section class="seccion">
+      <h2>Añadir</h2>
+      <input id="buscar" type="search" placeholder="Buscar pieza…" aria-label="Buscar pieza">
+      <div id="lista"></div>
+    </section>
+    <section class="seccion" id="sel" hidden>
+      <h2 id="selNombre">Selección</h2>
+      <div class="fila solo" id="modos">
+        <button data-modo="translate" class="activo">Mover <span class="ayuda">W</span></button>
+        <button data-modo="rotate">Girar <span class="ayuda">E</span></button>
+        <button data-modo="scale">Escalar <span class="ayuda">R</span></button>
+      </div>
+      <div class="fila"><label>Posición</label><input id="px" type="number" step="0.1"><input id="py" type="number" step="0.1"><input id="pz" type="number" step="0.1"></div>
+      <div class="fila solo" id="filaRot"><label>Giro (°)</label><input id="rx" type="number" step="5"><input id="ry" type="number" step="5"><input id="rz" type="number" step="5"></div>
+      <div class="fila solo" id="filaEsc"><label>Escala</label><input id="sx" type="number" step="0.1"><input id="sy" type="number" step="0.1"><input id="sz" type="number" step="0.1"></div>
+      <div class="fila solo" id="filaObj">
+        <label><input id="col" type="checkbox"> Colisión</label>
+        <label><input id="nieve" type="checkbox"> Nieve encima</label>
+        <label><input id="usaTinte" type="checkbox"> Tinte</label><input id="tinte" type="color" value="#b4cadb">
+      </div>
+      <div class="solo" id="filaNiebla">
+        <div class="fila"><label>Radio</label><input id="nRadio" type="number" step="0.5"><label>Alto</label><input id="nAlto" type="number" step="0.1"></div>
+        <div class="fila"><label>Densidad</label><input id="nDens" type="number" step="0.05" min="0" max="1"><input id="nColor" type="color" value="#efe6ee"></div>
+      </div>
+      <div class="solo" id="filaNota"><textarea id="nota" placeholder="Escribe lo que quieres que haga aquí (por ejemplo: «esta piedra cae al pisarla»)."></textarea></div>
+      <div class="fila"><button id="dup">Duplicar</button><button id="borrar" class="peligro">Borrar</button></div>
+    </section>
+    <section class="seccion">
+      <h2>Cómo se usa</h2>
+      <p class="ayuda" style="margin:0">Arrastra para girar la vista, botón derecho para desplazarla y la rueda para acercar. <kbd>Flechas</kbd> mueven la vista por el recorrido.
+        Elige una pieza y haz clic en el escenario para colocarla. Haz clic en una pieza para seleccionarla. <kbd>Supr</kbd> borra, <kbd>Esc</kbd> cancela.
+        Todo se guarda solo; dime «ya» y lo paso al juego.</p>
+    </section>
+  </div>
+</aside>
+<div id="aviso" hidden></div>
+<script src="juego.js"></script>
+<script src="editor.js"></script>
