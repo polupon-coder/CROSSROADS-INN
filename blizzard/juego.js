@@ -5361,7 +5361,7 @@ function bucle(ahora) {
   anterior = ahora;
   if (!camaraFija && !window.BLIZZARD_EDITOR) { actualizar(dt); trazo.actualizar(dt); }   // (en el editor, la cámara la lleva el editor)   // con la cámara fija de pruebas, el mundo queda congelado
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
-  ocultarTapadores();
+  if (!window.BLIZZARD_EDITOR) ocultarTapadores();
   if (!window.BLIZZARD_EDITOR) vigilarCalidad(ahora - anterior0);
   if (desenfoque && calidad.desenfoque && !window.BLIZZARD_EDITOR) desenfoque.dibujar(); else renderer.render(scene, camara);   // (en el editor, nítido y a resolución completa)
   requestAnimationFrame(bucle);

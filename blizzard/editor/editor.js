@@ -27,7 +27,7 @@
   const cajaDe = o => { if (!cajas.has(o)) { _b.setFromObject(o); cajas.set(o, _b.isEmpty() ? null : [_b.min.z, _b.max.z]); } return cajas.get(o); };
   let bloque = bloques[0];
   const verBloque = b => { bloque = b; const [, desde, hasta] = b, propios = new Set([...E.escenaEd.values()].map(v => v.g));
-    for (const o of scene.children) { if (o === tc || propios.has(o) || o.isLight || o.isCamera) continue; const c = cajaDe(o); if (!c) continue; if (o.userData.visEd === undefined) o.userData.visEd = o.visible; o.visible = o.userData.visEd && (b === bloques[0] || (c[1] > hasta - 15 && c[0] < desde + 15)); }   /* (lo que el juego tiene oculto sigue oculto) */
+    for (const o of scene.children) { if (o === tcM || o === tcR || propios.has(o) || o.isLight || o.isCamera) continue; const c = cajaDe(o); if (!c) continue; if (o.userData.visEd === undefined) o.userData.visEd = o.visible; o.visible = o.userData.visEd && (b === bloques[0] || (c[1] > hasta - 15 && c[0] < desde + 15)); }   /* (lo que el juego tiene oculto sigue oculto) */
     if (!conNiebla) (E.nieblaLago?.capas || []).forEach(m => m.visible = false);
     const zc = (desde + hasta) / 2, x = E.caminoX(zc), y = E.alturaTerreno(x, zc), alto = Math.max(60, (desde - hasta) * 0.95);
     orbit.target.set(x, y, zc); cam.position.set(x, y + alto, zc + 0.01); orbit.update();
@@ -71,9 +71,12 @@
   $("buscar").oninput = pintarLista; pintarLista();
 
   // ── Selección y gizmo ─────────────────────────────────────────────────
-  const tc = new THREE.TransformControls(cam, dom); scene.add(tc);
-  tc.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } });
-  tc.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } });
+  // Sobre la pieza, a la vez: flechas para moverla y anillos para girarla (como en 3ds Max). Escalar, con su botón o R.
+  const tcM = new THREE.TransformControls(cam, dom), tcR = new THREE.TransformControls(cam, dom); tcR.setMode("rotate"); tcR.setSize(1.4); scene.add(tcM, tcR);
+  let conGiro = true;
+  const tc = { attach(g) { tcM.attach(g); if (conGiro && sel && sel.tipo === "objeto") tcR.attach(g); else tcR.detach(); }, detach() { tcM.detach(); tcR.detach(); },
+    setMode(m) { conGiro = m !== "scale"; tcM.setMode(m === "scale" ? "scale" : "translate"); if (tcM.object) tc.attach(tcM.object); }, get dragging() { return tcM.dragging || tcR.dragging; } };
+  for (const t of [tcM, tcR]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
   let sel = null;
   const grupoDe = id => E.escenaEd.get(id)?.g;
   const leerGrupo = () => { const g = grupoDe(sel.id); if (!g) return; sel.p = g.position.toArray().map(v => +v.toFixed(2));
@@ -112,7 +115,7 @@
   function atajo(e) {
     if (e.key === "Escape") { colocando = null; aviso(""); pintarLista(); seleccionar(null); }
     if (!sel || sel.tipo !== "objeto") { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
-    if (e.key === "w") modo("translate"); if (e.key === "e") modo("rotate"); if (e.key === "r") modo("scale");
+    if (e.key === "w" || e.key === "e") modo("translate"); if (e.key === "r") modo("scale");
     if (e.key === "Delete" || e.key === "Backspace") borrar();
   }
 
@@ -124,7 +127,7 @@
     if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0 || tc.dragging) return;
     const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam);
     if (colocando) {
-      const hit = ray.intersectObjects(scene.children.filter(o => o !== tc && o.visible), true).find(h => h.object.isMesh && !(h.object.material && h.object.material.transparent && h.object.material.opacity < 0.3));
+      const hit = ray.intersectObjects(scene.children.filter(o => o !== tcM && o !== tcR && o.visible), true).find(h => h.object.isMesh && !(h.object.material && h.object.material.transparent && h.object.material.opacity < 0.3));
       if (!hit) return;
       const id = nuevoId(), p = hit.point.toArray().map(v => +v.toFixed(2));
       let it;
