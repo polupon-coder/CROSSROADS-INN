@@ -27,6 +27,7 @@
   button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
   button.activo { background: var(--acento); color: #1b1404; border-color: var(--acento); }
   button.peligro { color: var(--peligro); }
+  #pestanas button { font-size: 12px; padding: 4px 8px; }
   #lista { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 210px; overflow-y: auto; }
   #lista button { text-align: left; font-size: 12px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #buscar { width: 100%; box-sizing: border-box; }
@@ -50,15 +51,8 @@
   </header>
   <div id="scroll">
     <section class="seccion">
-      <h2>Ir a</h2>
-      <div class="fila">
-        <select id="zona">
-          <option value="0">Inicio</option><option value="-40">Plataforma del bastón</option><option value="-420">Arcos</option><option value="-700">Dunas</option>
-          <option value="-980">Columnas</option><option value="-1110">Puente y acantilado</option><option value="-1190">Santuario de la onda</option>
-          <option value="-1260">Pilares movedizos</option><option value="-1350">Lago helado</option><option value="-1420">Iceberg y pasillo</option><option value="-1500">Cueva de hielo</option>
-        </select>
-        <button id="ir">Ir</button>
-      </div>
+      <h2>Bloque</h2>
+      <div id="pestanas" class="fila" role="tablist"></div>
     </section>
     <section class="seccion">
       <h2>Añadir</h2>

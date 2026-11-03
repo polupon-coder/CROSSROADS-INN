@@ -18,9 +18,21 @@
   const ponerNiebla = on => { conNiebla = on; $("niebla").textContent = "Niebla: " + (on ? "sí" : "no");
     if (scene.fog) { scene.fog.near = on ? 2 : 1e5; scene.fog.far = on ? 70 : 2e5; }
     (E.nieblaLago?.capas || []).forEach(m => m.visible = on); };
+  // Bloques por santuario: solo se ve (y se dibuja) el tramo elegido.
+  const S = E.santuarios, bloques = [["Todo", 60, -1600], ["1 · Bastón", 40, (S[0] + S[1]) / 2], ["2 · Rocas", (S[0] + S[1]) / 2, (S[1] + S[2]) / 2], ["3 · Puerta", (S[1] + S[2]) / 2, (S[2] + S[3]) / 2],
+    ["4 · Giro", (S[2] + S[3]) / 2, (S[3] + S[4]) / 2], ["5 · Revelación", (S[3] + S[4]) / 2, (S[4] + S[5]) / 2], ["6 · Onda", (S[4] + S[5]) / 2, S[5] - 20], ["Pilares y lago", S[5] - 20, E.hielo.hasta], ["Cueva", E.hielo.hasta, E.cuevaZ - 40]];
+  const cajas = new Map(), _b = new THREE.Box3();
+  const cajaDe = o => { if (!cajas.has(o)) { _b.setFromObject(o); cajas.set(o, _b.isEmpty() ? null : [_b.min.z, _b.max.z]); } return cajas.get(o); };
+  let bloque = bloques[0];
+  const verBloque = b => { bloque = b; const [, desde, hasta] = b, propios = new Set([...E.escenaEd.values()].map(v => v.g));
+    for (const o of scene.children) { if (o === tc || propios.has(o) || o.isLight || o.isCamera) continue; const c = cajaDe(o); if (!c) continue; o.visible = b === bloques[0] || (c[1] > hasta - 15 && c[0] < desde + 15); }
+    if (!conNiebla) (E.nieblaLago?.capas || []).forEach(m => m.visible = false);
+    const zc = (desde + hasta) / 2, x = E.caminoX(zc), y = E.alturaTerreno(x, zc), alto = Math.max(60, (desde - hasta) * 0.95);
+    orbit.target.set(x, y, zc); cam.position.set(x, y + alto, zc + 0.01); orbit.update();
+    document.querySelectorAll("#pestanas button").forEach(t => t.classList.toggle("activo", t.textContent === b[0])); };
+  bloques.forEach(b => { const t = document.createElement("button"); t.textContent = b[0]; t.setAttribute("role", "tab"); t.onclick = () => verBloque(b); $("pestanas").appendChild(t); });
   ponerNiebla(false); planta();
-  $("planta").onclick = planta; $("niebla").onclick = () => ponerNiebla(!conNiebla);
-  $("ir").onclick = () => irA(+$("zona").value);
+  $("planta").onclick = () => verBloque(bloque); $("niebla").onclick = () => ponerNiebla(!conNiebla);
   const teclas = new Set();
   addEventListener("keydown", e => { if (e.target.closest("input, textarea, select")) return; teclas.add(e.key); atajo(e); });
   addEventListener("keyup", e => teclas.delete(e.key));
@@ -136,6 +148,7 @@
     const entrada = [...E.escenaEd.values()].find(v => v.g === o); if (entrada) seleccionar(items.get(entrada.it.id) || entrada.it);
   });
   if (col) estado(`${items.size} piezas · se guarda solo`);
+  verBloque(bloques[0]);
 
   // ── Publicar: avisa a Claude, que pasa la escena al juego ─────────────
   let com = null; try { com = window.claude ? await window.claude.use("comments") : null; } catch { com = null; }
