@@ -9,6 +9,8 @@
 
   // ── Vista ─────────────────────────────────────────────────────────────
   const orbit = new THREE.OrbitControls(cam, dom);
+  orbit.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }; orbit.panSpeed = 1.6; orbit.zoomSpeed = 1.4;   // (la rueda pulsada arrastra la vista)
+  E.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); E.renderer.setSize(innerWidth, innerHeight, false);
   orbit.enableDamping = true; orbit.dampingFactor = 0.12; orbit.maxPolarAngle = Math.PI * 0.495;
   const irA = z => { const x = E.caminoX(z), y = E.alturaTerreno(x, z); orbit.target.set(x, y + 1, z); cam.position.set(x + 10, y + 12, z + 18); orbit.update(); };
   // De entrada, el mundo entero en planta y sin niebla.
@@ -48,14 +50,7 @@
 
   // ── Datos ─────────────────────────────────────────────────────────────
   const items = new Map();   // id -> datos
-  let db = null;
-  try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
-  const col = db ? db.collection("escena") : null;
-  if (!col) estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true);
-  if (col) {
-    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); E.ponerEd(it); }); estado(`${items.size} piezas cargadas · se guarda solo`); }
-    catch (e) { estado("No se pudo leer lo guardado: " + (e.message || e.code), true); }
-  }
+  let col = null;
   const pendientes = new Map();
   const guardar = it => {
     if (!col) return; clearTimeout(pendientes.get(it.id));
@@ -147,8 +142,15 @@
     let o = hit.object; while (o.parent && !grupos.includes(o)) o = o.parent;
     const entrada = [...E.escenaEd.values()].find(v => v.g === o); if (entrada) seleccionar(items.get(entrada.it.id) || entrada.it);
   });
-  if (col) estado(`${items.size} piezas · se guarda solo`);
   verBloque(bloques[0]);
+  // La base de datos se carga aparte: el editor responde desde el principio.
+  (async () => {
+    let db = null; try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
+    col = db ? db.collection("escena") : null;
+    if (!col) { estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true); return; }
+    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); }
+    catch (e) { estado("No se pudo leer lo guardado: " + (e.message || e.code), true); }
+  })();
 
   // ── Publicar: avisa a Claude, que pasa la escena al juego ─────────────
   let com = null; try { com = window.claude ? await window.claude.use("comments") : null; } catch { com = null; }
