@@ -3169,11 +3169,14 @@ const capaTela = (() => {
   const N = NR * NC, GROSOR = 0.014, tono = new Float32Array(N * 2 * 3).fill(1);
   const geo = new THREE.BufferGeometry(), vert = new Float32Array(N * 2 * 3), uv = new Float32Array(N * 2 * 2), idx = [];
   for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) for (const l of [0, N]) { uv[(l + r * NC + c) * 2] = c / (NC - 1); uv[(l + r * NC + c) * 2 + 1] = 1 - r / (NR - 1); }
-  const corte = c => [0, 1, 0, 2, 1, 0, 0, 1, 3, 1, 0, 0, 2, 0, 1, 2, 0, 1, 0, 0, 2, 1, 0, 1][c] || 0;   // (el borde de abajo, rasgado)
-  for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { if (r >= NR - 1 - corte(c)) continue; const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); idx.push(N + a, N + a + 1, N + a + NC, N + a + 1, N + a + NC + 1, N + a + NC); }
-  const canto = (a, b) => idx.push(a, b, N + a, b, N + b, N + a);
-  for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); if (!corte(c)) canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
-  for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
+  const corte0 = c => [0, 1, 0, 2, 1, 0, 0, 1, 3, 1, 0, 0, 2, 0, 1, 2, 0, 1, 0, 0, 2, 1, 0, 1][c] || 0;   // (el borde de abajo, rasgado: desde el santuario de la onda)
+  const hacerIdx = rasgada => { const idx = [], corte = c => rasgada ? corte0(c) : 0;
+    for (let r = 0; r < NR - 1; r++) for (let c = 0; c < NC - 1; c++) { if (r >= NR - 1 - corte(c)) continue; const a = r * NC + c; idx.push(a, a + NC, a + 1, a + 1, a + NC, a + NC + 1); idx.push(N + a, N + a + 1, N + a + NC, N + a + 1, N + a + NC + 1, N + a + NC); }
+    const canto = (a, b) => idx.push(a, b, N + a, b, N + b, N + a);
+    for (let c = 0; c < NC - 1; c++) { canto(c + 1, c); if (!corte(c)) canto((NR - 1) * NC + c, (NR - 1) * NC + c + 1); }
+    for (let r = 0; r < NR - 1; r++) { canto(r * NC, (r + 1) * NC); canto((r + 1) * NC + NC - 1, r * NC + NC - 1); }
+  return idx; };
+  const idxEntera = hacerIdx(false), idxRasgada = hacerIdx(true); idx.push(...idxEntera);
   geo.setAttribute("position", new THREE.BufferAttribute(vert, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: THREE.DoubleSide, vertexColors: true });   // como la capucha (el amarillo va en el color de cada vértice: así caben manchas de nieve)
   const amaC = new THREE.Color(AMARILLO), nieveCapa = new THREE.Color(TONO_NIEVE).multiplyScalar(0.93);
@@ -3230,6 +3233,7 @@ const capaTela = (() => {
   const coord = (i, j, e) => P[clamp(i, 0, NI - 1) * NJ + clamp(j, 0, NJ - 1)].getComponent(e);
   return {
     malla, P, A, estado: () => [+desvio.toFixed(2), +alzado.toFixed(2)],
+    rasgar(si) { geo.setIndex(si ? idxRasgada : idxEntera); },
     actualizar(dt, viento, suelo) {
       dt = clamp(dt, 0, 1 / 30);
       blizzard.updateMatrixWorld(true);
@@ -4129,7 +4133,7 @@ function empezarEnSantuario(n) {
   if (n >= 3) abrePuertas = true;
   if (n >= 4) giraBloques = true;
   if (n >= 5) { barre = true; avisoPuzle = true; }
-  if (n >= 6) { onda = true; crecerBaston(3); }   // (desde el panel: llegas con su magia, sin reseguir la runa)
+  if (n >= 6) { onda = true; crecerBaston(3); capaTela.rasgar(true); }   // (desde el panel: llegas con su magia, sin reseguir la runa)
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
@@ -4376,7 +4380,7 @@ function actualizar(dt) {
       estado = "juego"; giraBloques = true;
       rotular(tactil ? "◇ gira la piedra marcada por la espiral;\nagachado, la de abajo." : "E gira la piedra marcada por la espiral;\nagachado (C), la de abajo.", 6);
     } else if (arrodillado > 2.8 && aprende === "onda") {
-      estado = "juego"; onda = true; crecerBaston(3);
+      estado = "juego"; onda = true; crecerBaston(3); capaTela.rasgar(true);
       rotular(tactil ? "Mantén ◇ unos instantes:\nla magia se carga y estalla en una onda." : "Mantén E unos instantes:\nla magia se carga y estalla en una onda.", 6);
     } else if (arrodillado > 2.8 && aprende === "barrido") {
       estado = "juego"; barre = true;
@@ -5449,7 +5453,7 @@ function ajustarMundo(it, objeto) {
 }
 function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) scene.remove(e.g); if (e.col) { const i = colisiones.indexOf(e.col); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) escenaEd.set(it.id, { it, g }); return g; } quitarEd(it.id); const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
-if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) j.items.forEach(ponerEd); }).catch(() => {});   // (lo colocado en el editor, ya fijado en el juego)
+if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) for (const it of j.items) { try { ponerEd(it); } catch (e) { console.warn("escena: no se pudo poner", it.id, e); } } }).catch(() => {});   // (una pieza que falle no corta las demás)   // (lo colocado en el editor, ya fijado en el juego)
 window.__blizzard = { ed: { MODELOS, KITS, ponerEd, quitarEd, crearPiezaEd, firmaDe, cajaReal, unidadesMundo, cajaInstancia, firmaInstancia, sueloMat: () => MAT_SUELO, escenaEd, camara, renderer, scene, alturaTerreno, caminoX, nieblaLago, coposBajos, santuarios: [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4, PLATAFORMA5, PLATAFORMA6].map(P => P.z), hielo: HIELO, cuevaZ: PLATAFORMA7.z }, centroLago, colis: () => colisiones, hielos: () => losasHielo, TRAS, puzle, vel, pozoEn, guia: () => [guia.modo, +guia.t.toFixed(1), guia.p.toArray().map(v => +v.toFixed(1)), guia.cola[43].p.toArray().map(v => +v.toFixed(1))], bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
