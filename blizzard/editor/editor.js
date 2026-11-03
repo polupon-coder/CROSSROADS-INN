@@ -142,10 +142,11 @@
     if ((sel.tipo === "objeto" || sel.tipo === "mundo")) { sel.r = [g.rotation.x, g.rotation.y, g.rotation.z].map(v => +(v * 180 / Math.PI).toFixed(1)); sel.s = g.scale.toArray().map(v => +v.toFixed(3)); } };
   const rehacer = () => { const g = E.ponerEd(sel); if (g) tc.attach(g); guardar(sel); };
   const seleccionar = it => {
-    sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); return; }
+    sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); pintarNieblas(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
     const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo; $("ayudaMapa").hidden = false;
-    $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota";
+    $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota"; $("filaMat").hidden = !(it.tipo === "objeto" || (mundo && g && !g.userData.inst));
+    pintarNieblas();
     if (!obj) tc.setMode("translate");
     $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
     pintarCampos();
@@ -156,13 +157,32 @@
     for (const [k, [c, i]] of Object.entries(campos)) if (sel[c] && document.activeElement !== $(k)) $(k).value = sel[c][i];
     $("ocultoMundo").checked = !!sel.oculto; $("col").checked = sel.colision !== false; $("nieve").checked = !!sel.nieve; $("usaTinte").checked = !!sel.tinte; if (sel.tinte) $("tinte").value = sel.tinte;
     $("nRadio").value = sel.radio ?? 8; $("nAlto").value = sel.alto ?? 1.5; $("nDens").value = sel.densidad ?? 0.5; $("nColor").value = sel.color || "#efe6ee"; $("nota").value = sel.texto || "";
+    // Material: lo retocado o, si no, lo que trae la pieza.
+    const g = grupoDe(sel.id); let m0 = null; if (g) g.traverse(o => { if (!m0 && o.isMesh) m0 = o.userData.matOrig || o.material; }); if (Array.isArray(m0)) m0 = m0[0];
+    const M = sel.mat || {}; $("mBrillo").value = M.brillo ?? (m0 && m0.roughness !== undefined ? 1 - m0.roughness : 0); $("mMetal").value = M.metal ?? (m0 && m0.metalness !== undefined ? m0.metalness : 0);
+    $("mLuzI").value = M.luzI ?? 0; $("mLuz").value = M.luz || "#ffffff"; $("mOpac").value = M.opac ?? 1;
+    for (const [k, v] of [["vBrillo", "mBrillo"], ["vMetal", "mMetal"], ["vLuzI", "mLuzI"], ["vOpac", "mOpac"], ["vRadio", "nRadio"], ["vAlto", "nAlto"], ["vDens", "nDens"]]) $(k).textContent = (+$(v).value).toFixed(2);
   };
+  // ── Material: los deslizadores cambian la pieza al momento; al soltar, se guarda (y entra en «deshacer»).
+  const leerMat = () => { sel.mat = { brillo: +$("mBrillo").value, metal: +$("mMetal").value, luzI: +$("mLuzI").value, luz: $("mLuz").value, opac: +$("mOpac").value }; };
+  const verMat = () => { const g = grupoDe(sel.id); if (g) E.aplicarMatEd(g, sel); for (const [k, v] of [["vBrillo", "mBrillo"], ["vMetal", "mMetal"], ["vLuzI", "mLuzI"], ["vOpac", "mOpac"]]) $(k).textContent = (+$(v).value).toFixed(2); };
+  for (const k of ["mBrillo", "mMetal", "mLuzI", "mOpac", "mLuz"]) { $(k).addEventListener("input", () => { if (!sel) return; leerMat(); verMat(); }); $(k).addEventListener("change", () => { if (!sel) return; leerMat(); verMat(); guardar(sel); }); }
+  $("matOriginal").onclick = () => { if (!sel) return; delete sel.mat; sel.tinte = null; verMat(); pintarCampos(); guardar(sel); };
+  // ── Nieblas: la lista de las puestas (clic: ir y elegirla) y una nueva donde mira la vista.
+  const pintarNieblas = () => { const L = $("listaNieblas"); L.textContent = "";
+    [...items.values()].filter(it => it.tipo === "niebla").sort((a, b) => b.p[2] - a.p[2]).forEach((it, i) => { const bt = document.createElement("button"); bt.textContent = "Niebla " + (i + 1) + " · z " + Math.round(it.p[2]); if (sel && sel.id === it.id) bt.classList.add("activo");
+      bt.onclick = () => { orbit.target.set(it.p[0], it.p[1], it.p[2]); cam.position.set(it.p[0] + 12, it.p[1] + 14, it.p[2] + 18); orbit.update(); seleccionar(it); }; L.appendChild(bt); }); };
+  $("nuevaNiebla").onclick = () => { const t = orbit.target, it = { id: nuevoId(), tipo: "niebla", p: [+t.x.toFixed(2), +E.alturaTerreno(t.x, t.z).toFixed(2), +t.z.toFixed(2)], radio: 8, alto: 1.5, densidad: 0.5, color: "#efe6ee" };
+    items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
   for (const [k, [c, i]] of Object.entries(campos)) $(k).addEventListener("change", () => { if (!sel || !sel[c]) return; const v = parseFloat($(k).value); if (!isFinite(v)) return; sel[c][i] = v; rehacer(); });
   $("col").onchange = () => { sel.colision = $("col").checked; rehacer(); };
   $("nieve").onchange = () => { sel.nieve = $("nieve").checked; rehacer(); };
   $("usaTinte").onchange = () => { sel.tinte = $("usaTinte").checked ? $("tinte").value : null; rehacer(); };
   $("tinte").onchange = () => { if ($("usaTinte").checked) { sel.tinte = $("tinte").value; rehacer(); } };
-  [["nRadio", "radio"], ["nAlto", "alto"], ["nDens", "densidad"]].forEach(([k, c]) => $(k).addEventListener("change", () => { const v = parseFloat($(k).value); if (isFinite(v)) { sel[c] = v; rehacer(); } }));
+  [["nRadio", "radio", "vRadio"], ["nAlto", "alto", "vAlto"], ["nDens", "densidad", "vDens"]].forEach(([k, c, vk]) => {
+    $(k).addEventListener("input", () => { const v = parseFloat($(k).value); if (isFinite(v) && sel) { sel[c] = v; $(vk).textContent = v.toFixed(2); const g = E.ponerEd(sel); if (g) tc.attach(g); } });
+    $(k).addEventListener("change", () => { const v = parseFloat($(k).value); if (isFinite(v) && sel) { sel[c] = v; rehacer(); } }); });
+  $("nColor").addEventListener("input", () => { if (!sel) return; sel.color = $("nColor").value; const g = E.ponerEd(sel); if (g) tc.attach(g); });
   $("nColor").onchange = () => { sel.color = $("nColor").value; rehacer(); };
   $("nota").addEventListener("input", () => { sel.texto = $("nota").value; guardar(sel); });
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -278,7 +298,7 @@
     let db = null; try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
     col = db ? db.collection("escena") : null;
     if (!col) { estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true); return; }
-    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); }
+    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); pintarNieblas(); }
     catch (e) { estado("No se pudo leer lo guardado: " + (e.message || e.code), true); }
   })();
 

@@ -28,6 +28,11 @@
   button.activo { background: var(--acento); color: #1b1404; border-color: var(--acento); }
   button.peligro { color: var(--peligro); }
   #pestanas button { font-size: 12px; padding: 4px 8px; }
+  input[type=range] { flex: 1; min-width: 90px; accent-color: var(--acento); }
+  .val { font: 11px var(--mono); color: var(--tenue); min-width: 34px; text-align: right; }
+  #filaMat h2 { margin: 4px 0 0; }
+  #listaNieblas button { font-size: 12px; padding: 3px 7px; }
+  #listaNieblas:empty::after { content: "Sin nieblas todavía."; color: var(--tenue); font-size: 12px; }
   #lista { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 104px; gap: 6px; max-height: 380px; overflow-y: auto; align-content: start; }
   #lista button { display: grid; grid-template-rows: 1fr auto; gap: 3px; text-align: left; font-size: 12px; padding: 4px; white-space: nowrap; overflow: hidden; min-height: 104px; }
   #lista button img { width: 100%; height: 72px; object-fit: cover; border-radius: 4px; background: #3a4252; }
@@ -62,6 +67,11 @@
       <input id="buscar" type="search" placeholder="Buscar pieza…" aria-label="Buscar pieza">
       <div id="lista"></div>
     </section>
+    <section class="seccion">
+      <h2>Nieblas</h2>
+      <div class="fila"><button id="nuevaNiebla">Añadir niebla aquí</button></div>
+      <div id="listaNieblas" class="fila"></div>
+    </section>
     <section class="seccion" id="sel" hidden>
       <h2 id="selNombre">Selección</h2>
       <p class="ayuda solo" id="ayudaMapa" style="margin:0">Sobre la pieza: arrástrala para moverla · flechas <span style="color:#ef4444">roja</span>, <span style="color:#4ade80">verde</span> y <span style="color:#3b82f6">azul</span>, mover por un eje · <span style="color:#ffb020">anillo naranja</span>, girar (<kbd>Mayús</kbd>: de 15 en 15°) · cubos blancos de las esquinas, escalar · otro clic en el mismo sitio elige la pieza de debajo.</p>
@@ -71,12 +81,22 @@
       <div class="fila solo" id="filaObj">
         <label><input id="col" type="checkbox"> Colisión</label>
         <label><input id="nieve" type="checkbox"> Nieve encima</label>
-        <label><input id="usaTinte" type="checkbox"> Tinte</label><input id="tinte" type="color" value="#b4cadb">
+      </div>
+      <div class="solo" id="filaMat">
+        <h2>Material</h2>
+        <div class="fila"><label><input id="usaTinte" type="checkbox"> Color</label><input id="tinte" type="color" value="#b4cadb"></div>
+        <div class="fila"><label>Brillo</label><input id="mBrillo" type="range" min="0" max="1" step="0.01"><span class="val" id="vBrillo"></span></div>
+        <div class="fila"><label>Metal</label><input id="mMetal" type="range" min="0" max="1" step="0.01"><span class="val" id="vMetal"></span></div>
+        <div class="fila"><label>Luz propia</label><input id="mLuzI" type="range" min="0" max="3" step="0.05"><span class="val" id="vLuzI"></span><input id="mLuz" type="color" value="#ffffff"></div>
+        <div class="fila"><label>Opacidad</label><input id="mOpac" type="range" min="0.05" max="1" step="0.01"><span class="val" id="vOpac"></span></div>
+        <div class="fila"><button id="matOriginal">Material original</button></div>
       </div>
       <div class="fila solo" id="filaMundo"><label><input id="ocultoMundo" type="checkbox"> Ocultar</label><button id="restaurar">Devolver a su sitio</button></div>
       <div class="solo" id="filaNiebla">
-        <div class="fila"><label>Radio</label><input id="nRadio" type="number" step="0.5"><label>Alto</label><input id="nAlto" type="number" step="0.1"></div>
-        <div class="fila"><label>Densidad</label><input id="nDens" type="number" step="0.05" min="0" max="1"><input id="nColor" type="color" value="#efe6ee"></div>
+        <div class="fila"><label>Radio</label><input id="nRadio" type="range" min="1" max="40" step="0.5"><span class="val" id="vRadio"></span></div>
+        <div class="fila"><label>Alto</label><input id="nAlto" type="range" min="0.2" max="8" step="0.1"><span class="val" id="vAlto"></span></div>
+        <div class="fila"><label>Densidad</label><input id="nDens" type="range" min="0" max="1" step="0.01"><span class="val" id="vDens"></span></div>
+        <div class="fila"><label>Color</label><input id="nColor" type="color" value="#efe6ee"></div>
       </div>
       <div class="solo" id="filaNota"><textarea id="nota" placeholder="Escribe lo que quieres que haga aquí (por ejemplo: «esta piedra cae al pisarla»)."></textarea></div>
       <div class="fila"><button id="dup">Duplicar</button><button id="borrar" class="peligro">Borrar</button></div>
