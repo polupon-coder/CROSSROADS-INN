@@ -90,7 +90,8 @@
   // ── Selección y gizmo ─────────────────────────────────────────────────
   // Sobre la pieza, a la vez: flechas para moverla y anillos para girarla (como en 3ds Max). Escalar, con su botón o R.
   // Como en 3ds Max: un solo manejador a la vez (mover W, girar E, escalar R), grande y claro.
-  const tcM = new THREE.TransformControls(cam, dom), tcR = { dragging: false }; tcM.setSize(1.25); scene.add(tcM);
+  const tcM = new THREE.TransformControls(cam, dom), tcR = { dragging: false }; tcM.setSize(1.7); scene.add(tcM);
+  window.__ed = { orbit, tcM };
   const tc = { attach(g) { tcM.attach(g); }, detach() { tcM.detach(); }, setMode(m) { tcM.setMode(m); }, get dragging() { return tcM.dragging; } };
   for (const t of [tcM]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
   let sel = null;
@@ -101,7 +102,7 @@
   const seleccionar = it => {
     sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
-    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("modos").hidden = !obj; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo;
+    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("modos").hidden = !obj; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo; $("ayudaMapa").hidden = false;
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota";
     if (!obj) tc.setMode("translate");
     $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
@@ -151,8 +152,23 @@
       if (!o.isLight && !o.isCamera && !o.isInstancedMesh && !o.isPoints && !o.isSprite && !o.userData.pivoteEd) { let malla = false, esSuelo = false; o.traverse(m => { if (m.isMesh && !m.isInstancedMesh) { malla = true; if (m.material === suelo) esSuelo = true; } });
         if (malla && !esSuelo) { b = E.cajaReal(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
       cajasMundo.set(o, b); } return cajasMundo.get(o); };
-  let abajo = null;
-  dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY]; });
+  let abajo = null, arrastre = null;
+  // Sobre el mapa, con la propia pieza: arrastrar la mueve por el suelo; con Mayús la gira; con Alt la escala.
+  const planoA = new THREE.Plane(), ptA = new THREE.Vector3();
+  const rayoDe = e => { const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam); };
+  dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY];
+    if (e.button !== 0 || !sel || colocando || tcM.axis || tcM.dragging) return;
+    const g = grupoDe(sel.id); if (!g) return; rayoDe(e);
+    const b = g.userData.inst ? E.cajaInstancia(g.userData.inst.m, g.userData.inst.i) : E.cajaReal(g); if (!ray.ray.intersectBox(b, ptA)) return;
+    planoA.set(new THREE.Vector3(0, 1, 0), -g.position.y); ray.ray.intersectPlane(planoA, ptA);
+    arrastre = { g, modo: e.shiftKey ? "girar" : e.altKey ? "escalar" : "mover", x0: e.clientX, y0: e.clientY, off: g.position.clone().sub(ptA), rot0: g.rotation.y, esc0: g.scale.clone() };
+    orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); });
+  dom.addEventListener("pointermove", e => { if (!arrastre) return; const A = arrastre, g = A.g;
+    if (A.modo === "mover") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) { g.position.x = ptA.x + A.off.x; g.position.z = ptA.z + A.off.z; } }
+    else if (A.modo === "girar") g.rotation.y = A.rot0 + (e.clientX - A.x0) * 0.012;
+    else g.scale.copy(A.esc0).multiplyScalar(Math.exp(-(e.clientY - A.y0) * 0.006));
+    g.updateMatrixWorld(true); leerGrupo(); pintarCampos(); if (g.userData.inst) E.ponerEd(sel); });
+  dom.addEventListener("pointerup", () => { if (!arrastre) return; arrastre = null; orbit.enabled = true; leerGrupo(); rehacer(); });
   dom.addEventListener("pointerup", e => {
     if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0 || tc.dragging) return;
     const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam);
@@ -169,19 +185,20 @@
       if (!e.shiftKey) { colocando = null; aviso(""); pintarLista(); }   // (con Mayús se siguen colocando)
       return;
     }
-    const grupos = [...E.escenaEd.values()].filter(v => v.g).map(v => v.g);
-    const hit = ray.intersectObjects(grupos, true)[0];
-    if (!hit) {   // una pieza que ya estaba en el mundo (no el suelo, ni lo enorme, ni lo instanciado)
-      // (por su caja: muchas piezas del juego no responden a los rayos, para ir más deprisa)
-      let o = null, dm = Infinity; const pt = new THREE.Vector3();
-      for (const c of scene.children) { if (c === tcM || c === tcR || !c.visible || grupos.includes(c)) continue; const b = cajaMundo(c); if (b && ray.ray.intersectBox(b, pt)) { const d = pt.distanceTo(ray.ray.origin); if (d < dm) { dm = d; o = c; } } }
-      if (!o) { seleccionar(null); return; }
-      const firma = E.firmaDe(o), it = { id: "m" + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
-      const ya = items.get(it.id); if (ya) { seleccionar(ya); return; }
-      items.set(it.id, it); E.ponerEd(it, o); seleccionar(it); return;
-    }
-    let o = hit.object; while (o.parent && !grupos.includes(o)) o = o.parent;
-    const entrada = [...E.escenaEd.values()].find(v => v.g === o); if (entrada) seleccionar(items.get(entrada.it.id) || entrada.it);
+    // Todo se elige por su caja (muchas piezas del juego no responden a los rayos): lo ya editado, cada pieza
+    // suelta del mundo y cada copia de las mallas instanciadas; gana la más cercana.
+    const visible = o => { for (let v = o; v; v = v.parent) if (!v.visible) return false; return true; };
+    const entradas = [...E.escenaEd.values()].filter(v => v.g), pt = new THREE.Vector3(); let mejor = null, dm = Infinity;
+    const probar = (b, que) => { if (b && !b.isEmpty() && ray.ray.intersectBox(b, pt)) { const d = pt.distanceTo(ray.ray.origin); if (d < dm) { dm = d; mejor = que; } } };
+    for (const e of entradas) { if (!e.g.visible && e.it.tipo !== "mundo") continue; probar(e.g.userData.inst ? E.cajaInstancia(e.g.userData.inst.m, e.g.userData.inst.i) : E.cajaReal(e.g), { entrada: e }); }
+    for (const u of E.unidadesMundo()) { if (!visible(u) || u.userData.enPivote) continue;
+      if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(e => e.g.userData.inst && e.g.userData.inst.m === u && e.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i), t = b.getSize(pt.clone()); if (Math.max(t.x, t.y, t.z) < 60) probar(b, { m: u, i }); } }
+      else probar(cajaMundo(u), { o: u }); }
+    if (!mejor) { seleccionar(null); return; }
+    if (mejor.entrada) { seleccionar(items.get(mejor.entrada.it.id) || mejor.entrada.it); return; }
+    const firma = mejor.o ? E.firmaDe(mejor.o) : E.firmaInstancia(mejor.m, mejor.i), it = { id: (firma.inst ? "mi" : "m") + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
+    const ya = items.get(it.id); if (ya) { seleccionar(ya); return; }
+    items.set(it.id, it); E.ponerEd(it, mejor.o || { m: mejor.m, i: mejor.i }); seleccionar(it);
   });
   verBloque(bloques[0]);
   // La base de datos se carga aparte: el editor responde desde el principio.
