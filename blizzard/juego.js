@@ -5445,8 +5445,17 @@ function crearPiezaEd(it) {
   scene.add(g); g.updateMatrixWorld(true);
   let col = null; const rueda = it.rodar && !window.BLIZZARD_EDITOR;
   if (rueda) { const bb = cajaReal(g), off = (bb.min.y + bb.max.y) / 2 - g.position.y; g.position.y += off; g.children.forEach(ch => ch.position.y -= off / g.scale.y); g.updateMatrixWorld(true); }   /* (gira sobre su centro) */
-  if (it.tipo !== "niebla" && it.tipo !== "nota" && it.colision !== false) { const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); col = { x: c.x, z: c.z, r: Math.min(t.x, t.z) * 0.45, techo: b.max.y }; colisiones.push(col); if (rueda) rodantesEd.push({ g, col, x0: g.position.x, cx: caminoX(g.position.z), R: t.y / 2, fase: rodantesEd.length * 1.7, x: g.position.x }); }   /* (las ruedas que rueden: cruzan el paso de lado a lado) */
-  return { g, col };
+  let cols = null;
+  if (it.tipo !== "niebla" && it.tipo !== "nota" && it.colision !== false) { const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); col = { x: c.x, z: c.z, r: Math.min(t.x, t.z) * 0.45, techo: b.max.y };
+    // Las piezas alargadas y giradas (un trozo de acantilado): su caja en el mundo es casi cuadrada y un solo círculo
+    // tapaba el paso; se mide la pieza sin su giro y se ponen círculos a lo largo de su eje mayor.
+    if (!rueda) { const ry = g.rotation.y; g.rotation.y = 0; g.updateMatrixWorld(true); const b0 = cajaReal(g), t0 = b0.getSize(new THREE.Vector3()), c0 = b0.getCenter(new THREE.Vector3()).sub(g.position); g.rotation.y = ry; g.updateMatrixWorld(true);
+      const largo = Math.max(t0.x, t0.z), ancho = Math.min(t0.x, t0.z);
+      if (ancho < largo * 0.6) { const ex = new THREE.Vector3(Math.cos(ry), 0, -Math.sin(ry)), ez = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)), cen = g.position.clone().add(ex.clone().multiplyScalar(c0.x)).add(ez.clone().multiplyScalar(c0.z)), eje = t0.x >= t0.z ? ex : ez, r = ancho * 0.38, n = Math.max(2, Math.ceil((largo - 2 * r) / (r * 1.2)) + 1);
+        cols = []; for (let i = 0; i < n; i++) { const f = n > 1 ? i / (n - 1) - 0.5 : 0, q = cen.clone().addScaledVector(eje, f * (largo - 2 * r)); cols.push({ x: q.x, z: q.z, r, techo: b.max.y }); }
+        col = cols[0]; } }
+    if (cols) colisiones.push(...cols); else colisiones.push(col); if (rueda) rodantesEd.push({ g, col, x0: g.position.x, cx: caminoX(g.position.z), R: t.y / 2, fase: rodantesEd.length * 1.7, x: g.position.x }); }   /* (las ruedas que rueden: cruzan el paso de lado a lado) */
+  return { g, col, cols };
 }
 // Piezas que ya estaban en el mundo: se reconocen por su forma (vértices) y el centro de su caja; se mueven con
 // un pivote en ese centro, y sus choques se desplazan con ellas.
@@ -5497,7 +5506,7 @@ function ajustarMundo(it, objeto) {
   P.userData.cols.forEach((c, i) => { c.x = P.userData.cols0[i][0] + p[0] - c0[0]; c.z = P.userData.cols0[i][1] + p[2] - c0[2]; const k = colisiones.indexOf(c); if (it.oculto && k >= 0) colisiones.splice(k, 1); if (!it.oculto && k < 0) colisiones.push(c); });
   return P;
 }
-function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) scene.remove(e.g); if (e.col) { const i = colisiones.indexOf(e.col); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
+function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) scene.remove(e.g); for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) escenaEd.set(it.id, { it, g }); return g; } quitarEd(it.id); const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
 buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con sus sitios de origen: antes de mover nada)
 { // Las dos agujas de roca a los lados del camino justo antes del bastón: fuera (y su choque).
