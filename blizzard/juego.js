@@ -3867,8 +3867,8 @@ estilo.textContent = `
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
   /* El título en vídeo: la ráfaga y las letras grabadas en la nieve; la nieve del vídeo casi desaparece en el fondo (multiplicar, aclarada) y se queda en el último fotograma. */
   #portada h1 .titulo { display: block; width: min(96vw, 980px); aspect-ratio: 16 / 9; object-fit: cover; margin: calc(min(96vw, 980px) * -0.13) auto calc(min(96vw, 980px) * -0.17);
-    -webkit-mask-image: radial-gradient(ellipse 53% 25% at 50% 47%, #000 38%, transparent 100%); mask-image: radial-gradient(ellipse 53% 25% at 50% 47%, #000 38%, transparent 100%); mix-blend-mode: multiply; filter: brightness(1.22) contrast(1.05) saturate(.75); opacity: .72; animation: tituloEntra 1.4s ease-out both; pointer-events: none; }
-  @keyframes tituloEntra { from { opacity: 0; } to { opacity: .72; } }
+    -webkit-mask-image: radial-gradient(ellipse 53% 25% at 50% 47%, #000 38%, transparent 100%); mask-image: radial-gradient(ellipse 53% 25% at 50% 47%, #000 38%, transparent 100%); mix-blend-mode: multiply; filter: brightness(1.3) contrast(.9) saturate(.6) blur(.4px); opacity: .42; animation: tituloEntra 1.4s ease-out both; pointer-events: none; }
+  @keyframes tituloEntra { from { opacity: 0; } to { opacity: .42; } }
   #portada h1:has(.titulo) .texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* (el texto, solo para lectores de pantalla mientras está el vídeo) */
   #portada .botones { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 44px; }
   #portada .santuarios { margin-top: 44px; }
