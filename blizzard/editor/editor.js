@@ -94,15 +94,18 @@
   const matG = c => new THREE.MeshBasicMaterial({ color: c, depthTest: false, depthWrite: false, transparent: true, opacity: 0.92 });
   const asas = [], invisible = new THREE.MeshBasicMaterial({ visible: false });
   const asa = (m, tipo, pick) => { m.renderOrder = 999; m.userData.color = m.material.color.getHex(); giz.add(m); const q = pick || m; q.userData.asa = tipo; q.userData.vista = m; if (pick) giz.add(pick); asas.push(q); return m; };
-  const flecha = new THREE.Group(); giz.add(flecha);
-  const tallo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 10), matG(0x4ade80)); tallo.position.y = 0.8;
-  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.7, 18), matG(0x4ade80)); punta.position.y = 1.95;
-  const pickY = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 2.4, 8), invisible); pickY.position.y = 1.2;
-  for (const m of [tallo, punta]) { m.renderOrder = 999; m.userData.color = 0x4ade80; flecha.add(m); }
-  flecha.add(pickY); pickY.userData.asa = "altura"; pickY.userData.vistas = [tallo, punta]; asas.push(pickY);
+  // Tres flechas desde lo alto de la pieza: roja X, verde Y (arriba y abajo), azul Z; cada una mueve solo por su eje.
+  const ejes = new THREE.Group(); giz.add(ejes);
+  for (const [color, dir] of [[0xef4444, new THREE.Vector3(1, 0, 0)], [0x4ade80, new THREE.Vector3(0, 1, 0)], [0x3b82f6, new THREE.Vector3(0, 0, 1)]]) {
+    const f = new THREE.Group(), tallo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 10), matG(color)), punta = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.7, 18), matG(color)), pick = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 2.2, 8), invisible);
+    tallo.position.y = 0.8; punta.position.y = 1.95; pick.position.y = 1.3;
+    for (const m of [tallo, punta]) { m.renderOrder = 999; m.userData.color = color; f.add(m); }
+    f.add(pick); pick.userData.asa = "eje"; pick.userData.eje = dir; pick.userData.vistas = [tallo, punta]; asas.push(pick);
+    f.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); ejes.add(f);
+  }
   const anillo = asa(new THREE.Mesh(new THREE.TorusGeometry(1, 0.02, 8, 96), matG(0xffb020)), "girar", new THREE.Mesh(new THREE.TorusGeometry(1, 0.1, 6, 64), invisible));
   anillo.userData.pick = asas[asas.length - 1];
-  const esquinas = [0, 1, 2, 3].map(() => asa(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matG(0x60a5fa)), "escalar"));
+  const esquinas = [0, 1, 2, 3].map(() => asa(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matG(0xe5e7eb)), "escalar"));
   let gizG = null, cajaSel = new THREE.Box3(), anilloR = 0, anilloT = 0, sobre = null;
   const medirSel = () => { if (!gizG) return; cajaSel = (gizG.userData.inst ? E.cajaInstancia(gizG.userData.inst.m, gizG.userData.inst.i) : E.cajaReal(gizG)).clone(); };
   const colocarGiz = () => {
@@ -112,13 +115,13 @@
     if (Math.abs(R - anilloR) > anilloR * 0.02 || Math.abs(T - anilloT) > anilloT * 0.15) { anilloR = R; anilloT = T;
       anillo.geometry.dispose(); anillo.geometry = new THREE.TorusGeometry(R, T, 8, 128); anillo.userData.pick.geometry.dispose(); anillo.userData.pick.geometry = new THREE.TorusGeometry(R, k * 0.35, 6, 64); }
     for (const m of [anillo, anillo.userData.pick]) { m.position.set(c.x, cajaSel.min.y + 0.05, c.z); m.rotation.set(Math.PI / 2, 0, 0); }
-    flecha.position.set(c.x, cajaSel.max.y + k * 0.4, c.z); flecha.scale.setScalar(k);
+    ejes.position.set(c.x, cajaSel.max.y + k * 0.4, c.z); ejes.scale.setScalar(k);
     [[cajaSel.min.x, cajaSel.min.z], [cajaSel.max.x, cajaSel.min.z], [cajaSel.min.x, cajaSel.max.z], [cajaSel.max.x, cajaSel.max.z]].forEach(([x, z], i) => { esquinas[i].position.set(x, cajaSel.max.y, z); esquinas[i].scale.setScalar(k * 0.45); });
   };
   (function seguirGiz() { colocarGiz(); requestAnimationFrame(seguirGiz); })();
   const resaltar = q => { if (sobre === q) return; const vistas = s => s ? (s.userData.vistas || [s.userData.vista]) : [];
-    for (const m of vistas(sobre)) m.material.color.setHex(m.userData.color); sobre = q; for (const m of vistas(q)) m.material.color.setHex(0xffffff);
-    dom.style.cursor = q ? (q.userData.asa === "girar" ? "ew-resize" : q.userData.asa === "altura" ? "ns-resize" : "nwse-resize") : ""; };
+    for (const m of vistas(sobre)) m.material.color.setHex(m.userData.color); sobre = q; for (const m of vistas(q)) m.material.color.setHex(0xfde047);
+    dom.style.cursor = q ? (q.userData.asa === "girar" ? "ew-resize" : q.userData.asa === "eje" ? "move" : "nwse-resize") : ""; };
   const tcM = giz, tcR = { dragging: false };
   window.__ed = { orbit, giz };
   const tc = { attach(g) { gizG = g; medirSel(); colocarGiz(); }, detach() { gizG = null; giz.visible = false; resaltar(null); }, setMode() {}, get dragging() { return !!arrastre; } };
@@ -177,7 +180,9 @@
       if (!o.isLight && !o.isCamera && !o.isInstancedMesh && !o.isPoints && !o.isSprite && !o.userData.pivoteEd) { let malla = false, esSuelo = false; o.traverse(m => { if (m.isMesh && !m.isInstancedMesh) { malla = true; if (m.material === suelo) esSuelo = true; } });
         if (malla && !esSuelo) { b = E.cajaReal(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
       cajasMundo.set(o, b); } return cajasMundo.get(o); };
-  let abajo = null, arrastre = null, huboArrastre = false;
+  let abajo = null, arrastre = null, huboArrastre = false, ultimoClic = null, avisoT = 0;
+  // La clave de lo elegido, para saber cuál toca después al volver a hacer clic en el mismo sitio.
+  const claveDeSel = () => sel ? "e:" + sel.id : null;   // (lo elegido ya está entre lo editado)
   const planoA = new THREE.Plane(), ptA = new THREE.Vector3();
   const rayoDe = e => { const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam); };
   const asaBajo = e => { if (!gizG || !giz.visible) return null; rayoDe(e); const h = ray.intersectObjects(asas, false)[0]; return h ? h.object : null; };
@@ -188,27 +193,29 @@
     const q = asaBajo(e), c = cajaSel.getCenter(new THREE.Vector3());
     const base = { g, x0: e.clientX, y0: e.clientY, rot0: g.rotation.y, esc0: g.scale.clone(), pos0: g.position.clone(), caja0: cajaSel.clone() };
     if (q) { const tipo = q.userData.asa;
-      if (tipo === "altura") { const n = new THREE.Vector3(); cam.getWorldDirection(n); n.y = 0; if (n.lengthSq() < 1e-6) n.set(0, 0, 1); n.normalize(); planoA.setFromNormalAndCoplanarPoint(n, c); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "altura", y: ptA.y }; }
+      if (tipo === "eje") { const ax = q.userData.eje, v = new THREE.Vector3(); cam.getWorldDirection(v); const n = ax.clone().cross(v.clone().cross(ax)); if (n.lengthSq() < 1e-8) n.copy(v); n.normalize();
+        const o = new THREE.Vector3(); q.getWorldPosition(o); planoA.setFromNormalAndCoplanarPoint(n, o); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "eje", ax, p0: ptA.clone() }; }
       else if (tipo === "girar") { planoA.set(new THREE.Vector3(0, 1, 0), -(cajaSel.min.y + 0.05)); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "girar", c, a0: Math.atan2(ptA.z - c.z, ptA.x - c.x) }; }
       else { const cp = enPantalla(c); arrastre = { ...base, modo: "escalar", cp, d0: Math.max(4, Math.hypot(e.clientX - cp[0], e.clientY - cp[1])) }; }
     } else {
       rayoDe(e); const b = g.userData.inst ? E.cajaInstancia(g.userData.inst.m, g.userData.inst.i) : E.cajaReal(g); if (!ray.ray.intersectBox(b, ptA)) return;
       planoA.set(new THREE.Vector3(0, 1, 0), -g.position.y); ray.ray.intersectPlane(planoA, ptA);
-      arrastre = { ...base, modo: e.shiftKey ? "girarL" : e.altKey ? "escalarL" : "mover", off: g.position.clone().sub(ptA) };
+      arrastre = { ...base, modo: e.shiftKey ? "girarL" : e.altKey ? "escalarL" : "mover", off: g.position.clone().sub(ptA), pend: true };   // (hasta que se mueve, es un clic: deja elegir lo de debajo)
     }
-    huboArrastre = true; orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); e.stopImmediatePropagation(); });
+    if (!arrastre.pend) huboArrastre = true; orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); e.stopImmediatePropagation(); });
   dom.addEventListener("pointermove", e => {
     if (!arrastre) { if (e.buttons === 0) resaltar(asaBajo(e)); return; }
     const A = arrastre, g = A.g;
+    if (A.pend) { if (Math.hypot(e.clientX - A.x0, e.clientY - A.y0) < 4) return; A.pend = false; huboArrastre = true; }
     if (A.modo === "mover") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) { g.position.x = ptA.x + A.off.x; g.position.z = ptA.z + A.off.z; } }
-    else if (A.modo === "altura") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) g.position.y = A.pos0.y + (ptA.y - A.y); }
+    else if (A.modo === "eje") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) g.position.copy(A.pos0).addScaledVector(A.ax, ptA.clone().sub(A.p0).dot(A.ax)); }
     else if (A.modo === "girar") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) { let d = Math.atan2(ptA.z - A.c.z, ptA.x - A.c.x) - A.a0; if (e.shiftKey) d = Math.round(d / (Math.PI / 12)) * (Math.PI / 12); g.rotation.y = A.rot0 - d; } }
     else if (A.modo === "girarL") g.rotation.y = A.rot0 + (e.clientX - A.x0) * 0.012;
     else { const f = A.modo === "escalar" ? Math.max(0.02, Math.hypot(e.clientX - A.cp[0], e.clientY - A.cp[1]) / A.d0) : Math.exp(-(e.clientY - A.y0) * 0.006); g.scale.copy(A.esc0).multiplyScalar(f);
       cajaSel.min.copy(A.caja0.min).sub(A.pos0).multiplyScalar(f).add(A.pos0); cajaSel.max.copy(A.caja0.max).sub(A.pos0).multiplyScalar(f).add(A.pos0); }
-    if (A.modo === "mover" || A.modo === "altura") { const dl = g.position.clone().sub(A.pos0); cajaSel.min.copy(A.caja0.min).add(dl); cajaSel.max.copy(A.caja0.max).add(dl); }
+    if (A.modo === "mover" || A.modo === "eje") { const dl = g.position.clone().sub(A.pos0); cajaSel.min.copy(A.caja0.min).add(dl); cajaSel.max.copy(A.caja0.max).add(dl); }
     g.updateMatrixWorld(true); leerGrupo(); pintarCampos(); if (g.userData.inst) E.ponerEd(sel); });
-  dom.addEventListener("pointerup", () => { if (!arrastre) return; arrastre = null; orbit.enabled = true; leerGrupo(); rehacer(); medirSel(); });
+  dom.addEventListener("pointerup", () => { if (!arrastre) return; const pend = arrastre.pend; arrastre = null; orbit.enabled = true; if (pend) return; leerGrupo(); rehacer(); medirSel(); });
   dom.addEventListener("pointerup", e => {
     if (!abajo || huboArrastre || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0) return;
     const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam);
@@ -226,14 +233,28 @@
       return;
     }
     // Todo se elige por su caja (muchas piezas del juego no responden a los rayos): lo ya editado, cada pieza
-    // suelta del mundo y cada copia de las mallas instanciadas; gana la más cercana.
+    // suelta del mundo y cada copia de las mallas instanciadas. Donde se solapan, primero la más pequeña;
+    // otro clic en el mismo sitio pasa a la siguiente (como en 3ds Max).
     const visible = o => { for (let v = o; v; v = v.parent) if (!v.visible) return false; return true; };
-    const entradas = [...E.escenaEd.values()].filter(v => v.g), pt = new THREE.Vector3(); let mejor = null, dm = Infinity;
-    const probar = (b, que) => { if (b && !b.isEmpty() && ray.ray.intersectBox(b, pt)) { const d = pt.distanceTo(ray.ray.origin); if (d < dm) { dm = d; mejor = que; } } };
-    for (const e of entradas) { if (!e.g.visible && e.it.tipo !== "mundo") continue; probar(e.g.userData.inst ? E.cajaInstancia(e.g.userData.inst.m, e.g.userData.inst.i) : E.cajaReal(e.g), { entrada: e }); }
+    const entradas = [...E.escenaEd.values()].filter(v => v.g), tam = new THREE.Vector3(), cands = [];
+    const tramo = b => { const o = ray.ray.origin, d = ray.ray.direction; let t0 = -Infinity, t1 = Infinity;
+      for (const k of ["x", "y", "z"]) { if (Math.abs(d[k]) < 1e-12) { if (o[k] < b.min[k] || o[k] > b.max[k]) return null; continue; }
+        let a = (b.min[k] - o[k]) / d[k], c = (b.max[k] - o[k]) / d[k]; if (a > c) [a, c] = [c, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, c); }
+      return t1 >= Math.max(t0, 0) ? [Math.max(t0, 0), t1] : null; };
+    const probar = (b, que, clave) => { if (!b || b.isEmpty()) return; const t = tramo(b); if (!t) return; b.getSize(tam); cands.push({ que, clave, t0: t[0], t1: t[1], vol: Math.max(tam.x, 0.05) * Math.max(tam.y, 0.05) * Math.max(tam.z, 0.05) }); };
+    for (const e of entradas) { if (!e.g.visible && e.it.tipo !== "mundo") continue; probar(e.g.userData.inst ? E.cajaInstancia(e.g.userData.inst.m, e.g.userData.inst.i) : E.cajaReal(e.g), { entrada: e }, "e:" + e.it.id); }
     for (const u of E.unidadesMundo()) { if (!visible(u) || u.userData.enPivote) continue;
-      if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(e => e.g.userData.inst && e.g.userData.inst.m === u && e.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i), t = b.getSize(pt.clone()); if (Math.max(t.x, t.y, t.z) < 60) probar(b, { m: u, i }); } }
-      else probar(cajaMundo(u), { o: u }); }
+      if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(e => e.g.userData.inst && e.g.userData.inst.m === u && e.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i), t = b.getSize(tam); if (Math.max(t.x, t.y, t.z) < 60) probar(b, { m: u, i }, "i:" + u.uuid + ":" + i); } }
+      else probar(cajaMundo(u), { o: u }, "o:" + u.uuid); }
+    // Las que el rayo cruza antes de salir de la más cercana se solapan en el clic: de menor a mayor; luego, por distancia.
+    cands.sort((a, b) => a.t0 - b.t0);
+    const salida = cands.length ? cands[0].t1 : 0, juntas = cands.filter(c => c.t0 <= salida).sort((a, b) => a.vol - b.vol), lejos = cands.filter(c => c.t0 > salida);
+    const lista = [...juntas, ...lejos].slice(0, 12);
+    let mejor = null;
+    if (lista.length) { let k = 0;
+      if (ultimoClic && Math.hypot(e.clientX - ultimoClic.x, e.clientY - ultimoClic.y) < 6 && sel) { const ahora = lista.findIndex(c => c.clave === claveDeSel()); if (ahora >= 0) k = (ahora + 1) % lista.length; }
+      mejor = lista[k].que; if (lista.length > 1) aviso(`Pieza ${k + 1} de ${lista.length} aquí · otro clic en el mismo sitio elige la siguiente`), clearTimeout(avisoT), avisoT = setTimeout(() => aviso(""), 2500); }
+    ultimoClic = { x: e.clientX, y: e.clientY };
     if (!mejor) { seleccionar(null); return; }
     if (mejor.entrada) { seleccionar(items.get(mejor.entrada.it.id) || mejor.entrada.it); return; }
     const firma = mejor.o ? E.firmaDe(mejor.o) : E.firmaInstancia(mejor.m, mejor.i), it = { id: (firma.inst ? "mi" : "m") + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
