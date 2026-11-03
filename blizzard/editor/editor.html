@@ -28,8 +28,8 @@
   button.activo { background: var(--acento); color: #1b1404; border-color: var(--acento); }
   button.peligro { color: var(--peligro); }
   #pestanas button { font-size: 12px; padding: 4px 8px; }
-  #lista { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 210px; overflow-y: auto; }
-  #lista button { text-align: left; font-size: 12px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lista { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30px; gap: 4px; max-height: 260px; overflow-y: auto; align-content: start; }
+  #lista button { text-align: left; font-size: 12px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 30px; }   /* (altura fija: no se aplastan) */
   #buscar { width: 100%; box-sizing: border-box; }
   #sel[hidden], .solo[hidden] { display: none !important; }
   .ayuda { color: var(--tenue); font-size: 12px; }
