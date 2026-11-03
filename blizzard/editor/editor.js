@@ -25,7 +25,7 @@
   const cajaDe = o => { if (!cajas.has(o)) { _b.setFromObject(o); cajas.set(o, _b.isEmpty() ? null : [_b.min.z, _b.max.z]); } return cajas.get(o); };
   let bloque = bloques[0];
   const verBloque = b => { bloque = b; const [, desde, hasta] = b, propios = new Set([...E.escenaEd.values()].map(v => v.g));
-    for (const o of scene.children) { if (o === tc || propios.has(o) || o.isLight || o.isCamera) continue; const c = cajaDe(o); if (!c) continue; o.visible = b === bloques[0] || (c[1] > hasta - 15 && c[0] < desde + 15); }
+    for (const o of scene.children) { if (o === tc || propios.has(o) || o.isLight || o.isCamera) continue; const c = cajaDe(o); if (!c) continue; if (o.userData.visEd === undefined) o.userData.visEd = o.visible; o.visible = o.userData.visEd && (b === bloques[0] || (c[1] > hasta - 15 && c[0] < desde + 15)); }   /* (lo que el juego tiene oculto sigue oculto) */
     if (!conNiebla) (E.nieblaLago?.capas || []).forEach(m => m.visible = false);
     const zc = (desde + hasta) / 2, x = E.caminoX(zc), y = E.alturaTerreno(x, zc), alto = Math.max(60, (desde - hasta) * 0.95);
     orbit.target.set(x, y, zc); cam.position.set(x, y + alto, zc + 0.01); orbit.update();

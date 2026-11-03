@@ -6,7 +6,7 @@
     --fuente: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; color-scheme: dark; }
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   /* (la interfaz del juego no se ve en el editor; el panel va dentro del contenedor de la página) */
-  #carga, #trazo, #ui, #portada, body > div:not(:has(#ed)) { display: none !important; }
+  #carga, #trazo, #ui, #portada, body > div:not(:has(#ed)), body > p { display: none !important; }
   #ed { position: fixed; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); bottom: 0; width: min(310px, 82vw); background: var(--panel); color: var(--texto);
     font: 13px/1.4 var(--fuente); display: flex; flex-direction: column; border-right: 1px solid var(--linea); z-index: 50; }
   #ed header { padding: 12px 14px 10px; border-bottom: 1px solid var(--linea); display: grid; gap: 8px; }
@@ -47,6 +47,8 @@
 <aside id="ed" aria-label="Editor">
   <header>
     <h1>Editor de Blizzard</h1>
+    <div class="fila"><button id="planta">Vista en planta</button><button id="niebla">Niebla: no</button></div>
+    <button id="publicar" class="activo">Publicar en el juego</button>
     <div id="estado">Cargando el mundo…</div>
   </header>
   <div id="scroll">

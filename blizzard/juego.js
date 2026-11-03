@@ -1767,7 +1767,7 @@ const bolas = [0, 1].map(i => {
 const rampaY = z => { const t = clamp((ACANT.pie + 0.6 - z) / (ACANT.pie + 0.6 - ACANT.cima + 0.4), 0, 1), cx = caminoX(ACANT.cima); return lerp(alturaTerreno(cx, ACANT.pie + 17), alturaTerreno(cx + 8, ACANT.cima - 6), t); };
 let arrastre = 0; const _espOnda = new THREE.Vector3();
 // La niebla que levanta la onda: un anillo de bocanadas que se abre con ella.
-const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color: 0xe8eef8, transparent: true, opacity: 0, depthWrite: false })); n.raycast = () => {}; n.visible = false; scene.add(n); return n; });
+const nieblaOnda = Array.from({ length: 14 }, () => { const n = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color: 0xe8eef8, transparent: true, opacity: 0, depthWrite: false, fog: false })); n.raycast = () => {}; n.visible = false; scene.add(n); return n; });
 // La esfera guía: hasta encontrar el bastón, una luz con estela va por delante por donde hay que ir (salta
 // sobre las pilastras por su paso, baja bajo los pasos bajos); de vez en cuando vuelve, rodea a Blizzard y
 // sigue; al final se funde con el bastón.
