@@ -1835,6 +1835,11 @@ let relojMov = 0, seguroHielo = null; const _cH = new THREE.Color();
 // Los hexágonos que se mueven o caen, y las losas de hielo que se quiebran.
 function moverZonas(dt) {
   relojMov += dt;
+  for (const W of rodantesEd) {   // ruedas del editor: van y vienen rodando de un lado al otro del paso
+    const k = 0.5 - 0.5 * Math.cos(relojMov * 0.55 + W.fase), x = lerp(W.x0, 2 * W.cx - W.x0, k), d = x - W.x; W.x = x;
+    W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
+    const dz = pos.z - W.g.position.z, dx = pos.x - x; if (!rescate && Math.abs(dz) < W.col.r + 0.6 && Math.abs(dx) < W.R * 0.9 && pos.y < W.g.position.y + W.R * 0.4) { pos.x += Math.sign(d || 1) * Math.abs(d) * 1.2; vel.x = Math.sign(d) * 3; }   /* (te arrastra si te pilla) */
+  }
   for (const M of movHex) {
     const sobre = !rescate && enSuelo && Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r && Math.abs(pos.y - M.top) < 0.45;
     if (M.tipo === "fija") continue;
@@ -3506,6 +3511,14 @@ for (const [ang, an, la, al] of [[0.5, 4.2, 3.2, 0.55], [1.25, 5, 3.6, 0.7], [2.
 // Al pie de cada montículo de nieve, su falda de nieve blanda; y más acumulaciones a lo largo de todo el
 // recorrido, a los lados del paso (nunca en los abismos, las grietas ni las plataformas).
 for (const mo of MONTICULOS) ventisquero(mo.x, mo.z, mo.r * 3.4, mo.r * 3.4, 0.32);
+ventisquero(-5.1, -311.4, 5.5, 5, 0.6, null, true);   // (nota del editor: nieve acumulada aquí)
+// Notas del editor: dos grietas cortas en el suelo, a cada lado, de través.
+{ const tex = (() => { const c = document.createElement("canvas"); c.width = 512; c.height = 96; const x = c.getContext("2d"); x.fillStyle = "rgba(24,32,48,0.95)"; x.beginPath(); x.moveTo(0, 48);
+    for (let i = 1; i <= 24; i++) x.lineTo(i * 512 / 24, 48 + (Math.random() - 0.5) * 18 - Math.sin(i / 24 * Math.PI) * 26); for (let i = 24; i >= 0; i--) x.lineTo(i * 512 / 24, 48 + (Math.random() - 0.5) * 18 + Math.sin(i / 24 * Math.PI) * 26); x.closePath(); x.fill();
+    x.strokeStyle = "rgba(230,238,248,0.8)"; x.lineWidth = 2; x.stroke(); return new THREE.CanvasTexture(c); })();
+  for (const [gx, gz, ang] of [[-16.1, -316.8, 0.1], [17, -314.5, -0.15]]) { const g = new THREE.PlaneGeometry(9, 1.8, 18, 3); g.rotateX(-Math.PI / 2); g.rotateY(ang); const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) { const x = gx + P.getX(i), z = gz + P.getZ(i); P.setXYZ(i, x, alturaTerreno(x, z) + 0.04, z); }
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 })); m.receiveShadow = true; m.raycast = () => {}; scene.add(m); } }
 { const P6 = PLATAFORMA6;   // (nieve alrededor de la plataforma de la onda y al pie de sus pilastras)
   for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + 0.3, d = P6.r + 2.2 + (k % 3) * 0.6; ventisquero(P6.x + Math.sin(a) * d, P6.z + Math.cos(a) * d, 4.5, 4.5, 0.45 + (k % 2) * 0.2, null, true); }
   for (let z = ACANT.cima - 1.5, k = 0; z > P6.z + P6.r; z -= 2.4, k++) for (const lado of [-1, 1]) ventisquero(caminoX(z) + lado * (2.6 + (k % 2) * 0.4), z, 2.6, 3.2, 0.55 + ((k + (lado > 0 ? 1 : 0)) % 3) * 0.15, null, true);   // (a los dos lados del camino)
@@ -5376,7 +5389,7 @@ requestAnimationFrame(bucle);
 const MODELOS = { rocas: gRocas, ruinas: gRuinas, pilares: gPilares, plataforma: gPlataforma, plataforma_simple: gPlatSimple, plataforma_antigua: gPlatAntigua, muro: gMuro, ladrillos: gLadrillos, escudo: gEscudo, anillo_piedra: gAnilloP,
   acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal };
 const KITS = { rocas: kitRocas, ruinas: kitRuinas, pilares: kitPilares };
-const escenaEd = new Map();
+const escenaEd = new Map(), rodantesEd = [];
 const texNieblaEd = (() => { const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d"), g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.55, "rgba(255,255,255,0.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 function crearPiezaEd(it) {
   const g = new THREE.Group(), p = it.p || [0, 0, 0];
@@ -5398,8 +5411,9 @@ function crearPiezaEd(it) {
     g.position.fromArray(p); const r = it.r || [0, 0, 0]; g.rotation.set(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180); g.scale.fromArray(it.s || [1, 1, 1]);
   }
   scene.add(g); g.updateMatrixWorld(true);
-  let col = null;
-  if (it.tipo !== "niebla" && it.tipo !== "nota" && it.colision !== false) { const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); col = { x: c.x, z: c.z, r: Math.min(t.x, t.z) * 0.45, techo: b.max.y }; colisiones.push(col); }
+  let col = null; const rueda = it.rodar && !window.BLIZZARD_EDITOR;
+  if (rueda) { const bb = cajaReal(g), off = (bb.min.y + bb.max.y) / 2 - g.position.y; g.position.y += off; g.children.forEach(ch => ch.position.y -= off / g.scale.y); g.updateMatrixWorld(true); }   /* (gira sobre su centro) */
+  if (it.tipo !== "niebla" && it.tipo !== "nota" && it.colision !== false) { const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); col = { x: c.x, z: c.z, r: Math.min(t.x, t.z) * 0.45, techo: b.max.y }; colisiones.push(col); if (rueda) rodantesEd.push({ g, col, x0: g.position.x, cx: caminoX(g.position.z), R: t.y / 2, fase: rodantesEd.length * 1.7, x: g.position.x }); }   /* (las ruedas que rueden: cruzan el paso de lado a lado) */
   return { g, col };
 }
 // Piezas que ya estaban en el mundo: se reconocen por su forma (vértices) y el centro de su caja; se mueven con
