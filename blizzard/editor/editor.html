@@ -5,7 +5,8 @@
   :root { --panel: rgba(22, 26, 36, 0.92); --linea: #39404f; --texto: #e7eaf1; --tenue: #9aa3b6; --acento: #ffb020; --campo: #2a3040; --peligro: #ff6b6b;
     --fuente: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; color-scheme: dark; }
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
-  body > *:not(canvas):not(#ed):not(#aviso):not(script) { display: none !important; }
+  /* (la interfaz del juego no se ve en el editor; el panel va dentro del contenedor de la página) */
+  #carga, #trazo, #ui, #portada, body > div:not(:has(#ed)) { display: none !important; }
   #ed { position: fixed; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); bottom: 0; width: min(310px, 82vw); background: var(--panel); color: var(--texto);
     font: 13px/1.4 var(--fuente); display: flex; flex-direction: column; border-right: 1px solid var(--linea); z-index: 50; }
   #ed header { padding: 12px 14px 10px; border-bottom: 1px solid var(--linea); display: grid; gap: 8px; }

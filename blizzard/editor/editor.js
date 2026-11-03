@@ -11,7 +11,15 @@
   const orbit = new THREE.OrbitControls(cam, dom);
   orbit.enableDamping = true; orbit.dampingFactor = 0.12; orbit.maxPolarAngle = Math.PI * 0.495;
   const irA = z => { const x = E.caminoX(z), y = E.alturaTerreno(x, z); orbit.target.set(x, y + 1, z); cam.position.set(x + 10, y + 12, z + 18); orbit.update(); };
-  irA(-40);
+  // De entrada, el mundo entero en planta y sin niebla.
+  cam.far = 6000; cam.updateProjectionMatrix();
+  const planta = () => { const z = -760, x = E.caminoX(z), y = E.alturaTerreno(x, z); orbit.target.set(x, y, z); cam.position.set(x, y + 1250, z + 0.01); orbit.update(); };
+  let conNiebla = false;
+  const ponerNiebla = on => { conNiebla = on; $("niebla").textContent = "Niebla: " + (on ? "sí" : "no");
+    if (scene.fog) { scene.fog.near = on ? 2 : 1e5; scene.fog.far = on ? 70 : 2e5; }
+    (E.nieblaLago?.capas || []).forEach(m => m.visible = on); };
+  ponerNiebla(false); planta();
+  $("planta").onclick = planta; $("niebla").onclick = () => ponerNiebla(!conNiebla);
   $("ir").onclick = () => irA(+$("zona").value);
   const teclas = new Set();
   addEventListener("keydown", e => { if (e.target.closest("input, textarea, select")) return; teclas.add(e.key); atajo(e); });
@@ -128,4 +136,17 @@
     const entrada = [...E.escenaEd.values()].find(v => v.g === o); if (entrada) seleccionar(items.get(entrada.it.id) || entrada.it);
   });
   if (col) estado(`${items.size} piezas · se guarda solo`);
+
+  // ── Publicar: avisa a Claude, que pasa la escena al juego ─────────────
+  let com = null; try { com = window.claude ? await window.claude.use("comments") : null; } catch { com = null; }
+  $("publicar").onclick = async () => {
+    for (const t of pendientes.values()) clearTimeout(t);
+    for (const it of items.values()) { if (!col) break; const { id, ...datos } = it; try { await col.doc(id).set(datos); } catch {} }   // (todo guardado antes de avisar)
+    let puede = "off"; try { puede = com ? await com.canSendToClaude() : "off"; } catch {}
+    if (puede !== "available") { aviso("Claude no está atento ahora. Escríbele en el chat: «publica la escena del editor»."); setTimeout(() => aviso(""), 7000); return; }
+    try { await com.sendToClaude({ anchor: await com.anchorFor($("publicar")), text: `Publica la escena del editor en el juego (${items.size} piezas).` }); aviso("Enviado a Claude: en unos minutos estará en el juego."); }
+    catch (e) { aviso("No se pudo enviar: " + (e.message || e.code) + ". Escríbele en el chat: «publica la escena del editor»."); }
+    setTimeout(() => aviso(""), 7000);
+  };
+
 })();
