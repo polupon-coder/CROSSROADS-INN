@@ -9,9 +9,20 @@
 
   // ── Vista ─────────────────────────────────────────────────────────────
   const orbit = new THREE.OrbitControls(cam, dom);
-  orbit.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }; orbit.panSpeed = 1.6; orbit.zoomSpeed = 1.4;   // (la rueda pulsada arrastra la vista)
-  E.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); E.renderer.setSize(innerWidth, innerHeight, false);
-  orbit.enableDamping = true; orbit.dampingFactor = 0.12; orbit.maxPolarAngle = Math.PI * 0.495;
+  orbit.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }; orbit.panSpeed = 2; orbit.zoomSpeed = 1.4;   // (la rueda pulsada arrastra la vista)
+  // Rapidez: se dibuja solo cuando algo cambia (el mundo está quieto en el editor) y, mientras la vista se
+  // mueve, a menos resolución; al pararse, nítido otra vez.
+  const prAlta = Math.min(2, window.devicePixelRatio || 1), prBaja = Math.min(1, prAlta) * 0.7;
+  let sucio = 2, prAhora = 0, quieto = 0;
+  const resolucion = pr => { if (pr === prAhora) return; prAhora = pr; E.renderer.setPixelRatio(pr); E.renderer.setSize(innerWidth, innerHeight, false); };
+  const marcar = () => { sucio = 2; };
+  window.__edRender = () => { if (sucio <= 0) return false; sucio--; return true; };
+  resolucion(prAlta);
+  const moviendo = () => { marcar(); resolucion(prBaja); clearTimeout(quieto); quieto = setTimeout(() => { resolucion(prAlta); marcar(); }, 220); };
+  for (const ev of ["pointermove", "pointerdown", "pointerup", "wheel", "keydown", "keyup", "resize"]) addEventListener(ev, marcar, { passive: true });
+  setInterval(marcar, 500);   // (por si algo cambia sin aviso: la carga de piezas, las miniaturas)
+  orbit.addEventListener("change", moviendo);
+  orbit.enableDamping = true; orbit.dampingFactor = 0.25; orbit.maxPolarAngle = Math.PI * 0.495;
   const irA = z => { const x = E.caminoX(z), y = E.alturaTerreno(x, z); orbit.target.set(x, y + 1, z); cam.position.set(x + 10, y + 12, z + 18); orbit.update(); };
   // De entrada, el mundo entero en planta y sin niebla.
   cam.far = 6000; cam.updateProjectionMatrix();
@@ -40,7 +51,7 @@
   addEventListener("keyup", e => teclas.delete(e.key));
   const fwd = new THREE.Vector3(), lado = new THREE.Vector3();
   (function bucle() {
-    const v = 0.6;   // flechas: desplazan la vista por el recorrido
+    const v = Math.max(0.6, cam.position.distanceTo(orbit.target) * 0.025);   // flechas: desplazan la vista por el recorrido (más deprisa cuanto más lejos)
     cam.getWorldDirection(fwd); fwd.y = 0; fwd.normalize(); lado.crossVectors(fwd, new THREE.Vector3(0, 1, 0));
     const d = new THREE.Vector3();
     if (teclas.has("ArrowUp")) d.add(fwd); if (teclas.has("ArrowDown")) d.sub(fwd); if (teclas.has("ArrowRight")) d.add(lado); if (teclas.has("ArrowLeft")) d.sub(lado);
