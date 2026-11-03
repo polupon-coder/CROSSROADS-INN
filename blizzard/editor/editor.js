@@ -87,13 +87,41 @@
   };
   $("buscar").oninput = pintarLista; pintarLista();
 
-  // ── Selección y gizmo ─────────────────────────────────────────────────
-  // Sobre la pieza, a la vez: flechas para moverla y anillos para girarla (como en 3ds Max). Escalar, con su botón o R.
-  // Como en 3ds Max: un solo manejador a la vez (mover W, girar E, escalar R), grande y claro.
-  const tcM = new THREE.TransformControls(cam, dom), tcR = { dragging: false }; tcM.setSize(1.7); scene.add(tcM);
-  window.__ed = { orbit, tcM };
-  const tc = { attach(g) { tcM.attach(g); }, detach() { tcM.detach(); }, setMode(m) { tcM.setMode(m); }, get dragging() { return tcM.dragging; } };
-  for (const t of [tcM]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
+  // ── Selección y tiradores sobre la propia pieza ───────────────────────
+  // Todo a la vez, sin cambiar de modo: arrastrar la pieza la mueve por el suelo; la flecha verde, arriba y abajo;
+  // el anillo naranja de la base la gira (Mayús: de 15 en 15°); los cubos azules de las esquinas la escalan.
+  const giz = new THREE.Group(); giz.visible = false; scene.add(giz);
+  const matG = c => new THREE.MeshBasicMaterial({ color: c, depthTest: false, depthWrite: false, transparent: true, opacity: 0.92 });
+  const asas = [], invisible = new THREE.MeshBasicMaterial({ visible: false });
+  const asa = (m, tipo, pick) => { m.renderOrder = 999; m.userData.color = m.material.color.getHex(); giz.add(m); const q = pick || m; q.userData.asa = tipo; q.userData.vista = m; if (pick) giz.add(pick); asas.push(q); return m; };
+  const flecha = new THREE.Group(); giz.add(flecha);
+  const tallo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 10), matG(0x4ade80)); tallo.position.y = 0.8;
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.7, 18), matG(0x4ade80)); punta.position.y = 1.95;
+  const pickY = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 2.4, 8), invisible); pickY.position.y = 1.2;
+  for (const m of [tallo, punta]) { m.renderOrder = 999; m.userData.color = 0x4ade80; flecha.add(m); }
+  flecha.add(pickY); pickY.userData.asa = "altura"; pickY.userData.vistas = [tallo, punta]; asas.push(pickY);
+  const anillo = asa(new THREE.Mesh(new THREE.TorusGeometry(1, 0.02, 8, 96), matG(0xffb020)), "girar", new THREE.Mesh(new THREE.TorusGeometry(1, 0.1, 6, 64), invisible));
+  anillo.userData.pick = asas[asas.length - 1];
+  const esquinas = [0, 1, 2, 3].map(() => asa(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matG(0x60a5fa)), "escalar"));
+  let gizG = null, cajaSel = new THREE.Box3(), anilloR = 0, anilloT = 0, sobre = null;
+  const medirSel = () => { if (!gizG) return; cajaSel = (gizG.userData.inst ? E.cajaInstancia(gizG.userData.inst.m, gizG.userData.inst.i) : E.cajaReal(gizG)).clone(); };
+  const colocarGiz = () => {
+    if (!gizG || cajaSel.isEmpty()) { giz.visible = false; return; } giz.visible = true;
+    const c = cajaSel.getCenter(new THREE.Vector3()), t = cajaSel.getSize(new THREE.Vector3()), k = Math.max(0.05, cam.position.distanceTo(c) * 0.032);
+    const R = Math.hypot(t.x, t.z) / 2 + k * 0.6, T = k * 0.07;
+    if (Math.abs(R - anilloR) > anilloR * 0.02 || Math.abs(T - anilloT) > anilloT * 0.15) { anilloR = R; anilloT = T;
+      anillo.geometry.dispose(); anillo.geometry = new THREE.TorusGeometry(R, T, 8, 128); anillo.userData.pick.geometry.dispose(); anillo.userData.pick.geometry = new THREE.TorusGeometry(R, k * 0.35, 6, 64); }
+    for (const m of [anillo, anillo.userData.pick]) { m.position.set(c.x, cajaSel.min.y + 0.05, c.z); m.rotation.set(Math.PI / 2, 0, 0); }
+    flecha.position.set(c.x, cajaSel.max.y + k * 0.4, c.z); flecha.scale.setScalar(k);
+    [[cajaSel.min.x, cajaSel.min.z], [cajaSel.max.x, cajaSel.min.z], [cajaSel.min.x, cajaSel.max.z], [cajaSel.max.x, cajaSel.max.z]].forEach(([x, z], i) => { esquinas[i].position.set(x, cajaSel.max.y, z); esquinas[i].scale.setScalar(k * 0.45); });
+  };
+  (function seguirGiz() { colocarGiz(); requestAnimationFrame(seguirGiz); })();
+  const resaltar = q => { if (sobre === q) return; const vistas = s => s ? (s.userData.vistas || [s.userData.vista]) : [];
+    for (const m of vistas(sobre)) m.material.color.setHex(m.userData.color); sobre = q; for (const m of vistas(q)) m.material.color.setHex(0xffffff);
+    dom.style.cursor = q ? (q.userData.asa === "girar" ? "ew-resize" : q.userData.asa === "altura" ? "ns-resize" : "nwse-resize") : ""; };
+  const tcM = giz, tcR = { dragging: false };
+  window.__ed = { orbit, giz };
+  const tc = { attach(g) { gizG = g; medirSel(); colocarGiz(); }, detach() { gizG = null; giz.visible = false; resaltar(null); }, setMode() {}, get dragging() { return !!arrastre; } };
   let sel = null;
   const grupoDe = id => E.escenaEd.get(id)?.g;
   const leerGrupo = () => { const g = grupoDe(sel.id); if (!g) return; sel.p = g.position.toArray().map(v => +v.toFixed(2));
@@ -102,7 +130,7 @@
   const seleccionar = it => {
     sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
-    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("modos").hidden = !obj; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo; $("ayudaMapa").hidden = false;
+    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo; $("ayudaMapa").hidden = false;
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota";
     if (!obj) tc.setMode("translate");
     $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
@@ -123,8 +151,6 @@
   [["nRadio", "radio"], ["nAlto", "alto"], ["nDens", "densidad"]].forEach(([k, c]) => $(k).addEventListener("change", () => { const v = parseFloat($(k).value); if (isFinite(v)) { sel[c] = v; rehacer(); } }));
   $("nColor").onchange = () => { sel.color = $("nColor").value; rehacer(); };
   $("nota").addEventListener("input", () => { sel.texto = $("nota").value; guardar(sel); });
-  document.querySelectorAll("#modos button").forEach(b => b.onclick = () => modo(b.dataset.modo));
-  const modo = m => { tc.setMode(m); document.querySelectorAll("#modos button").forEach(b => b.classList.toggle("activo", b.dataset.modo === m)); };
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 2; it.p[2] += 2; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
   const borrar = () => { if (!sel) return; if (sel.tipo === "mundo") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
@@ -141,7 +167,6 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacer(); return; }
     if (e.key === "Escape") { colocando = null; aviso(""); pintarLista(); seleccionar(null); }
     if (!sel || !(sel.tipo === "objeto" || sel.tipo === "mundo")) { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
-    if (e.key === "w") modo("translate"); if (e.key === "e") modo("rotate"); if (e.key === "r") modo("scale");
     if (e.key === "Delete" || e.key === "Backspace") borrar();
   }
 
@@ -152,28 +177,43 @@
       if (!o.isLight && !o.isCamera && !o.isInstancedMesh && !o.isPoints && !o.isSprite && !o.userData.pivoteEd) { let malla = false, esSuelo = false; o.traverse(m => { if (m.isMesh && !m.isInstancedMesh) { malla = true; if (m.material === suelo) esSuelo = true; } });
         if (malla && !esSuelo) { b = E.cajaReal(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
       cajasMundo.set(o, b); } return cajasMundo.get(o); };
-  let abajo = null, arrastre = null;
-  // Sobre el mapa, con la propia pieza: arrastrar la mueve por el suelo; con Mayús la gira; con Alt la escala.
+  let abajo = null, arrastre = null, huboArrastre = false;
   const planoA = new THREE.Plane(), ptA = new THREE.Vector3();
   const rayoDe = e => { const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam); };
-  dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY];
-    if (e.button !== 0 || !sel || colocando || tcM.axis || tcM.dragging) return;
-    const g = grupoDe(sel.id); if (!g) return; rayoDe(e);
-    const b = g.userData.inst ? E.cajaInstancia(g.userData.inst.m, g.userData.inst.i) : E.cajaReal(g); if (!ray.ray.intersectBox(b, ptA)) return;
-    planoA.set(new THREE.Vector3(0, 1, 0), -g.position.y); ray.ray.intersectPlane(planoA, ptA);
-    arrastre = { g, modo: e.shiftKey ? "girar" : e.altKey ? "escalar" : "mover", x0: e.clientX, y0: e.clientY, off: g.position.clone().sub(ptA), rot0: g.rotation.y, esc0: g.scale.clone() };
-    orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); });
-  dom.addEventListener("pointermove", e => { if (!arrastre) return; const A = arrastre, g = A.g;
+  const asaBajo = e => { if (!gizG || !giz.visible) return null; rayoDe(e); const h = ray.intersectObjects(asas, false)[0]; return h ? h.object : null; };
+  const enPantalla = v => { const r = dom.getBoundingClientRect(), q = v.clone().project(cam); return [(q.x + 1) / 2 * r.width + r.left, (1 - q.y) / 2 * r.height + r.top]; };
+  dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY]; huboArrastre = false;
+    if (e.button !== 0 || !sel || colocando) return;
+    const g = grupoDe(sel.id); if (!g) return;
+    const q = asaBajo(e), c = cajaSel.getCenter(new THREE.Vector3());
+    const base = { g, x0: e.clientX, y0: e.clientY, rot0: g.rotation.y, esc0: g.scale.clone(), pos0: g.position.clone(), caja0: cajaSel.clone() };
+    if (q) { const tipo = q.userData.asa;
+      if (tipo === "altura") { const n = new THREE.Vector3(); cam.getWorldDirection(n); n.y = 0; if (n.lengthSq() < 1e-6) n.set(0, 0, 1); n.normalize(); planoA.setFromNormalAndCoplanarPoint(n, c); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "altura", y: ptA.y }; }
+      else if (tipo === "girar") { planoA.set(new THREE.Vector3(0, 1, 0), -(cajaSel.min.y + 0.05)); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "girar", c, a0: Math.atan2(ptA.z - c.z, ptA.x - c.x) }; }
+      else { const cp = enPantalla(c); arrastre = { ...base, modo: "escalar", cp, d0: Math.max(4, Math.hypot(e.clientX - cp[0], e.clientY - cp[1])) }; }
+    } else {
+      rayoDe(e); const b = g.userData.inst ? E.cajaInstancia(g.userData.inst.m, g.userData.inst.i) : E.cajaReal(g); if (!ray.ray.intersectBox(b, ptA)) return;
+      planoA.set(new THREE.Vector3(0, 1, 0), -g.position.y); ray.ray.intersectPlane(planoA, ptA);
+      arrastre = { ...base, modo: e.shiftKey ? "girarL" : e.altKey ? "escalarL" : "mover", off: g.position.clone().sub(ptA) };
+    }
+    huboArrastre = true; orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); e.stopImmediatePropagation(); });
+  dom.addEventListener("pointermove", e => {
+    if (!arrastre) { if (e.buttons === 0) resaltar(asaBajo(e)); return; }
+    const A = arrastre, g = A.g;
     if (A.modo === "mover") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) { g.position.x = ptA.x + A.off.x; g.position.z = ptA.z + A.off.z; } }
-    else if (A.modo === "girar") g.rotation.y = A.rot0 + (e.clientX - A.x0) * 0.012;
-    else g.scale.copy(A.esc0).multiplyScalar(Math.exp(-(e.clientY - A.y0) * 0.006));
+    else if (A.modo === "altura") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) g.position.y = A.pos0.y + (ptA.y - A.y); }
+    else if (A.modo === "girar") { rayoDe(e); if (ray.ray.intersectPlane(planoA, ptA)) { let d = Math.atan2(ptA.z - A.c.z, ptA.x - A.c.x) - A.a0; if (e.shiftKey) d = Math.round(d / (Math.PI / 12)) * (Math.PI / 12); g.rotation.y = A.rot0 - d; } }
+    else if (A.modo === "girarL") g.rotation.y = A.rot0 + (e.clientX - A.x0) * 0.012;
+    else { const f = A.modo === "escalar" ? Math.max(0.02, Math.hypot(e.clientX - A.cp[0], e.clientY - A.cp[1]) / A.d0) : Math.exp(-(e.clientY - A.y0) * 0.006); g.scale.copy(A.esc0).multiplyScalar(f);
+      cajaSel.min.copy(A.caja0.min).sub(A.pos0).multiplyScalar(f).add(A.pos0); cajaSel.max.copy(A.caja0.max).sub(A.pos0).multiplyScalar(f).add(A.pos0); }
+    if (A.modo === "mover" || A.modo === "altura") { const dl = g.position.clone().sub(A.pos0); cajaSel.min.copy(A.caja0.min).add(dl); cajaSel.max.copy(A.caja0.max).add(dl); }
     g.updateMatrixWorld(true); leerGrupo(); pintarCampos(); if (g.userData.inst) E.ponerEd(sel); });
-  dom.addEventListener("pointerup", () => { if (!arrastre) return; arrastre = null; orbit.enabled = true; leerGrupo(); rehacer(); });
+  dom.addEventListener("pointerup", () => { if (!arrastre) return; arrastre = null; orbit.enabled = true; leerGrupo(); rehacer(); medirSel(); });
   dom.addEventListener("pointerup", e => {
-    if (!abajo || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0 || tc.dragging) return;
+    if (!abajo || huboArrastre || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0) return;
     const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam);
     if (colocando) {
-      const hit = ray.intersectObjects(scene.children.filter(o => o !== tcM && o !== tcR && o.visible), true).find(h => h.object.isMesh && !(h.object.material && h.object.material.transparent && h.object.material.opacity < 0.3));
+      const hit = ray.intersectObjects(scene.children.filter(o => o !== giz && o.visible), true).find(h => h.object.isMesh && !(h.object.material && h.object.material.transparent && h.object.material.opacity < 0.3));
       if (!hit) return;
       const id = nuevoId(), p = hit.point.toArray().map(v => +v.toFixed(2));
       let it;
@@ -213,13 +253,16 @@
   // ── Publicar: avisa a Claude, que pasa la escena al juego ─────────────
   let com = null; try { com = window.claude ? await window.claude.use("comments") : null; } catch { com = null; }
   $("publicar").onclick = async () => {
-    for (const t of pendientes.values()) clearTimeout(t);
-    for (const it of items.values()) { if (!col) break; const { id, ...datos } = it; try { await col.doc(id).set(datos); } catch {} }   // (todo guardado antes de avisar)
+    // El aviso sale en el mismo clic (si se espera a guardar todo antes, el navegador ya no lo deja enviar);
+    // lo pendiente se guarda a la vez y Claude lo lee unos segundos después.
+    for (const t of pendientes.values()) clearTimeout(t); pendientes.clear();
+    const guardado = col ? Promise.all([...items.values()].map(it => { const { id, ...datos } = it; return col.doc(id).set(datos).catch(() => {}); })) : Promise.resolve();
     let puede = "off"; try { puede = com ? await com.canSendToClaude() : "off"; } catch {}
-    if (puede !== "available") { aviso("Claude no está atento ahora. Escríbele en el chat: «publica la escena del editor»."); setTimeout(() => aviso(""), 7000); return; }
+    const porChat = "Escríbele en el chat: «he publicado».";
+    if (puede !== "available") { aviso((puede === "no_session" ? "Claude no está conectado ahora mismo. " : "No se puede avisar a Claude desde aquí. ") + porChat); await guardado; setTimeout(() => aviso(""), 9000); return; }
     try { await com.sendToClaude({ anchor: await com.anchorFor($("publicar")), text: `Publica la escena del editor en el juego (${items.size} piezas).` }); aviso("Enviado a Claude: en unos minutos estará en el juego."); }
-    catch (e) { aviso("No se pudo enviar: " + (e.message || e.code) + ". Escríbele en el chat: «publica la escena del editor»."); }
-    setTimeout(() => aviso(""), 7000);
+    catch (e) { aviso("No se pudo avisar a Claude (" + (e.code || e.message) + "). " + porChat); }
+    await guardado; estado(`${items.size} piezas · guardado`); setTimeout(() => aviso(""), 9000);
   };
 
 })();
