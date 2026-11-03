@@ -1632,9 +1632,17 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
       g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2); g.scale(2 * R / t.x, 6 / t.y, 2 * R / t.z); g.computeVertexNormals(); return g; });
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
-    geos.forEach((g, v) => { const sub = lista.filter((_, n) => n % 3 === v), im = new THREE.InstancedMesh(g, nieveFina, sub.length);
-      sub.forEach(([x, y, z, e, alto], n) => { const sy = (alto || 6) / 6; im.setMatrixAt(n, m4.compose(new THREE.Vector3(x, y - 3 * sy + 0.35, z),   /* (la cara de arriba de la pieza no es plana: a ras de donde se pisa) */ q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6 + n * 0.37), new THREE.Vector3(e, sy, e))); });
-      im.castShadow = im.receiveShadow = true; scene.add(im); });
+    // Por tramos de 12 m, cada uno con su esfera: así solo se dibuja lo que está a la vista (todo el campo, de
+    // una vez y sin descartar, eran millones de triángulos en cada fotograma, desde el principio del juego).
+    geos.forEach((g, v) => { const sub = lista.filter((_, n) => n % 3 === v), tramos = new Map();
+      sub.forEach(([x, y, z, e, alto], n) => { const sy = (alto || 6) / 6, k = Math.floor(z / 12); if (!tramos.has(k)) tramos.set(k, []);
+        tramos.get(k).push(new THREE.Matrix4().compose(new THREE.Vector3(x, y - 3 * sy + 0.35, z),   /* (la cara de arriba de la pieza no es plana: a ras de donde se pisa) */ q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6 + n * 0.37), new THREE.Vector3(e, sy, e))); });
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      for (const ms of tramos.values()) { const gt = new THREE.BufferGeometry(); for (const n in g.attributes) gt.setAttribute(n, g.attributes[n]); gt.setIndex(g.index);
+        const caja = new THREE.Box3(), c = new THREE.Vector3(); ms.forEach(m => caja.expandByPoint(c.copy(g.boundingSphere.center).applyMatrix4(m)));
+        gt.boundingSphere = new THREE.Sphere(caja.getCenter(new THREE.Vector3()), caja.getSize(new THREE.Vector3()).length() / 2 + Math.max(...ms.map(m => m.getMaxScaleOnAxis())) * g.boundingSphere.radius);
+        const im = new THREE.InstancedMesh(gt, nieveFina, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m));
+        im.castShadow = im.receiveShadow = true; im.frustumCulled = true; im.userData.trasNiebla = true; scene.add(im); } });
     movHex.forEach((M, n) => { if (M.m) return; M.m = new THREE.Mesh(geos[n % 3], nieveFina); M.m.scale.set(M.esc, 1, M.esc); M.m.rotation.y = Math.PI / 6 + n * 0.37; M.m.position.set(M.x, M.top - 3, M.z); M.m.castShadow = M.m.receiveShadow = true; scene.add(M.m); });
     void geo; }
   const rB = generador(9797);
@@ -5382,6 +5390,13 @@ function vigilarCalidad(ms) {
   ajustar();
 }
 addEventListener("keydown", e => { if (e.code === "KeyF" && !e.repeat) medidor.hidden = !medidor.hidden; });
+// Lo que queda del todo dentro de la niebla no se ve (es del color del cielo): no se dibuja.
+let trasNiebla = null;
+function esconderTrasNiebla() {
+  if (!trasNiebla) { trasNiebla = []; scene.traverse(o => { if (o.userData.trasNiebla) trasNiebla.push(o); }); }
+  const lejos = scene.fog ? scene.fog.far * 1.15 + 6 : Infinity, c = camara.position;
+  for (const o of trasNiebla) { const s = o.geometry.boundingSphere; o.visible = s.center.distanceTo(c) - s.radius < lejos; }
+}
 function bucle(ahora) {
   const anterior0 = anterior;
   medFotos++; medPeor = Math.max(medPeor, ahora - anterior);
@@ -5392,6 +5407,7 @@ function bucle(ahora) {
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
   if (!window.BLIZZARD_EDITOR) ocultarTapadores();
   if (!window.BLIZZARD_EDITOR) vigilarCalidad(ahora - anterior0);
+  if (!window.BLIZZARD_EDITOR) esconderTrasNiebla();
   if (window.BLIZZARD_EDITOR && window.__edRender && !window.__edRender()) {}   // (el editor dibuja solo cuando algo cambia)
   else if (desenfoque && calidad.desenfoque && !window.BLIZZARD_EDITOR) desenfoque.dibujar(); else renderer.render(scene, camara);   // (en el editor, nítido y a resolución completa)
   requestAnimationFrame(bucle);
