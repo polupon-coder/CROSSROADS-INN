@@ -1862,6 +1862,10 @@ const crearChispas = () => {
   }
   return L;
 };
+// La chispa a tiro (para recogerla con la magia): la más cercana, a unos pasos.
+function chispaCerca() { if (!chispas || !tieneBaston) return null; let m = null, dm = 3.6;
+  for (const C of chispas) { if (C.abs >= 0 || Math.abs(C.z - pos.z) > 5) continue; const d = Math.hypot(pos.x - C.p.x, pos.z - C.p.z); if (d < dm && Math.abs(pos.y + 1 - C.p.y) < 2.5) { dm = d; m = C; } } return m; }
+function absorberChispa(C) { C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
 function moverChispas(dt) {
   if (!chispas) chispas = crearChispas();
   for (const C of chispas) {
@@ -1871,8 +1875,7 @@ function moverChispas(dt) {
     if (C.abs < 0) {
       // De lado a lado, haciendo eses (como la guía), en su sitio.
       C.p.set(C.x + Math.sin(C.t * 1.3) * 1.1 + Math.sin(C.t * 2.6) * 0.35, C.y + Math.sin(C.t * 5.2) * 0.12 + Math.sin(C.t * 0.9) * 0.15, C.z + Math.sin(C.t * 0.7) * 0.5);
-      if (tieneBaston && !rescate && estado === "juego" && enSuelo && Math.hypot(pos.x - C.p.x, pos.z - C.p.z) < 2.8 && Math.abs(pos.y + 1 - C.p.y) < 2) {
-        C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
+
     } else {
       // Absorbida: vuela a la punta del bastón, encogiéndose.
       C.abs = Math.min(1, C.abs + dt / 0.6); const punta = baston.userData.luz.getWorldPosition(_gp);
@@ -4518,6 +4521,8 @@ function actualizar(dt) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
       musica.viento(0.25, 0.7);
+    } else if (pulsada("KeyE", "KeyJ") && enSuelo && chispaCerca()) {
+      absorberChispa(chispaCerca());   // (con la magia, cerca de una chispa: el bastón la absorbe)
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base && reloj - ultimoAgachado > 1.5) {
       rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 2.5);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && reloj - ultimoAgachado <= 1.5 && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
