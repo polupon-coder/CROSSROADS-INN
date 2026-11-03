@@ -3526,7 +3526,7 @@ ventisquero(caminoX(-313.4), -313.4, 23.4, 16.5, 0.32, { ini: true, fin: true },
 { const P6 = PLATAFORMA6;   // (nieve alrededor de la plataforma de la onda y al pie de sus pilastras)
   for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + 0.3, d = P6.r + 2.2 + (k % 3) * 0.6; ventisquero(P6.x + Math.sin(a) * d, P6.z + Math.cos(a) * d, 4.5, 4.5, 0.45 + (k % 2) * 0.2, null, true); }
   for (let z = ACANT.cima - 1.5, k = 0; z > P6.z + P6.r; z -= 2.4, k++) for (const lado of [-1, 1]) ventisquero(caminoX(z) + lado * (2.6 + (k % 2) * 0.4), z, 2.6, 3.2, 0.55 + ((k + (lado > 0 ? 1 : 0)) % 3) * 0.15, null, true);   // (a los dos lados del camino)
-  for (let k = 0; k < 9; k++) { const z = HIELO.hasta - 4 - k * 3.6, x = caminoX(z) + (k % 2 ? 1.6 : -1.6); ventisquero(x, z, 4.5, 4, 0.5 + (k % 3) * 0.15, null, true); }   // (nieve acumulada ante la entrada de la cueva)
+  // (sin los montones de nieve ante la entrada de la cueva: en su penumbra se veían como montículos oscuros)
   for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, d = P6.r + 0.6; ventisquero(P6.x + Math.sin(a) * d, P6.z + Math.cos(a) * d, 2.4, 2.4, 0.5, null, true); } }   // (pegada al borde de la plataforma)
 // (antes: nieve acumulada en los bordes de la escalera; ahora piedras verticales, junto a la escalera)
 if (false) { const cx = caminoX(ACANT.cima), L = ACANT.pie - ACANT.cima + 4, NZ = 160, NX = 8;
