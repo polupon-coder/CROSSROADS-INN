@@ -52,7 +52,10 @@
   const items = new Map();   // id -> datos
   let col = null;
   const pendientes = new Map();
-  const guardar = it => {
+  // Deshacer: cada cambio guarda cómo estaba la pieza antes.
+  const historial = [], ultimo = new Map(), copia = o => JSON.parse(JSON.stringify(o));
+  const guardar = (it, sinHistorial) => {
+    if (!sinHistorial) { const antes = ultimo.get(it.id) ?? null; if (!antes || JSON.stringify(antes) !== JSON.stringify(it)) { historial.push({ id: it.id, antes }); if (historial.length > 200) historial.shift(); ultimo.set(it.id, copia(it)); } }
     if (!col) return; clearTimeout(pendientes.get(it.id));
     pendientes.set(it.id, setTimeout(async () => { try { const { id, ...datos } = it; await col.doc(id).set(datos); estado("Guardado"); } catch (e) { estado("No se guardó: " + (e.message || e.code), true); } }, 350));
   };
@@ -62,10 +65,24 @@
   const catalogo = [{ id: "esp:niebla", nombre: "Niebla", grupo: "Especial" }, { id: "esp:nota", nombre: "Nota para Claude", grupo: "Especial" }];
   Object.keys(E.MODELOS).forEach(n => catalogo.push({ id: "gltf:" + n, nombre: n.replace(/_/g, " "), grupo: "Modelos" }));
   Object.entries(E.KITS).forEach(([n, kit]) => kit.forEach((_, i) => catalogo.push({ id: `kit:${n}:${i}`, nombre: `${n} ${i + 1}`, grupo: "Piezas" })));
+  // Miniaturas: cada pieza, dibujada aparte en pequeño (una a una, sin parar el editor).
+  const rtT = new THREE.WebGLRenderTarget(112, 84), escT = new THREE.Scene(), camT = new THREE.PerspectiveCamera(32, 112 / 84, 0.01, 2000), buf = new Uint8Array(112 * 84 * 4), miniaturas = new Map(), cola = [];
+  escT.background = new THREE.Color(0x3a4252); escT.add(new THREE.HemisphereLight(0xf2f4ff, 0x4a5262, 1.1)); { const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(3, 5, 4); escT.add(dl); }
+  const hacerMiniatura = id => {
+    const r0 = E.crearPiezaEd({ id: "__mini", tipo: "objeto", modelo: id, p: [0, 0, 0], r: [0, 0.6, 0], s: [1, 1, 1], colision: false }); if (!r0.g) return null;
+    const g = r0.g; escT.add(g); const b = new THREE.Box3().setFromObject(g), c = b.getCenter(new THREE.Vector3()), t = b.getSize(new THREE.Vector3()), d = Math.max(t.x, t.y, t.z) * 1.7;
+    camT.position.set(c.x + d * 0.75, c.y + d * 0.5, c.z + d * 0.9); camT.lookAt(c); camT.near = d * 0.01; camT.far = d * 10; camT.updateProjectionMatrix();
+    const R = E.renderer; R.setRenderTarget(rtT); R.render(escT, camT); R.readRenderTargetPixels(rtT, 0, 0, 112, 84, buf); R.setRenderTarget(null); escT.remove(g);
+    const cv = document.createElement("canvas"); cv.width = 112; cv.height = 84; const x = cv.getContext("2d"), im = x.createImageData(112, 84);
+    for (let y = 0; y < 84; y++) im.data.set(buf.subarray((83 - y) * 112 * 4, (84 - y) * 112 * 4), y * 112 * 4);
+    x.putImageData(im, 0, 0); return cv.toDataURL();
+  };
+  const siguienteMiniatura = () => { if (window.SIN_MINIATURAS) return; const e = cola.shift(); if (!e) return; if (!miniaturas.has(e.id)) { try { miniaturas.set(e.id, hacerMiniatura(e.id)); } catch { miniaturas.set(e.id, null); } } if (miniaturas.get(e.id) && e.img.isConnected) e.img.src = miniaturas.get(e.id); setTimeout(siguienteMiniatura, 160); };
   let colocando = null;
   const pintarLista = () => {
     const q = $("buscar").value.trim().toLowerCase(), l = $("lista"); l.textContent = "";
-    catalogo.filter(c => !q || c.nombre.includes(q)).forEach(c => { const b = document.createElement("button"); b.textContent = c.nombre; b.title = c.grupo; if (colocando === c.id) b.classList.add("activo");
+    catalogo.filter(c => !q || c.nombre.includes(q)).forEach(c => { const b = document.createElement("button"), img = document.createElement("img"), nom = document.createElement("span"); img.alt = ""; nom.textContent = c.nombre; b.append(img, nom); b.title = c.grupo;
+      if (!c.id.startsWith("esp:")) { if (miniaturas.get(c.id)) img.src = miniaturas.get(c.id); else { const vacia = !cola.length; cola.push({ id: c.id, img }); if (vacia) setTimeout(siguienteMiniatura, 30); } } else img.hidden = true; if (colocando === c.id) b.classList.add("activo");
       b.onclick = () => { colocando = colocando === c.id ? null : c.id; aviso(colocando ? `Haz clic en el escenario para colocar «${c.nombre}». Esc para cancelar.` : ""); pintarLista(); }; l.appendChild(b); });
   };
   $("buscar").oninput = pintarLista; pintarLista();
@@ -74,28 +91,28 @@
   // Sobre la pieza, a la vez: flechas para moverla y anillos para girarla (como en 3ds Max). Escalar, con su botón o R.
   const tcM = new THREE.TransformControls(cam, dom), tcR = new THREE.TransformControls(cam, dom); tcR.setMode("rotate"); tcR.setSize(1.4); scene.add(tcM, tcR);
   let conGiro = true;
-  const tc = { attach(g) { tcM.attach(g); if (conGiro && sel && sel.tipo === "objeto") tcR.attach(g); else tcR.detach(); }, detach() { tcM.detach(); tcR.detach(); },
+  const tc = { attach(g) { tcM.attach(g); if (conGiro && sel && (sel.tipo === "objeto" || sel.tipo === "mundo")) tcR.attach(g); else tcR.detach(); }, detach() { tcM.detach(); tcR.detach(); },
     setMode(m) { conGiro = m !== "scale"; tcM.setMode(m === "scale" ? "scale" : "translate"); if (tcM.object) tc.attach(tcM.object); }, get dragging() { return tcM.dragging || tcR.dragging; } };
   for (const t of [tcM, tcR]) { t.addEventListener("dragging-changed", e => { orbit.enabled = !e.value; if (!e.value && sel) { leerGrupo(); rehacer(); } }); t.addEventListener("objectChange", () => { if (sel) { leerGrupo(); pintarCampos(); } }); }
   let sel = null;
   const grupoDe = id => E.escenaEd.get(id)?.g;
   const leerGrupo = () => { const g = grupoDe(sel.id); if (!g) return; sel.p = g.position.toArray().map(v => +v.toFixed(2));
-    if (sel.tipo === "objeto") { sel.r = [g.rotation.x, g.rotation.y, g.rotation.z].map(v => +(v * 180 / Math.PI).toFixed(1)); sel.s = g.scale.toArray().map(v => +v.toFixed(3)); } };
+    if ((sel.tipo === "objeto" || sel.tipo === "mundo")) { sel.r = [g.rotation.x, g.rotation.y, g.rotation.z].map(v => +(v * 180 / Math.PI).toFixed(1)); sel.s = g.scale.toArray().map(v => +v.toFixed(3)); } };
   const rehacer = () => { const g = E.ponerEd(sel); if (g) tc.attach(g); guardar(sel); };
   const seleccionar = it => {
     sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
-    const obj = it.tipo === "objeto"; $("modos").hidden = !obj; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = !obj;
+    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("modos").hidden = !obj; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo;
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota";
     if (!obj) tc.setMode("translate");
-    $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
+    $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
     pintarCampos();
   };
   const campos = { px: ["p", 0], py: ["p", 1], pz: ["p", 2], rx: ["r", 0], ry: ["r", 1], rz: ["r", 2], sx: ["s", 0], sy: ["s", 1], sz: ["s", 2] };
   const pintarCampos = () => {
     if (!sel) return;
     for (const [k, [c, i]] of Object.entries(campos)) if (sel[c] && document.activeElement !== $(k)) $(k).value = sel[c][i];
-    $("col").checked = sel.colision !== false; $("nieve").checked = !!sel.nieve; $("usaTinte").checked = !!sel.tinte; if (sel.tinte) $("tinte").value = sel.tinte;
+    $("ocultoMundo").checked = !!sel.oculto; $("col").checked = sel.colision !== false; $("nieve").checked = !!sel.nieve; $("usaTinte").checked = !!sel.tinte; if (sel.tinte) $("tinte").value = sel.tinte;
     $("nRadio").value = sel.radio ?? 8; $("nAlto").value = sel.alto ?? 1.5; $("nDens").value = sel.densidad ?? 0.5; $("nColor").value = sel.color || "#efe6ee"; $("nota").value = sel.texto || "";
   };
   for (const [k, [c, i]] of Object.entries(campos)) $(k).addEventListener("change", () => { if (!sel || !sel[c]) return; const v = parseFloat($(k).value); if (!isFinite(v)) return; sel[c][i] = v; rehacer(); });
@@ -110,17 +127,31 @@
   const modo = m => { tc.setMode(m); document.querySelectorAll("#modos button").forEach(b => b.classList.toggle("activo", b.dataset.modo === m)); };
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 2; it.p[2] += 2; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
-  const borrar = () => { if (!sel) return; const id = sel.id; seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
+  const borrar = () => { if (!sel) return; if (sel.tipo === "mundo") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
+    const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
   $("borrar").onclick = borrar;
+  const deshacer = () => { const h = historial.pop(); if (!h) { aviso("No hay nada que deshacer."); setTimeout(() => aviso(""), 2000); return; } seleccionar(null);
+    if (!h.antes) { E.quitarEd(h.id); items.delete(h.id); ultimo.delete(h.id); borrarDato(h.id); }
+    else { const it = copia(h.antes); items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); guardar(it, true); }
+    estado("Deshecho"); };
+  $("deshacer").onclick = deshacer;
+  $("restaurar").onclick = () => { if (!sel || sel.tipo !== "mundo") return; const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
+  $("ocultoMundo").onchange = () => { sel.oculto = $("ocultoMundo").checked; rehacer(); };
   function atajo(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacer(); return; }
     if (e.key === "Escape") { colocando = null; aviso(""); pintarLista(); seleccionar(null); }
-    if (!sel || sel.tipo !== "objeto") { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
+    if (!sel || !(sel.tipo === "objeto" || sel.tipo === "mundo")) { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
     if (e.key === "w" || e.key === "e") modo("translate"); if (e.key === "r") modo("scale");
     if (e.key === "Delete" || e.key === "Backspace") borrar();
   }
 
   // ── Clic en el escenario: colocar o seleccionar ───────────────────────
   const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+  const cajasMundo = new Map();
+  const cajaMundo = o => { if (!cajasMundo.has(o)) { let b = null; const suelo = E.sueloMat();
+      if (!o.isLight && !o.isCamera && !o.isInstancedMesh && !o.isPoints && !o.isSprite && !o.userData.pivoteEd) { let malla = false, esSuelo = false; o.traverse(m => { if (m.isMesh && !m.isInstancedMesh) { malla = true; if (m.material === suelo) esSuelo = true; } });
+        if (malla && !esSuelo) { b = new THREE.Box3().setFromObject(o); const t = b.getSize(new THREE.Vector3()); if (b.isEmpty() || Math.max(t.x, t.y, t.z) > 90) b = null; } }
+      cajasMundo.set(o, b); } return cajasMundo.get(o); };
   let abajo = null;
   dom.addEventListener("pointerdown", e => { abajo = [e.clientX, e.clientY]; });
   dom.addEventListener("pointerup", e => {
@@ -141,7 +172,15 @@
     }
     const grupos = [...E.escenaEd.values()].filter(v => v.g).map(v => v.g);
     const hit = ray.intersectObjects(grupos, true)[0];
-    if (!hit) { seleccionar(null); return; }
+    if (!hit) {   // una pieza que ya estaba en el mundo (no el suelo, ni lo enorme, ni lo instanciado)
+      // (por su caja: muchas piezas del juego no responden a los rayos, para ir más deprisa)
+      let o = null, dm = Infinity; const pt = new THREE.Vector3();
+      for (const c of scene.children) { if (c === tcM || c === tcR || !c.visible || grupos.includes(c)) continue; const b = cajaMundo(c); if (b && ray.ray.intersectBox(b, pt)) { const d = pt.distanceTo(ray.ray.origin); if (d < dm) { dm = d; o = c; } } }
+      if (!o) { seleccionar(null); return; }
+      const firma = E.firmaDe(o), it = { id: "m" + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
+      const ya = items.get(it.id); if (ya) { seleccionar(ya); return; }
+      items.set(it.id, it); E.ponerEd(it, o); seleccionar(it); return;
+    }
     let o = hit.object; while (o.parent && !grupos.includes(o)) o = o.parent;
     const entrada = [...E.escenaEd.values()].find(v => v.g === o); if (entrada) seleccionar(items.get(entrada.it.id) || entrada.it);
   });
@@ -151,7 +190,7 @@
     let db = null; try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
     col = db ? db.collection("escena") : null;
     if (!col) { estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true); return; }
-    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); }
+    try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); }
     catch (e) { estado("No se pudo leer lo guardado: " + (e.message || e.code), true); }
   })();
 

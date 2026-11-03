@@ -28,8 +28,10 @@
   button.activo { background: var(--acento); color: #1b1404; border-color: var(--acento); }
   button.peligro { color: var(--peligro); }
   #pestanas button { font-size: 12px; padding: 4px 8px; }
-  #lista { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30px; gap: 4px; max-height: 260px; overflow-y: auto; align-content: start; }
-  #lista button { text-align: left; font-size: 12px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 30px; }   /* (altura fija: no se aplastan) */
+  #lista { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 104px; gap: 6px; max-height: 380px; overflow-y: auto; align-content: start; }
+  #lista button { display: grid; grid-template-rows: 1fr auto; gap: 3px; text-align: left; font-size: 12px; padding: 4px; white-space: nowrap; overflow: hidden; min-height: 104px; }
+  #lista button img { width: 100%; height: 72px; object-fit: cover; border-radius: 4px; background: #3a4252; }
+  #lista button span { overflow: hidden; text-overflow: ellipsis; }   /* (altura fija: no se aplastan) */
   #buscar { width: 100%; box-sizing: border-box; }
   #sel[hidden], .solo[hidden] { display: none !important; }
   .ayuda { color: var(--tenue); font-size: 12px; }
@@ -47,7 +49,7 @@
 <aside id="ed" aria-label="Editor">
   <header>
     <h1>Editor de Blizzard</h1>
-    <div class="fila"><button id="planta">Vista en planta</button><button id="niebla">Niebla: no</button></div>
+    <div class="fila"><button id="planta">Vista en planta</button><button id="niebla">Niebla: no</button><button id="deshacer" title="Ctrl+Z">Deshacer</button></div>
     <button id="publicar" class="activo">Publicar en el juego</button>
     <div id="estado">Cargando el mundo…</div>
   </header>
@@ -75,6 +77,7 @@
         <label><input id="nieve" type="checkbox"> Nieve encima</label>
         <label><input id="usaTinte" type="checkbox"> Tinte</label><input id="tinte" type="color" value="#b4cadb">
       </div>
+      <div class="fila solo" id="filaMundo"><label><input id="ocultoMundo" type="checkbox"> Ocultar</label><button id="restaurar">Devolver a su sitio</button></div>
       <div class="solo" id="filaNiebla">
         <div class="fila"><label>Radio</label><input id="nRadio" type="number" step="0.5"><label>Alto</label><input id="nAlto" type="number" step="0.1"></div>
         <div class="fila"><label>Densidad</label><input id="nDens" type="number" step="0.05" min="0" max="1"><input id="nColor" type="color" value="#efe6ee"></div>
@@ -85,7 +88,7 @@
     <section class="seccion">
       <h2>Cómo se usa</h2>
       <p class="ayuda" style="margin:0">Arrastra para girar la vista; pulsa la rueda (o el botón derecho) y arrastra para desplazarla; gira la rueda para acercar. <kbd>Flechas</kbd> mueven la vista por el recorrido.
-        Elige una pieza y haz clic en el escenario para colocarla. Haz clic en una pieza para seleccionarla. <kbd>Supr</kbd> borra, <kbd>Esc</kbd> cancela.
+        Elige una pieza y haz clic en el escenario para colocarla. Haz clic en cualquier pieza (también las que ya estaban en el mundo) para seleccionarla. <kbd>Supr</kbd> borra, <kbd>Esc</kbd> cancela.
         Todo se guarda solo; dime «ya» y lo paso al juego.</p>
     </section>
   </div>
