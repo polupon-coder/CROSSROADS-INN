@@ -4053,9 +4053,11 @@ const trazo = (() => {
     for (let k = 0; k < n; k++) {
       const a = Math.floor(i0 + k * tramo), b = Math.min(i1, Math.ceil(i0 + (k + 1) * tramo)), t = (k + 0.5) / n, g = Math.sin(Math.PI * t);
       const d = progreso > 0 && i1 > i0 && b > a ? "M" + pts.slice(a, b + 1).map(q => q.join(" ")).join(" L") : "";
-      trozos[k].setAttribute("d", d); trozos[k].setAttribute("stroke-width", (0.6 + 3.2 * g).toFixed(2)); trozos[k].setAttribute("stroke-opacity", (0.35 + 0.65 * g).toFixed(2));
-      trozos[n + k].setAttribute("d", d); trozos[n + k].setAttribute("stroke-width", (2 + 9 * g).toFixed(2)); trozos[n + k].setAttribute("stroke-opacity", (0.18 * g).toFixed(2));
-    }
+      // (opaco: con transparencia, donde se pisan dos tramos salía un punto más claro y la línea parecía punteada)
+      trozos[k].setAttribute("d", d); trozos[k].setAttribute("stroke-width", (0.6 + 3.2 * g).toFixed(2)); trozos[k].setAttribute("stroke-opacity", "1");
+      trozos[n + k].setAttribute("d", ""); }
+    // El halo, de una pieza (los tramos sueltos, al solaparse, también dejaban puntos).
+    trozos[n].setAttribute("d", progreso > 0 && i1 > i0 ? "M" + pts.slice(i0, i1 + 1).map(q => q.join(" ")).join(" L") : ""); trozos[n].setAttribute("stroke-width", "7"); trozos[n].setAttribute("stroke-opacity", "0.16");
     inicio.style.opacity = fase === "esperando" ? 1 : 0;
   }
   function reiniciar() { fase = "esperando"; progreso = 0; cazador = 0; dedo.style.opacity = 0; dibujar(); }
@@ -5498,6 +5500,11 @@ function ajustarMundo(it, objeto) {
 function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) scene.remove(e.g); if (e.col) { const i = colisiones.indexOf(e.col); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) escenaEd.set(it.id, { it, g }); return g; } quitarEd(it.id); const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
 buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con sus sitios de origen: antes de mover nada)
+{ // Las dos agujas de roca a los lados del camino justo antes del bastón: fuera (y su choque).
+  const quitar = [[5.6, -92], [-11, -94]];
+  for (const o of [...scene.children]) { if (!o.userData.tapa || !o.isGroup) continue; const b = cajaReal(o); if (b.isEmpty()) continue; const c = b.getCenter(new THREE.Vector3()), t = b.getSize(new THREE.Vector3());
+    if (t.y < 10 || !quitar.some(([x, z]) => Math.hypot(c.x - x, c.z - z) < 1.5)) continue;
+    o.visible = false; for (let i = colisiones.length - 1; i >= 0; i--) { const k = colisiones[i]; if (k.obj === o || (!k.rampa && k.x > b.min.x - 0.2 && k.x < b.max.x + 0.2 && k.z > b.min.z - 0.2 && k.z < b.max.z + 0.2 && k.techo > b.max.y - 1)) colisiones.splice(i, 1); } } }
 { // Zona de las ruedas, ya allanada: lo que quedó en el aire baja al suelo; lo que caía sobre la grieta, fuera.
   const ruedasG = new Set(ruedasAbismo.map(W => W.g)), b0 = new THREE.Box3(), c = new THREE.Vector3();
   for (const o of [...scene.children]) {
