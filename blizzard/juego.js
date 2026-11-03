@@ -3865,6 +3865,11 @@ estilo.textContent = `
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
   #portada .empezar { margin: 18px 0 0; font-size: 18px; }
+  /* El título en vídeo: la ráfaga y las letras grabadas en la nieve; sus bordes se funden con el fondo y se queda en el último fotograma. */
+  #portada h1 .titulo { display: block; width: min(96vw, 980px); aspect-ratio: 16 / 9; object-fit: cover; margin: calc(min(96vw, 980px) * -0.13) auto calc(min(96vw, 980px) * -0.17);
+    -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 48%, #000 45%, transparent 100%); mask-image: radial-gradient(ellipse 50% 50% at 50% 48%, #000 45%, transparent 100%); animation: tituloEntra 1.4s ease-out both; pointer-events: none; }
+  @keyframes tituloEntra { from { opacity: 0; } to { opacity: 1; } }
+  #portada h1:has(.titulo) .texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* (el texto, solo para lectores de pantalla mientras está el vídeo) */
   #portada .botones { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 44px; }
   #portada .santuarios { margin-top: 44px; }
   /* El idioma, debajo de los botones (a doble distancia), discreto. */
@@ -3950,7 +3955,7 @@ ui.className = "capa-ui";
 const tactil = TACTIL;
 ui.innerHTML = `
   <div id="portada">
-    <h1>BLIZZARD</h1>
+    <h1><span class="texto">BLIZZARD</span><video class="titulo" muted autoplay playsinline preload="auto" aria-hidden="true"><source src="video/portada.webm" type="video/webm"><source src="video/portada.mp4" type="video/mp4"></video></h1>
     <div class="botones">
       <button type="button" class="opcion" id="b-empezar" data-t="Viaje">Viaje</button>
       <button type="button" class="opcion" id="b-santuarios" data-t="Santuarios">Santuarios</button>
@@ -4036,6 +4041,9 @@ for (const b of ui.querySelectorAll(".boton")) {
 }
 if (!tactil) ui.querySelector("#desarrollo").style.bottom = "22px";   // (en ordenador no hay botones: abajo del todo)
 const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
+// El título en vídeo: si no carga, queda el texto; si el navegador no deja reproducirlo solo, se muestra su último fotograma.
+{ const vt = portada.querySelector("video.titulo"); if (vt) { const ult = vt.querySelector("source:last-of-type"); if (ult) ult.addEventListener("error", () => vt.remove()); const fin = () => { if (isFinite(vt.duration)) vt.currentTime = vt.duration; };
+  const pr = vt.play(); if (pr && pr.catch) pr.catch(() => { if (vt.readyState >= 1) fin(); else vt.addEventListener("loadedmetadata", fin, { once: true }); }); } }
 cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
 // Cada frase en su línea.
