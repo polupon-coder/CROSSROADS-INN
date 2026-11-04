@@ -1859,9 +1859,10 @@ function moverGuia(dt) {
     if (!G.huella && G.z < H2.z + 1 && Math.abs(pos.z - H2.z) < 9) { G.modo = "huella"; G.t = 0; G.huella = true; }
     // Si te quedas quieto un rato o te desvías, vuelve a rodearte y a guiarte.
     G.quieto = Math.hypot(vel.x, vel.z) < 0.3 ? G.quieto + dt : 0;
-    if (!llega && (G.quieto > 5 || Math.abs(pos.x - caminoX(pos.z)) > 7 || delante > 18)) { G.modo = "vuelta"; G.t = 0; }
+    const dB = Math.hypot(pos.x - bast.x, pos.z - bast.z), perdido = llega && dB > 9;   // (se ha pasado el bastón o se ha alejado de él)
+    if ((!llega || perdido) && (G.quieto > 3 || Math.abs(pos.x - caminoX(pos.z)) > 5 || (!llega && delante > 14) || (perdido && G.p.distanceTo(pos) > 6))) { G.modo = "vuelta"; G.t = 0; }   // (siempre te viene a buscar si te paras, te desvías o te pasas)
     if (!llega && delante < 7) G.z -= dt * 4.2;
-    const objetivo = llega ? bast : puntoGuia(G.z, _gp);
+    const objetivo = llega ? (perdido ? _gp.set(bast.x - pos.x, 0, bast.z - pos.z).normalize().multiplyScalar(3.2).add(pos).setY(pos.y + 1.3) : bast) : puntoGuia(G.z, _gp);   // (perdido: se pone por delante, hacia el bastón, y te lleva)
     if (!llega) { objetivo.x += Math.sin(G.reloj * 2.6) * 0.6; objetivo.y += Math.sin(G.reloj * 5.2) * 0.12; }   // (avanza haciendo eses, como una serpiente)
     G.p.lerp(objetivo, 1 - Math.exp(-dt * (llega ? 2 : 6)));
     if (llega && G.p.distanceTo(bast) < 0.3 && Math.hypot(pos.x - bast.x, pos.z - bast.z) < 12) G.fin = Math.min(1, G.fin + dt * 1.5);   // se convierte en la espiral del bastón
@@ -3526,7 +3527,7 @@ function colocarBaston(dt, v) {
   luzBaston(dt);
   if (!bastonEnMano) return;
   centroDelPuno(_puno);
-  const objetivo = clamp(0.2 + v / V_CORRER * 0.4, 0.2, 0.6) + (enSuelo ? 0 : 0.25);
+  const objetivo = agachadoAhora ? 1.25 : clamp(0.2 + v / V_CORRER * 0.4, 0.2, 0.6) + (enSuelo ? 0 : 0.25);   // (agachado, el bastón casi tumbado hacia delante: que no atraviese el techo bajo)
   inclinacionBaston = lerp(inclinacionBaston, objetivo, 1 - Math.exp(-dt * 8));
   baston.rotation.set(inclinacionBaston, rumbo, 0.14, "YXZ");  // punta hacia delante y algo hacia fuera
   _eje.set(0, 1, 0).applyEuler(baston.rotation);
@@ -4350,17 +4351,17 @@ const musica = (() => {
   // Cuánto se oye el viento de la niebla (0 a 1): sube y baja despacio.
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
-  function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
+  function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; f.playbackRate.value = 0.84; g.gain.value = 0.42; f.connect(g).connect(ctx.destination); f.start(); }
   // Al recoger una chispa: las campanillas y, encima, el arpegio de piano una octava más alto, en una escala
   // que sube con cada chispa del tramo (la séptima, la más alta); cada vez con un leve matiz distinto.
   const ESCALA = [1, 1.1225, 1.2599, 1.4983, 1.6818, 2, 2.2449];
   function arpegio(paso = 0) { if (!ctx) return; const r = ESCALA[Math.max(0, Math.min(6, paso))] * (0.985 + Math.random() * 0.03);
-    if (arpegioB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r * 0.63; g.gain.value = 0.42; f.connect(g).connect(ctx.destination); f.start(); }
-    if (impulsoB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = r * 1.26; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + 0.05); } }
+    if (arpegioB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r * 0.53; g.gain.value = 0.3; f.connect(g).connect(ctx.destination); f.start(); }
+    if (impulsoB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = r * 1.06; g.gain.value = 0.11; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + 0.05); } }
   // El acorde disonante al caerse (cuando el viento te recoge).
   function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
   // La nota de piano con soplo: para los momentos especiales (un puzle resuelto, el bastón, la puerta…).
-  function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
+  function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; f.playbackRate.value = 0.84; g.gain.value = 0.4; f.connect(g).connect(ctx.destination); f.start(); }
   // La nota desafinada cuando el viento avisa de que por ahí no se sigue (como mucho, una vez cada pocos segundos).
   function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(ctx.destination); f.start(); }
   // El contrabajo, flojito, en cada salto normal.
@@ -4374,9 +4375,9 @@ const musica = (() => {
     if (!b) { if (vol <= 0.001) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.loop = true; g.gain.value = 0; f.connect(g).connect(ctx.destination); f.start(); b = { f, g, v: 0 }; bucles.set(nombre, b); }
     if (Math.abs(vol - b.v) > 0.01) { b.v = vol; b.g.gain.setTargetAtTime(vol, ctx.currentTime, 0.2); } b.f.playbackRate.value = ritmo; }
   // Unas notas de piano que suben con el salto con viento (cada vez en un tono algo distinto, siempre consonante).
-  function impulso() { if (!ctx || !impulsoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = [1, 1.1225, 1.2599, 0.8909][Math.floor(Math.random() * 4)]; g.gain.value = 0.28; f.connect(g).connect(ctx.destination); f.start(); }
+  function impulso() { if (!ctx || !impulsoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = 0.84 * [1, 1.1225, 1.2599, 0.8909][Math.floor(Math.random() * 4)]; g.gain.value = 0.2; f.connect(g).connect(ctx.destination); f.start(); }
   // Aviso de chispa dejada atrás: el timbre de la chispa en dos notas a medio tono (disonante), grave y suave.
-  function disonante() { if (!ctx || !arpegioB) return; for (const [r, v, d] of [[0.42, 0.3, 0], [0.445, 0.26, 0.04]]) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r; g.gain.value = v; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + d); } }
+  function disonante() { if (!ctx || !arpegioB) return; for (const [r, v, d] of [[0.353, 0.21, 0], [0.374, 0.18, 0.04]]) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r; g.gain.value = v; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + d); } }
   return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas, golpe, bucle, impulso, disonante };
 })();
 
@@ -4477,7 +4478,7 @@ let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, 
 const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEsp = { obj: null, pos: null, t: 1 };
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
-let atrasT = 0, alanteT = 0, vueltaCam = false, vueltaP = 0, vueltaLado = 1, vueltaDesde = -9, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
+let orbitaT = -1, atrasT = 0, alanteT = 0, vueltaCam = false, vueltaP = 0, vueltaLado = 1, vueltaDesde = -9, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
 const INTRO_DURA = 8;
@@ -4556,7 +4557,7 @@ function moverHorizontal(dx, dz) {
   for (const c of colisiones) {
     if (c.rampa) {                                                  // por debajo de la pilastra, empuja hacia fuera de su eje
       const q = enRampa(c, pos.x, pos.z), rr = c.rampa.ancho + 0.25;
-      if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }
+      if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001 && !colisiones.some(k => k.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= k.bajo && Math.hypot(k.x - pos.x, k.z - pos.z) < k.r + 0.6)) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }   // (si por debajo se cabe, de pie o agachado, no empuja: era un muro invisible)
       continue;
     }
     if (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo) continue;   // por debajo, agachado, se pasa
@@ -4639,8 +4640,9 @@ function actualizar(dt) {
     if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; vueltaDesde = reloj;
       if (vueltaCam) vueltaLado = Math.sign(vel.x * c.fz - vel.z * c.fx) || vueltaLado; } }   // (gira por el lado hacia el que va; mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
   vueltaP = clamp(vueltaP + (vueltaCam ? dt : -dt) / 1.8, 0, 1);   // (media vuelta en ~1,8 s, suave al empezar y al acabar)
-  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + Math.PI * vueltaLado * vueltaP * vueltaP * (3 - 2 * vueltaP);
-  { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (vueltaP > 0 && vueltaP < 1 ? 5 : dif > 1 ? 2.4 : 1.2))); }
+  let orbita = 0; if (orbitaT >= 0) { orbitaT += dt; const k = Math.min(1, orbitaT / 6); orbita = Math.PI * 2 * k * k * (3 - 2 * k); if (orbitaT >= 6) orbitaT = -1; }   // (al recibir el bastón: una vuelta completa, suave)
+  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + Math.PI * vueltaLado * vueltaP * vueltaP * (3 - 2 * vueltaP) + orbita;
+  { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (orbitaT >= 0 || (vueltaP > 0 && vueltaP < 1) ? 5 : dif > 1 ? 2.4 : 1.2))); }
   const adelante = new THREE.Vector3(-Math.sin(yawCamara), 0, -Math.cos(yawCamara));
   const derecha = new THREE.Vector3(-adelante.z, 0, adelante.x);
   if (!bloqueoControl) yawControl = yawCamara;
@@ -4678,7 +4680,7 @@ function actualizar(dt) {
       baston.rotation.set(0.08 * viaje + Math.sin(arrodillado * 9) * 0.06 * (1 - viaje), rumbo * viaje + arrodillado * 2.5 * (1 - viaje), 0, "YXZ");
       espiralEn = baston.position.clone().add(new THREE.Vector3(0, 0.6, 0));
       efectoEspiral = 1;
-      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.viento(0.25, 0.9); }
+      if (t >= 1) { bastonEnMano = true; espiralEn = null; efectoEspiral = 0.8; musica.viento(0.25, 0.9); orbitaT = 0; }   // (y la cámara da una vuelta entera alrededor)
     }
     if (arrodillado > 2.6) {
       if (tactil) ui.querySelector("#b-viento").hidden = false;
@@ -4720,7 +4722,7 @@ function actualizar(dt) {
     const deseo = new THREE.Vector3().addScaledVector(bloqueoControl ? adelanteC : adelante, iz).addScaledVector(bloqueoControl ? derechaC : derecha, ix);
     if (deseo.lengthSq() > 1) deseo.normalize();
     // Bajo un techo bajo se sigue agachado aunque se suelte la tecla, para no quedar dentro de la piedra.
-    const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 1.0 && pos.y < c.techo && pos.y + 1.55 > c.bajo && pos.y + 1.0 <= c.bajo);   // (se agacha solo, y solo si hace falta: un poco antes de llegar, que el techo no lo frene)
+    const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 1.0 && pos.y < c.techo && pos.y + 1.55 > c.bajo && pos.y + 1.0 <= c.bajo);   // (se agacha solo, y solo si hace falta: un poco antes de llegar, que el techo no lo frene)   // (se agacha solo, y solo si hace falta: un poco antes de llegar, que el techo no lo frene)
     const agachado = (tecla("KeyC", "ControlLeft") || bajoTecho) && enSuelo;
     agachadoAhora = agachado; if (agachado) ultimoAgachado = reloj;
     const rapidez = agachado ? V_AGACHADO : tecla("ShiftLeft", "ShiftRight") || Math.hypot(joy.x, joy.y) > 0.85 ? V_CORRER : V_ANDAR;
@@ -4820,10 +4822,13 @@ function actualizar(dt) {
 
     const xAntes = pos.x, zAntes = pos.z;
     moverHorizontal(vel.x * dt, vel.z * dt);
-    if (retenido(pos.x, pos.z) && !retenido(xAntes, zAntes)) {
-      pos.x = xAntes; pos.z = zAntes; vel.x = vel.z = 0;
-      retencion = 1;
-    }
+    // Pasos estrechos (saltos, pasos bajos, la puerta): no frena en seco (parecía un choque raro); al acercarse
+    // lo va llevando hacia el hueco y, si aun así llega desviado, lo encaja en el borde del paso sin pararlo.
+    for (const R of RETENCIONES) { const cx = caminoX(R.z) + (R.dx || 0), dz = Math.abs(pos.z - R.z), d = pos.x - cx;
+      if (Math.abs(d) > 40) continue;
+      if (dz < R.m + 3 && dz >= R.m && Math.abs(d) > R.hw - 0.2 && Math.hypot(vel.x, vel.z) > 0.3) pos.x -= Math.sign(d) * Math.min(Math.abs(d) - (R.hw - 0.2), dt * 2.2);   // (lo acerca al hueco)
+      if (retenido(pos.x, pos.z) && !retenido(xAntes, zAntes) && dz < R.m) { pos.x = cx + Math.sign(d) * (R.hw - 0.02); vel.x *= 0.3; retencion = 1; } }
+    if (retenido(pos.x, pos.z) && !retenido(xAntes, zAntes)) { pos.x = xAntes; pos.z = zAntes; vel.x = vel.z = 0; retencion = 1; }   // (por si acaso)
     vel.y -= GRAVEDAD * dt;
     pos.y += vel.y * dt;
     const s = sueloEn(pos.x, pos.z, pos.y); sobreAntes = s.sobre;
