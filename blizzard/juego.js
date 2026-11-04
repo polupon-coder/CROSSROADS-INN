@@ -4717,7 +4717,7 @@ function actualizar(dt) {
     const deseo = new THREE.Vector3().addScaledVector(bloqueoControl ? adelanteC : adelante, iz).addScaledVector(bloqueoControl ? derechaC : derecha, ix);
     if (deseo.lengthSq() > 1) deseo.normalize();
     // Bajo un techo bajo se sigue agachado aunque se suelte la tecla, para no quedar dentro de la piedra.
-    const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.2 && pos.y < c.techo);
+    const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 1.0 && pos.y < c.techo && pos.y + 1.55 > c.bajo && pos.y + 1.0 <= c.bajo);   // (se agacha solo, y solo si hace falta: un poco antes de llegar, que el techo no lo frene)
     const agachado = (tecla("KeyC", "ControlLeft") || bajoTecho) && enSuelo;
     agachadoAhora = agachado; if (agachado) ultimoAgachado = reloj;
     const rapidez = agachado ? V_AGACHADO : tecla("ShiftLeft", "ShiftRight") || Math.hypot(joy.x, joy.y) > 0.85 ? V_CORRER : V_ANDAR;
