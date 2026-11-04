@@ -5407,6 +5407,23 @@ const desenfoque = (() => {
   };
 })();
 
+// Halo suave: Blizzard, su capa, el bastón, las estelas y las chispas se dibujan aparte, pequeños, y se ponen
+// encima desenfocados y tenues: un brillo difuso que suaviza sus contornos (y las imperfecciones del modelado).
+const SUAVE = /[?&]suave/.test(location.search);
+// (sin pase aparte: un halo dibujado encima se veía a través de las rocas que tapan a Blizzard)
+const suavizado = { hecho: false, mats: new Set() };
+function suavizarMat(m, rim) {   // textura algo desenfocada y, en Blizzard, un brillo suave y frío en el contorno
+  if (!m || suavizado.mats.has(m)) return; suavizado.mats.add(m); const prev = m.onBeforeCompile, clave = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => "";
+  m.onBeforeCompile = (sh, rr) => { if (prev) prev.call(m, sh, rr);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#ifdef USE_MAP\n vec4 texelColor = texture2D( map, vUv, 1.4 ); texelColor = mapTexelToLinear( texelColor ); diffuseColor *= texelColor;\n#endif");
+    if (rim && sh.fragmentShader.includes("vViewPosition")) sh.fragmentShader = sh.fragmentShader.replace("#include <tonemapping_fragment>", "{ float rimS = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0); gl_FragColor.rgb += vec3(0.9, 0.93, 1.0) * pow(rimS, 2.2) * 0.2; }\n#include <tonemapping_fragment>"); };
+  m.customProgramCacheKey = () => clave() + (rim ? "|suaveR" : "|suave"); m.needsUpdate = true;
+}
+function suavizar() {
+  suavizado.hecho = true; const mats = (o, rim) => o.traverse(q => { if (q.isMesh) [].concat(q.material).forEach(m => suavizarMat(m, rim)); });
+  mats(blizzard, true); if (capaTela) mats(capaTela.malla, true); mats(estela.m, false);
+  if (chispas) for (const c of chispas) suavizarMat(c.m.material, false); else suavizado.hecho = false;   // (las chispas, cuando existan)
+}
 // ─── Lo que tapa la vista ──────────────────────────────────────────────────
 // Rocas, pilastras y vigas que quedan muy cerca de la cámara, entre ella y Blizzard: se ocultan
 // (antes, al acercarse, ya se ven desenfocadas). Esfera de cada pieza para descartar rápido; rayo solo
@@ -5695,6 +5712,7 @@ function bucle(ahora) {
   if (window.BLIZZARD_EDITOR) NIEBLA_U.nieblaLagoK.value = scene.fog && scene.fog.far > 1e4 ? 0 : 1;   // (en el editor, sin niebla, el lago se ve)
   if (window.BLIZZARD_EDITOR && window.__edRender && !window.__edRender()) {}   // (el editor dibuja solo cuando algo cambia)
   else if (desenfoque && calidad.desenfoque && !window.BLIZZARD_EDITOR) desenfoque.dibujar(); else renderer.render(scene, camara);   // (en el editor, nítido y a resolución completa)
+  if (SUAVE && !window.BLIZZARD_EDITOR && !suavizado.hecho) suavizar();
   requestAnimationFrame(bucle);
 }
 requestAnimationFrame(bucle);
@@ -5796,12 +5814,23 @@ const PASEANTES = [
   { z: -1250, lado: 1, d: 12, grande: false, dir: -1 }, { z: -720, lado: 1, d: 12, grande: false, dir: -1 }, { z: -1065, lado: -1, d: 12, grande: false, dir: -1 }, { z: -1440, lado: 1, d: 12, grande: false, dir: -1 },
   { z: -1040, lado: -1, d: 17, grande: true, dir: 1 }, { z: -1365, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null;
+function pasoGolem(x, z, yP, rad) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
+  const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.2)) return null;
+  if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + rad + 1.5)) return null;   // (ni sobre un santuario)
+  if (colisiones.some(c => !c.rampa && c.techo > y + 1.5 && Math.hypot(c.x - x, c.z - z) < c.r + rad)) return null;
+  return y;
+}
+function rutaRecta(P, maxL) {   // metros libres del camino que sigue andando recto
+  const rad = P.grande ? 2.6 : 1.3; let yP = null, L = 0;
+  for (; L < maxL; L += 1) { const z = P.zS - L, y = pasoGolem(caminoX(z) + P.xS, z, yP, rad); if (y === null) break; yP = y; }
+  return L;
+}
 function cruceLibre(z0) {   // ¿puede un golem grande cruzar de lado a lado (36 m) a esa altura del camino sin atravesar nada?
   const cx = caminoX(z0), y0 = alturaTerreno(cx, z0); if (y0 < -5) return false;   // (sobre el agua del lago, no)
   let yP = alturaTerreno(cx - 18, z0);
   for (let d = -18; d <= 18; d += 1.5) { const x = cx + d, y = alturaTerreno(x, z0);
     if (y < y0 - 5 || Math.abs(y - yP) > 1.3) return false; yP = y;   // (simas o paredes; las cuestas suaves de las dunas, sí)
-    if (colisiones.some(c => !c.rampa && c.techo > y + 2 && Math.hypot(c.x - x, c.z - z0) < c.r + 1)) return false; }   // (rocas, acantilados)
+    if (colisiones.some(c => !c.rampa && c.techo > y + 2 && Math.hypot(c.x - x, c.z - z0) < c.r + 2.6) || PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z0 - Q.z) < Q.r + 4)) return false; }   // (rocas, acantilados, santuarios)
   return true;
 } const _siluetaG = new THREE.Color(0x56606e);
 function moverPaseantes(dt) {
@@ -5813,7 +5842,8 @@ function moverPaseantes(dt) {
     const dz = Math.abs(pos.z - P.z);
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
     if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
-      P.recto = !P.grande || !cruceLibre(pos.z - 30); }   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
+      P.recto = !P.grande || !cruceLibre(pos.z - 30);
+      if (P.recto) { const v = P.grande ? 2.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 22; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
     if (!P.activo) { if (P.g) P.g.visible = false; continue; }
     if (!P.g) { const GA = P.grande ? gGolemGrande : gGolemAnim, d = clonarConEsqueleto(GA.scene), t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3());
       P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 };
@@ -5825,14 +5855,14 @@ function moverPaseantes(dt) {
       P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.8 : 1.9; A.play(); }
     // Grandes: cruzan de lado a lado por delante (a unos 30 m), muy despacio: pasan por el centro de la imagen (también en el móvil).
     // Pequeños: aparecen en medio de la imagen, sobre el camino (a unos 22 m), y se alejan hasta perderse en la niebla o tras una roca.
-    const T = P.grande ? 22 : 10; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
+    const T = P.T; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
     let x, z; if (!P.recto) { P.zA = lerp(P.zA, pos.z - 30, 1 - Math.exp(-dt * 0.6)); z = P.zA; x = caminoX(z) + lerp(P.lado * 18, -P.lado * 18, P.t / T); }
     else { z = P.zS - (P.grande ? 2.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
     { const yS = alturaTerreno(x, z); if (P.tapado > 0 || colisiones.some(c => !c.rampa && c.techo > yS + 2 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6)) P.tapado += dt; }   // (si se topa con una roca, se pierde tras ella: no la atraviesa)
     const dj = Math.hypot(x - pos.x, z - pos.z);
     const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.01; if (!P.g.visible) continue;
-    { let y = alturaTerreno(x, z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
+    { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < pos.y - 6) y = pos.y - 0.6;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
     P.g.rotation.y = P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
@@ -5888,14 +5918,18 @@ function moverEsferas(dt) {
   if (!esferasRepartidas && escenaLista && !window.BLIZZARD_EDITOR) { esferasRepartidas = true; repartirEsferas(); }
   let son = 0;
   for (const E of esferasEd) {
+    if (E.estado === 4) { E.t += dt; const g = E.g; g.position.y -= dt * E.R * 1.3; g.scale.multiplyScalar(1 - dt * 0.6); if (E.t > 1.6) { E.estado = 2; g.visible = false; } continue; }
     if (E.estado >= 2) continue; const g = E.g;
     if (E.estado === 0) {
-      const dzJ = pos.z - g.position.z; if (rescate || dzJ > 8.5 || dzJ < 2 || Math.abs(g.position.x - pos.x) > 24) continue;   // (cuando queda unos 5-7 m por delante)
+      const dzJ = pos.z - g.position.z, dJ = Math.hypot(g.position.x - pos.x, dzJ); if (rescate || ((dzJ > 8.5 || dzJ < 2 || Math.abs(g.position.x - pos.x) > 24) && dJ > 8)) continue;   // (cuando queda unos 5-8 m por delante, o si Blizzard se acerca por donde sea)
       const cx = caminoX(g.position.z), lado = g.position.x - cx > 0.5 ? 1 : g.position.x - cx < -0.5 ? -1 : (Math.random() < 0.5 ? 1 : -1);
       // Nunca atraviesa nada: prueba varias diagonales hacia el otro lado y se queda con la de recorrido libre más largo.
       const quiere = Math.abs(g.position.x - cx) * (lado * (g.position.x - cx) > 0 ? 1 : -1) + 14, base = Math.atan2(-0.62, -lado);
-      let mejor = null, dM = 0; for (const da of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8]) { const a = base + da, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)); if (d.z > 0.2) continue; const L = recorridoLibre(E, d, quiere / Math.max(0.3, Math.abs(d.x))); if (L > dM + 0.5) { dM = L; mejor = d; } }
-      if (!mejor || dM < 5) { E.estado = 3; continue; }   // (sin paso libre: se queda quieto, como una roca más)
+      // Siempre se aleja de Blizzard: de 16 direcciones, la libre que más lo aleje (mejor la diagonal por delante).
+      const ax = g.position.x - pos.x, az = g.position.z - pos.z, aL = Math.hypot(ax, az) || 1; let mejor = null, dM = 0, sM = -1e9;
+      for (let q = 0; q < 16; q++) { const a = base + q * Math.PI / 8, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), lejos = (d.x * ax + d.z * az) / aL; if (lejos < 0.2) continue;
+        const L = recorridoLibre(E, d, 20); if (L < 4) continue; const sc = Math.min(L, 16) + 6 * lejos + 3 * Math.cos(q * Math.PI / 8); if (sc > sM) { sM = sc; dM = L; mejor = d; } }
+      if (!mejor) { E.estado = 4; E.t = 0; const k = colisiones.indexOf(E.col); if (k >= 0) colisiones.splice(k, 1); continue; }   // (sin salida: se hunde en la nieve y desaparece)
       { g.updateMatrixWorld(true); const cW = cajaReal(g).getCenter(new THREE.Vector3()), cL = cW.clone().applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert());   // (gira sobre su centro: sobre la base daba botes)
         g.children.forEach(ch => ch.position.sub(cL)); g.position.copy(cW); g.updateMatrixWorld(true); E.y0 = g.position.y - alturaSuelo(g.position.x, g.position.z); }
       E.dir = mejor; E.largo = dM; E.recorrido = 0; E.estado = 1; E.t = 0; E.v = 4.5 + Math.random() * 1.5; E.va = 0; E.y = g.position.y; E.son2 = false;
@@ -5903,7 +5937,7 @@ function moverEsferas(dt) {
     }
     E.t += dt; if (!E.son2 && E.t > E.retraso + 1.1) { E.son2 = true; musica.rocas(0.13); }   // (un segundo golpe, más suave: ya se alejan)
     if (E.t < E.retraso) continue;
-    E.va = Math.min(E.v, E.va + dt * 3.5);   // (arranca poco a poco: sin tirones)
+    { const dj0 = Math.hypot(g.position.x - pos.x, g.position.z - pos.z); E.va = Math.min(E.v * (dj0 < 4 ? 1.6 : 1), E.va + dt * (dj0 < 4 ? 7 : 3.5)); }   // (arranca poco a poco; si Blizzard la alcanza, acelera: nunca se deja tocar)
     const paso = Math.min(E.va * dt, E.largo - E.recorrido); E.recorrido += paso;
     g.position.x += E.dir.x * paso; g.position.z += E.dir.z * paso;
     { const sup = alturaSuelo(g.position.x, g.position.z) + E.y0; E.y = Math.max(lerp(E.y, sup, 1 - Math.exp(-dt * 3)), sup - 0.04); g.position.y = E.y; }   // (la altura, suavizada, pero nunca por debajo del suelo: no se mete en las cuestas)
@@ -5911,7 +5945,6 @@ function moverEsferas(dt) {
     if ((E.surcoD = (E.surcoD || 0) + paso) > 0.3) { E.surcoD = 0; surcoEsfera(E); }   // (surco continuo también en la nieve normal)
     if ((E.huella += paso) > 0.4) { E.huella = 0; hundirNieve(g.position.x, g.position.z, E.R * 0.9); }   // (su surco en la nieve acumulada: tan ancho como la esfera)
     const dj = Math.hypot(g.position.x - pos.x, g.position.z - pos.z); son = Math.max(son, clamp(1 - dj / 25, 0, 1));
-    if (!rescate && dj < E.R + 0.4 && pos.y < g.position.y + E.R) { const nx = (pos.x - g.position.x) / (dj || 1), nz = (pos.z - g.position.z) / (dj || 1); vel.x = nx * 7 + E.dir.x * 4; vel.z = nz * 7 + E.dir.z * 4; vel.y = Math.max(vel.y, 3); enSuelo = false; }   // (si lo pilla, lo aparta)
     const fin = E.largo - E.recorrido; if (fin < 4) g.scale.setScalar(g.scale.x * (1 - dt * 1.5));   // (al final se pierde en la niebla)
     if (fin <= 0.01) { E.estado = 2; g.visible = false; }
   }
