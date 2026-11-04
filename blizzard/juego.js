@@ -1977,7 +1977,8 @@ function moverZonas(dt) {
 function moverBolas(dt) {
   moverGuia(dt);
   moverChispas(dt);
-  musica.niebla(suave(HEX_FIN + 20, HEX_FIN - 6, pos.z));   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
+  musica.niebla(suave(HEX_FIN + 20, HEX_FIN - 6, pos.z));
+  musica.cancion(!tieneBaston ? 0 : pos.z < CUEVA_Z + 30 ? 7 : tramoActual() + 1);   // (una canción por tramo entre santuarios; otra en la cueva)   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
   moverZonas(dt);
   arrastre = Math.max(0, arrastre - dt);
   // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
@@ -4227,6 +4228,7 @@ const musica = (() => {
       ganancia.gain.linearRampToValueAtTime(VOLUMEN, ctx.currentTime + 3);   // entra suave al empezar
       ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
       pista.play().catch(() => {});
+      sonando.set(0, { a: pista, g: ganancia, t: 0 }); pistaActual = 0;
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
@@ -4241,9 +4243,20 @@ const musica = (() => {
     g.gain.value = volumen;
     f.connect(g).connect(ctx.destination); f.start();
   }
+  // Una canción por tramo: del inicio al bastón, la de siempre; luego una distinta entre cada dos santuarios,
+  // y otra en la cueva. Al cambiar de tramo, una se apaga despacio mientras entra la siguiente.
+  const PISTAS = ["wandering-light-lenta", "pasos", "ballerino", "bandadas-de-luz", "sonambulo", "secuoya", "catedral-sumergida", "mi-respuesta"];
+  const sonando = new Map(); let pistaActual = 0;
+  function cancion(i) {
+    if (!ctx || i === pistaActual || i < 0 || i >= PISTAS.length) return;
+    const vieja = sonando.get(pistaActual); if (vieja) { const v = vieja; v.g.gain.cancelScheduledValues(ctx.currentTime); v.g.gain.setTargetAtTime(0, ctx.currentTime, 1.4); clearTimeout(v.t); v.t = setTimeout(() => v.a.pause(), 7000); }
+    pistaActual = i; let n = sonando.get(i);
+    if (!n) { const a = i === 0 ? pista : new Audio("musica/" + PISTAS[i] + ".mp3"); a.loop = true; const g = i === 0 ? ganancia : ctx.createGain(); if (i !== 0) { g.gain.value = 0; ctx.createMediaElementSource(a).connect(g).connect(ctx.destination); } n = { a, g, t: 0 }; sonando.set(i, n); }
+    clearTimeout(n.t); if (i !== 0) n.a.currentTime = 0; n.a.play().catch(() => {}); n.g.gain.cancelScheduledValues(ctx.currentTime); n.g.gain.setTargetAtTime(VOLUMEN, ctx.currentTime + 1.2, 1.4);
+  }
   // Cuánto se oye el viento de la niebla (0 a 1): sube y baja despacio.
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
-  return { empezar, viento, niebla };
+  return { empezar, viento, niebla, cancion };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
