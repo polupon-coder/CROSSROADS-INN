@@ -1891,7 +1891,7 @@ function chispasListas(k) { const [n, t] = cuentaTramo(k); if (n >= t) return tr
 // La chispa a tiro (para recogerla con la magia): la más cercana, a unos pasos.
 function chispaCerca() { if (!chispas || !tieneBaston) return null; let m = null, dm = 3.6;
   for (const C of chispas) { if (C.abs >= 0 || C.oculta || Math.abs(C.z - pos.z) > 5) continue; const d = Math.hypot(pos.x - C.p.x, pos.z - C.p.z); if (d < dm && Math.abs(pos.y + 1 - C.p.y) < 2.5) { dm = d; m = C; } } return m; }
-function absorberChispa(C) { C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
+function absorberChispa(C) { musica.arpegio(); C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
 const barraChispas = (() => { const d = document.createElement("div"); d.id = "barraChispas"; d.setAttribute("aria-hidden", "true"); d.appendChild(document.createElement("i")); document.body.appendChild(d); return d; })();
 function moverChispas(dt) {
   if (!chispas) { if (!escenaLista) return; chispas = crearChispas(); }
@@ -1980,9 +1980,9 @@ function moverBolas(dt) {
   moverChispas(dt);
   musica.niebla(suave(HEX_FIN + 20, HEX_FIN - 6, pos.z));
   musica.cancion(!tieneBaston ? 0 : pos.z < CUEVA_Z + 30 ? 7 : tramoActual() + 1);
-  // Momentos especiales (el bastón llega, un puzle resuelto, la puerta que se abre, las siete chispas del tramo): el arpegio.
+  // Momentos especiales (el bastón llega, un puzle resuelto, la puerta que se abre, las siete chispas del tramo): la nota con soplo.
   { const [n, t] = cuentaTramo(tramoActual()), ahora = [tieneBaston, puzle.resuelto, puzle.col4.t >= 0, puertaArcana.t >= 0, t > 0 && n >= t];
-    if (especialAntes && reloj > especialDesde) for (let i = 0; i < ahora.length; i++) if (ahora[i] && !especialAntes[i]) { musica.arpegio(); break; }
+    if (especialAntes && reloj > especialDesde) for (let i = 0; i < ahora.length; i++) if (ahora[i] && !especialAntes[i]) { musica.especial(); break; }
     especialAntes = ahora; }   // (una canción por tramo entre santuarios; otra en la cueva)   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
   moverZonas(dt);
   arrastre = Math.max(0, arrastre - dt);
@@ -4224,7 +4224,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4239,6 +4239,7 @@ const musica = (() => {
       fetch("musica/acorde-runa.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { acordeB = b; }).catch(() => {});
       fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { arpegioB = b; }).catch(() => {});
       fetch("musica/caida.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { caidaB = b; }).catch(() => {});
+      fetch("musica/nota-soplo.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { soploB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4267,11 +4268,13 @@ const musica = (() => {
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
   function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
-  // El arpegio de piano al resolver un puzle o algo especial.
+  // El arpegio de piano al recoger una chispa.
   function arpegio() { if (!ctx || !arpegioB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
-  // La nota de piano con soplo al caerse (cuando el viento te recoge).
+  // El acorde disonante al caerse (cuando el viento te recoge).
   function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida };
+  // La nota de piano con soplo: para los momentos especiales (un puzle resuelto, el bastón, la puerta…).
+  function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4475,7 +4478,7 @@ function elegirLado() {
 
 let hundidasD2 = 0;
 function empezarRescate() {
-  musica.caida();   // (al caerse: la nota con soplo)
+  musica.caida();   // (al caerse: el acorde disonante)
   losasTrasRescate = (pos.z < QUIEBRA.desde + 1 && pos.z > QUIEBRA.hasta - 1) || (pos.z < QUIEBRA2.desde + 1 && pos.z > QUIEBRA2.hasta - 1);
   musica.viento(0.35, 0.8);
   const enPrecipicio = pos.z < PRECIPICIO.desde + 0.5 && pos.z > PRECIPICIO.hasta - 0.5, enRuedas = pos.z < RUEDAS_Z.desde + 0.5 && pos.z > RUEDAS_Z.hasta - 0.5;
