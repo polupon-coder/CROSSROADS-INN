@@ -3907,6 +3907,8 @@ estilo.textContent = `
   :root { --tinta: #1f2a3d; --tinta-suave: #4a5a75; --oro: #efb11c; --velo: rgba(225, 234, 247, .78); }
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   #lienzo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  /* Al caer: un velo claro y desenfocado (no se ve lo de debajo del mundo); se va al volver a tierra. */
+  #veloCaida { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0; background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(234,240,249,.35) 0%, rgba(234,240,249,.85) 65%, rgba(240,244,251,.97) 100%); -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); }
   .capa-ui { z-index: 4; position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
@@ -4244,7 +4246,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9, rodarB = null;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9, rodarB = null, impulsoB = null;
   const bucles = new Map();
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
@@ -4265,6 +4267,7 @@ const musica = (() => {
       fetch("musica/salto.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { saltoB = b; }).catch(() => {});
       fetch("musica/rocas.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rocasB = b; }).catch(() => {});
       fetch("musica/rodar.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rodarB = b; }).catch(() => {});
+      fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { impulsoB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4311,7 +4314,9 @@ const musica = (() => {
   function bucle(nombre, vol, ritmo = 1) { if (!ctx || !rodarB) return; let b = bucles.get(nombre);
     if (!b) { if (vol <= 0.001) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.loop = true; g.gain.value = 0; f.connect(g).connect(ctx.destination); f.start(); b = { f, g, v: 0 }; bucles.set(nombre, b); }
     if (Math.abs(vol - b.v) > 0.01) { b.v = vol; b.g.gain.setTargetAtTime(vol, ctx.currentTime, 0.2); } b.f.playbackRate.value = ritmo; }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas, golpe, bucle };
+  // Unas notas de piano que suben con el salto con viento (cada vez en un tono algo distinto, siempre consonante).
+  function impulso() { if (!ctx || !impulsoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = [1, 1.1225, 1.2599, 0.8909][Math.floor(Math.random() * 4)]; g.gain.value = 0.28; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas, golpe, bucle, impulso };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4529,8 +4534,18 @@ function empezarRescate() {
   else if (!tieneBaston) rotular("El viento te recoge. Necesitas algo más.", 4);
 }
 
+const veloCaida = (() => { const d = document.createElement("div"); d.id = "veloCaida"; d.setAttribute("aria-hidden", "true"); document.body.appendChild(d); return d; })();
+let caidaK = 0;
+function actualizarVelo(dt) {
+  let obj = 0;
+  if (rescate) obj = rescate.pozo ? Math.min(0.85, rescate.pt / 1.1) : rescate.t < 0.7 ? 1 : 1 - (rescate.t - 0.7) / 0.3;   // (en el pozo se ve caer; luego, velado mientras el viento te lleva)
+  else if (vel.y < -2 && !enSuelo) obj = clamp((seguro.y - pos.y - 1.2) / 3, 0, 1);   // (cayendo por debajo de donde se pisa)
+  caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? 5 : 3)));
+  const o = caidaK < 0.01 ? 0 : caidaK; if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = o.toFixed(3); }
+}
 function actualizar(dt) {
   reloj += dt;
+  actualizarVelo(dt);
   const c = enCamino(pos.x, pos.z);
 
   // Cámara dirigida: sigue la dirección del recorrido, no la del jugador.
@@ -4721,7 +4736,7 @@ function actualizar(dt) {
       }
     }
     if (pulsada("KeyE", "KeyJ") && !enSuelo && tieneBaston && !impulsoUsado) {
-      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; estelaT = 0.7; musica.viento(0.3, 1.25);
+      vel.y = Math.max(vel.y, 0) * 0.5 + V_IMPULSO; impulsoUsado = true; efectoEspiral = 0.8; estelaT = 0.7; musica.viento(0.3, 1.25); musica.impulso();
     }
 
     const xAntes = pos.x, zAntes = pos.z;
