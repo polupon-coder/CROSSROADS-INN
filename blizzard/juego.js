@@ -672,7 +672,7 @@ function separarKit(gltf) {
   }
   return piezas.sort((a, b) => a.alto - b.alto);
 }
-const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas), kitHielo = separarKit(gCristal);   // (kitHielo: las pilastras de hielo, una a una)
+const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas), kitHielo = separarKit(gCristal), kitCubosHielo = separarKit(gHieloA), kitBloques = separarKit(gBloques);   // (kitHielo: las pilastras de hielo, una a una)
 // Kit de piedra tallada: tres bloques (0-2) y tres pilares limpios (3-5), el 5 el más alto.
 const kitPilares = separarKit(gPilares), PILAR_ALTO = kitPilares[kitPilares.length - 1];
 // Nieve fina, sin volumen: solo en la textura, en las caras que miran hacia arriba, con el borde
@@ -5646,7 +5646,7 @@ requestAnimationFrame(bucle);
 // ─── Escena colocada a mano (desde el editor): objetos, nieblas y notas ───
 const MODELOS = { rocas: gRocas, ruinas: gRuinas, pilares: gPilares, plataforma: gPlataforma, plataforma_simple: gPlatSimple, plataforma_antigua: gPlatAntigua, muro: gMuro, ladrillos: gLadrillos, escudo: gEscudo, anillo_piedra: gAnilloP,
   acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente_grande: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal, ruina_antigua: gRuinaAntigua, portal: gPortalRuina, plataforma_escalinata: gPlataformaRuina, escalera_roca: gEscaleraPiedra, golem_piedra: gGolemPiedra, golem_roca: gGolemRoca, ruina_piedra: gRuinaPiedra, plataforma_flotante: gPlatFlotante, roca_brillante: gRocaBrillante, arco_roca: gArcoRoca };
-const KITS = { rocas: kitRocas, ruinas: kitRuinas, pilares: kitPilares, "pilastra hielo": kitHielo };
+const KITS = { rocas: kitRocas, ruinas: kitRuinas, pilares: kitPilares, "pilastra hielo": kitHielo, "cubo hielo": kitCubosHielo, "bloque piedra": kitBloques };
 const escenaEd = new Map(), rodantesEd = [];
 const texNieblaEd = (() => { const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d"), g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.55, "rgba(255,255,255,0.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 // Material retocado en el editor (color, brillo, metal, luz propia, transparencia), sobre una copia del original.
