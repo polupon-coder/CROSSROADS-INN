@@ -5409,14 +5409,14 @@ const desenfoque = (() => {
 
 // Halo suave: Blizzard, su capa, el bastón, las estelas y las chispas se dibujan aparte, pequeños, y se ponen
 // encima desenfocados y tenues: un brillo difuso que suaviza sus contornos (y las imperfecciones del modelado).
-const SUAVE = /[?&]suave/.test(location.search);
+const SUAVE = !/[?&]nitido/.test(location.search);   // (aspecto suave, salvo con ?nitido)
 // (sin pase aparte: un halo dibujado encima se veía a través de las rocas que tapan a Blizzard)
 const suavizado = { hecho: false, mats: new Set() };
 function suavizarMat(m, rim) {   // textura algo desenfocada y, en Blizzard, un brillo suave y frío en el contorno
   if (!m || suavizado.mats.has(m)) return; suavizado.mats.add(m); const prev = m.onBeforeCompile, clave = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => "";
   m.onBeforeCompile = (sh, rr) => { if (prev) prev.call(m, sh, rr);
-    sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#ifdef USE_MAP\n vec4 texelColor = texture2D( map, vUv, 1.4 ); texelColor = mapTexelToLinear( texelColor ); diffuseColor *= texelColor;\n#endif");
-    if (rim && sh.fragmentShader.includes("vViewPosition")) sh.fragmentShader = sh.fragmentShader.replace("#include <tonemapping_fragment>", "{ float rimS = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0); gl_FragColor.rgb += vec3(0.9, 0.93, 1.0) * pow(rimS, 2.2) * 0.2; }\n#include <tonemapping_fragment>"); };
+    sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#ifdef USE_MAP\n vec4 texelColor = texture2D( map, vUv, 1.9 ); texelColor = mapTexelToLinear( texelColor ); diffuseColor *= texelColor;\n#endif");
+    if (rim && sh.fragmentShader.includes("vViewPosition")) sh.fragmentShader = sh.fragmentShader.replace("#include <tonemapping_fragment>", "{ float rimS = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0); gl_FragColor.rgb += vec3(0.9, 0.93, 1.0) * pow(rimS, 2.0) * 0.24; }\n#include <tonemapping_fragment>"); };
   m.customProgramCacheKey = () => clave() + (rim ? "|suaveR" : "|suave"); m.needsUpdate = true;
 }
 function suavizar() {
@@ -5843,7 +5843,7 @@ function moverPaseantes(dt) {
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
     if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
       P.recto = !P.grande || !cruceLibre(pos.z - 30);
-      if (P.recto) { const v = P.grande ? 2.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 22; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
+      if (P.recto) { const v = P.grande ? 3.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 15; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
     if (!P.activo) { if (P.g) P.g.visible = false; continue; }
     if (!P.g) { const GA = P.grande ? gGolemGrande : gGolemAnim, d = clonarConEsqueleto(GA.scene), t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3());
       P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 };
@@ -5852,26 +5852,28 @@ function moverPaseantes(dt) {
         sh.fragmentShader = "varying float vSilY; uniform float uBase, uAlto;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= smoothstep(uBase + uAlto * 0.05, uBase + uAlto * 0.5, vSilY);"); };
       d.traverse(o => { if (o.isMesh) { o.material = P.mat; o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.raycast = () => {}; } });
       P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 10 : 5) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
-      P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.8 : 1.9; A.play(); }
+      P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 1.15 : 1.9; A.play(); }
     // Grandes: cruzan de lado a lado por delante (a unos 30 m), muy despacio: pasan por el centro de la imagen (también en el móvil).
     // Pequeños: aparecen en medio de la imagen, sobre el camino (a unos 22 m), y se alejan hasta perderse en la niebla o tras una roca.
     const T = P.T; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
     let x, z; if (!P.recto) { P.zA = lerp(P.zA, pos.z - 30, 1 - Math.exp(-dt * 0.6)); z = P.zA; x = caminoX(z) + lerp(P.lado * 18, -P.lado * 18, P.t / T); }
-    else { z = P.zS - (P.grande ? 2.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
+    else { z = P.zS - (P.grande ? 3.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
     { const yS = alturaTerreno(x, z); if (P.tapado > 0 || colisiones.some(c => !c.rampa && c.techo > yS + 2 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6)) P.tapado += dt; }   // (si se topa con una roca, se pierde tras ella: no la atraviesa)
     const dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
-    P.g.visible = op > 0.01; if (!P.g.visible) continue;
+    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - suave(16, 46, dj)) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
+    P.g.visible = op > 0.02; if (!P.g.visible) continue;
     { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < pos.y - 6) y = pos.y - 0.6;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
     P.g.rotation.y = P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
-    P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, P.grande ? 0.13 : 0.16);   // (opaca, pero de un tono casi igual al de la niebla: apenas se percibe) P.mix.update(dt);
+    P.mix.update(dt);   // (anda de verdad: sus pasos van con lo que avanza)
+    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.grande ? 0.13 : 0.16) * op);   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
   }
 }
 // Golems esfera: al acercarse Blizzard (por delante de ellos), cruzan rodando en diagonal a unos 5 m por delante,
 // dejan surco en la nieve acumulada y se pierden: no vuelven a aparecer.
 const _ejeE = new THREE.Vector3(), _qE = new THREE.Quaternion();
+const esferaPalida = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.7);"); };   // (desaturada)
 // Su surco en la nieve: una franja continua del tono de las huellas, de bordes suaves y grosor cambiante (se queda).
 const matSurcoE = (() => { const c = document.createElement("canvas"); c.width = 64; c.height = 4; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 64, 0);
   g.addColorStop(0, "#000"); g.addColorStop(0.22, "#666"); g.addColorStop(0.5, "#fff"); g.addColorStop(0.78, "#666"); g.addColorStop(1, "#000"); x.fillStyle = g; x.fillRect(0, 0, 64, 4);
@@ -5939,6 +5941,9 @@ function moverEsferas(dt) {
     if (E.t < E.retraso) continue;
     { const dj0 = Math.hypot(g.position.x - pos.x, g.position.z - pos.z); E.va = Math.min(E.v * (dj0 < 4 ? 1.6 : 1), E.va + dt * (dj0 < 4 ? 7 : 3.5)); }   // (arranca poco a poco; si Blizzard la alcanza, acelera: nunca se deja tocar)
     const paso = Math.min(E.va * dt, E.largo - E.recorrido); E.recorrido += paso;
+    { const a = E.curva * paso / 3, ca = Math.cos(a), sa = Math.sin(a), dx = E.dir.x * ca - E.dir.z * sa; E.dir.z = E.dir.x * sa + E.dir.z * ca; E.dir.x = dx; }   // (nunca recta: siempre va girando un poco)
+    { const nx = g.position.x + E.dir.x * (paso + E.R), nz = g.position.z + E.dir.z * (paso + E.R), ny = alturaSuelo(nx, nz);   // (si la curva la lleva contra algo, se hunde en la nieve)
+      if (ny < -5 || Math.abs(ny - alturaSuelo(g.position.x, g.position.z)) > 0.4 || colisiones.some(c => !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 0.9)) { E.estado = 4; E.t = 0; continue; } }
     g.position.x += E.dir.x * paso; g.position.z += E.dir.z * paso;
     { const sup = alturaSuelo(g.position.x, g.position.z) + E.y0; E.y = Math.max(lerp(E.y, sup, 1 - Math.exp(-dt * 3)), sup - 0.04); g.position.y = E.y; }   // (la altura, suavizada, pero nunca por debajo del suelo: no se mete en las cuestas)
     _ejeE.set(E.dir.z, 0, -E.dir.x); g.quaternion.premultiply(_qE.setFromAxisAngle(_ejeE, paso / Math.max(E.R, 0.2)));   // (rueda hacia donde va)
@@ -5989,7 +5994,9 @@ function crearPiezaEd(it) {
   let cols = null;
   if ((it.golemEsfera || it.modelo === "gltf:roca_brillante") && !window.BLIZZARD_EDITOR) {   /* (todas las rocas brillantes son golems esfera) */   // golem esfera: quieto hasta que llega Blizzard; entonces cruza rodando por delante y no vuelve
     const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), R = Math.max(t.x, t.z) / 2; col = { x: g.position.x, z: g.position.z, r: R * 0.9, techo: b.max.y }; colisiones.push(col);
-    esferasEd.push({ g, col, R, y0: g.position.y - alturaTerreno(g.position.x, g.position.z), estado: 0, t: 0, retraso: Math.random() * 0.7, huella: 0 });
+    g.traverse(o => { if (o.isMesh) { const base = MODELOS.roca_brillante.scene.getObjectByProperty("isMesh", true).material, m = base.clone(); m.transparent = false; m.opacity = 1; m.color.setRGB(1.25, 1.25, 1.27);   // (todas iguales: claras y apagadas)
+      m.onBeforeCompile = esferaPalida; m.customProgramCacheKey = () => "esferaPalida"; o.material = m; } });
+    esferasEd.push({ g, col, R, y0: g.position.y - alturaTerreno(g.position.x, g.position.z), estado: 0, t: 0, retraso: Math.random() * 0.7, huella: 0, curva: (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.16) });
     return { g, col };
   }
   if (g.userData.golem) {   // (su choque va con él: lo mueve el bucle de los golems)
