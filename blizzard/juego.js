@@ -120,7 +120,7 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gPuente, gArcoRuina, gCamino, gHieloA, gHieloB, gIceberg, gBloques, gCristal, gRuinaAntigua, gPortalRuina, gPlataformaRuina, gEscaleraPiedra, gGolemPiedra, gGolemRoca, gRuinaPiedra, gPlatFlotante, gRocaBrillante, gArcoRoca, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", "plataforma_antigua", "acantilado", "esfera", "escalinata", "ruina_alta", "puente", "arco_ruina", "camino", "hielo_bloque", "hielo_azul", "iceberg", "bloques", "cristal", "ruina_antigua", "portal_ruina", "plataforma_ruina", "escalera_piedra", "golem_piedra", "golem_roca", "ruina_piedra", "plataforma_flotante", "roca_brillante", "arco_roca", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gPuente, gArcoRuina, gCamino, gHieloA, gHieloB, gIceberg, gBloques, gCristal, gRuinaAntigua, gPortalRuina, gPlataformaRuina, gEscaleraPiedra, gGolemPiedra, gGolemRoca, gRuinaPiedra, gPlatFlotante, gRocaBrillante, gArcoRoca, gGolemAnim, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", "plataforma_antigua", "acantilado", "esfera", "escalinata", "ruina_alta", "puente", "arco_ruina", "camino", "hielo_bloque", "hielo_azul", "iceberg", "bloques", "cristal", "ruina_antigua", "portal_ruina", "plataforma_ruina", "escalera_piedra", "golem_piedra", "golem_roca", "ruina_piedra", "plataforma_flotante", "roca_brillante", "arco_roca", "golem_anim", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 // Los modelos nuevos traen la piedra tirando a amarillo: su textura de color se pasa a gris azulado, el
 // tono de la piedra del juego (se conserva el dibujo y el contraste).
@@ -1925,6 +1925,16 @@ let relojMov = 0, seguroHielo = null; const _cH = new THREE.Color();
 function moverZonas(dt) {
   relojMov += dt;
   moverRuedasAbismo(dt);
+  for (const G of golemsEd) {   // golems: andan 3 m adelante y atrás por su sitio, girándose; si tocan a Blizzard, lo empujan
+    if (Math.abs(G.z0 - pos.z) > 80) continue;
+    G.t += dt; const L = 3, w = 0.42, s = Math.sin(G.t * w), v = Math.cos(G.t * w) * w * L, f = new THREE.Vector3(Math.sin(G.giro0), 0, Math.cos(G.giro0));
+    G.g.position.x = G.x0 + f.x * s * L; G.g.position.z = G.z0 + f.z * s * L; G.col.x = G.g.position.x; G.col.z = G.g.position.z;
+    const objetivo = v >= 0 ? G.giro0 : G.giro0 + Math.PI; G.mira = lerpAngulo(G.mira, objetivo, 1 - Math.exp(-dt * 3)); G.g.rotation.y = G.mira;
+    const ud = G.g.userData.golem; ud.andar.timeScale = clamp(Math.abs(v) / (w * L) * 1.1, 0.25, 1.1); ud.mix.update(dt);
+    G.golpeT = Math.max(0, G.golpeT - dt);
+    const dx = pos.x - G.col.x, dz = pos.z - G.col.z, d = Math.hypot(dx, dz);
+    if (!rescate && d < G.col.r + 0.45 && pos.y < G.col.techo && G.golpeT <= 0) { const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.col.x + nx * (G.col.r + 0.5); pos.z = G.col.z + nz * (G.col.r + 0.5); vel.x = nx * 8; vel.z = nz * 8; vel.y = Math.max(vel.y, 3.5); enSuelo = false; G.golpeT = 0.6; musica.rocas(0.45); }   // (el empujón)
+  }
   for (const W of rodantesEd) {   // ruedas del editor: van y vienen rodando de un lado al otro del paso
     const k = 0.5 - 0.5 * Math.cos(relojMov * 0.55 + W.fase), x = lerp(W.x0, 2 * W.cx - W.x0, k), d = x - W.x; W.x = x;
     W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
@@ -5645,9 +5655,15 @@ requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
 // ─── Escena colocada a mano (desde el editor): objetos, nieblas y notas ───
 const MODELOS = { rocas: gRocas, ruinas: gRuinas, pilares: gPilares, plataforma: gPlataforma, plataforma_simple: gPlatSimple, plataforma_antigua: gPlatAntigua, muro: gMuro, ladrillos: gLadrillos, escudo: gEscudo, anillo_piedra: gAnilloP,
-  acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente_grande: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal, ruina_antigua: gRuinaAntigua, portal: gPortalRuina, plataforma_escalinata: gPlataformaRuina, escalera_roca: gEscaleraPiedra, golem_piedra: gGolemPiedra, golem_roca: gGolemRoca, ruina_piedra: gRuinaPiedra, plataforma_flotante: gPlatFlotante, roca_brillante: gRocaBrillante, arco_roca: gArcoRoca };
+  acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente_grande: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal, ruina_antigua: gRuinaAntigua, portal: gPortalRuina, plataforma_escalinata: gPlataformaRuina, escalera_roca: gEscaleraPiedra, golem_piedra: gGolemPiedra, golem_roca: gGolemRoca, ruina_piedra: gRuinaPiedra, plataforma_flotante: gPlatFlotante, roca_brillante: gRocaBrillante, arco_roca: gArcoRoca, golem: gGolemAnim };
 const KITS = { rocas: kitRocas, ruinas: kitRuinas, pilares: kitPilares, "pilastra hielo": kitHielo, "cubo hielo": kitCubosHielo, "bloque piedra": kitBloques };
-const escenaEd = new Map(), rodantesEd = [];
+const escenaEd = new Map(), rodantesEd = [], golemsEd = [];
+// Clonar un modelo con esqueleto (cada copia, sus propios huesos), como SkeletonUtils.clone.
+function clonarConEsqueleto(src) {
+  const c = src.clone(), deS = new Map(), deC = new Map(); const par = (a, b) => { deS.set(b, a); deC.set(a, b); for (let i = 0; i < a.children.length; i++) par(a.children[i], b.children[i]); }; par(src, c);
+  c.traverse(n => { if (!n.isSkinnedMesh) return; const o = deS.get(n); n.skeleton = o.skeleton.clone(); n.bindMatrix.copy(o.bindMatrix); n.skeleton.bones = o.skeleton.bones.map(b => deC.get(b)); n.bind(n.skeleton, n.bindMatrix); });
+  return c;
+}
 const texNieblaEd = (() => { const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d"), g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.55, "rgba(255,255,255,0.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 // Material retocado en el editor (color, brillo, metal, luz propia, transparencia), sobre una copia del original.
 function aplicarMatEd(g, it) {
@@ -5681,6 +5697,12 @@ function crearPiezaEd(it) {
   } else {
     const [k, nombre, i] = (it.modelo || "").split(":");
     if (k === "kit" && KITS[nombre] && KITS[nombre][+i]) { const P = KITS[nombre][+i], m = new THREE.Mesh(P.geo, it.nieve ? nieveFina : P.material); m.position.copy(P.desplaza); m.castShadow = m.receiveShadow = true; g.add(m); }
+    else if (k === "gltf" && nombre === "golem") {   // el golem: con su esqueleto y sus animaciones; anda de un lado a otro y empuja
+      const d = clonarConEsqueleto(gGolemAnim.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); g.add(d);
+      const mix = new THREE.AnimationMixer(d), clip = gGolemAnim.animations.find(a => /Walk/i.test(a.name)) || gGolemAnim.animations[0], idle = gGolemAnim.animations.find(a => /Idle/i.test(a.name));
+      const andar = mix.clipAction(clip); andar.play(); if (window.BLIZZARD_EDITOR && idle) { andar.stop(); mix.clipAction(idle).play(); } mix.update(0.01);
+      g.userData.golem = { mix, andar };
+    }
     else if (k === "gltf" && MODELOS[nombre]) { const d = MODELOS[nombre].scene.clone(); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (it.nieve) { o.material = o.material.clone(); o.material.onBeforeCompile = nieveFina.onBeforeCompile; } } }); g.add(d); }
     else return { g: null };
     aplicarMatEd(g, it);
@@ -5690,6 +5712,11 @@ function crearPiezaEd(it) {
   let col = null; const rueda = it.rodar && !window.BLIZZARD_EDITOR;
   if (rueda) { const bb = cajaReal(g), off = (bb.min.y + bb.max.y) / 2 - g.position.y; g.position.y += off; g.children.forEach(ch => ch.position.y -= off / g.scale.y); g.updateMatrixWorld(true); }   /* (gira sobre su centro) */
   let cols = null;
+  if (g.userData.golem) {   // (su choque va con él: lo mueve el bucle de los golems)
+    const b = cajaReal(g), t = b.getSize(new THREE.Vector3()); col = { x: g.position.x, z: g.position.z, r: Math.max(t.x, t.z) * 0.34, techo: b.max.y }; colisiones.push(col);
+    if (!window.BLIZZARD_EDITOR) golemsEd.push({ g, col, x0: g.position.x, z0: g.position.z, giro0: g.rotation.y, t: Math.random() * 6, mira: g.rotation.y, golpeT: 0 });
+    return { g, col };
+  }
   if (it.tipo !== "niebla" && it.tipo !== "nota" && it.colision !== false) { const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); col = { x: c.x, z: c.z, r: Math.min(t.x, t.z) * 0.45, techo: b.max.y };
     // Las piezas alargadas y giradas (un trozo de acantilado): su caja en el mundo es casi cuadrada y un solo círculo
     // tapaba el paso; se mide la pieza sin su giro y se ponen círculos a lo largo de su eje mayor.
@@ -5750,7 +5777,7 @@ function ajustarMundo(it, objeto) {
   P.userData.cols.forEach((c, i) => { c.x = P.userData.cols0[i][0] + p[0] - c0[0]; c.z = P.userData.cols0[i][1] + p[2] - c0[2]; const k = colisiones.indexOf(c); if (it.oculto && k >= 0) colisiones.splice(k, 1); if (!it.oculto && k < 0) colisiones.push(c); });
   return P;
 }
-function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) scene.remove(e.g); for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
+function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) { scene.remove(e.g); const gi = golemsEd.findIndex(G => G.g === e.g); if (gi >= 0) golemsEd.splice(gi, 1); } for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) { escenaEd.set(it.id, { it, g }); if (!g.userData.inst) aplicarMatEd(g, it); } return g; } escenaEd._poniendo = true; quitarEd(it.id); escenaEd._poniendo = false; const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
 buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con sus sitios de origen: antes de mover nada)
 { // Las dos agujas de roca a los lados del camino justo antes del bastón: fuera (y su choque).
