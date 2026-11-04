@@ -4224,7 +4224,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null, soploB = null;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4240,6 +4240,7 @@ const musica = (() => {
       fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { arpegioB = b; }).catch(() => {});
       fetch("musica/caida.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { caidaB = b; }).catch(() => {});
       fetch("musica/nota-soplo.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { soploB = b; }).catch(() => {});
+      fetch("musica/aviso-viento.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { avisoB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4274,7 +4275,9 @@ const musica = (() => {
   function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
   // La nota de piano con soplo: para los momentos especiales (un puzle resuelto, el bastón, la puerta…).
   function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial };
+  // La nota desafinada cuando el viento avisa de que por ahí no se sigue (como mucho, una vez cada pocos segundos).
+  function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4599,7 +4602,7 @@ function actualizar(dt) {
     const rachaAntes = rachaViento;
     retencion = Math.max(0, retencion - dt * 1.2);
     rachaViento = clamp((c.d - ANCHO_CAMINO) / 5, 0, 1);   // el bumerán, solo lejos del camino
-    if (rachaAntes < 0.15 && rachaViento >= 0.15) musica.viento(0.22, 1.1);     // el bumerán aparece
+    if (rachaAntes < 0.15 && rachaViento >= 0.15) { musica.viento(0.22, 1.1); musica.aviso(); }     // el bumerán aparece (y la nota desafinada: por ahí no)
     if (rachaViento > 0) {
       const haciaFuera = deseo.x * c.nx + deseo.z * c.nz;
       if (haciaFuera > 0) { deseo.x -= c.nx * haciaFuera * rachaViento; deseo.z -= c.nz * haciaFuera * rachaViento; }
