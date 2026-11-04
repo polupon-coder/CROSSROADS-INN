@@ -3908,6 +3908,8 @@ estilo.textContent = `
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   #lienzo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   /* Al caer: un velo claro y desenfocado (no se ve lo de debajo del mundo); se va al volver a tierra. */
+  #espiralRetorno { position: fixed; left: 0; top: 0; width: 220px; height: 220px; margin: -110px 0 0 -110px; pointer-events: none; z-index: 3; opacity: 0; will-change: transform, opacity; }
+  #espiralRetorno path { fill: none; stroke: #8fa8c8; stroke-linecap: round; filter: drop-shadow(0 0 5px rgba(255,255,255,.95)) drop-shadow(0 0 10px rgba(255,226,170,.55)); }
   #veloCaida { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0; --centro: .3; --borroso: 0px; background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(234,240,249,var(--centro)) 0%, rgba(234,240,249,.85) 65%, rgba(240,244,251,.98) 100%); -webkit-backdrop-filter: blur(var(--borroso)); backdrop-filter: blur(var(--borroso)); }
   .capa-ui { z-index: 4; position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
@@ -4540,14 +4542,29 @@ function empezarRescate() {
 }
 
 const veloCaida = (() => { const d = document.createElement("div"); d.id = "veloCaida"; d.setAttribute("aria-hidden", "true"); document.body.appendChild(d); return d; })();
-let caidaK = 0;
+// La espiral de luz del regreso: aparece sobre el velo mientras el viento te lleva y se cierra sobre Blizzard al volver.
+const espiralRetorno = (() => { const d = document.createElement("div"); d.id = "espiralRetorno"; d.setAttribute("aria-hidden", "true");
+  let p = ""; for (let i = 0; i <= 220; i++) { const t = i / 220, a = t * Math.PI * 7, r = 4 + t * 100; p += (i ? " L" : "M") + (110 + Math.cos(a) * r).toFixed(1) + " " + (110 + Math.sin(a) * r).toFixed(1); }
+  d.innerHTML = `<svg viewBox="0 0 220 220" width="220" height="220"><path d="${p}" stroke-width="2.4" opacity=".9"/><path d="${p}" stroke-width="7" opacity=".18"/></svg>`; document.body.appendChild(d); return d; })();
+let caidaK = 0, retornoT = -1, espiralGiro = 0, enRescateAntes = false;
+const _pEsp = new THREE.Vector3();
 function actualizarVelo(dt) {
   let obj = 0;
   if (rescate) obj = rescate.pozo ? Math.min(0.85, rescate.pt / 1.1) : 1;   // (en el pozo se ve caer; luego, cubierto del todo mientras el viento te lleva: no se ve el traslado)
   else if (vel.y < -2 && !enSuelo) obj = clamp((seguro.y - pos.y - 0.8) / 4, 0, 1);   // (cayendo por debajo de donde se pisa: cada vez más borroso)
-  caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? 4 : 2.2)));
+  // Al acabar el viaje con el viento: la espiral se cierra sobre Blizzard mientras se aclara la vista.
+  if (enRescateAntes && !rescate) retornoT = 0; enRescateAntes = !!rescate;
+  if (retornoT >= 0) { retornoT += dt; obj = 0; if (retornoT > 1.4) retornoT = -1; }
+  caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? (rescate ? 7 : 4) : 2.2)));
+  { let op = 0, esc = 1; espiralGiro += dt * 5;
+    if (rescate && !rescate.pozo) { op = clamp((caidaK - 0.8) / 0.2, 0, 1) * clamp(rescate.t / 0.25, 0, 1); esc = 1.5 - 0.3 * rescate.t; }
+    else if (retornoT >= 0) { const k = clamp(retornoT / 1.3, 0, 1); op = 1 - k * k; esc = 1.2 - 0.95 * k; }
+    if (op > 0.005) { _pEsp.copy(pos).add(new THREE.Vector3(0, 0.9, 0)).project(camara); const x = (_pEsp.x + 1) / 2 * innerWidth, y = (1 - _pEsp.y) / 2 * innerHeight;
+      const cx = rescate ? innerWidth / 2 : x, cy = rescate ? innerHeight / 2 : y;   // (mientras se viaja, en el centro; al volver, sobre Blizzard)
+      espiralRetorno.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) rotate(${(-espiralGiro * 57.3).toFixed(1)}deg) scale(${esc.toFixed(3)})`; }
+    espiralRetorno.style.opacity = op.toFixed(3); }
   const o = caidaK < 0.01 ? 0 : +caidaK.toFixed(3);
-  if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.68 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); }   // (más borroso y opaco según se cae; al final, cubre del todo)
+  if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.7 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); veloCaida.style.background = o > 0.97 ? "rgb(238,243,250)" : ""; }   // (del todo cubierto: un color liso, nada se transparenta)   // (más borroso y opaco según se cae; al final, cubre del todo)
 }
 function actualizar(dt) {
   reloj += dt;
