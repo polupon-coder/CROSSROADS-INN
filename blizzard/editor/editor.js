@@ -306,9 +306,19 @@
   const pintarPinceles = () => { cursorPincel.visible = false; document.querySelectorAll("#pinceles button").forEach(b => b.classList.toggle("activo", b.dataset.pincel === pincel)); $("filaMov").hidden = pincel !== "niebla"; dom.style.cursor = pincel ? "crosshair" : ""; aviso(pincel ? "Pincel: arrastra sobre el terreno para pintar · Esc para dejarlo" : ""); };
   document.querySelectorAll("#pinceles button").forEach(b => b.onclick = () => { pincel = pincel === b.dataset.pincel ? null : b.dataset.pincel; colocando = null; pintarLista(); pintarPinceles(); });
   for (const [k, v, d] of [["pTam", "vTam", 1], ["pInt", "vInt", 2], ["pMov", "vMov", 2]]) $(k).addEventListener("input", () => { $(v).textContent = (+$(k).value).toFixed(d); });
+  // Dónde pinta: la primera superficie que se ve bajo el ratón (terreno o pieza: rocas, plataformas, hielo…).
+  let candidatos = null, candT = 0;
+  const visibleDe = o => { for (let v = o; v; v = v.parent) if (!v.visible || v.userData.trazo || v.userData.chispa || v === giz || v === cursorPincel) return false; return true; };
+  const listaCandidatos = () => { if (candidatos && performance.now() - candT < 4000) return candidatos; candT = performance.now(); candidatos = []; const suelo = E.sueloMat();
+    scene.traverse(o => { if (!o.isMesh || o.isSkinnedMesh) return; const m = o.material; if (!m || Array.isArray(m) || m === suelo || m.type === "ShaderMaterial" || (m.transparent && m.opacity < 0.6) || m.depthWrite === false) return; if (!visibleDe(o)) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); candidatos.push(o); });
+    return candidatos; };
   const sueloBajo = e => { rayoDe(e); const o = ray.ray.origin, d = ray.ray.direction, en = t => [o.x + d.x * t, o.y + d.y * t, o.z + d.z * t]; let t0 = 0, t1 = null, paso = 1;
     for (let t = 0; t < 4000; t += paso) { const q = en(t); if (q[1] <= E.alturaTerreno(q[0], q[2])) { t1 = t; break; } t0 = t; paso = Math.min(10, paso * 1.06); }
-    if (t1 === null) return null; for (let k = 0; k < 18; k++) { const tm = (t0 + t1) / 2, q = en(tm); if (q[1] <= E.alturaTerreno(q[0], q[2])) t1 = tm; else t0 = tm; } return en(t1).map(v => +v.toFixed(2)); };
+    if (t1 !== null) for (let k = 0; k < 18; k++) { const tm = (t0 + t1) / 2, q = en(tm); if (q[1] <= E.alturaTerreno(q[0], q[2])) t1 = tm; else t0 = tm; }
+    // (las piezas: rayo contra su malla, aunque en el juego no respondan a los rayos)
+    let tm = t1 === null ? Infinity : t1; const hits = [], rc = THREE.Mesh.prototype.raycast, rci = THREE.InstancedMesh.prototype.raycast; ray.far = Math.min(tm, 4000);
+    for (const m of listaCandidatos()) { hits.length = 0; try { (m.isInstancedMesh ? rci : rc).call(m, ray, hits); } catch {} for (const h of hits) if (h.distance < tm) tm = h.distance; }
+    ray.far = Infinity; return tm === Infinity ? null : en(tm).map(v => +v.toFixed(2)); };
   dom.addEventListener("pointerdown", e => { if (!pincel || e.button !== 0) return; const q = sueloBajo(e); if (!q) { aviso("Apunta al terreno para pintar."); return; } aviso("Pintando…"); e.stopImmediatePropagation(); e.preventDefault(); orbit.enabled = false; try { dom.setPointerCapture(e.pointerId); } catch {}
     trazoEd = { id: nuevoId(), tipo: "trazo", clase: pincel, puntos: [q], r: +$("pTam").value, i: +$("pInt").value, mov: pincel === "niebla" ? +$("pMov").value : 0, p: [0, 0, 0] }; items.set(trazoEd.id, trazoEd); E.ponerEd(trazoEd); trazoT = performance.now(); }, true);
   dom.addEventListener("pointermove", e => { if (pincel && !trazoEd) { const q = sueloBajo(e); cursorPincel.visible = !!q; if (q) { cursorPincel.position.set(q[0], q[1] + 0.3, q[2]); cursorPincel.scale.setScalar(+$("pTam").value); } return; }

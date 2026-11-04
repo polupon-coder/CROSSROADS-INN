@@ -3575,7 +3575,7 @@ const ultimoSurco = new THREE.Vector3(1e9, 0, 1e9);
 const ventisqueros = [];
 // manto: capa continua (en las dunas): grosor igual en todo el tramo, solo se afina en los lados (y,
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
-function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
+function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, sueloFijo = null) {
   if (!manto && !forzar && ((cz < DUNAS.desde + 2 && cz > PUZLE_Z - 6) || cz < DUNAS2.desde + 2)) return;                 // en las dunas, solo el manto (los montones resaltaban)
   // (el manto de las dunas, con celdas de 0,16 m: con las de 0,76 el surco salía ancho, y con 0,25 en dientes)
   const celda = manto ? 0.13 : null, NX = Math.ceil(ancho / (celda || Math.max(0.13, ancho / 34))), NZ = Math.ceil(largo / (celda || Math.max(0.13, largo / 34))), geo = new THREE.PlaneGeometry(ancho, largo, NX, NZ); geo.rotateX(-Math.PI / 2);
@@ -3593,7 +3593,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false) {
       afila[i] = suave(1, 0.35, Math.sqrt(r)) ** 1.6;                      // hacia el borde del montón, el surco se afila
     }
     if (cercaHuella(x, z) < 2.6) base[i] = -0.02;                   // (nunca dentro de las huellas: allí, a ras)
-    suelo[i] = alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
+    suelo[i] = sueloFijo ?? alturaTerreno(x, z); p.setXYZ(i, x, suelo[i] + base[i], z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560);   // como el suelo
   }
   // Fuera los triángulos que caen en un desnivel (borde de abismo, escalón, pared): si no, el manto
   // bajaría por la pared como una lámina o una púa.
@@ -5684,30 +5684,31 @@ const texPolvoEd = (() => { const c = document.createElement("canvas"); c.width 
 const texNieveEd = (() => { const t = new THREE.TextureLoader().load("texturas/nieve.jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
 const nieblasMovEd = [];
 function puntosTrazo(it) { const P = it.puntos || [], r = it.r || 3, paso = Math.max(0.4, r * 0.7), out = []; if (!P.length) return out; out.push(P[0]);
-  for (let k = 1; k < P.length; k++) { const a = out[out.length - 1], b = P[k], d = Math.hypot(b[0] - a[0], b[2] - a[2]); if (d >= paso) { const n = Math.floor(d / paso); for (let j = 1; j <= n; j++) { const t = j * paso / d; out.push([a[0] + (b[0] - a[0]) * t, 0, a[2] + (b[2] - a[2]) * t]); } } }
+  for (let k = 1; k < P.length; k++) { const a = out[out.length - 1], b = P[k], d = Math.hypot(b[0] - a[0], b[2] - a[2]); if (d >= paso) { const n = Math.floor(d / paso); for (let j = 1; j <= n; j++) { const t = j * paso / d; out.push([a[0] + (b[0] - a[0]) * t, (a[1] ?? 0) + ((b[1] ?? 0) - (a[1] ?? 0)) * t, a[2] + (b[2] - a[2]) * t]); } } }
   return out; }
-function mantoPintado(x, z, r, mat, alto) {   // un disco que se pega al terreno, de borde difuminado
+const sobrePieza = (x, y, z) => y != null && y > alturaSuelo(x, z) + 0.4;   // (pintado encima de una roca o pieza: plano a esa altura)
+function mantoPintado(x, z, r, mat, alto, yFijo = null) {   // un disco que se pega al terreno, de borde difuminado
   const N = 18, g = new THREE.PlaneGeometry(2 * r, 2 * r, N, N); g.rotateX(-Math.PI / 2); const P = g.attributes.position, c = new Float32Array(P.count * 4), uv = g.attributes.uv;
-  for (let i = 0; i < P.count; i++) { const px = x + P.getX(i), pz = z + P.getZ(i), d = Math.hypot(P.getX(i), P.getZ(i)) / r; P.setXYZ(i, px, alturaSuelo(px, pz) + alto, pz); uv.setXY(i, px / 6, pz / 6);
+  for (let i = 0; i < P.count; i++) { const px = x + P.getX(i), pz = z + P.getZ(i), d = Math.hypot(P.getX(i), P.getZ(i)) / r; P.setXYZ(i, px, (yFijo ?? alturaSuelo(px, pz)) + alto, pz); uv.setXY(i, px / 6, pz / 6);
     const a = Math.pow(clamp(1 - d, 0, 1), 0.8) * (0.85 + 0.15 * Math.sin(px * 1.7 + pz * 2.3)); c.set([1, 1, 1, a], i * 4); }
   g.setAttribute("color", new THREE.BufferAttribute(c, 4)); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.renderOrder = 2; m.receiveShadow = true; return m; }
 function crearTrazoEd(it, g) {
   const r = it.r || 3, I = it.i ?? 0.6, pts = puntosTrazo(it), clase = it.clase;
   if (window.BLIZZARD_EDITOR && pts.length) {   // (en el editor, el trazo se marca con una línea de color y su anchura, para verlo desde arriba)
-    const col = { nieve: 0x5aa0ff, acumulada: 0x2f6bd8, espolvoreada: 0x8fd0ff, niebla: 0xff7ac8 }[clase] || 0xffffff, alto = (x, z) => alturaSuelo(x, z) + 0.4;
-    const linea = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x, , z]) => new THREE.Vector3(x, alto(x, z), z))), new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true }));
+    const col = { nieve: 0x5aa0ff, acumulada: 0x2f6bd8, espolvoreada: 0x8fd0ff, niebla: 0xff7ac8 }[clase] || 0xffffff, alto = (x, z, y) => (sobrePieza(x, y, z) ? y : alturaSuelo(x, z)) + 0.4;
+    const linea = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x, y, z]) => new THREE.Vector3(x, alto(x, z, y), z))), new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true }));
     linea.renderOrder = 998; g.add(linea);
     const anillo = new THREE.RingGeometry(r * 0.94, r, 40); anillo.rotateX(-Math.PI / 2); const ma = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, depthTest: false, side: THREE.DoubleSide });
-    pts.forEach(([x, , z], k) => { if (k % 2 && k !== pts.length - 1) return; const m = new THREE.Mesh(anillo, ma); m.position.set(x, alto(x, z), z); m.renderOrder = 998; g.add(m); });
+    pts.forEach(([x, y, z], k) => { if (k % 2 && k !== pts.length - 1) return; const m = new THREE.Mesh(anillo, ma); m.position.set(x, alto(x, z, y), z); m.renderOrder = 998; g.add(m); });
   }
-  if (clase === "acumulada") { g.userData.ventis = []; for (const [x, , z] of pts) { const v = ventisquero(x, z, 2 * r, 2 * r, 0.12 + 0.5 * I, null, true); if (v) { scene.remove(v.malla); g.add(v.malla); g.userData.ventis.push(v); } } }
+  if (clase === "acumulada") { g.userData.ventis = []; for (const [x, y, z] of pts) { const v = ventisquero(x, z, 2 * r, 2 * r, 0.12 + 0.5 * I, null, true, sobrePieza(x, y, z) ? y : null); if (v) { scene.remove(v.malla); g.add(v.malla); g.userData.ventis.push(v); } } }
   else if (clase === "nieve" || clase === "espolvoreada") {
     const mat = clase === "nieve" ? new THREE.MeshStandardMaterial({ map: texNieveEd, color: 0xeef2f8, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, opacity: 0.35 + 0.65 * I })
       : new THREE.MeshStandardMaterial({ map: texPolvoEd, color: 0xf2f5fa, emissive: 0x3a3a48, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, opacity: 0.2 + 0.7 * I });
-    for (const [x, , z] of pts) g.add(mantoPintado(x, z, r, mat, clase === "nieve" ? 0.05 : 0.03)); }
+    for (const [x, y, z] of pts) g.add(mantoPintado(x, z, r, mat, clase === "nieve" ? 0.05 : 0.03, sobrePieza(x, y, z) ? y : null)); }
   else if (clase === "niebla") {
     const mat = new THREE.MeshBasicMaterial({ map: texNieblaEd, color: new THREE.Color("#efe6ee"), transparent: true, depthWrite: false, opacity: 0.22 * I, side: THREE.DoubleSide, fog: false });
-    for (const [x, , z] of pts) { const y0 = alturaSuelo(x, z); for (let k = 0; k < 6; k++) { const m = new THREE.Mesh(new THREE.CircleGeometry(r * (1 - k * 0.06), 32), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y0 + 0.1 + k * (0.25 + I * 0.3), z); m.renderOrder = 4; m.userData.base = m.position.clone(); m.userData.fase = Math.random() * 6; if (!window.BLIZZARD_EDITOR) m.raycast = () => {}; g.add(m); } }
+    for (const [x, y, z] of pts) { const y0 = sobrePieza(x, y, z) ? y : alturaSuelo(x, z); for (let k = 0; k < 6; k++) { const m = new THREE.Mesh(new THREE.CircleGeometry(r * (1 - k * 0.06), 32), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y0 + 0.1 + k * (0.25 + I * 0.3), z); m.renderOrder = 4; m.userData.base = m.position.clone(); m.userData.fase = Math.random() * 6; if (!window.BLIZZARD_EDITOR) m.raycast = () => {}; g.add(m); } }
     if ((it.mov || 0) > 0 && !window.BLIZZARD_EDITOR) nieblasMovEd.push({ g, mov: it.mov, r }); }
 }
 function moverNieblasEd(dt) { const t = reloj; for (const N of nieblasMovEd) { if (!N.g.parent) continue; for (const m of N.g.children) { const b = m.userData.base, f = m.userData.fase; m.position.x = b.x + Math.sin(t * 0.35 * (0.5 + N.mov) + f) * N.r * 0.35 * N.mov; m.position.z = b.z + Math.cos(t * 0.28 * (0.5 + N.mov) + f * 1.3) * N.r * 0.25 * N.mov; m.rotation.z += dt * 0.15 * N.mov; } } }
