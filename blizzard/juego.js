@@ -1491,7 +1491,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
       g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
-    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiplyScalar(1.2);   // (las pilastras que se abaten, algo más claras)
+    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiply(new THREE.Color(1.35, 1.45, 1.7));   // (las pilastras que se abaten, algo más claras)
     const rc = generador(3131), d = P6.r + 2;
     for (let a0 = 0.5; a0 < Math.PI * 2 - 0.5;) {   // (hueco de llegada; cada una de su tamaño, no repetidas)
       const w = 0.8 + rc() * 0.7, h = 4 + rc() * 4.5, da = (w + 0.06) / d, a = a0 + da / 2; a0 += da;
