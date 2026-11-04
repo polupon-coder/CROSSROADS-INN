@@ -1895,7 +1895,8 @@ const crearChispas = () => {
     for (let i = 0; i < CHISPAS_TRAMO; i++) {
       let x = null, z = null;
       for (let t = 0; t < 30 && x === null; t++) { const zz = zA - paso * (i + 0.5) + (rC() - 0.5) * paso * (t < 15 ? 0.6 : 1), lado = (i + k) % 2 ? 1 : -1, d = t < 20 ? lado * (0.8 + rC() * 2.6) : (rC() - 0.5) * 2, xx = centro(zz) + d; if (libreC(xx, zz)) { x = xx; z = zz; } }
-      if (x === null) { z = zA - paso * (i + 0.5); x = centro(z); }
+      if (x === null) { const z0 = zA - paso * (i + 0.5); z = z0; x = centro(z0);   // (sin sitio: el más cercano con suelo a lo largo del camino; en la escalera de las bolas o el lago se quedaba a 60 m bajo tierra)
+        for (let dz = 2; dz < paso * 2; dz += 2) { const za = z0 + dz, zb = z0 - dz; if (za <= zA && libreC(centro(za), za)) { z = za; x = centro(za); break; } if (zb >= zB && libreC(centro(zb), zb)) { z = zb; x = centro(zb); break; } } }
       const y = alturaSuelo(x, z);
       const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3));
       const uv = new Float32Array(N * 4), idx = []; for (let q = 0; q < N; q++) uv.set([q / (N - 1), 0, q / (N - 1), 1], q * 4); for (let q = 0; q < N - 1; q++) idx.push(q * 2, q * 2 + 1, q * 2 + 2, q * 2 + 1, q * 2 + 3, q * 2 + 2);
@@ -5782,7 +5783,7 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 // Los grandes, muy lentos y más lejos; los pequeños, más cerca y más rápidos.
 const PASEANTES = [
   { z: -650, lado: -1, d: 17, grande: true, dir: -1 }, { z: -880, lado: -1, d: 12, grande: false, dir: -1 },   /* (al principio, ninguno: aparecen ya avanzado el juego) */
-  { z: -1250, lado: 1, d: 12, grande: false, dir: -1 },
+  { z: -1250, lado: 1, d: 12, grande: false, dir: -1 }, { z: -720, lado: 1, d: 12, grande: false, dir: -1 }, { z: -1065, lado: -1, d: 12, grande: false, dir: -1 }, { z: -1440, lado: 1, d: 12, grande: false, dir: -1 },
   { z: -1040, lado: -1, d: 17, grande: true, dir: 1 }, { z: -1365, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null; const _siluetaG = new THREE.Color(0x56606e);
 function moverPaseantes(dt) {
@@ -5793,7 +5794,7 @@ function moverPaseantes(dt) {
     // siguiendo al jugador para no quedarse atrás en segundos) y se pierde en la niebla.
     const dz = Math.abs(pos.z - P.z);
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
-    if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - (P.grande ? 30 : 24); }
+    if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; }
     if (!P.activo) { if (P.g) P.g.visible = false; continue; }
     if (!P.g) { const GA = P.grande ? gGolemGrande : gGolemAnim, d = clonarConEsqueleto(GA.scene), t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3());
       P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 };
@@ -5802,17 +5803,19 @@ function moverPaseantes(dt) {
         sh.fragmentShader = "varying float vSilY; uniform float uBase, uAlto;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= smoothstep(uBase + uAlto * 0.05, uBase + uAlto * 0.5, vSilY);"); };
       d.traverse(o => { if (o.isMesh) { o.material = P.mat; o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.raycast = () => {}; } });
       P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 10 : 5) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
-      P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.45 : 1.2; A.play(); }
-    const x0 = P.lado * (P.grande ? 26 : 24), x1 = P.lado * (P.grande ? 9 : 6), T = Math.abs(x1 - x0) / (P.grande ? 0.65 : 1.6);   // (los grandes, muy lentos: unos 26 s; los pequeños, unos 11 s)
-    P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
-    P.zA = lerp(P.zA, pos.z - (P.grande ? 30 : 24), 1 - Math.exp(-dt * 0.6));
-    const z = P.zA, x = caminoX(z) + lerp(x0, x1, P.t / T), dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj);   // (aparece y se va en la niebla; nunca a menos de 10 m)
+      P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.8 : 1.9; A.play(); }
+    // Grandes: cruzan de lado a lado por delante (a unos 30 m), muy despacio: pasan por el centro de la imagen (también en el móvil).
+    // Pequeños: aparecen en medio de la imagen, sobre el camino (a unos 22 m), y se alejan hasta perderse en la niebla o tras una roca.
+    const T = P.grande ? 22 : 10; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
+    let x, z; if (P.grande) { P.zA = lerp(P.zA, pos.z - 30, 1 - Math.exp(-dt * 0.6)); z = P.zA; x = caminoX(z) + lerp(P.lado * 18, -P.lado * 18, P.t / T); }
+    else { z = P.zS - 4.5 * P.t; x = caminoX(z) + P.xS; }
+    const dj = Math.hypot(x - pos.x, z - pos.z);
+    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - suave(34, 44, dj));   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.01; if (!P.g.visible) continue;
-    { let y = alturaTerreno(caminoX(z), z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (a la altura del camino: en lo alto de las laderas, borradas por la niebla, parecía que flotaban) */ P.g.position.set(x, y - 0.15, z); }
+    { let y = alturaTerreno(x, z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
-    P.g.rotation.y = P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda: hacia el camino)
+    P.g.rotation.y = !P.grande ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
     P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, P.grande ? 0.13 : 0.16);   // (opaca, pero de un tono casi igual al de la niebla: apenas se percibe) P.mix.update(dt);
   }
 }
