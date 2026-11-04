@@ -1851,7 +1851,8 @@ let chispas = null;   // (se crean al primer fotograma: usan el suelo, que se de
 // irse a los bordes; para que el santuario siguiente despierte hay que recogerlas todas (la barra de abajo).
 const CHISPAS_TRAMO = 7;
 const chispaEd = new Map();   // (las movidas u ocultas desde el editor)
-let escenaLista = !!window.BLIZZARD_EDITOR, chispasHasta = 0;   // (las chispas se colocan cuando ya están las piezas del editor: si no, alguna quedaba dentro de una roca)
+let escenaLista = !!window.BLIZZARD_EDITOR, chispasHasta = 0;
+let especialAntes = null, especialDesde = 0;   // (para el arpegio: lo que ya estaba hecho al empezar no suena)   // (las chispas se colocan cuando ya están las piezas del editor: si no, alguna quedaba dentro de una roca)
 const tramosChispas = () => { const P = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4, PLATAFORMA5, PLATAFORMA6, PLATAFORMA7]; return P.slice(0, -1).map((A, k) => [A.z - A.r - 5, P[k + 1].z + P[k + 1].r + 5]); };
 const crearChispas = () => {
   const L = [], N = 14, rC = generador(7171);
@@ -1978,7 +1979,11 @@ function moverBolas(dt) {
   moverGuia(dt);
   moverChispas(dt);
   musica.niebla(suave(HEX_FIN + 20, HEX_FIN - 6, pos.z));
-  musica.cancion(!tieneBaston ? 0 : pos.z < CUEVA_Z + 30 ? 7 : tramoActual() + 1);   // (una canción por tramo entre santuarios; otra en la cueva)   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
+  musica.cancion(!tieneBaston ? 0 : pos.z < CUEVA_Z + 30 ? 7 : tramoActual() + 1);
+  // Momentos especiales (el bastón llega, un puzle resuelto, la puerta que se abre, las siete chispas del tramo): el arpegio.
+  { const [n, t] = cuentaTramo(tramoActual()), ahora = [tieneBaston, puzle.resuelto, puzle.col4.t >= 0, puertaArcana.t >= 0, t > 0 && n >= t];
+    if (especialAntes && reloj > especialDesde) for (let i = 0; i < ahora.length; i++) if (ahora[i] && !especialAntes[i]) { musica.arpegio(); break; }
+    especialAntes = ahora; }   // (una canción por tramo entre santuarios; otra en la cueva)   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
   moverZonas(dt);
   arrastre = Math.max(0, arrastre - dt);
   // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
@@ -4219,7 +4224,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null;
+  let acordeB = null, arpegioB = null;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4232,6 +4237,7 @@ const musica = (() => {
       sonando.set(0, { a: pista, g: ganancia, t: 0 }); pistaActual = 0;
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
       fetch("musica/acorde-runa.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { acordeB = b; }).catch(() => {});
+      fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { arpegioB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4260,7 +4266,9 @@ const musica = (() => {
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
   function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde };
+  // El arpegio de piano al resolver un puzle o algo especial.
+  function arpegio() { if (!ctx || !arpegioB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4302,7 +4310,7 @@ function empezarEnSantuario(n) {
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
   rotular(SANTUARIOS[n - 1].nombre, 4);
   if (n >= 6) puzle.col4.t = 99;   // (la columna, ya caída)
-  chispasHasta = n - 1; if (chispas) for (const C of chispas) if (C.tramo < n - 1) C.abs = 1;   // (las chispas de los tramos de atrás, ya recogidas)
+  especialAntes = null; especialDesde = reloj + 1; chispasHasta = n - 1; if (chispas) for (const C of chispas) if (C.tramo < n - 1) C.abs = 1;   // (las chispas de los tramos de atrás, ya recogidas)
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
