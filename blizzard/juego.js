@@ -1892,7 +1892,9 @@ const barraChispas = (() => { const d = document.createElement("div"); d.id = "b
 function moverChispas(dt) {
   if (!chispas) chispas = crearChispas();
   { const k = tramoActual(), [n, t] = cuentaTramo(k), ver = tieneBaston && estado !== "portada" && estado !== "intro" && t > 0;
-    barraChispas.classList.toggle("ver", ver); barraChispas.firstChild.style.width = (t ? n / t * 100 : 0) + "%"; }
+    barraChispas.classList.toggle("ver", ver); barraChispas.firstChild.style.width = (t ? n / t * 100 : 0) + "%";
+    if (barraChispas._n !== undefined && n > barraChispas._n && ver) { barraChispas.classList.remove("pulso"); void barraChispas.offsetWidth; barraChispas.classList.add("pulso"); clearTimeout(barraChispas._t); barraChispas._t = setTimeout(() => barraChispas.classList.remove("pulso"), 750); }
+    barraChispas._n = n; }
   for (const C of chispas) {
     if (!tieneBaston || C.oculta || C.abs >= 1 || Math.abs(C.z - pos.z) > 70) { C.m.visible = false; continue; }   // (solo cuando ya se tiene el bastón)
     if (!C.m.material.map) { C.m.material.map = espiral.material.map; C.m.material.needsUpdate = true; }
@@ -3927,9 +3929,16 @@ estilo.textContent = `
   #portada .teclas b { color: var(--tinta); font-weight: 600; text-align: right; }
   #portada .aviso { font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); max-width: 36ch; margin: 0 auto; }
   /* La barra de las chispas del tramo: fina, blanca, abajo; se llena al recogerlas. */
-  #barraChispas { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(300px, 56vw); height: 4px; border-radius: 2px; background: rgba(255,255,255,.28); box-shadow: 0 0 6px rgba(255,255,255,.35); overflow: hidden; opacity: 0; transition: opacity .8s ease; pointer-events: none; z-index: 4; }
+  #barraChispas { position: fixed; left: 50%; bottom: calc(34px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(300px, 56vw); height: 4px; border-radius: 2px; background: rgba(255,255,255,.28); box-shadow: 0 0 6px rgba(255,255,255,.35); overflow: hidden; opacity: 0; transition: opacity .8s ease; pointer-events: none; z-index: 4; }
   #barraChispas.ver { opacity: 1; }
-  #barraChispas i { display: block; height: 100%; width: 0; background: #fff; box-shadow: 0 0 8px #fff; transition: width .6s ease; }
+  #barraChispas i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #fff 0%, #fff 40%, #fff6d6 50%, #fff 60%, #fff 100%) 0 0 / 200% 100%; box-shadow: 0 0 8px #fff; transition: width .7s cubic-bezier(.3, 1.4, .5, 1); animation: brilloBarra 2.6s linear infinite; }
+  /* (un brillo que recorre lo lleno; al recoger una chispa, la barra late) */
+  @keyframes brilloBarra { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  #barraChispas.ver { animation: respiraBarra 3.2s ease-in-out infinite; }
+  @keyframes respiraBarra { 0%, 100% { box-shadow: 0 0 6px rgba(255,255,255,.35); } 50% { box-shadow: 0 0 12px rgba(255,255,255,.6); } }
+  #barraChispas.pulso { animation: latidoBarra .7s ease-out; }
+  @keyframes latidoBarra { 0% { transform: translateX(-50%) scaleY(1); box-shadow: 0 0 6px #fff; } 30% { transform: translateX(-50%) scaleY(2.4); box-shadow: 0 0 22px #fff; } 100% { transform: translateX(-50%) scaleY(1); box-shadow: 0 0 6px rgba(255,255,255,.35); } }
+  @media (prefers-reduced-motion: reduce) { #barraChispas, #barraChispas i { animation: none !important; } }
   #rotulo { white-space: pre-line; position: fixed; z-index: 4; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(640px, calc(100% - 32px)); text-align: center; font-size: clamp(17px, 2.4vw, 22px); opacity: 0; transition: opacity .9s ease; }
   #cerrar { z-index: 5; position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px; border: 1px solid rgba(31,42,61,.25); border-radius: 50%; background: rgba(240,245,252,.7); color: var(--tinta); font: 26px/1 Georgia, serif; cursor: pointer; pointer-events: auto; }
   #cerrar:hover, #cerrar:focus-visible { background: #fff; outline: 2px solid var(--tinta-suave); outline-offset: 2px; }
