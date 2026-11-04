@@ -4602,8 +4602,8 @@ function actualizarVelo(dt) {
   // Mientras el viento lo lleva (todo cubierto), Blizzard no está; al volver, primero aparece su espiral de viento
   // donde regresa y, dentro de ella, Blizzard.
   { const oculto = (rescate && !rescate.pozo && caidaK > 0.9) || (retornoT >= 0 && retornoT < 0.6);
-    if (oculto) { if (blizzard.visible) { blizzard.visible = false; blizzard.userData.ocultoCaida = true; if (capaTela) capaTela.malla.visible = false; } }   // (la capa también: si no, asomaba sola antes que Blizzard)
-    else if (blizzard.userData.ocultoCaida) { blizzard.visible = true; blizzard.userData.ocultoCaida = false; if (capaTela) capaTela.malla.visible = true; }
+    if (oculto) { if (blizzard.visible) { blizzard.visible = false; blizzard.userData.ocultoCaida = true; if (capaTela) capaTela.malla.visible = false; baston.visible = false; estela.m.visible = false; } }   // (y el bastón, que va aparte)   // (la capa también: si no, asomaba sola antes que Blizzard)
+    else if (blizzard.userData.ocultoCaida) { blizzard.visible = true; blizzard.userData.ocultoCaida = false; if (capaTela) capaTela.malla.visible = true; baston.visible = true; }
     if (retornoT >= 0 && retornoT < 1.1) { efectoEspiral = Math.max(efectoEspiral, 1.5); espiralEn = null; } }
   const o = caidaK < 0.01 ? 0 : +caidaK.toFixed(3);
   if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.7 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); veloCaida.style.background = o > 0.97 ? "rgb(238,243,250)" : ""; }   // (del todo cubierto: un color liso, nada se transparenta)   // (más borroso y opaco según se cae; al final, cubre del todo)
