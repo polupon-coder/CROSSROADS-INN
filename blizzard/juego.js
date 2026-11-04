@@ -1654,6 +1654,13 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       lista.push([xx, top, z2, esc]);
       if (d < 13) colisiones.push({ x: xx, z: z2, r: R * 0.72 * esc, techo: top });   // (al ancho de la pieza que se ve: no se queda en el aire)
     }
+    // En la explanada tras la plataforma (donde ya no empiezan las que se mueven), algunas quietas, mucho menos densas.
+    { const rS = generador(4646);
+      for (let fz = 0, z2 = PLATAFORMA6.z - 9; z2 > HEX_INI; z2 -= 1.5 * R, fz++) for (let k = -9; k <= 9; k++) {
+        const xx = caminoX(z2) + k * Math.sqrt(3) * R + (fz % 2) * Math.sqrt(3) * R / 2, d = Math.abs(xx - caminoX(z2));
+        if (rS() > 0.3 || d < 4.5 || Math.hypot(xx - PLATAFORMA6.x, z2 - PLATAFORMA6.z) < 8) continue;   // (el paso, libre)
+        const esc = 0.75 + rS() * 0.6, top = alturaTerreno(xx, z2) + 0.15 + Math.min(5, (d - 3) * 0.32 + rS() * 0.9);
+        lista.push([xx, top, z2, esc]); if (d < 13) colisiones.push({ x: xx, z: z2, r: R * 0.72 * esc, techo: top }); } }
     // En el perímetro, grupos de tres muy altos.
     for (let z2 = HEX_INI - 5, k = 0; z2 > HEX_FIN + 14; z2 -= 13 + rH() * 6, k++) {
       const lado = k % 2 ? 1 : -1, x0 = caminoX(z2) + lado * (11 + rH() * 2);
@@ -1997,11 +2004,11 @@ function moverZonas(dt) {
     if (M.fuera > 0) { M.fuera -= dt; if (M.fuera <= 0) { if (Math.hypot(pos.x - M.x, pos.z - M.z) < 3) M.fuera = 0.5; else { M.dy = 0; M.vy = 0; M.t = 0; colisiones.push(M.col); M.m.visible = true; if (M.hoyo) M.hoyo.visible = false; M.m.position.set(M.x, M.top + M.off, M.z); } } continue; }
     if (M.t > 0 || sobre) {   // (al pisarlo tiembla y cae)
       M.t += dt;
-      if (M.t < 0.5) M.m.position.x = M.x + (Math.random() - 0.5) * 0.1;
+      if (M.t < 1.1) M.m.position.x = M.x + (Math.random() - 0.5) * 0.1 * (0.5 + M.t);   // (tiembla algo más de un segundo: da tiempo a saltar)
       else { if (M.vy === 0) { musica.rocas(0.45); const i = colisiones.indexOf(M.col); if (i >= 0) colisiones.splice(i, 1); if (!M.hoyo) { const rr = M.col.r * 1.2, g = new THREE.CylinderGeometry(rr, rr * 0.8, 7, 9, 6, true), P = g.attributes.position, c = new Float32Array(P.count * 3), arriba = new THREE.Color(0xb7c4d6), abajo = new THREE.Color(0x3a4558), k = new THREE.Color();   // (un pozo: la pared se oscurece al bajar)
           for (let i = 0; i < P.count; i++) { k.lerpColors(abajo, arriba, Math.pow((P.getY(i) + 3.5) / 7, 1.6)); c.set([k.r, k.g, k.b], i * 3); } g.setAttribute("color", new THREE.BufferAttribute(c, 3));
           M.hoyo = new THREE.Group(); const pared = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })); pared.position.y = -3.5; const fondo = new THREE.Mesh(new THREE.CircleGeometry(rr * 0.8, 9), new THREE.MeshBasicMaterial({ color: 0x3a4558 })); fondo.rotation.x = -Math.PI / 2; fondo.position.y = -6.98;
-          M.hoyo.add(pared, fondo); M.hoyo.position.set(M.x, alturaTerreno(M.x, M.z) + 0.05, M.z); M.hoyo.traverse(o => o.raycast = () => {}); scene.add(M.hoyo); } M.hoyo.visible = true; if (Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r + 0.3 && !rescate) { empezarRescate(); const z0 = PLATAFORMA6.z - 9; rescate.hacia = new THREE.Vector3(caminoX(z0), alturaTerreno(caminoX(z0), z0) + 0.6, z0); rescate.pozo = M; rescate.pt = 0; efectoEspiral = 0; } }   /* (cae del todo: el viento te lleva al principio de los hexágonos) */ M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top + M.off + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
+          M.hoyo.add(pared, fondo); M.hoyo.position.set(M.x, alturaTerreno(M.x, M.z) + 0.05, M.z); M.hoyo.traverse(o => o.raycast = () => {}); scene.add(M.hoyo); } M.hoyo.visible = true; if (Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r * 0.75 && Math.abs(pos.y - M.top) < 0.6 && !rescate) { empezarRescate();   /* (solo si se está bien encima: por el borde, no te hunde) */ const z0 = PLATAFORMA6.z - 9; rescate.hacia = new THREE.Vector3(caminoX(z0), alturaTerreno(caminoX(z0), z0) + 0.6, z0); rescate.pozo = M; rescate.pt = 0; efectoEspiral = 0; } }   /* (cae del todo: el viento te lleva al principio de los hexágonos) */ M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top + M.off + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
     }
   }
   musica.bucle("hex", sonHex * 0.45, 0.85 + sonHex * 0.3);   // (las rocas que suben y bajan: volumen y tono según su movimiento)
@@ -5831,18 +5838,18 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 const PASEANTES = [   // (en tramos donde pueden andar sin atravesar nada: medidos; separados entre sí)
   { z: -100, grande: true, huellas: true },   // (al principio, antes del bastón: el que dejó las huellas gigantes; sigue su diagonal y se pierde en la niebla)
   { z: -568, lado: -1, d: 17, grande: true, dir: -1 }, { z: -688, lado: 1, d: 12, grande: false, dir: -1 }, { z: -928, lado: -1, d: 12, grande: false, dir: -1 },
-  { z: -1228, lado: 1, d: 12, grande: false, dir: -1 }, { z: -1423, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
+  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, blando: true },   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */ { z: -1423, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null;
-function pasoGolem(x, z, yP, rad) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
+function pasoGolem(x, z, yP, rad, alto = 1.5) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
   const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.2)) return null;
   if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + rad + 1.5) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + rad)) return null;   // (ni sobre un santuario, ni por un aro arcano)
   if (ruedas.some(w => Math.abs(z - w.z) < (w.R || 2) + rad + 1) || ruedasAbismo.some(W => Math.abs(z - W.g.position.z) < 4 + rad) || rodantesEd.some(W => Math.abs(z - W.g.position.z) < W.R + rad + 1)) return null;   // (ni por donde ruedan las ruedas)
-  if (colisiones.some(c => !c.rampa && c.techo > y + 1.5 && Math.hypot(c.x - x, c.z - z) < c.r + rad)) return null;
+  if (colisiones.some(c => !c.rampa && c.techo > y + alto && Math.hypot(c.x - x, c.z - z) < c.r + rad)) return null;
   return y;
 }
 function rutaRecta(P, maxL) {   // metros libres del camino que sigue andando recto
-  const rad = P.grande ? 2.6 : 1.3; let yP = null, L = 0;
-  for (; L < maxL; L += 1) { const z = P.zS - L, y = pasoGolem(caminoX(z) + P.xS, z, yP, rad); if (y === null) break; yP = y; }
+  const rad = P.blando ? 1.5 : P.grande ? 2.6 : 1.3; let yP = null, L = 0;   // (blando: las rocas bajas no le cortan el paso; lo tapan un poco)
+  for (; L < maxL; L += 1) { const z = P.zS - L, y = pasoGolem(caminoX(z) + P.xS, z, yP, rad, P.blando ? 3 : 1.5); if (y === null) break; yP = y; }
   return L;
 }
 function cruceLibre(z0) {   // ¿puede un golem grande cruzar de lado a lado (36 m) a esa altura del camino sin atravesar nada?
@@ -5862,8 +5869,11 @@ function moverPaseantes(dt) {
     const dz = Math.abs(pos.z - P.z);
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
     if (P.huellas) { if (!P.activo && !P.hecho && !tieneBaston && pos.z < -70 && pos.z > -98) { const H = huellasGigantes(), a = H[0], e = H[H.length - 1], dx = e.x - a.x, dz2 = e.z - a.z, L0 = Math.hypot(dx, dz2);
-        const a0 = Math.atan2(dx / L0, dz2 / L0); let mejor = 0;   // (sale junto al final de las huellas, a la derecha, y se aleja hacia ese lado: medido, ahí está libre)
-        for (const [ox, oz] of [[8, -106], [12, -106], [9, -110]]) for (const da of [-0.8, -0.4, -1]) { const d = { x: Math.sin(a0 + da), z: Math.cos(a0 + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 60; L += 1) { const y = pasoGolem(sx + d.x * L, oz + d.z * L, yP, 2); if (y === null) break; yP = y; } if (L > mejor + 2) { mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
+        let mejor = 0;   // (en medio, más allá de las huellas, alejándose de frente; las rocas bajas no cuentan: lo tapan un poco, como debe ser)
+        const libre = (x, z, yP) => { const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.5)) return null; if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + 3) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + 1.5)) return null;
+          return colisiones.some(c => !c.rampa && c.techo > y + 3 && Math.hypot(c.x - x, c.z - z) < c.r + 1.5) ? null : y; };
+        let nota = -1e9;   // (ante la grieta hay poco sitio: mejor al otro lado; lo más de frente posible)
+        for (const [ox, oz] of [[0, -112], [0, -130], [2, -130], [-2, -130], [0, -133]]) for (const da of [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6]) { const d = { x: Math.sin(Math.PI + da), z: Math.cos(Math.PI + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 50; L += 1) { const y = libre(sx + d.x * L, oz + d.z * L, yP); if (y === null) break; yP = y; } const n = Math.min(L, 30) - 12 * Math.abs(da); if (L >= 12 && n > nota) { nota = n; mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
         mejor = Math.min(mejor, 45);
         P.T = (mejor - 2) / 2.6; P.hecho = true; P.activo = P.T > 3; P.t = 0; P.tapado = 0; P.recto = true; } }
     else if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
