@@ -1491,7 +1491,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
       g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
-    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiply(new THREE.Color(1.35, 1.45, 1.7));   // (las pilastras que se abaten, algo más claras)
+    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiply(new THREE.Color(1.7, 1.82, 2.15));   // (las pilastras que se abaten, algo más claras)
     const rc = generador(3131), d = P6.r + 2;
     for (let a0 = 0.5; a0 < Math.PI * 2 - 0.5;) {   // (hueco de llegada; cada una de su tamaño, no repetidas)
       const w = 0.8 + rc() * 0.7, h = 4 + rc() * 4.5, da = (w + 0.06) / d, a = a0 + da / 2; a0 += da;
@@ -3985,7 +3985,7 @@ estilo.textContent = `
   @keyframes tituloEntra { from { opacity: 0; } to { opacity: .5; } }
   #portada h1:has(.titulo) .texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* (el texto, solo para lectores de pantalla mientras está el vídeo) */
   #portada .botones { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 44px; }
-  #portada .santuarios { margin-top: 44px; }
+  #portada .santuarios { margin-top: 0; }   /* (más arriba: en el móvil, Volver se solapaba) */
   /* El idioma, debajo de los botones (a doble distancia), discreto. */
   #portada .idioma { display: flex; gap: 14px; margin-top: 12px; font-family: system-ui, sans-serif; font-size: 14px; }
   #portada .idioma button { font: inherit; background: none; border: none; padding: 4px 6px; color: var(--tinta-suave); cursor: pointer; letter-spacing: .04em; }
@@ -4086,7 +4086,6 @@ ui.innerHTML = `
       <button type="button" class="opcion" id="b-santuarios" data-t="Santuarios">Santuarios</button>
       <div class="idioma"><button type="button" data-idioma="es" lang="es">Español</button><button type="button" data-idioma="en" lang="en">English</button></div>
     </div>
-    <div class="autor" data-t="Un juego de Pol Lupon">Un juego de Pol Lupon</div>
     <div class="santuarios" hidden>
       <div class="lista"></div>
       <button type="button" class="opcion" id="b-volver" data-t="Volver">Volver</button>
@@ -5840,7 +5839,7 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 const PASEANTES = [   // (en tramos donde pueden andar sin atravesar nada: medidos; separados entre sí)
   { z: -100, grande: true, huellas: true },   // (al principio, antes del bastón: el que dejó las huellas gigantes; sigue su diagonal y se pierde en la niebla)
   { z: -568, lado: -1, d: 17, grande: true, dir: -1 }, { z: -688, lado: 1, d: 12, grande: false, dir: -1 }, { z: -928, lado: -1, d: 12, grande: false, dir: -1 },
-  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, blando: true },   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */ { z: -1423, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
+  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, blando: true, trasOnda: true },   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */ { z: -1423, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null;
 function pasoGolem(x, z, yP, rad, alto = 1.5) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
   const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.2)) return null;
@@ -5878,7 +5877,7 @@ function moverPaseantes(dt) {
         for (const [ox, oz] of [[0, -110], [1, -110], [-1, -110], [0, -113]]) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const d = { x: Math.sin(Math.PI + da), z: Math.cos(Math.PI + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 50; L += 1) { const y = libre(sx + d.x * L, oz + d.z * L, yP); if (y === null) break; yP = y; } const n = Math.min(L, 30) - 12 * Math.abs(da); if (L >= 12 && n > nota) { nota = n; mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
         mejor = Math.min(mejor, 45);
         P.T = (mejor - 2) / 2.1;   /* (más despacio: visible unos 2 s más) */ P.hecho = true; P.activo = P.T > 3; P.t = 0; P.tapado = 0; P.recto = true; } }
-    else if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
+    else if (!P.activo && !P.hecho && dz < 40 && (!P.trasOnda || pos.z < PLATAFORMA6.z - PLATAFORMA6.r - 3)) {   /* (trasOnda: en cuanto se abren las pilastras y se pasa por encima) */ P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
       P.recto = !P.grande || !cruceLibre(pos.z - 30);
       if (P.recto) { const v = P.grande ? 3.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 15; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
     if (!P.activo) { if (P.g) P.g.visible = false; continue; }
