@@ -5736,6 +5736,7 @@ function bucle(ahora) {
   if (!window.BLIZZARD_EDITOR) vigilarCalidad(ahora - anterior0);
   if (!window.BLIZZARD_EDITOR) esconderTrasNiebla();
   if (mapaNieblaSucio) rehacerMapaNiebla();
+  if (!window.BLIZZARD_EDITOR) escalarPaseantes();   // (con la cámara de este fotograma)
   if (window.BLIZZARD_EDITOR) NIEBLA_U.nieblaLagoK.value = scene.fog && scene.fog.far > 1e4 ? 0 : 1;   // (en el editor, sin niebla, el lago se ve)
   if (window.BLIZZARD_EDITOR && window.__edRender && !window.__edRender()) {}   // (el editor dibuja solo cuando algo cambia)
   else if (desenfoque && calidad.desenfoque && !window.BLIZZARD_EDITOR) desenfoque.dibujar(); else renderer.render(scene, camara);   // (en el editor, nítido y a resolución completa)
@@ -5861,6 +5862,11 @@ function cruceLibre(z0) {   // ¿puede un golem grande cruzar de lado a lado (36
     if (colisiones.some(c => !c.rampa && c.techo > y + 2 && Math.hypot(c.x - x, c.z - z0) < c.r + 2.6) || PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z0 - Q.z) < Q.r + 4) || ARCANOS.some(A => Math.hypot(x - A.x, z0 - A.z) < A.r + 2.6)) return false; }   // (rocas, acantilados, santuarios)
   return true;
 } const _siluetaG = new THREE.Color(0x56606e);
+function escalarPaseantes() {   // se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla
+  if (!paseantes) return; const c = camara.position;
+  for (const P of paseantes) { if (!P.g || !P.g.visible || !P.real) continue; const dd = P.real.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;
+    P.g.position.copy(P.real).sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2 * (P.huellas ? 1.5 : 1); }
+}
 function moverPaseantes(dt) {
   if (window.BLIZZARD_EDITOR) return;
   if (!paseantes) paseantes = PASEANTES.map(P => ({ ...P, g: null, t: Math.random() * 30 }));
@@ -5899,9 +5905,11 @@ function moverPaseantes(dt) {
     const dj = Math.hypot(x - pos.x, z - pos.z);
     const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - (P.huellas ? suave(30, 62, dj) : suave(16, 46, dj))) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.02; if (!P.g.visible) continue;
-    { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < -5) y = P.yS ?? pos.y - 0.6;   /* (sin suelo: la altura de antes; antes saltaba a la del jugador en las hondonadas) */ P.yS = P.yS === undefined || P.t <= dt * 1.01 ? y : lerp(P.yS, y, 1 - Math.exp(-dt * 3)); y = P.yS;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
-    { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
-      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2 * (P.huellas ? 1.5 : 1);   /* (el de las huellas: más bruma en las piernas) */ }
+    { const rp = P.grande ? 1.6 : 0.8, alturaEn = (xx, zz) => { const h = Math.max(alturaSuelo(xx, zz), alturaSuelo(xx + rp, zz), alturaSuelo(xx - rp, zz), alturaSuelo(xx, zz + rp), alturaSuelo(xx, zz - rp)); return h < -5 ? null : h; };
+      if (P.t <= dt * 1.01 || P.yS === undefined) P.yS = alturaEn(x, z) ?? pos.y - 0.6;   // (al aparecer, su altura)
+      const yN = alturaEn(x, z); if (yN !== null) P.yS += clamp(yN - P.yS, -dt * 1.2, dt * 1.2);   // (luego la sigue despacio, como mucho 1,2 m/s: nunca de golpe)
+      P.real = (P.real || new THREE.Vector3()).set(x, P.yS - 0.15, z); P.g.position.copy(P.real); }
+    // (la escala hacia el borde de la niebla se aplica justo antes de dibujar, con la cámara ya colocada: escalarPaseantes)
     P.g.rotation.y = P.huellas ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
     P.mix.update(dt);   // (anda de verdad: sus pasos van con lo que avanza)
     P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.huellas ? 0.27 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
