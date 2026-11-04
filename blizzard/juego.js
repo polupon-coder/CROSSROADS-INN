@@ -4166,7 +4166,7 @@ const trazo = (() => {
   }
   function reiniciar() { fase = "esperando"; progreso = 0; cazador = 0; dedo.style.opacity = 0; dibujar(); }
   function fallar(texto) { fase = "fallo"; espera = 1.1; rotular(tr(texto) + " " + tr("Otra vez."), 2.5); dibujar(); }
-  function acabar() { fase = "hecho"; progreso = L; espera = 0.5; dibujar(); }
+  function acabar() { fase = "hecho"; progreso = L; espera = 0.5; dibujar(); musica.acorde(); }   // (suena el acorde: runa aprendida)
   const aSvg = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
   capa.addEventListener("pointerdown", e => {
     if (fase !== "esperando" && fase !== "fallo") return;          // tras un fallo se puede volver a empezar enseguida
@@ -4219,6 +4219,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
+  let acordeB = null;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4230,6 +4231,7 @@ const musica = (() => {
       pista.play().catch(() => {});
       sonando.set(0, { a: pista, g: ganancia, t: 0 }); pistaActual = 0;
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
+      fetch("musica/acorde-runa.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { acordeB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4256,7 +4258,9 @@ const musica = (() => {
   }
   // Cuánto se oye el viento de la niebla (0 a 1): sube y baja despacio.
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
-  return { empezar, viento, niebla, cancion };
+  // El acorde de piano al aprender una runa (al completar su trazo).
+  function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
