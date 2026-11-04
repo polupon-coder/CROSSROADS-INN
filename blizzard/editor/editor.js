@@ -149,7 +149,7 @@
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota"; $("filaMat").hidden = !(it.tipo === "objeto" || (mundo && g && !g.userData.inst));
     pintarNieblas();
     if (!obj) tc.setMode("translate");
-    $("selNombre").textContent = it.tipo === "chispa" ? "Chispa de luz · tramo " + (+it.id.slice(2).split("_")[0] + 1) + (it.oculto ? " (oculta)" : "") : it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
+    $("selNombre").textContent = it.tipo === "trazo" ? "Trazo de " + ({ nieve: "nieve", acumulada: "nieve acumulada", espolvoreada: "nieve espolvoreada", niebla: "niebla" }[it.clase] || it.clase) : it.tipo === "chispa" ? "Chispa de luz · tramo " + (+it.id.slice(2).split("_")[0] + 1) + (it.oculto ? " (oculta)" : "") : it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
     pintarCampos();
   };
   const campos = { px: ["p", 0], py: ["p", 1], pz: ["p", 2], rx: ["r", 0], ry: ["r", 1], rz: ["r", 2], sx: ["s", 0], sy: ["s", 1], sz: ["s", 2] };
@@ -200,7 +200,7 @@
   $("ocultoMundo").onchange = () => { sel.oculto = $("ocultoMundo").checked; rehacer(); };
   function atajo(e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacer(); return; }
-    if (e.key === "Escape") { colocando = null; aviso(""); pintarLista(); seleccionar(null); }
+    if (e.key === "Escape") { colocando = null; if (pincel) { pincel = null; pintarPinceles(); } aviso(""); pintarLista(); seleccionar(null); }
     if (!sel || !(sel.tipo === "objeto" || sel.tipo === "mundo")) { if ((e.key === "Delete" || e.key === "Backspace") && sel) borrar(); return; }
     if (e.key === "Delete" || e.key === "Backspace") borrar();
   }
@@ -298,6 +298,20 @@
   // (se colocan cuando ya están puestas las piezas guardadas, igual que en el juego: así salen en el mismo sitio)
   const ponerChispas = () => { for (const c of E.chispasBase()) { baseChispa.set(c.id, c.p); if (!items.has(c.id)) { const it = { id: c.id, tipo: "chispa", p: c.p.slice() }; items.set(it.id, it); E.ponerEd(it); } } };
   const chispaSinCambio = it => it.tipo === "chispa" && !it.oculto && baseChispa.has(it.id) && it.p.every((v, i) => Math.abs(v - baseChispa.get(it.id)[i]) < 0.01);
+  // ── Pinceles: nieve, nieve acumulada, nieve espolvoreada y niebla, pintadas arrastrando sobre el terreno ──
+  let pincel = null, trazoEd = null, trazoT = 0;
+  const pintarPinceles = () => { document.querySelectorAll("#pinceles button").forEach(b => b.classList.toggle("activo", b.dataset.pincel === pincel)); $("filaMov").hidden = pincel !== "niebla"; dom.style.cursor = pincel ? "crosshair" : ""; aviso(pincel ? "Pincel: arrastra sobre el terreno para pintar · Esc para dejarlo" : ""); };
+  document.querySelectorAll("#pinceles button").forEach(b => b.onclick = () => { pincel = pincel === b.dataset.pincel ? null : b.dataset.pincel; colocando = null; pintarLista(); pintarPinceles(); });
+  for (const [k, v, d] of [["pTam", "vTam", 1], ["pInt", "vInt", 2], ["pMov", "vMov", 2]]) $(k).addEventListener("input", () => { $(v).textContent = (+$(k).value).toFixed(d); });
+  const sueloBajo = e => { rayoDe(e); const o = ray.ray.origin, d = ray.ray.direction, en = t => [o.x + d.x * t, o.y + d.y * t, o.z + d.z * t]; let t0 = 0, t1 = null, paso = 1;
+    for (let t = 0; t < 4000; t += paso) { const q = en(t); if (q[1] <= E.alturaTerreno(q[0], q[2])) { t1 = t; break; } t0 = t; paso = Math.min(10, paso * 1.06); }
+    if (t1 === null) return null; for (let k = 0; k < 18; k++) { const tm = (t0 + t1) / 2, q = en(tm); if (q[1] <= E.alturaTerreno(q[0], q[2])) t1 = tm; else t0 = tm; } return en(t1).map(v => +v.toFixed(2)); };
+  dom.addEventListener("pointerdown", e => { if (!pincel || e.button !== 0) return; const q = sueloBajo(e); if (!q) return; e.stopImmediatePropagation(); e.preventDefault(); orbit.enabled = false; try { dom.setPointerCapture(e.pointerId); } catch {}
+    trazoEd = { id: nuevoId(), tipo: "trazo", clase: pincel, puntos: [q], r: +$("pTam").value, i: +$("pInt").value, mov: pincel === "niebla" ? +$("pMov").value : 0, p: [0, 0, 0] }; items.set(trazoEd.id, trazoEd); E.ponerEd(trazoEd); trazoT = performance.now(); }, true);
+  dom.addEventListener("pointermove", e => { if (!trazoEd) return; e.stopImmediatePropagation(); const q = sueloBajo(e); if (!q) return; const u = trazoEd.puntos[trazoEd.puntos.length - 1];
+    if (Math.hypot(q[0] - u[0], q[2] - u[2]) >= Math.max(0.3, trazoEd.r * 0.35)) trazoEd.puntos.push(q);
+    if (performance.now() - trazoT > 160) { trazoT = performance.now(); E.ponerEd(trazoEd); } }, true);
+  dom.addEventListener("pointerup", e => { if (!trazoEd) return; e.stopImmediatePropagation(); const t = trazoEd; trazoEd = null; orbit.enabled = true; E.ponerEd(t); guardar(t); }, true);
   verBloque(bloques[0]);
   // La base de datos se carga aparte: el editor responde desde el principio.
   (async () => {
