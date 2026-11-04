@@ -1435,13 +1435,14 @@ function pieza(gltf, x, z, tam, giro, hunde, inclina = 0) {
   g.userData.tapa = true;
   return g;
 }
+const ARCANOS = [];   // (los aros arcanos: las bolas rodantes no pasan por ellos)
 for (const [modelo, dx, z, tam, giro, hunde, inclina] of [
   [gMuro, -16, -12, 7, 0.4, 0.3, 0], [gMuro, 12, -31, 6, -0.7, 0.35, 0.05], [gLadrillos, -15, -48, 5, 1.1, 0.25, 0],
   [gMuro, 16, -600, 8, 0.9, 0.35, 0.04], [gMuro, -17, -690, 9, 2.2, 0.4, 0],   // (sin las losas de ladrillo de las dunas: flotaban en la ladera)
   [gAnilloP, -0.3, -38, 8, 0.2, 0.3, 0.3],   // (sobre el paso, poco inclinado: se pasa por dentro)
   [gAnilloP, 9, -662, 11, -0.5, 0.38, -0.6], [gAnilloP, -10, -722, 10, 0.9, 0.32, 0.28]])   // (otro en las dunas, más erguido)
   { const g = pieza(modelo, caminoX(z) + dx, z, tam, giro, hunde, inclina);
-    if (modelo === gAnilloP) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } });   // (el anillo: su textura tira a amarillo)
+    if (modelo === gAnilloP) { ARCANOS.push({ x: caminoX(z) + dx, z, r: tam * 0.6 }); g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(0.72, 0.75, 0.82); } }); }   // (el anillo: su textura tira a amarillo)
     else g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.84); } }); }   // (algo más oscuras: la nieve de encima tiraba a azul)
 
 // ─── Tras las ruedas: plataforma antigua, acantilado de columnas con su escalera, campo de columnas ───
@@ -5902,7 +5903,7 @@ let esferasRepartidas = false;
 function recorridoLibre(E, d, maxL) {   // metros que puede rodar en esa dirección sin chocar con nada, sin simas ni escalones bruscos
   let x = E.g.position.x, z = E.g.position.z, y = alturaSuelo(x, z), L = 0;
   while (L < maxL) { const nx = x + d.x * 0.3, nz = z + d.z * 0.3, ny = alturaSuelo(nx, nz);
-    if (ny < -5 || Math.abs(ny - y) > 0.3) break;
+    if (ny < -5 || Math.abs(ny - y) > 0.3 || PLATAFORMAS.some(Q => Math.hypot(nx - Q.x, nz - Q.z) < Q.r + 3 + E.R) || ARCANOS.some(A => Math.hypot(nx - A.x, nz - A.z) < A.r + E.R)) break;   // (ni simas, ni escalones, ni los santuarios con su aro)
     if (colisiones.some(c => c !== E.col && !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 1.2 + 0.15)) break;
     x = nx; z = nz; y = ny; L += 0.3; }
   return L;
@@ -5953,7 +5954,7 @@ function moverEsferas(dt) {
     const paso = Math.min(E.va * dt, E.largo - E.recorrido); E.recorrido += paso;
     { const a = E.curva * paso / 3, ca = Math.cos(a), sa = Math.sin(a), dx = E.dir.x * ca - E.dir.z * sa; E.dir.z = E.dir.x * sa + E.dir.z * ca; E.dir.x = dx; }   // (nunca recta: siempre va girando un poco)
     { const nx = g.position.x + E.dir.x * (paso + E.R), nz = g.position.z + E.dir.z * (paso + E.R), ny = alturaSuelo(nx, nz);   // (si la curva la lleva contra algo, se hunde en la nieve)
-      if (ny < -5 || Math.abs(ny - alturaSuelo(g.position.x, g.position.z)) > 0.4 || colisiones.some(c => !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 0.9)) { E.estado = 4; E.t = 0; continue; } }
+      if (ny < -5 || Math.abs(ny - alturaSuelo(g.position.x, g.position.z)) > 0.4 || PLATAFORMAS.some(Q => Math.hypot(nx - Q.x, nz - Q.z) < Q.r + 3 + E.R) || ARCANOS.some(A => Math.hypot(nx - A.x, nz - A.z) < A.r + E.R) || colisiones.some(c => !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 0.9)) { E.estado = 4; E.t = 0; continue; } }
     g.position.x += E.dir.x * paso; g.position.z += E.dir.z * paso;
     { const sup = alturaSuelo(g.position.x, g.position.z) + E.y0; E.y = Math.max(lerp(E.y, sup, 1 - Math.exp(-dt * 3)), sup - 0.04); g.position.y = E.y; }   // (la altura, suavizada, pero nunca por debajo del suelo: no se mete en las cuestas)
     _ejeE.set(E.dir.z, 0, -E.dir.x); g.quaternion.premultiply(_qE.setFromAxisAngle(_ejeE, paso / Math.max(E.R, 0.2)));   // (rueda hacia donde va)
