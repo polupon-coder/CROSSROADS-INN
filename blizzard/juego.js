@@ -5792,19 +5792,28 @@ function unidadesMundo() {
 const cuentaGeo = g => g.index ? g.index.count : g.attributes.position.count;
 function cajaInstancia(m, i) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.getMatrixAt(i, _mI); return new THREE.Box3().copy(m.geometry.boundingBox).applyMatrix4(_mI2.multiplyMatrices(m.matrixWorld, _mI)); }
 const firmaInstancia = (m, i) => ({ inst: true, n: cuentaGeo(m.geometry), c: cajaInstancia(m, i).getCenter(new THREE.Vector3()).toArray().map(v => +v.toFixed(1)) });
-function buscarMundo(f) {
+function buscarMundo(f, todos) {
   if (f.inst) { for (const m of unidadesMundo()) { if (!m.isInstancedMesh || cuentaGeo(m.geometry) !== f.n) continue; for (let i = 0; i < m.count; i++) { const c = cajaInstancia(m, i).getCenter(_tCR); if (Math.hypot(c.x - f.c[0], c.y - f.c[1], c.z - f.c[2]) < 0.6) return { m, i }; } } return null; }
   if (!indiceMundo) { indiceMundo = new Map(); for (const o of unidadesMundo()) { if (o.isInstancedMesh) continue; const g = firmaDe(o); if (!g.n) continue; if (!indiceMundo.has(g.n)) indiceMundo.set(g.n, []); indiceMundo.get(g.n).push({ o, c: g.c }); } }
-  const L = indiceMundo.get(f.n) || []; let mejor = null, dm = 0.8; for (const e of L) { const d = Math.hypot(e.c[0] - f.c[0], e.c[1] - f.c[1], e.c[2] - f.c[2]); if (d < dm && !e.o.userData.enPivote) { dm = d; mejor = e.o; } } return mejor;
+  const L = indiceMundo.get(f.n) || []; let mejor = null, dm = 0.8; for (const e of L) { const d = Math.hypot(e.c[0] - f.c[0], e.c[1] - f.c[1], e.c[2] - f.c[2]); if (d < dm && (todos || !e.o.userData.enPivote)) { dm = d; mejor = e.o; } } return mejor;
 }
 function ajustarMundo(it, objeto) {
   let P = pivotesEd.get(it.id);
+  if (!P && it.id[0] === "p") {   // una copia («Duplicar») de una pieza del mundo: un clon nuevo en su sitio original
+    const c = it.firma.c, T = new THREE.Matrix4().makeTranslation(-c[0], -c[1], -c[2]); let k, cols0 = null;
+    if (it.firma.inst) { const ref = buscarMundo(it.firma); if (!ref) return null; let base = null; for (const Q of pivotesEd.values()) if (Q.userData.inst && Q.userData.inst.m === ref.m && Q.userData.inst.i === ref.i) { base = Q.userData.inst.base; cols0 = Q.userData; }
+      if (!base) base = new THREE.Matrix4().multiplyMatrices(ref.m.matrixWorld, ref.m.getMatrixAt(ref.i, new THREE.Matrix4())); k = new THREE.Mesh(ref.m.geometry, ref.m.material); new THREE.Matrix4().multiplyMatrices(T, base).decompose(k.position, k.quaternion, k.scale); }
+    else { const o = buscarMundo(it.firma, true); if (!o) return null; o.updateMatrixWorld(true); const Q = o.parent && o.parent.userData.pivoteEd ? o.parent : null; if (Q) cols0 = Q.userData;
+      const w = Q ? new THREE.Matrix4().makeTranslation(...(Q.userData.c0 || c)).multiply(o.matrix) : o.matrixWorld.clone(); k = o.clone(); new THREE.Matrix4().multiplyMatrices(T, w).decompose(k.position, k.quaternion, k.scale); }
+    P = new THREE.Group(); P.position.fromArray(c); P.add(k); scene.add(P); P.updateMatrixWorld(true); P.userData.pivoteEd = true; P.userData.copiaEd = true; const b = cajaReal(k);
+    const fuente = cols0 ? cols0.cols.map((q, i) => ({ ...q, x: cols0.cols0[i][0], z: cols0.cols0[i][1] })) : colisiones.filter(q => !q.rampa && q.x > b.min.x - 0.3 && q.x < b.max.x + 0.3 && q.z > b.min.z - 0.3 && q.z < b.max.z + 0.3).map(q => ({ ...q }));
+    P.userData.cols = fuente; P.userData.cols0 = fuente.map(q => [q.x, q.z]); pivotesEd.set(it.id, P); }
   if (!P && it.firma.inst) {   // una copia de una malla instanciada: un pivote vacío que lleva su matriz
     const ref = objeto || buscarMundo(it.firma); if (!ref) return null; const { m, i } = ref, b = cajaInstancia(m, i);
     P = new THREE.Group(); P.position.fromArray(it.firma.c); scene.add(P); P.updateMatrixWorld(true); P.userData.pivoteEd = true; P.userData.inst = { m, i, base: new THREE.Matrix4().multiplyMatrices(m.matrixWorld, m.getMatrixAt(i, new THREE.Matrix4())), p0: P.matrixWorld.clone() };
     P.userData.cols = colisiones.filter(c => !c.rampa && c.x > b.min.x - 0.3 && c.x < b.max.x + 0.3 && c.z > b.min.z - 0.3 && c.z < b.max.z + 0.3); P.userData.cols0 = P.userData.cols.map(c => [c.x, c.z]); pivotesEd.set(it.id, P); }
   if (!P) { const o = objeto || buscarMundo(it.firma); if (!o) return null; const b = cajaReal(o);
-    P = new THREE.Group(); P.position.fromArray(it.firma.c); scene.add(P); P.updateMatrixWorld(true); P.attach(o); o.userData.enPivote = true; P.userData.pivoteEd = true;
+    P = new THREE.Group(); P.position.fromArray(it.firma.c); scene.add(P); P.updateMatrixWorld(true); P.attach(o); o.userData.enPivote = true; P.userData.pivoteEd = true; P.userData.c0 = it.firma.c;
     P.userData.cols = colisiones.filter(c => !c.rampa && c.x > b.min.x - 0.3 && c.x < b.max.x + 0.3 && c.z > b.min.z - 0.3 && c.z < b.max.z + 0.3); P.userData.cols0 = P.userData.cols.map(c => [c.x, c.z]); pivotesEd.set(it.id, P); }
   const c0 = it.firma.c, p = it.p || c0, r = it.r || [0, 0, 0];
   P.position.fromArray(p); P.rotation.set(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180); P.scale.fromArray(it.s || [1, 1, 1]); P.visible = !it.oculto; P.updateMatrixWorld(true);
@@ -5813,7 +5822,7 @@ function ajustarMundo(it, objeto) {
   P.userData.cols.forEach((c, i) => { c.x = P.userData.cols0[i][0] + p[0] - c0[0]; c.z = P.userData.cols0[i][1] + p[2] - c0[2]; const k = colisiones.indexOf(c); if (it.oculto && k >= 0) colisiones.splice(k, 1); if (!it.oculto && k < 0) colisiones.push(c); });
   return P;
 }
-function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) { scene.remove(e.g); const gi = golemsEd.findIndex(G => G.g === e.g); if (gi >= 0) golemsEd.splice(gi, 1); for (const v of e.g.userData.ventis || []) { const vi = ventisqueros.indexOf(v); if (vi >= 0) ventisqueros.splice(vi, 1); } const ni = nieblasMovEd.findIndex(N => N.g === e.g); if (ni >= 0) nieblasMovEd.splice(ni, 1); } for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
+function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo" && e.it.id[0] === "p") { const P = pivotesEd.get(id); if (P) { scene.remove(P); for (const c of P.userData.cols) { const k = colisiones.indexOf(c); if (k >= 0) colisiones.splice(k, 1); } pivotesEd.delete(id); } escenaEd.delete(id); return; } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) { scene.remove(e.g); const gi = golemsEd.findIndex(G => G.g === e.g); if (gi >= 0) golemsEd.splice(gi, 1); for (const v of e.g.userData.ventis || []) { const vi = ventisqueros.indexOf(v); if (vi >= 0) ventisqueros.splice(vi, 1); } const ni = nieblasMovEd.findIndex(N => N.g === e.g); if (ni >= 0) nieblasMovEd.splice(ni, 1); } for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) { escenaEd.set(it.id, { it, g }); if (!g.userData.inst) aplicarMatEd(g, it); } return g; } escenaEd._poniendo = true; quitarEd(it.id); escenaEd._poniendo = false; const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
 buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con sus sitios de origen: antes de mover nada)
 { // Las dos agujas de roca a los lados del camino justo antes del bastón: fuera (y su choque).
