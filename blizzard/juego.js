@@ -5876,7 +5876,7 @@ function moverPaseantes(dt) {
         let nota = -1e9;   // (ante la grieta hay poco sitio: mejor al otro lado; lo más de frente posible)
         for (const [ox, oz] of [[0, -110], [1, -110], [-1, -110], [0, -113]]) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const d = { x: Math.sin(Math.PI + da), z: Math.cos(Math.PI + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 50; L += 1) { const y = libre(sx + d.x * L, oz + d.z * L, yP); if (y === null) break; yP = y; } const n = Math.min(L, 30) - 12 * Math.abs(da); if (L >= 12 && n > nota) { nota = n; mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
         mejor = Math.min(mejor, 45);
-        P.T = (mejor - 2) / 2.6; P.hecho = true; P.activo = P.T > 3; P.t = 0; P.tapado = 0; P.recto = true; } }
+        P.T = (mejor - 2) / 2.1;   /* (más despacio: visible unos 2 s más) */ P.hecho = true; P.activo = P.T > 3; P.t = 0; P.tapado = 0; P.recto = true; } }
     else if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
       P.recto = !P.grande || !cruceLibre(pos.z - 30);
       if (P.recto) { const v = P.grande ? 3.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 15; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
@@ -5892,7 +5892,7 @@ function moverPaseantes(dt) {
     // Grandes: cruzan de lado a lado por delante (a unos 30 m), muy despacio: pasan por el centro de la imagen (también en el móvil).
     // Pequeños: aparecen en medio de la imagen, sobre el camino (a unos 22 m), y se alejan hasta perderse en la niebla o tras una roca.
     const T = P.T; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
-    let x, z; if (P.huellas) { x = P.ini.x + P.dir.x * 2.6 * P.t; z = P.ini.z + P.dir.z * 2.6 * P.t; }
+    let x, z; if (P.huellas) { x = P.ini.x + P.dir.x * 2.1 * P.t; z = P.ini.z + P.dir.z * 2.1 * P.t; }
     else if (!P.recto) { P.zA = lerp(P.zA, pos.z - 30, 1 - Math.exp(-dt * 0.6)); z = P.zA; x = caminoX(z) + lerp(P.lado * 18, -P.lado * 18, P.t / T); }
     else { z = P.zS - (P.grande ? 3.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
     { const yS = alturaTerreno(x, z); if (P.tapado > 0 || colisiones.some(c => !c.rampa && c.techo > yS + 2 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6)) P.tapado += dt; }   // (si se topa con una roca, se pierde tras ella: no la atraviesa)
@@ -5901,10 +5901,10 @@ function moverPaseantes(dt) {
     P.g.visible = op > 0.02; if (!P.g.visible) continue;
     { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < pos.y - 6) y = pos.y - 0.6;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
-      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
+      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2 * (P.huellas ? 1.5 : 1);   /* (el de las huellas: más bruma en las piernas) */ }
     P.g.rotation.y = P.huellas ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
     P.mix.update(dt);   // (anda de verdad: sus pasos van con lo que avanza)
-    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.huellas ? 0.34 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
+    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.huellas ? 0.27 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
   }
 }
 // Golems esfera: al acercarse Blizzard (por delante de ellos), cruzan rodando en diagonal a unos 5 m por delante,
