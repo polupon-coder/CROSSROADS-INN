@@ -4477,7 +4477,7 @@ let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, 
 const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEsp = { obj: null, pos: null, t: 1 };
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
-let atrasT = 0, alanteT = 0, vueltaCam = false, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
+let atrasT = 0, alanteT = 0, vueltaCam = false, vueltaP = 0, vueltaLado = 1, vueltaDesde = -9, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
 const INTRO_DURA = 8;
@@ -4634,10 +4634,13 @@ function actualizar(dt) {
   // Si corre hacia atrás (contra el recorrido) un momento, la cámara da la vuelta y le sigue; al volver a avanzar, vuelve.
   { const sp = Math.hypot(vel.x, vel.z), dv = sp > 0.01 ? (vel.x * c.fx + vel.z * c.fz) / sp : 0;
     atrasT = sp > 1.2 && dv < -0.4 ? atrasT + dt : Math.max(0, atrasT - dt * 2); alanteT = sp > 1.2 && dv > 0.4 ? alanteT + dt : Math.max(0, alanteT - dt * 2);
-    const antes = vueltaCam; if (estado !== "juego" || rescate) vueltaCam = false; else if (!vueltaCam && atrasT > 0.45) vueltaCam = true; else if (vueltaCam && alanteT > 0.45) vueltaCam = false;
-    if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; } }   // (mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
-  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + (vueltaCam ? Math.PI : 0);
-  { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (dif > 1 ? 2.4 : 1.2))); }
+    const antes = vueltaCam, puede = reloj - vueltaDesde > 1.5;   // (sin bandazos: entre una vuelta y otra, un respiro)
+    if (estado !== "juego" || rescate) vueltaCam = false; else if (puede && !vueltaCam && atrasT > 0.8) vueltaCam = true; else if (puede && vueltaCam && alanteT > 0.8) vueltaCam = false;
+    if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; vueltaDesde = reloj;
+      if (vueltaCam) vueltaLado = Math.sign(vel.x * c.fz - vel.z * c.fx) || vueltaLado; } }   // (gira por el lado hacia el que va; mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
+  vueltaP = clamp(vueltaP + (vueltaCam ? dt : -dt) / 1.8, 0, 1);   // (media vuelta en ~1,8 s, suave al empezar y al acabar)
+  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + Math.PI * vueltaLado * vueltaP * vueltaP * (3 - 2 * vueltaP);
+  { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (vueltaP > 0 && vueltaP < 1 ? 5 : dif > 1 ? 2.4 : 1.2))); }
   const adelante = new THREE.Vector3(-Math.sin(yawCamara), 0, -Math.cos(yawCamara));
   const derecha = new THREE.Vector3(-adelante.z, 0, adelante.x);
   if (!bloqueoControl) yawControl = yawCamara;
