@@ -1930,11 +1930,13 @@ function moverZonas(dt) {
     W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
     const dz = pos.z - W.g.position.z, dx = pos.x - x; if (!rescate && Math.abs(dz) < W.col.r + 0.6 && Math.abs(dx) < W.R * 0.9 && pos.y < W.g.position.y + W.R * 0.4) { pos.x += Math.sign(d || 1) * Math.abs(d) * 1.2; vel.x = Math.sign(d) * 3; }   /* (te arrastra si te pilla) */
   }
+  let sonHex = 0;
   for (const M of movHex) {
     const sobre = !rescate && enSuelo && Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r && Math.abs(pos.y - M.top) < 0.45;
     if (M.tipo === "fija") continue;
     if (M.tipo === "sube") {   // (sube y baja, a ratos deprisa y a ratos despacio)
       const f = 0.5 - 0.5 * Math.cos(relojMov * M.w + 1.3 * Math.sin(relojMov * M.w * 0.41 + M.ph) + M.ph), nuevo = M.base + M.A * f, d = nuevo - M.top;
+      if (dt > 0) sonHex = Math.max(sonHex, clamp(Math.abs(d) / dt / 2.2, 0, 1) * clamp(1 - Math.hypot(M.x - pos.x, M.z - pos.z) / 24, 0, 1));   // (suenan según lo deprisa que van y lo cerca)
       M.top = nuevo; M.col.techo = nuevo; if (sobre) pos.y += d; M.m.position.y = nuevo + M.off; continue;
     }
     if (M.fuera > 0) { M.fuera -= dt; if (M.fuera <= 0) { if (Math.hypot(pos.x - M.x, pos.z - M.z) < 3) M.fuera = 0.5; else { M.dy = 0; M.vy = 0; M.t = 0; colisiones.push(M.col); M.m.visible = true; if (M.hoyo) M.hoyo.visible = false; M.m.position.set(M.x, M.top + M.off, M.z); } } continue; }
@@ -1947,6 +1949,7 @@ function moverZonas(dt) {
           M.hoyo.add(pared, fondo); M.hoyo.position.set(M.x, alturaTerreno(M.x, M.z) + 0.05, M.z); M.hoyo.traverse(o => o.raycast = () => {}); scene.add(M.hoyo); } M.hoyo.visible = true; if (Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r + 0.3 && !rescate) { empezarRescate(); const z0 = PLATAFORMA6.z - 9; rescate.hacia = new THREE.Vector3(caminoX(z0), alturaTerreno(caminoX(z0), z0) + 0.6, z0); rescate.pozo = M; rescate.pt = 0; efectoEspiral = 0; } }   /* (cae del todo: el viento te lleva al principio de los hexágonos) */ M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top + M.off + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
     }
   }
+  musica.bucle("hex", sonHex * 0.45, 0.85 + sonHex * 0.3);   // (las rocas que suben y bajan: volumen y tono según su movimiento)
   if (pos.z < HIELO.desde + 40 && pos.z > HIELO.hasta - 60) for (const B of brumaLago) {   // (la bruma se desliza; el polvo va a ráfagas y se posa)
     if (!B.polvo) { B.f += dt * 0.35; B.m.position.x += B.vx * dt; const cx0 = caminoX(B.m.position.z); if (B.m.position.x > cx0 + 38) B.m.position.x -= 76; if (B.m.position.x < cx0 - 38) B.m.position.x += 76; const v = 0.5 + 0.5 * Math.sin(B.f); B.aparta = Math.max(0, (B.aparta || 0) - dt); const ap = B.aparta > 0 ? Math.max(0, 1 - Math.min(1, (5 - B.aparta) * 3)) + Math.max(0, 1 - B.aparta) : 1, dz = Math.abs(B.m.position.z - pos.z), cerca = Math.min(1, dz / 5), dentro = suave(HIELO.desde + 6, HIELO.desde - 4, pos.z); B.m.material.opacity = (B.y0 - losasHielo.y0 < 0.7 ? 0.7 + 0.25 * v : 0.35 + 0.2 * v) * Math.min(1, ap) * (0.5 + 0.5 * cerca) * dentro * Math.max(0, 1 - Math.max(0, dz - 28) / 18); const sc = B.m.userData.sc * (1 + 0.12 * Math.sin(B.f * 1.3)); B.m.scale.set(sc * 1.7, B.m.userData.alto * (1 + 0.15 * Math.sin(B.f * 0.9)), 1);   /* (espesa y ondeante, solo ya en el lago) */ B.m.position.y = B.y0 + 0.35 * Math.sin(B.f * 0.7); }   // (de lado, tapando a ratos tobillos, rodillas o cintura)
     if (B.polvo) { B.f += dt; const r = Math.max(0, Math.sin(B.f * 0.7)); B.m.material.opacity = 0.5 * r * r * (B.aparta > 0 ? 0 : 1) * suave(HIELO.desde + 6, HIELO.desde - 4, pos.z); B.aparta = Math.max(0, (B.aparta || 0) - dt); B.m.position.x = B.x0 + Math.sin(B.f * 0.35) * 14; B.m.position.y = losasHielo.y0 + 0.1 + r * 0.9; }
@@ -1969,7 +1972,7 @@ function moverZonas(dt) {
     else if (T.temblor) { T.temblor = false; T.im.setColorAt(T.i, _cH.setRGB(1, 1, 1)); T.im.instanceColor.needsUpdate = true; hieloMatriz(T); }
     if (T.t > 1.35) { if (!T.arrastrada) for (const O of losasHielo) if (O !== T && O.tipo === "hielo" && !O.cae && !(O.fuera > 0) && Math.hypot(O.x - T.x, O.z - T.z) < 2.3) { O.t = Math.max(O.t || 0, 1.3); O.arrastrada = true; }   /* (solo el anillo de al lado: sin cadena) */   // (se hunde la estrella entera)
       { let n = 0; for (const F of trozosHielo) if (F.t < 0 && n < 5) { n++; F.t = 0; F.g.visible = true; const a = n / 5 * 6.28 + Math.random() * 0.6; F.g.position.set(T.x + Math.cos(a) * 1.1, T.top - 0.1, T.z + Math.sin(a) * 1.1); F.g.rotation.set(0, Math.random() * 6, 0); F.giro.set(Math.sin(a) * 2.6, 0, -Math.cos(a) * 2.6); }   /* (se abren hacia fuera, como una flor) */ abrirHoyo(T); }   // (se parte en trozos que se ladean y se hunden)
-      T.cae = true; T.temblor = false; T.vy = 0; T.dy = 0; const i = colisiones.indexOf(T.col); if (i >= 0) colisiones.splice(i, 1); musica.viento(0.2, 1.4); }   // (se quiebra)
+      T.cae = true; T.temblor = false; T.vy = 0; T.dy = 0; const i = colisiones.indexOf(T.col); if (i >= 0) colisiones.splice(i, 1); musica.viento(0.2, 1.4); musica.golpe(0.5); }   // (se quiebra)
   }
   for (const F of trozosHielo) if (F.t >= 0) { F.t += dt; if (F.t < 0.9) { F.g.rotation.x += F.giro.x * dt * (1 - F.t); F.g.rotation.z += F.giro.z * dt * (1 - F.t); } F.g.position.y -= dt * (0.15 + F.t * F.t * 0.7); if (F.t > 3.5) { F.t = -1; F.g.visible = false; } }
   for (const G of grietasHielo) if (G.t >= 0) { G.t += dt; G.d.material.opacity = 0.4 * Math.min(1, G.t * 3) * (G.t > 5 ? Math.max(0, 1 - (G.t - 5)) : 1); if (G.t > 6) { G.t = -1; G.d.visible = false; } }
@@ -2009,6 +2012,7 @@ function moverBolas(dt) {
         P.rampa = { x: (A.x + B.x) / 2, z: (A.z + B.z) / 2, r: P.h / 2 + 1, techo: Math.max(A.y, B.y), rampa: { a: A, b: B, ancho: P.w * 0.42, corta: true } }; colisiones.push(P.rampa); } else P.rampa = true; }
   }
   const cx = caminoX(ACANT.cima), largo = ACANT.pie - ACANT.cima;
+  { let v = 0; for (const b of bolas) if (b.g.visible) v = Math.max(v, clamp(1 - b.g.position.distanceTo(pos) / 32, 0, 1)); musica.bucle("bolas", v * v * 0.6); }   // (las bolas suenan mientras ruedan, más cuanto más cerca)
   for (const b of bolas) {
     { const ic = colisiones.indexOf(b.col); if (ic >= 0) colisiones.splice(ic, 1); }   // (su cuerpo: solo mientras rueda)
     if (pos.z > ACANT.pie + 1.5) { b.g.visible = false; b.t = -0.5 - bolas.indexOf(b) * 3.6; continue; }   // (solo pasado el puente)
@@ -4226,7 +4230,8 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9, rodarB = null;
+  const bucles = new Map();
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4245,6 +4250,7 @@ const musica = (() => {
       fetch("musica/aviso-viento.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { avisoB = b; }).catch(() => {});
       fetch("musica/salto.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { saltoB = b; }).catch(() => {});
       fetch("musica/rocas.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rocasB = b; }).catch(() => {});
+      fetch("musica/rodar.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rodarB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4285,7 +4291,13 @@ const musica = (() => {
   function salto() { if (!ctx || !saltoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = saltoB; f.playbackRate.value = 0.97 + Math.random() * 0.06; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(); }
   // Piedra que se mueve (rocas que giran, caen o se alzan, puertas que se abren): un pequeño desprendimiento.
   function rocas(vol = 0.42) { if (!ctx || !rocasB || ctx.currentTime - rocasT < 0.25) return; rocasT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rocasB; f.playbackRate.value = 0.88 + Math.random() * 0.24; g.gain.value = vol; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas };
+  // El golpe de roca que se arrastra: suelto (el hielo que se hunde) o en bucle con volumen variable (las bolas
+  // mientras ruedan, las rocas que suben y bajan).
+  function golpe(vol = 0.5) { if (!ctx || !rodarB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.playbackRate.value = 0.9 + Math.random() * 0.2; g.gain.value = vol; f.connect(g).connect(ctx.destination); f.start(); }
+  function bucle(nombre, vol, ritmo = 1) { if (!ctx || !rodarB) return; let b = bucles.get(nombre);
+    if (!b) { if (vol <= 0.001) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.loop = true; g.gain.value = 0; f.connect(g).connect(ctx.destination); f.start(); b = { f, g, v: 0 }; bucles.set(nombre, b); }
+    if (Math.abs(vol - b.v) > 0.01) { b.v = vol; b.g.gain.setTargetAtTime(vol, ctx.currentTime, 0.2); } b.f.playbackRate.value = ritmo; }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas, golpe, bucle };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
