@@ -1912,8 +1912,8 @@ function moverChispas(dt) {
     if (C.cola[0].distanceToSquared(C.p) > 0.02 || C.paso > 0.05) { C.paso = 0; for (let i = C.cola.length - 1; i > 0; i--) C.cola[i].copy(C.cola[i - 1]); }
     C.cola[0].copy(C.p);
     const a = C.m.geometry.attributes.position.array, n = C.cola.length, k = C.abs < 0 ? 1 : 1 - C.abs;
-    for (let i = 0; i < n; i++) { const p = C.cola[i], w = 0.05 * k * Math.sin(Math.PI * Math.pow(i / (n - 1), 0.8)); a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6); }
-    C.m.geometry.attributes.position.needsUpdate = true; C.m.material.opacity = 0.45 * k;
+    for (let i = 0; i < n; i++) { const p = C.cola[i], w = 0.054 * k * Math.sin(Math.PI * Math.pow(i / (n - 1), 0.8)); a.set([p.x, p.y - w, p.z, p.x, p.y + w, p.z], i * 6); }
+    C.m.geometry.attributes.position.needsUpdate = true; C.m.material.opacity = 0.56 * k;   // (algo más brillantes)
   }
 }
 let relojMov = 0, seguroHielo = null; const _cH = new THREE.Color();
@@ -4334,6 +4334,7 @@ let abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, 
 const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEsp = { obj: null, pos: null, t: 1 };
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
 let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
+let atrasT = 0, alanteT = 0, vueltaCam = false, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
 const INTRO_DURA = 8;
@@ -4461,10 +4462,17 @@ function actualizar(dt) {
   if (giroMano) { giroCam += dt * 1.8 * giroMano; yawCamara += dt * 1.8 * giroMano; }
   else if (Math.hypot(vel.x, vel.z) > 0.3) giroCam *= Math.exp(-dt * 2.5);
   giroCam = Math.atan2(Math.sin(giroCam), Math.cos(giroCam));
-  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam;
-  yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * 1.2));
+  // Si corre hacia atrás (contra el recorrido) un momento, la cámara da la vuelta y le sigue; al volver a avanzar, vuelve.
+  { const sp = Math.hypot(vel.x, vel.z), dv = sp > 0.01 ? (vel.x * c.fx + vel.z * c.fz) / sp : 0;
+    atrasT = sp > 1.2 && dv < -0.4 ? atrasT + dt : Math.max(0, atrasT - dt * 2); alanteT = sp > 1.2 && dv > 0.4 ? alanteT + dt : Math.max(0, alanteT - dt * 2);
+    const antes = vueltaCam; if (estado !== "juego" || rescate) vueltaCam = false; else if (!vueltaCam && atrasT > 0.45) vueltaCam = true; else if (vueltaCam && alanteT > 0.45) vueltaCam = false;
+    if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; } }   // (mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
+  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + (vueltaCam ? Math.PI : 0);
+  { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (dif > 1 ? 2.4 : 1.2))); }
   const adelante = new THREE.Vector3(-Math.sin(yawCamara), 0, -Math.cos(yawCamara));
   const derecha = new THREE.Vector3(-adelante.z, 0, adelante.x);
+  if (!bloqueoControl) yawControl = yawCamara;
+  const adelanteC = new THREE.Vector3(-Math.sin(yawControl), 0, -Math.cos(yawControl)), derechaC = new THREE.Vector3(-adelanteC.z, 0, adelanteC.x);
 
   if (rescate) {
     // El viento lo lleva en una curva suave hasta el último punto seguro (lámina 29).
@@ -4536,7 +4544,8 @@ function actualizar(dt) {
     // Movimiento relativo a la cámara.
     const ix = clamp((tecla("KeyD", "ArrowRight") ? 1 : 0) - (tecla("KeyA", "ArrowLeft") ? 1 : 0) + joy.x, -1, 1);
     const iz = clamp((tecla("KeyW", "ArrowUp") ? 1 : 0) - (tecla("KeyS", "ArrowDown") ? 1 : 0) + joy.y, -1, 1);
-    const deseo = new THREE.Vector3().addScaledVector(adelante, iz).addScaledVector(derecha, ix);
+    if (!ix && !iz) { bloqueoControl = false; yawControl = yawCamara; }   // (al soltar, los mandos vuelven a ir con la cámara)
+    const deseo = new THREE.Vector3().addScaledVector(bloqueoControl ? adelanteC : adelante, iz).addScaledVector(bloqueoControl ? derechaC : derecha, ix);
     if (deseo.lengthSq() > 1) deseo.normalize();
     // Bajo un techo bajo se sigue agachado aunque se suelte la tecla, para no quedar dentro de la piedra.
     const bajoTecho = colisiones.some(c => c.bajo !== undefined && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.2 && pos.y < c.techo);
