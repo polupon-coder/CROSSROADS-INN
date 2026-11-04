@@ -3743,9 +3743,10 @@ function surcoEnNieve(x, z, rad, prof) {
   }
 }
 function moverRuedas(dt) {
+  let son = 0;
   for (const w of ruedas) {
     w.fase += dt; const x = w.cx + Math.sin(w.fase * 0.38) * 13, vx = (x - w.x) / Math.max(dt, 1e-4);
-    w.m.rotation.z -= (x - w.x) / w.R; w.x = x; w.vx = vx;
+    w.m.rotation.z -= (x - w.x) / w.R; w.x = x; w.vx = vx; son = Math.max(son, clamp(Math.abs(vx) / 4, 0.15, 1) * clamp(1 - Math.hypot(x - pos.x, w.z - pos.z) / 30, 0, 1));
     w.g.position.set(x, alturaTerreno(x, w.z) + w.R - 0.25, w.z);
     surcoEnNieve(x, w.z, 0.55, 0.85);                             // su surco en la nieve (se rellena despacio)
     // Empuje: Blizzard, al alcance del canto de la rueda, sale despedido hacia donde rueda.
@@ -3754,6 +3755,7 @@ function moverRuedas(dt) {
       pos.x = x + lado * w.R * 0.76; vel.x = lado * Math.max(4, Math.abs(vx) * 1.3);
     }
   }
+  musica.bucle("ruedas", son * son * 0.5, 0.8 + son * 0.25);   // (las ruedas de piedra: el arrastre de roca, según lo cerca y deprisa que van)
 }
 function animarPaso(dt) {
   moverRuedas(dt);
@@ -3780,13 +3782,16 @@ const ruedasAbismo = [-312.4, -315.2, -318, -320.8].map((z, i) => {
   return { g, z, cx, R, fase: i * 1.9, x: cx, grosor: t.z * k, huella: 0 };
 });
 function moverRuedasAbismo(dt) {
-  if (pos.z > RUEDAS_Z.desde + 40 || pos.z < RUEDAS_Z.hasta - 40) return;
+  if (pos.z > RUEDAS_Z.desde + 40 || pos.z < RUEDAS_Z.hasta - 40) { musica.bucle("ruedas2", 0); return; }
+  let son = 0;
   for (const W of ruedasAbismo) {
     const x = W.cx + 9.6 * Math.sin(relojMov * 0.62 + W.fase), d = x - W.x; W.x = x; W.g.position.x = x; W.g.rotation.z -= d / W.R;
+    if (dt > 0) son = Math.max(son, clamp(Math.abs(d) / dt / 5, 0.15, 1) * clamp(1 - Math.hypot(x - pos.x, W.z - pos.z) / 30, 0, 1));
     if ((W.huella += Math.abs(d)) > 0.5) { W.huella = 0; hundirNieve(x, W.z, 0.85); }   // (deja su surco en la nieve)
     if (!rescate && Math.abs(pos.z - W.z) < W.grosor / 2 + 0.45 && Math.abs(pos.x - x) < W.R * 0.85 && pos.y < W.g.position.y + W.R * 0.3) {
       const s = Math.sign(d || (pos.x - x) || 1); pos.x = x + s * W.R * 0.9; vel.x = s * 8; vel.y = Math.max(vel.y, 2.5); enSuelo = false; }   // (te lanza hacia la grieta)
   }
+  musica.bucle("ruedas2", son * son * 0.5, 0.8 + son * 0.25);
 }
 function hundirNieve(x, z, R) {
   for (const v of ventisqueros) {
