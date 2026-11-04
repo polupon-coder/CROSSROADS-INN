@@ -4101,7 +4101,7 @@ for (const b of ui.querySelectorAll(".boton")) {
 if (!tactil) ui.querySelector("#desarrollo").style.bottom = "22px";   // (en ordenador no hay botones: abajo del todo)
 const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
 // Al pulsar los botones del panel (portada, santuarios, idioma): la nota de piano con soplo, suave.
-portada.addEventListener("click", e => { if (!e.target.closest("button")) return; try { const a = new Audio("musica/nota-soplo.mp3"); a.volume = 0.35; a.play().catch(() => {}); } catch (err) {} });
+portada.addEventListener("click", e => { if (!e.target.closest("button")) return; try { const a = new Audio("musica/nota-soplo.mp3"); a.volume = 0.35; a.play().catch(() => {}); } catch (err) {} }, true);   // (en la captura: los botones paran la propagación)
 // El título en vídeo: si no carga, queda el texto; si el navegador no deja reproducirlo solo, se muestra su último fotograma.
 { const vt = portada.querySelector("video.titulo"); if (vt) { const ult = vt.querySelector("source:last-of-type"); if (ult) ult.addEventListener("error", () => vt.remove()); const fin = () => { if (isFinite(vt.duration)) vt.currentTime = vt.duration; };
   const pr = vt.play(); if (pr && pr.catch) pr.catch(() => { if (vt.readyState >= 1) fin(); else vt.addEventListener("loadedmetadata", fin, { once: true }); });
