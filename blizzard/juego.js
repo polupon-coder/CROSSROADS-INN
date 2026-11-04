@@ -5781,8 +5781,8 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 // Golems a lo lejos: siluetas en la niebla que pasan andando, lejos del camino (no se llega a ellos: si te acercas, se desvanecen).
 // Los grandes, muy lentos y más lejos; los pequeños, más cerca y más rápidos.
 const PASEANTES = [
-  { z: -30, lado: -1, d: 16, grande: true, dir: -1 }, { z: -125, lado: 1, d: 12, grande: false, dir: 1 },
-  { z: -650, lado: 1, d: 17, grande: true, dir: -1 }, { z: -880, lado: -1, d: 12, grande: false, dir: -1 },
+  { z: -650, lado: -1, d: 17, grande: true, dir: -1 }, { z: -880, lado: -1, d: 12, grande: false, dir: -1 },   /* (al principio, ninguno: aparecen ya avanzado el juego) */
+  { z: -1250, lado: 1, d: 12, grande: false, dir: -1 },
   { z: -1040, lado: -1, d: 17, grande: true, dir: 1 }, { z: -1365, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null; const _siluetaG = new THREE.Color(0x56606e);
 function moverPaseantes(dt) {
@@ -5807,13 +5807,13 @@ function moverPaseantes(dt) {
     P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
     P.zA = lerp(P.zA, pos.z - (P.grande ? 30 : 24), 1 - Math.exp(-dt * 0.6));
     const z = P.zA, x = caminoX(z) + lerp(x0, x1, P.t / T), dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = (P.grande ? 0.24 : 0.28) * Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(9, 15, dj);   // (aparece y se va en la niebla; de cerca, se desvanece)
+    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj);   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.01; if (!P.g.visible) continue;
     { let y = alturaTerreno(caminoX(z), z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (a la altura del camino: en lo alto de las laderas, borradas por la niebla, parecía que flotaban) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
     P.g.rotation.y = P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda: hacia el camino)
-    P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, 0.25); P.mix.update(dt);
+    P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, P.grande ? 0.13 : 0.16);   // (opaca, pero de un tono casi igual al de la niebla: apenas se percibe) P.mix.update(dt);
   }
 }
 function crearPiezaEd(it) {
