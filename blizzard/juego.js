@@ -5789,7 +5789,12 @@ function moverPaseantes(dt) {
   if (window.BLIZZARD_EDITOR) return;
   if (!paseantes) paseantes = PASEANTES.map(P => ({ ...P, g: null, t: Math.random() * 30 }));
   for (const P of paseantes) {
-    if (Math.abs(pos.z - P.z) > 75) { if (P.g) P.g.visible = false; continue; }
+    // Una aparición por visita: al acercarse a su zona, cruza despacio de un lado a otro por delante (a unos 25-30 m,
+    // siguiendo al jugador para no quedarse atrás en segundos) y se pierde en la niebla.
+    const dz = Math.abs(pos.z - P.z);
+    if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
+    if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - (P.grande ? 30 : 24); }
+    if (!P.activo) { if (P.g) P.g.visible = false; continue; }
     if (!P.g) { const GA = P.grande ? gGolemGrande : gGolemAnim, d = clonarConEsqueleto(GA.scene), t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3());
       P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 };
       P.mat.onBeforeCompile = sh => { sh.uniforms.uBase = P.uBase; sh.uniforms.uAlto = P.uAlto;   // (las piernas se pierden en la bruma baja: no parece que floten)
@@ -5798,13 +5803,16 @@ function moverPaseantes(dt) {
       d.traverse(o => { if (o.isMesh) { o.material = P.mat; o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.raycast = () => {}; } });
       P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 10 : 5) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
       P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.45 : 1.2; A.play(); }
-    const L = P.grande ? 50 : 40, v = P.grande ? 0.7 : 2.2; P.t += dt; const s = (P.t * v) % L, k = s / L;
-    const z = P.z + P.dir * (s - L / 2), x = caminoX(z) + P.lado * P.d, dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = (P.grande ? 0.24 : 0.28) * Math.min(1, k * 6, (1 - k) * 6) * suave(9, 15, dj);   // (aparece y se va en la niebla; de cerca, se desvanece)
+    const x0 = P.lado * (P.grande ? 26 : 24), x1 = P.lado * (P.grande ? 9 : 6), T = Math.abs(x1 - x0) / (P.grande ? 0.65 : 1.6);   // (los grandes, muy lentos: unos 26 s; los pequeños, unos 11 s)
+    P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
+    P.zA = lerp(P.zA, pos.z - (P.grande ? 30 : 24), 1 - Math.exp(-dt * 0.6));
+    const z = P.zA, x = caminoX(z) + lerp(x0, x1, P.t / T), dj = Math.hypot(x - pos.x, z - pos.z);
+    const op = (P.grande ? 0.24 : 0.28) * Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(9, 15, dj);   // (aparece y se va en la niebla; de cerca, se desvanece)
     P.g.visible = op > 0.01; if (!P.g.visible) continue;
     { let y = alturaTerreno(caminoX(z), z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (a la altura del camino: en lo alto de las laderas, borradas por la niebla, parecía que flotaban) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
-      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }   // (sobre el agua del lago o un abismo, a la altura del camino) P.g.rotation.y = P.dir > 0 ? 0 : Math.PI;
+      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
+    P.g.rotation.y = P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda: hacia el camino)
     P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, 0.25); P.mix.update(dt);
   }
 }
