@@ -5781,9 +5781,9 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 // Golems a lo lejos: siluetas en la niebla que pasan andando, lejos del camino (no se llega a ellos: si te acercas, se desvanecen).
 // Los grandes, muy lentos y más lejos; los pequeños, más cerca y más rápidos.
 const PASEANTES = [
-  { z: -30, lado: -1, d: 26, grande: true, dir: -1 }, { z: -125, lado: 1, d: 20, grande: false, dir: 1 },
-  { z: -650, lado: 1, d: 27, grande: true, dir: -1 }, { z: -880, lado: -1, d: 20, grande: false, dir: -1 },
-  { z: -1040, lado: -1, d: 27, grande: true, dir: 1 }, { z: -1365, lado: 1, d: 44, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
+  { z: -30, lado: -1, d: 21, grande: true, dir: -1 }, { z: -125, lado: 1, d: 16, grande: false, dir: 1 },
+  { z: -650, lado: 1, d: 22, grande: true, dir: -1 }, { z: -880, lado: -1, d: 16, grande: false, dir: -1 },
+  { z: -1040, lado: -1, d: 22, grande: true, dir: 1 }, { z: -1365, lado: 1, d: 34, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null; const _siluetaG = new THREE.Color(0x56606e);
 function moverPaseantes(dt) {
   if (window.BLIZZARD_EDITOR) return;
@@ -5796,16 +5796,16 @@ function moverPaseantes(dt) {
         sh.vertexShader = "varying float vSilY;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vSilY = (modelMatrix * vec4(transformed, 1.0)).y;");
         sh.fragmentShader = "varying float vSilY; uniform float uBase, uAlto;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= smoothstep(uBase + uAlto * 0.05, uBase + uAlto * 0.5, vSilY);"); };
       d.traverse(o => { if (o.isMesh) { o.material = P.mat; o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.raycast = () => {}; } });
-      P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 6.4 : 3.2) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
+      P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 7.7 : 3.8) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
       P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 0.45 : 1.2; A.play(); }
     const L = P.grande ? 50 : 40, v = P.grande ? 0.7 : 2.2; P.t += dt; const s = (P.t * v) % L, k = s / L;
     const z = P.z + P.dir * (s - L / 2), x = caminoX(z) + P.lado * P.d, dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = (P.grande ? 0.62 : 0.66) * Math.min(1, k * 6, (1 - k) * 6) * suave(16, 26, dj);   // (aparece y se va en la niebla; de cerca, se desvanece)
+    const op = (P.grande ? 0.36 : 0.4) * Math.min(1, k * 6, (1 - k) * 6) * suave(12, 20, dj);   // (aparece y se va en la niebla; de cerca, se desvanece)
     P.g.visible = op > 0.01; if (!P.g.visible) continue;
     { let y = alturaTerreno(caminoX(z), z); if (y < pos.y - 6) y = pos.y - 0.6;   /* (a la altura del camino: en lo alto de las laderas, borradas por la niebla, parecía que flotaban) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
-      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 6.4 : 3.2) * k2; }   // (sobre el agua del lago o un abismo, a la altura del camino) P.g.rotation.y = P.dir > 0 ? 0 : Math.PI;
-    P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, 0.5); P.mix.update(dt);
+      P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 7.7 : 3.8) * k2; }   // (sobre el agua del lago o un abismo, a la altura del camino) P.g.rotation.y = P.dir > 0 ? 0 : Math.PI;
+    P.mat.opacity = op; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, 0.35); P.mix.update(dt);
   }
 }
 function crearPiezaEd(it) {
