@@ -5087,6 +5087,16 @@ function actualizar(dt) {
       if (k - 0.07 <= 0.3) ojo.copy(q);
     }
   }
+  // Que no se pierda a Blizzard tras una roca, una puerta o una pieza alta: si algo se interpone entre los dos
+  // (girada a mano, o con la cámara metida dentro de algo), la cámara se acerca hasta quedar delante.
+  { const cabeza = _camQ.set(pos.x, pos.y + 1.4, pos.z), d = _camD.copy(ojo).sub(cabeza), L2 = d.x * d.x + d.z * d.z;
+    const dentro = colisiones.some(c => !c.rampa && c.bajo === undefined && c.techo > ojo.y - 0.3 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.3);
+    if ((Math.abs(giroCam) > 0.05 || dentro) && L2 > 0.01) { let tMin = 1;
+      for (const c of colisiones) { if (c.rampa || c.bajo !== undefined) continue; const fx = cabeza.x - c.x, fz = cabeza.z - c.z, R = c.r + 0.35;
+        if (fx * fx + fz * fz < R * R) continue;   // (si Blizzard está junto a ella, no cuenta)
+        const bq = 2 * (fx * d.x + fz * d.z), cq = fx * fx + fz * fz - R * R, disc = bq * bq - 4 * L2 * cq; if (disc < 0) continue;
+        const t = (-bq - Math.sqrt(disc)) / (2 * L2); if (t > 0 && t < tMin && c.techo > cabeza.y + d.y * t - 0.2) tMin = t; }
+      if (tMin < 1) ojo.copy(cabeza).addScaledVector(d, Math.max(0.22, tMin - 0.06)); } }
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
   for (const c of colisiones) if (c.bajo !== undefined && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
@@ -5753,7 +5763,7 @@ function crearTrazoEd(it, g) {
     const anillo = new THREE.RingGeometry(r * 0.94, r, 40); anillo.rotateX(-Math.PI / 2); const ma = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, depthTest: false, side: THREE.DoubleSide });
     pts.forEach(([x, y, z], k) => { if (k % 2 && k !== pts.length - 1) return; const m = new THREE.Mesh(anillo, ma); m.position.set(x, alto(x, z, y), z); m.renderOrder = 998; g.add(m); });
   }
-  if (clase === "acumulada") { g.userData.ventis = []; for (const [x, y, z] of pts) { const v = ventisquero(x, z, 2 * r, 2 * r, 0.12 + 0.5 * I, null, true, sobrePieza(x, y, z) ? y : null); if (v) { scene.remove(v.malla); g.add(v.malla); g.userData.ventis.push(v); } } }
+  if (clase === "acumulada") { g.userData.ventis = []; for (const [x, y, z] of pts) { const v = ventisquero(x, z, 2.4 * r, 2.4 * r,   /* (un 20 % más de superficie que lo pintado) */ 0.12 + 0.5 * I, null, true, sobrePieza(x, y, z) ? y : null); if (v) { scene.remove(v.malla); g.add(v.malla); g.userData.ventis.push(v); } } }
   else if (clase === "nieve" || clase === "espolvoreada") {
     const mat = clase === "nieve" ? new THREE.MeshStandardMaterial({ map: texNieveEd, color: 0xeef2f8, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, opacity: 0.35 + 0.65 * I })
       : new THREE.MeshStandardMaterial({ map: texPolvoEd, color: 0xf2f5fa, emissive: 0x3a3a48, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, opacity: 0.2 + 0.7 * I });
@@ -5832,6 +5842,20 @@ function moverPaseantes(dt) {
 // Golems esfera: al acercarse Blizzard (por delante de ellos), cruzan rodando en diagonal a unos 5 m por delante,
 // dejan surco en la nieve acumulada y se pierden: no vuelven a aparecer.
 const _ejeE = new THREE.Vector3(), _qE = new THREE.Quaternion();
+// Su surco en la nieve: una franja continua del tono de las huellas, de bordes suaves y grosor cambiante (se queda).
+const matSurcoE = (() => { const c = document.createElement("canvas"); c.width = 64; c.height = 4; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 64, 0);
+  g.addColorStop(0, "#000"); g.addColorStop(0.22, "#666"); g.addColorStop(0.5, "#fff"); g.addColorStop(0.78, "#666"); g.addColorStop(1, "#000"); x.fillStyle = g; x.fillRect(0, 0, 64, 4);
+  return new THREE.MeshBasicMaterial({ color: "#5f7192", alphaMap: new THREE.CanvasTexture(c), transparent: true, opacity: 0.34, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 }); })();
+function surcoEsfera(E) {
+  if (!E.surco) { const N = 200, geo = new THREE.BufferGeometry(), ix = []; geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3)); const uv = new Float32Array(N * 4);
+    for (let i = 0; i < N; i++) uv.set([0, i * 0.1, 1, i * 0.1], i * 4); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    for (let i = 0; i < N - 1; i++) ix.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2); geo.setIndex(ix); geo.setDrawRange(0, 0);
+    const m = new THREE.Mesh(geo, matSurcoE); m.frustumCulled = false; m.renderOrder = 2; m.raycast = () => {}; scene.add(m); E.surco = { m, n: 0, N, fase: Math.random() * 6 }; }
+  const S = E.surco; if (S.n >= S.N) return; const g = E.g, x = g.position.x, z = g.position.z, y = alturaTerreno(x, z) + 0.035, s = S.n * 0.3;
+  const w = E.R * (0.62 + 0.22 * Math.sin(s * 0.9 + S.fase) + 0.12 * Math.sin(s * 2.3 + S.fase * 2)) * Math.min(1, (S.n + 1) / 4), px = -E.dir.z * w, pz = E.dir.x * w;   // (grosor que va cambiando)
+  S.m.geometry.attributes.position.array.set([x + px, y, z + pz, x - px, y, z - pz], S.n * 6); S.m.geometry.attributes.position.needsUpdate = true; S.n++;
+  if (S.n > 1) S.m.geometry.setDrawRange(0, (S.n - 1) * 6);
+}
 let esferasRepartidas = false;
 function recorridoLibre(E, d, maxL) {   // metros que puede rodar en esa dirección sin chocar con nada, sin simas ni escalones bruscos
   let x = E.g.position.x, z = E.g.position.z, y = alturaSuelo(x, z), L = 0;
@@ -5852,8 +5876,13 @@ function repartirEsferas() {   // unas 6 por tramo entre santuarios, a un lado d
     for (let i = 0; i < 6; i++) {
       for (let t = 0; t < 40; t++) { const ancho = t < 20, z = zA - paso * (i + 0.5) + (rE() - 0.5) * paso * 0.8, lado = (i + k + t) % 2 ? 1 : -1, cx = caminoX(z), x = cx + lado * (ancho ? 5 + rE() * 5 : 3 + rE() * 2.5), yC = alturaSuelo(cx, z);   /* (si no hay sitio, algo más cerca del camino) */
         if (yC < -5 || !abierto(x, z, yC, ancho ? 3 : 1.8)) continue;
-        crearPiezaEd({ id: "esf" + k + "_" + i, tipo: "objeto", modelo: "gltf:roca_brillante", p: [x, alturaSuelo(x, z) - 0.2, z], r: [0, rE() * 360, -30], s: [0.698, 0.698, 0.698] }); break; }
+        const { g } = crearPiezaEd({ id: "esf" + k + "_" + i, tipo: "objeto", modelo: "gltf:roca_brillante", p: [x, alturaSuelo(x, z) - 0.2, z], r: [0, rE() * 360, -30], s: [0.698, 0.698, 0.698] });
+        if (g) g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setRGB(1.5, 1.52, 1.58); } });   // (las repartidas, de tono más claro)
+        break; }
     } });
+  // Nieve acumulada donde ruedan: unos montones desde cada bola hacia el camino (por donde cruzan), para que dejen su surco hundido.
+  for (const E of esferasEd) { const x0 = E.g.position.x, z0 = E.g.position.z, cx = caminoX(z0), s = Math.abs(cx - x0) > 0.8 ? Math.sign(cx - x0) : (rE() < 0.5 ? 1 : -1);
+    for (const k of [2.6, 5.8, 9]) { const x = x0 + s * k + (rE() - 0.5), z = z0 - k * 0.5 + (rE() - 0.5); if (alturaSuelo(x, z) < -5) continue; ventisquero(x, z, 4.8 + rE() * 1.6, 4.8 + rE() * 1.6, 0.3 + rE() * 0.15, null, true); } }
 }
 function moverEsferas(dt) {
   if (!esferasRepartidas && escenaLista && !window.BLIZZARD_EDITOR) { esferasRepartidas = true; repartirEsferas(); }
@@ -5867,22 +5896,26 @@ function moverEsferas(dt) {
       const quiere = Math.abs(g.position.x - cx) * (lado * (g.position.x - cx) > 0 ? 1 : -1) + 14, base = Math.atan2(-0.62, -lado);
       let mejor = null, dM = 0; for (const da of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8]) { const a = base + da, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)); if (d.z > 0.2) continue; const L = recorridoLibre(E, d, quiere / Math.max(0.3, Math.abs(d.x))); if (L > dM + 0.5) { dM = L; mejor = d; } }
       if (!mejor || dM < 5) { E.estado = 3; continue; }   // (sin paso libre: se queda quieto, como una roca más)
-      E.dir = mejor; E.largo = dM; E.recorrido = 0; E.estado = 1; E.t = 0; E.v = 4.5 + Math.random() * 1.5; E.va = 0; E.y = g.position.y;
-      const k = colisiones.indexOf(E.col); if (k >= 0) colisiones.splice(k, 1); musica.rocas(0.5);
+      { g.updateMatrixWorld(true); const cW = cajaReal(g).getCenter(new THREE.Vector3()), cL = cW.clone().applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert());   // (gira sobre su centro: sobre la base daba botes)
+        g.children.forEach(ch => ch.position.sub(cL)); g.position.copy(cW); g.updateMatrixWorld(true); E.y0 = g.position.y - alturaSuelo(g.position.x, g.position.z); }
+      E.dir = mejor; E.largo = dM; E.recorrido = 0; E.estado = 1; E.t = 0; E.v = 4.5 + Math.random() * 1.5; E.va = 0; E.y = g.position.y; E.son2 = false;
+      const k = colisiones.indexOf(E.col); if (k >= 0) colisiones.splice(k, 1); musica.rocas(0.28);
     }
-    E.t += dt; if (E.t < E.retraso) continue;
+    E.t += dt; if (!E.son2 && E.t > E.retraso + 1.1) { E.son2 = true; musica.rocas(0.13); }   // (un segundo golpe, más suave: ya se alejan)
+    if (E.t < E.retraso) continue;
     E.va = Math.min(E.v, E.va + dt * 3.5);   // (arranca poco a poco: sin tirones)
     const paso = Math.min(E.va * dt, E.largo - E.recorrido); E.recorrido += paso;
     g.position.x += E.dir.x * paso; g.position.z += E.dir.z * paso;
     { const sup = alturaSuelo(g.position.x, g.position.z) + E.y0; E.y = Math.max(lerp(E.y, sup, 1 - Math.exp(-dt * 3)), sup - 0.04); g.position.y = E.y; }   // (la altura, suavizada, pero nunca por debajo del suelo: no se mete en las cuestas)
     _ejeE.set(E.dir.z, 0, -E.dir.x); g.quaternion.premultiply(_qE.setFromAxisAngle(_ejeE, paso / Math.max(E.R, 0.2)));   // (rueda hacia donde va)
+    if ((E.surcoD = (E.surcoD || 0) + paso) > 0.3) { E.surcoD = 0; surcoEsfera(E); }   // (surco continuo también en la nieve normal)
     if ((E.huella += paso) > 0.4) { E.huella = 0; hundirNieve(g.position.x, g.position.z, E.R * 0.9); }   // (su surco en la nieve acumulada: tan ancho como la esfera)
     const dj = Math.hypot(g.position.x - pos.x, g.position.z - pos.z); son = Math.max(son, clamp(1 - dj / 25, 0, 1));
     if (!rescate && dj < E.R + 0.4 && pos.y < g.position.y + E.R) { const nx = (pos.x - g.position.x) / (dj || 1), nz = (pos.z - g.position.z) / (dj || 1); vel.x = nx * 7 + E.dir.x * 4; vel.z = nz * 7 + E.dir.z * 4; vel.y = Math.max(vel.y, 3); enSuelo = false; }   // (si lo pilla, lo aparta)
     const fin = E.largo - E.recorrido; if (fin < 4) g.scale.setScalar(g.scale.x * (1 - dt * 1.5));   // (al final se pierde en la niebla)
     if (fin <= 0.01) { E.estado = 2; g.visible = false; }
   }
-  musica.bucle("esferas", son * son * 0.5, 1.1);
+  musica.bucle("esferas", son * son * 0.28, 1);   // (rodar continuo y suave)
 }
 function crearPiezaEd(it) {
   if (it.tipo === "trazo") { const g = new THREE.Group(); crearTrazoEd(it, g); g.position.fromArray(it.p || [0, 0, 0]); g.userData.trazo = true; scene.add(g); g.updateMatrixWorld(true); return { g, col: null }; }
