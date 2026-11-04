@@ -4906,7 +4906,7 @@ function actualizar(dt) {
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
-    { const d = ui.querySelector("#desarrollo"), ver = pos.z < PLATAFORMA6.z - 6; if (d.hidden === ver) d.hidden = !ver; }   // (desde el Santuario de la revelación: lo que sigue, a medio hacer)
+    { const d = ui.querySelector("#desarrollo"), ver = pos.z < HIELO.desde + 10; if (d.hidden === ver) d.hidden = !ver; }   // (solo en la zona de hielo: lo que sigue, a medio hacer)
     if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a los lados la bola de salto\npara girar la cámara." : "V y B giran la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
@@ -5899,7 +5899,7 @@ function moverPaseantes(dt) {
     const dj = Math.hypot(x - pos.x, z - pos.z);
     const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - (P.huellas ? suave(30, 62, dj) : suave(16, 46, dj))) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.02; if (!P.g.visible) continue;
-    { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < pos.y - 6) y = pos.y - 0.6;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
+    { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < -5) y = P.yS ?? pos.y - 0.6;   /* (sin suelo: la altura de antes; antes saltaba a la del jugador en las hondonadas) */ P.yS = P.yS === undefined || P.t <= dt * 1.01 ? y : lerp(P.yS, y, 1 - Math.exp(-dt * 3)); y = P.yS;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2 * (P.huellas ? 1.5 : 1);   /* (el de las huellas: más bruma en las piernas) */ }
     P.g.rotation.y = P.huellas ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
