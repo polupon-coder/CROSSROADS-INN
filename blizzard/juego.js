@@ -1993,7 +1993,7 @@ function moverBolas(dt) {
   // espiral que se abre y lo aparta todo; las pilastras de alrededor de su plataforma caen.
   if (onda && estado === "juego" && enSuelo && !llevando && teclas.has("KeyE") && ondaT < 0) {
     cargaOnda += dt; espiralEn = _espOnda.set(pos.x, pos.y + 0.9, pos.z); espiralTam = { r: 0.6 + cargaOnda * 0.5, alto: 1.6 }; efectoEspiral = Math.max(efectoEspiral, 0.4 + cargaOnda * 0.5);
-    if (cargaOnda > 1.1) { ondaT = 0; cargaOnda = 0; musica.viento(0.6, 0.5); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
+    if (cargaOnda > 1.1) { ondaT = 0; cargaOnda = 0; musica.viento(0.6, 0.5, 0.18); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
   } else if (!teclas.has("KeyE")) cargaOnda = 0;
   if (ondaT >= 0) {
     ondaT += dt; const r = 1 + ondaT * 14.5;
@@ -2015,7 +2015,7 @@ function moverBolas(dt) {
   { let v = 0; for (const b of bolas) if (b.g.visible) v = Math.max(v, clamp(1 - b.g.position.distanceTo(pos) / 32, 0, 1)); musica.bucle("bolas", v * v * 0.6); }   // (las bolas suenan mientras ruedan, más cuanto más cerca)
   for (const b of bolas) {
     { const ic = colisiones.indexOf(b.col); if (ic >= 0) colisiones.splice(ic, 1); }   // (su cuerpo: solo mientras rueda)
-    if (pos.z > ACANT.pie + 1.5) { b.g.visible = false; b.t = -0.5 - bolas.indexOf(b) * 3.6; continue; }   // (solo pasado el puente)
+    if (pos.z > ACANT.pie + 1.5 || pos.z < ACANT.cima - 3) { b.g.visible = false; b.t = -0.5 - bolas.indexOf(b) * 3.6; continue; }   // (solo pasado el puente, mientras se sube la escalera: arriba no ruedan ni suenan)
     b.t += dt; if (b.t < 0) { b.g.visible = false; continue; }
     const z = ACANT.cima - 0.5 + b.t * 5.5; if (z > ACANT.pie + 0.5) { b.t = -1e9; b.g.visible = false; continue; }   // (solo dos: pasan una vez cada una)   // (entre bola y bola, tiempo para subir un tramo)   // (al pie se deshace en la nieve)
     b.g.visible = true; const y = Math.max(alturaTerreno(cx, z), rampaY(z));
@@ -4101,7 +4101,8 @@ for (const b of ui.querySelectorAll(".boton")) {
 if (!tactil) ui.querySelector("#desarrollo").style.bottom = "22px";   // (en ordenador no hay botones: abajo del todo)
 const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo"), ayuda = ui.querySelector("#ayuda"), cerrar = ui.querySelector("#cerrar");
 // Al pulsar los botones del panel (portada, santuarios, idioma): la nota de piano con soplo, suave.
-portada.addEventListener("click", e => { if (!e.target.closest("button")) return; try { const a = new Audio("musica/nota-soplo.mp3"); a.volume = 0.35; a.play().catch(() => {}); } catch (err) {} }, true);   // (en la captura: los botones paran la propagación)
+const sonBoton = new Audio("musica/nota-soplo.mp3"); sonBoton.preload = "auto"; sonBoton.volume = 0.35;   // (cargada de antemano: suena al instante)
+portada.addEventListener("click", e => { if (!e.target.closest("button")) return; try { sonBoton.currentTime = 0; sonBoton.play().catch(() => {}); } catch (err) {} }, true);   // (en la captura: los botones paran la propagación)
 // El título en vídeo: si no carga, queda el texto; si el navegador no deja reproducirlo solo, se muestra su último fotograma.
 { const vt = portada.querySelector("video.titulo"); if (vt) { const ult = vt.querySelector("source:last-of-type"); if (ult) ult.addEventListener("error", () => vt.remove()); const fin = () => { if (isFinite(vt.duration)) vt.currentTime = vt.duration; };
   const pr = vt.play(); if (pr && pr.catch) pr.catch(() => { if (vt.readyState >= 1) fin(); else vt.addEventListener("loadedmetadata", fin, { once: true }); });
@@ -4274,12 +4275,12 @@ const musica = (() => {
     } catch (e) { ctx = null; }
   }
   // Ráfaga de viento suave para la magia: volumen bajo, a veces algo más corta y aguda.
-  function viento(volumen = 0.3, ritmoRafaga = 1) {
+  function viento(volumen = 0.3, ritmoRafaga = 1, desde = 0) {
     if (!ctx || !rafaga) return;
     const f = ctx.createBufferSource(), g = ctx.createGain();
     f.buffer = rafaga; f.playbackRate.value = ritmoRafaga * (0.95 + Math.random() * 0.1);
     g.gain.value = volumen;
-    f.connect(g).connect(ctx.destination); f.start();
+    f.connect(g).connect(ctx.destination); f.start(0, desde);   // (desde: saltarse la subida de la ráfaga, para que se oiga al instante)
   }
   // Una canción por tramo: del inicio al bastón, la de siempre; luego una distinta entre cada dos santuarios,
   // y otra en la cueva. Al cambiar de tramo, una se apaga despacio mientras entra la siguiente.
