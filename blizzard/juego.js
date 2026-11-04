@@ -1941,7 +1941,7 @@ function moverZonas(dt) {
     if (M.t > 0 || sobre) {   // (al pisarlo tiembla y cae)
       M.t += dt;
       if (M.t < 0.5) M.m.position.x = M.x + (Math.random() - 0.5) * 0.1;
-      else { if (M.vy === 0) { const i = colisiones.indexOf(M.col); if (i >= 0) colisiones.splice(i, 1); if (!M.hoyo) { const rr = M.col.r * 1.2, g = new THREE.CylinderGeometry(rr, rr * 0.8, 7, 9, 6, true), P = g.attributes.position, c = new Float32Array(P.count * 3), arriba = new THREE.Color(0xb7c4d6), abajo = new THREE.Color(0x3a4558), k = new THREE.Color();   // (un pozo: la pared se oscurece al bajar)
+      else { if (M.vy === 0) { musica.rocas(0.45); const i = colisiones.indexOf(M.col); if (i >= 0) colisiones.splice(i, 1); if (!M.hoyo) { const rr = M.col.r * 1.2, g = new THREE.CylinderGeometry(rr, rr * 0.8, 7, 9, 6, true), P = g.attributes.position, c = new Float32Array(P.count * 3), arriba = new THREE.Color(0xb7c4d6), abajo = new THREE.Color(0x3a4558), k = new THREE.Color();   // (un pozo: la pared se oscurece al bajar)
           for (let i = 0; i < P.count; i++) { k.lerpColors(abajo, arriba, Math.pow((P.getY(i) + 3.5) / 7, 1.6)); c.set([k.r, k.g, k.b], i * 3); } g.setAttribute("color", new THREE.BufferAttribute(c, 3));
           M.hoyo = new THREE.Group(); const pared = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })); pared.position.y = -3.5; const fondo = new THREE.Mesh(new THREE.CircleGeometry(rr * 0.8, 9), new THREE.MeshBasicMaterial({ color: 0x3a4558 })); fondo.rotation.x = -Math.PI / 2; fondo.position.y = -6.98;
           M.hoyo.add(pared, fondo); M.hoyo.position.set(M.x, alturaTerreno(M.x, M.z) + 0.05, M.z); M.hoyo.traverse(o => o.raycast = () => {}); scene.add(M.hoyo); } M.hoyo.visible = true; if (Math.hypot(pos.x - M.x, pos.z - M.z) < M.col.r + 0.3 && !rescate) { empezarRescate(); const z0 = PLATAFORMA6.z - 9; rescate.hacia = new THREE.Vector3(caminoX(z0), alturaTerreno(caminoX(z0), z0) + 0.6, z0); rescate.pozo = M; rescate.pt = 0; efectoEspiral = 0; } }   /* (cae del todo: el viento te lleva al principio de los hexágonos) */ M.vy += 14 * dt; M.dy -= M.vy * dt; M.m.position.set(M.x, M.top + M.off + M.dy, M.z); if (M.dy < -30) { M.m.visible = false; M.fuera = 4; } }
@@ -1996,7 +1996,7 @@ function moverBolas(dt) {
     ondaT += dt; const r = 1 + ondaT * 14.5;
     espiralEn = _espOnda.set(pos.x, pos.y + 0.5, pos.z); espiralTam = { r, alto: 0.9 }; efectoEspiral = Math.max(efectoEspiral, 1.2 - ondaT * 0.6);
     nieblaLago.aparta = 3; nieblaLago.u.centro.value.copy(pos);   // (la onda aparta la niebla: se ve por dónde sigue el camino)
-    for (const P of pilastrasOnda) if (P.t < 0 && Math.hypot(P.piv.position.x - pos.x, P.piv.position.z - pos.z) < r) { P.t = 0; const i = P.cae ? colisiones.indexOf(P.col) : -1; if (i >= 0) colisiones.splice(i, 1); }
+    for (const P of pilastrasOnda) if (P.t < 0 && Math.hypot(P.piv.position.x - pos.x, P.piv.position.z - pos.z) < r) { P.t = 0; if (P.cae) musica.rocas(0.5); const i = P.cae ? colisiones.indexOf(P.col) : -1; if (i >= 0) colisiones.splice(i, 1); }
     for (let k = 0; k < nieblaOnda.length; k++) { const n = nieblaOnda[k], a = k / nieblaOnda.length * Math.PI * 2 + ondaT * 0.6; n.visible = true; n.position.set(pos.x + Math.cos(a) * r * 0.85, pos.y + 0.8, pos.z + Math.sin(a) * r * 0.85); n.scale.setScalar(3 + r * 0.5); n.material.opacity = 0.55 * (1 - suave(0.3, 1.6, ondaT)); }
     if (ondaT > 1.0) { ondaT = -1; for (const n of nieblaOnda) n.visible = false; }
   }
@@ -4226,7 +4226,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4244,6 +4244,7 @@ const musica = (() => {
       fetch("musica/nota-soplo.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { soploB = b; }).catch(() => {});
       fetch("musica/aviso-viento.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { avisoB = b; }).catch(() => {});
       fetch("musica/salto.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { saltoB = b; }).catch(() => {});
+      fetch("musica/rocas.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rocasB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4282,7 +4283,9 @@ const musica = (() => {
   function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(ctx.destination); f.start(); }
   // El contrabajo, flojito, en cada salto normal.
   function salto() { if (!ctx || !saltoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = saltoB; f.playbackRate.value = 0.97 + Math.random() * 0.06; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto };
+  // Piedra que se mueve (rocas que giran, caen o se alzan, puertas que se abren): un pequeño desprendimiento.
+  function rocas(vol = 0.42) { if (!ctx || !rocasB || ctx.currentTime - rocasT < 0.25) return; rocasT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rocasB; f.playbackRate.value = 0.88 + Math.random() * 0.24; g.gain.value = vol; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4636,7 +4639,7 @@ function actualizar(dt) {
       rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 2.5);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && reloj - ultimoAgachado <= 1.5 && puertaArcana.t < 0 && abrePuertas && Math.hypot(pos.x - PLATAFORMA3.x, pos.z - PLATAFORMA3.z) < PLATAFORMA3.r + 0.3 && pos.y > PLATAFORMA3.base) {
       // Abrir la puerta arcana, desde la plataforma: el viento entra por la junta y aparta las dos hojas.
-      puertaArcana.t = 0; rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
+      puertaArcana.t = 0; musica.rocas(0.55); rumbo = Math.atan2(puertaArcana.x - pos.x, puertaArcana.z - pos.z);
       vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.45, 0.7);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && barre && pos.z < DUNAS2.desde + 1 && pos.z > DUNAS2.hasta - 2 && (agachado || reloj - ultimoAgachado <= 1.5)) {
       // En los pozos de nieve: el barrido descubre las losas del paso firme de delante.
@@ -4648,18 +4651,18 @@ function actualizar(dt) {
       if (!barre) rotular("Un monolito cubierto de nieve.\nAprende el barrido en la plataforma.", 3.5);
       else if (!(agachado || reloj - ultimoAgachado <= 1.5)) rotular(tactil ? "Agáchate y pulsa ◇." : "Agáchate (C) y pulsa E.", 3);
       else {
-        puzle.barrer(c); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
+        puzle.barrer(c); musica.rocas(0.35); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.9; musica.viento(0.4, 0.8);
         espiralEn = new THREE.Vector3(c.x, pos.y + 1, c.z); espiralTam = { r: 0.9, alto: 2.4 }; efectoEspiral = Math.max(efectoEspiral, 1);
         if (!avisoCilindros) { avisoCilindros = true; rotular("Cada monolito guarda la runa de una piedra de la columna:\nI, la de arriba; IV, la de abajo.", 6); }
       }
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo4(pos.x, pos.z, adelante)) {
       // La columna de cuatro: E gira la piedra marcada; agachado, la marca baja una piedra.
       const c = puzle.col4;
-      if (agachado || reloj - ultimoAgachado <= 0.3) puzle.bajar4(); else { puzle.girar4(); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.5; musica.viento(0.3, 0.95); }
+      musica.rocas(); if (agachado || reloj - ultimoAgachado <= 0.3) puzle.bajar4(); else { puzle.girar4(); rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.5; musica.viento(0.3, 0.95); }
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && giraBloques && puzle.objetivo(pos.x, pos.z, adelante, agachado || reloj - ultimoAgachado <= 1.5)) {
       // Girar el bloque marcado por la espiral: el de arriba; agachado (o recién agachado), el de abajo.
       const o = puzle.objetivo(pos.x, pos.z, adelante, agachado || reloj - ultimoAgachado <= 1.5), c = o.c;
-      puzle.girar(c, o.cual);
+      puzle.girar(c, o.cual); musica.rocas();
       rumbo = Math.atan2(c.x - pos.x, c.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.5; musica.viento(0.3, 0.95);
     } else if (pulsada("KeyE", "KeyJ") && enSuelo && muevePiedras && !agachado) {
       // Alzar la roca más cercana: el viento la envuelve y la sostiene delante de Blizzard.
@@ -4685,7 +4688,7 @@ function actualizar(dt) {
       if (elegido) {
         colisiones.splice(colisiones.indexOf(elegido.col), 1);
         dejarHueco(elegido.g.position.x, elegido.g.position.z, elegido.R);
-        elegido.estado = "llevada"; llevando = elegido; yaAlzada = true; elegido.rodado = elegido.volcada = 0; elegido.giroY = undefined; elegido.medio = elegido.alto0 / 2 - 0.2; elegido.alto = elegido.alto0;
+        elegido.estado = "llevada"; llevando = elegido; musica.rocas(0.35); yaAlzada = true; elegido.rodado = elegido.volcada = 0; elegido.giroY = undefined; elegido.medio = elegido.alto0 / 2 - 0.2; elegido.alto = elegido.alto0;
         rumbo = Math.atan2(elegido.col.x - pos.x, elegido.col.z - pos.z);
         vel.set(0, 0, 0); estado = "empujando"; gesto = 0.7;
         musica.viento(0.4, 0.8);
@@ -4883,7 +4886,7 @@ function actualizar(dt) {
           const cara = Math.round(p.rodado / (Math.PI / 2)) * (Math.PI / 2), falta = cara - p.rodado;
           rodar(p, falta * (1 - Math.exp(-dt * 7)));
           if (Math.abs(falta) < 0.02 && fr < 0.05) {
-            p.vx = p.vz = 0; p.estado = "suelo"; p.medio = medioDe(p); p.alto = 2 * (p.medio + 0.2);
+            p.vx = p.vz = 0; p.estado = "suelo"; musica.rocas(0.5); p.medio = medioDe(p); p.alto = 2 * (p.medio + 0.2);
             Object.assign(p.col, { x: g.x, z: g.z, techo: suelo - p.medio + p.alto + 1.6 });
             colisiones.push(p.col);
           }
