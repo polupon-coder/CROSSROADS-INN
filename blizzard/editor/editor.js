@@ -144,11 +144,11 @@
   const seleccionar = it => {
     sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); pintarNieblas(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
-    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !mundo; $("ayudaMapa").hidden = false;
+    const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !(mundo || it.tipo === "chispa"); $("ayudaMapa").hidden = false;
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota"; $("filaMat").hidden = !(it.tipo === "objeto" || (mundo && g && !g.userData.inst));
     pintarNieblas();
     if (!obj) tc.setMode("translate");
-    $("selNombre").textContent = it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
+    $("selNombre").textContent = it.tipo === "chispa" ? "Chispa de luz · tramo " + (+it.id.slice(2).split("_")[0] + 1) + (it.oculto ? " (oculta)" : "") : it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
     pintarCampos();
   };
   const campos = { px: ["p", 0], py: ["p", 1], pz: ["p", 2], rx: ["r", 0], ry: ["r", 1], rz: ["r", 2], sx: ["s", 0], sy: ["s", 1], sz: ["s", 2] };
@@ -187,7 +187,7 @@
   $("nota").addEventListener("input", () => { sel.texto = $("nota").value; guardar(sel); });
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 2; it.p[2] += 2; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
-  const borrar = () => { if (!sel) return; if (sel.tipo === "mundo") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
+  const borrar = () => { if (!sel) return; if (sel.tipo === "mundo" || sel.tipo === "chispa") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
     const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
   $("borrar").onclick = borrar;
   const deshacer = () => { const h = historial.pop(); if (!h) { aviso("No hay nada que deshacer."); setTimeout(() => aviso(""), 2000); return; } seleccionar(null);
@@ -195,7 +195,7 @@
     else { const it = copia(h.antes); items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); guardar(it, true); }
     estado("Deshecho"); };
   $("deshacer").onclick = deshacer;
-  $("restaurar").onclick = () => { if (!sel || sel.tipo !== "mundo") return; const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
+  $("restaurar").onclick = () => { if (sel && sel.tipo === "chispa") { const b = baseChispa.get(sel.id); if (b) sel.p = b.slice(); sel.oculto = false; rehacer(); pintarCampos(); return; } if (!sel || sel.tipo !== "mundo") return; const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
   $("ocultoMundo").onchange = () => { sel.oculto = $("ocultoMundo").checked; rehacer(); };
   function atajo(e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacer(); return; }
@@ -292,6 +292,10 @@
     const ya = items.get(it.id); if (ya) { seleccionar(ya); return; }
     items.set(it.id, it); E.ponerEd(it, mejor.o || { m: mejor.m, i: mejor.i }); seleccionar(it);
   });
+  // Las chispas de luz del recorrido: se ven y se mueven como una pieza más (borrar las oculta).
+  const baseChispa = new Map();
+  for (const c of E.chispasBase()) { baseChispa.set(c.id, c.p); if (!items.has(c.id)) { const it = { id: c.id, tipo: "chispa", p: c.p.slice() }; items.set(it.id, it); E.ponerEd(it); } }
+  const chispaSinCambio = it => it.tipo === "chispa" && !it.oculto && baseChispa.has(it.id) && it.p.every((v, i) => Math.abs(v - baseChispa.get(it.id)[i]) < 0.01);
   verBloque(bloques[0]);
   // La base de datos se carga aparte: el editor responde desde el principio.
   (async () => {
@@ -308,7 +312,7 @@
     // El aviso sale en el mismo clic (si se espera a guardar todo antes, el navegador ya no lo deja enviar);
     // lo pendiente se guarda a la vez y Claude lo lee unos segundos después.
     for (const t of pendientes.values()) clearTimeout(t); pendientes.clear();
-    const guardado = col ? Promise.all([...items.values()].map(it => { const { id, ...datos } = it; return col.doc(id).set(datos).catch(() => {}); })) : Promise.resolve();
+    const guardado = col ? Promise.all([...items.values()].filter(it => !chispaSinCambio(it)).map(it => { const { id, ...datos } = it; return col.doc(id).set(datos).catch(() => {}); })) : Promise.resolve();
     let puede = "off"; try { puede = com ? await com.canSendToClaude() : "off"; } catch {}
     const porChat = "Escríbele en el chat: «he publicado».";
     if (puede !== "available") { aviso((puede === "no_session" ? "Claude no está conectado ahora mismo. " : "No se puede avisar a Claude desde aquí. ") + porChat); await guardado; setTimeout(() => aviso(""), 9000); return; }
