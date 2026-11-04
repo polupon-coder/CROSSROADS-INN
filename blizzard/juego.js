@@ -722,8 +722,8 @@ const nieveFina = (() => {
   };
   return m;
 })();
-const hieloPalido = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.85);")
-  .replace("#include <tonemapping_fragment>", "gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.78, 0.83, 0.88), (1.0 - smoothstep(0.12, 0.8, dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)))) * 0.5);\n#include <tonemapping_fragment>"); };   // (hielo: las sombras, menos oscuras y de un azul hielo pálido; los blancos, igual)
+const hieloPalido = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.72);")
+  .replace("#include <tonemapping_fragment>", "gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.8, 0.88, 0.95), (1.0 - smoothstep(0.12, 0.8, dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)))) * 0.55);\n#include <tonemapping_fragment>"); };   // (hielo: las sombras, menos oscuras y de un azul hielo pálido; los blancos, igual)
 const nieveFinaBase = nieveFina.onBeforeCompile;   // (la original: luego se le añade la nieve al pie, y repetida no compilaba)
 const hieloPalidoNieve = sh => { nieveFinaBase(sh); hieloPalido(sh); };   // (con nieve encima)
 // Su textura es gris neutro y más clara: se tiñe al azul oscuro del resto de la roca.
@@ -1759,7 +1759,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     for (const lado of [-1, 1]) { const lago = new THREE.Mesh(new THREE.PlaneGeometry(200, largo), matL); lago.rotation.x = -Math.PI / 2; lago.position.set(xc + lado * (15 + 100), y0 - 0.01, zc); lago.receiveShadow = true; scene.add(lago); }
     const agua = new THREE.Mesh(new THREE.PlaneGeometry(500, largo), new THREE.MeshStandardMaterial({ color: 0x5f7d93, roughness: 0.08, metalness: 0.2 })); agua.rotation.x = -Math.PI / 2; agua.position.set(xc, y0 - 1.1, zc); scene.add(agua);
     // Estructuras de hielo grandes saliendo del lago, e icebergs al fondo.
-    const rI = generador(9191), claro = o => { if (o.isMesh) { const m = o.material.clone(); m.color = new THREE.Color(0xdfe5ec); m.emissive = new THREE.Color(0x151a20); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRef; m.envMapIntensity = 0.08; rI(); m.onBeforeCompile = hieloPalidoNieve; o.material = m;   /* (todo el hielo, nevado por encima) */ } };   /* (en algunas, nieve encima) */   /* (con su textura, y un matiz azulado) */
+    const rI = generador(9191), claro = o => { if (o.isMesh) { const m = o.material.clone(); m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRef; m.envMapIntensity = 0.08; rI(); m.onBeforeCompile = hieloPalidoNieve; o.material = m;   /* (todo el hielo, nevado por encima) */ } };   /* (en algunas, nieve encima) */   /* (con su textura, y un matiz azulado) */
     const columnasHielo = kitHielo;   /* (los tres tipos, combinados) */
     { const sitios = [];   // (formas sueltas, cada una por su lado: unas lejos, otras acompañando el camino)
       for (let k = 0; k < 90; k++) { const z = HIELO.desde - 4 - rI() * (HIELO.desde - HIELO.hasta + 10), junto = k % 3 === 0, lado = rI() < 0.5 ? -1 : 1, x = centroLago(z) + lado * (junto ? 3.4 + rI() * 2 : 7 + rI() * 24);
@@ -4315,6 +4315,7 @@ const musica = (() => {
   let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null, rocasB = null, rocasT = -9, rodarB = null, impulsoB = null;
   const bucles = new Map();
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
+  let sfx = null; const salida = () => { if (!sfx) { sfx = ctx.createGain(); sfx.gain.value = 0.8; sfx.connect(ctx.destination); } return sfx; };   // (todos los sonidos salvo la música, un 20 % más bajos)
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -4336,7 +4337,7 @@ const musica = (() => {
       fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { impulsoB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
-      ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
+      { const mas = ctx.createGain(); mas.gain.value = 1.15; ctx.createMediaElementSource(ambiente).connect(gAmb).connect(mas).connect(ctx.destination); }   // (el viento de ambiente, fuera del recorte de los sonidos: algo más alto) ambiente.play().catch(() => {});
     } catch (e) { ctx = null; }
   }
   // Ráfaga de viento suave para la magia: volumen bajo, a veces algo más corta y aguda.
@@ -4345,7 +4346,7 @@ const musica = (() => {
     const f = ctx.createBufferSource(), g = ctx.createGain();
     f.buffer = rafaga; f.playbackRate.value = ritmoRafaga * (0.95 + Math.random() * 0.1);
     g.gain.value = volumen;
-    f.connect(g).connect(ctx.destination); f.start(0, desde);   // (desde: saltarse la subida de la ráfaga, para que se oiga al instante)
+    f.connect(g).connect(salida()); f.start(0, desde);   // (desde: saltarse la subida de la ráfaga, para que se oiga al instante)
   }
   // Una canción por tramo: del inicio al bastón, la de siempre; luego una distinta entre cada dos santuarios,
   // y otra en la cueva. Al cambiar de tramo, una se apaga despacio mientras entra la siguiente.
@@ -4361,33 +4362,33 @@ const musica = (() => {
   // Cuánto se oye el viento de la niebla (0 a 1): sube y baja despacio.
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
-  function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; f.playbackRate.value = 0.84; g.gain.value = 0.42; f.connect(g).connect(ctx.destination); f.start(); }
+  function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; f.playbackRate.value = 0.71; g.gain.value = 0.42; f.connect(g).connect(salida()); f.start(); }
   // Al recoger una chispa: las campanillas y, encima, el arpegio de piano una octava más alto, en una escala
   // que sube con cada chispa del tramo (la séptima, la más alta); cada vez con un leve matiz distinto.
   const ESCALA = [1, 1.1225, 1.2599, 1.4983, 1.6818, 2, 2.2449];
   function arpegio(paso = 0) { if (!ctx) return; const r = ESCALA[Math.max(0, Math.min(6, paso))] * (0.985 + Math.random() * 0.03);
-    if (arpegioB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r * 0.53; g.gain.value = 0.3; f.connect(g).connect(ctx.destination); f.start(); }
-    if (impulsoB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = r * 1.06; g.gain.value = 0.11; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + 0.05); } }
+    if (arpegioB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r * 0.45; g.gain.value = 0.3; f.connect(g).connect(salida()); f.start(); }
+    if (impulsoB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = r * 0.89; g.gain.value = 0.11; f.connect(g).connect(salida()); f.start(ctx.currentTime + 0.05); } }
   // El acorde disonante al caerse (cuando el viento te recoge).
-  function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
+  function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(salida()); f.start(); }
   // La nota de piano con soplo: para los momentos especiales (un puzle resuelto, el bastón, la puerta…).
-  function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; f.playbackRate.value = 0.84; g.gain.value = 0.4; f.connect(g).connect(ctx.destination); f.start(); }
+  function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; f.playbackRate.value = 0.71; g.gain.value = 0.4; f.connect(g).connect(salida()); f.start(); }
   // La nota desafinada cuando el viento avisa de que por ahí no se sigue (como mucho, una vez cada pocos segundos).
-  function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(ctx.destination); f.start(); }
+  function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(salida()); f.start(); }
   // El contrabajo, flojito, en cada salto normal.
-  function salto() { if (!ctx || !saltoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = saltoB; f.playbackRate.value = 0.97 + Math.random() * 0.06; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(); }
+  function salto() { if (!ctx || !saltoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = saltoB; f.playbackRate.value = 0.97 + Math.random() * 0.06; g.gain.value = 0.16; f.connect(g).connect(salida()); f.start(); }
   // Piedra que se mueve (rocas que giran, caen o se alzan, puertas que se abren): un pequeño desprendimiento.
-  function rocas(vol = 0.42) { if (!ctx || !rocasB || ctx.currentTime - rocasT < 0.25) return; rocasT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rocasB; f.playbackRate.value = 0.88 + Math.random() * 0.24; g.gain.value = vol; f.connect(g).connect(ctx.destination); f.start(); }
+  function rocas(vol = 0.42) { if (!ctx || !rocasB || ctx.currentTime - rocasT < 0.25) return; rocasT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rocasB; f.playbackRate.value = 0.88 + Math.random() * 0.24; g.gain.value = vol; f.connect(g).connect(salida()); f.start(); }
   // El golpe de roca que se arrastra: suelto (el hielo que se hunde) o en bucle con volumen variable (las bolas
   // mientras ruedan, las rocas que suben y bajan).
-  function golpe(vol = 0.5) { if (!ctx || !rodarB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.playbackRate.value = 0.9 + Math.random() * 0.2; g.gain.value = vol; f.connect(g).connect(ctx.destination); f.start(); }
+  function golpe(vol = 0.5) { if (!ctx || !rodarB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.playbackRate.value = 0.9 + Math.random() * 0.2; g.gain.value = vol; f.connect(g).connect(salida()); f.start(); }
   function bucle(nombre, vol, ritmo = 1) { if (!ctx || !rodarB) return; let b = bucles.get(nombre);
-    if (!b) { if (vol <= 0.001) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.loop = true; g.gain.value = 0; f.connect(g).connect(ctx.destination); f.start(); b = { f, g, v: 0 }; bucles.set(nombre, b); }
+    if (!b) { if (vol <= 0.001) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = rodarB; f.loop = true; g.gain.value = 0; f.connect(g).connect(salida()); f.start(); b = { f, g, v: 0 }; bucles.set(nombre, b); }
     if (Math.abs(vol - b.v) > 0.01) { b.v = vol; b.g.gain.setTargetAtTime(vol, ctx.currentTime, 0.2); } b.f.playbackRate.value = ritmo; }
   // Unas notas de piano que suben con el salto con viento (cada vez en un tono algo distinto, siempre consonante).
-  function impulso() { if (!ctx || !impulsoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = 0.84 * [1, 1.1225, 1.2599, 0.8909][Math.floor(Math.random() * 4)]; g.gain.value = 0.2; f.connect(g).connect(ctx.destination); f.start(); }
+  function impulso() { if (!ctx || !impulsoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = 0.71 * [1, 1.1225, 1.2599, 0.8909][Math.floor(Math.random() * 4)]; g.gain.value = 0.2; f.connect(g).connect(salida()); f.start(); }
   // Aviso de chispa dejada atrás: el timbre de la chispa en dos notas a medio tono (disonante), grave y suave.
-  function disonante() { if (!ctx || !arpegioB) return; for (const [r, v, d] of [[0.353, 0.21, 0], [0.374, 0.18, 0.04]]) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r; g.gain.value = v; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + d); } }
+  function disonante() { if (!ctx || !arpegioB) return; for (const [r, v, d] of [[0.3, 0.21, 0], [0.318, 0.18, 0.04]]) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r; g.gain.value = v; f.connect(g).connect(salida()); f.start(ctx.currentTime + d); } }
   return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto, rocas, golpe, bucle, impulso, disonante };
 })();
 
@@ -5819,7 +5820,7 @@ function crearTrazoEd(it, g) {
 function moverNieblasEd(dt) { const t = reloj; for (const N of nieblasMovEd) { if (!N.g.parent) continue; for (const m of N.g.children) { const b = m.userData.base, f = m.userData.fase; m.position.x = b.x + Math.sin(t * 0.35 * (0.5 + N.mov) + f) * N.r * 0.35 * N.mov; m.position.z = b.z + Math.cos(t * 0.28 * (0.5 + N.mov) + f * 1.3) * N.r * 0.25 * N.mov; m.rotation.z += dt * 0.15 * N.mov; } } }
 const HIELOS_ED = new Set(["hielo_bloque", "hielo_azul", "iceberg", "cristal", "pilastra hielo", "cubo hielo"]);
 function hieloClaroEd(g, it) {   // el hielo puesto en el editor, con el mismo acabado que el del lago (claro, azulado y con reflejo)
-  g.traverse(o => { if (!o.isMesh) return; const m = o.material.clone(); m.color = new THREE.Color(0xdfe5ec); m.emissive = new THREE.Color(0x151a20); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08; m.onBeforeCompile = hieloPalidoNieve; o.material = m; }); }
+  g.traverse(o => { if (!o.isMesh) return; const m = o.material.clone(); m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08; m.onBeforeCompile = hieloPalidoNieve; o.material = m; }); }
 const FORMA_ED = new Set(["iceberg"]);
 function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la malla corta la franja por la que se anda (sus paredes, no su caja)
   const C = 0.4, celdas = new Set(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), q = new THREE.Vector3();
@@ -5870,10 +5871,10 @@ function moverPaseantes(dt) {
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
     if (P.huellas) { if (!P.activo && !P.hecho && !tieneBaston && pos.z < -70 && pos.z > -98) { const H = huellasGigantes(), a = H[0], e = H[H.length - 1], dx = e.x - a.x, dz2 = e.z - a.z, L0 = Math.hypot(dx, dz2);
         let mejor = 0;   // (en medio, más allá de las huellas, alejándose de frente; las rocas bajas no cuentan: lo tapan un poco, como debe ser)
-        const libre = (x, z, yP) => { const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.5)) return null; if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + 3) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + 1.5)) return null;
+        const libre = (x, z, yP) => { const y = alturaTerreno(x, z); if (y < -5) return yP;   /* (la grieta: un gigante pasa por encima) */ if (yP !== null && Math.abs(y - yP) > 1.5) return null; if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + 3) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + 1.5)) return null;
           return colisiones.some(c => !c.rampa && c.techo > y + 3 && Math.hypot(c.x - x, c.z - z) < c.r + 1.5) ? null : y; };
         let nota = -1e9;   // (ante la grieta hay poco sitio: mejor al otro lado; lo más de frente posible)
-        for (const [ox, oz] of [[0, -112], [0, -130], [2, -130], [-2, -130], [0, -133]]) for (const da of [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6]) { const d = { x: Math.sin(Math.PI + da), z: Math.cos(Math.PI + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 50; L += 1) { const y = libre(sx + d.x * L, oz + d.z * L, yP); if (y === null) break; yP = y; } const n = Math.min(L, 30) - 12 * Math.abs(da); if (L >= 12 && n > nota) { nota = n; mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
+        for (const [ox, oz] of [[0, -110], [1, -110], [-1, -110], [0, -113]]) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const d = { x: Math.sin(Math.PI + da), z: Math.cos(Math.PI + da) }, sx = caminoX(oz) + ox; let yP = null, L = 0; for (; L < 50; L += 1) { const y = libre(sx + d.x * L, oz + d.z * L, yP); if (y === null) break; yP = y; } const n = Math.min(L, 30) - 12 * Math.abs(da); if (L >= 12 && n > nota) { nota = n; mejor = L; P.dir = d; P.ini = { x: sx, z: oz }; } }
         mejor = Math.min(mejor, 45);
         P.T = (mejor - 2) / 2.6; P.hecho = true; P.activo = P.T > 3; P.t = 0; P.tapado = 0; P.recto = true; } }
     else if (!P.activo && !P.hecho && dz < 40) { P.activo = true; P.hecho = true; P.t = 0; P.zA = pos.z - 30; P.zS = pos.z - 22; P.xS = (Math.random() - 0.5) * 3; P.tapado = 0;
@@ -5896,14 +5897,14 @@ function moverPaseantes(dt) {
     else { z = P.zS - (P.grande ? 3.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
     { const yS = alturaTerreno(x, z); if (P.tapado > 0 || colisiones.some(c => !c.rampa && c.techo > yS + 2 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6)) P.tapado += dt; }   // (si se topa con una roca, se pierde tras ella: no la atraviesa)
     const dj = Math.hypot(x - pos.x, z - pos.z);
-    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - suave(16, 46, dj)) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
+    const op = Math.min(1, P.t / 2.5, (T - P.t) / 2.5) * suave(10, 16, dj) * (1 - (P.huellas ? suave(30, 62, dj) : suave(16, 46, dj))) * (1 - suave(34, 44, dj)) * (1 - Math.min(1, P.tapado * 2));   // (aparece y se va en la niebla; nunca a menos de 10 m)
     P.g.visible = op > 0.02; if (!P.g.visible) continue;
     { const rp = P.grande ? 1.6 : 0.8; let y = Math.max(alturaSuelo(x, z), alturaSuelo(x + rp, z), alturaSuelo(x - rp, z), alturaSuelo(x, z + rp), alturaSuelo(x, z - rp)); if (y < pos.y - 6) y = pos.y - 0.6;   /* (los pies, sobre lo más alto bajo ellos: nunca hundidos) */   /* (sobre el terreno donde está: a la altura del camino atravesaba las dunas) */ P.g.position.set(x, y - 0.15, z); }
     { const c = camara.position, dd = P.g.position.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;   // (se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla)
       P.g.position.sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2; }
     P.g.rotation.y = P.huellas ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
     P.mix.update(dt);   // (anda de verdad: sus pasos van con lo que avanza)
-    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.grande ? 0.2 : 0.23) * op);   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
+    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.huellas ? 0.34 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
   }
 }
 // Golems esfera: al acercarse Blizzard (por delante de ellos), cruzan rodando en diagonal a unos 5 m por delante,
