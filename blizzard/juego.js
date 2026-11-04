@@ -1851,12 +1851,14 @@ let chispas = null;   // (se crean al primer fotograma: usan el suelo, que se de
 // irse a los bordes; para que el santuario siguiente despierte hay que recogerlas todas (la barra de abajo).
 const CHISPAS_TRAMO = 7;
 const chispaEd = new Map();   // (las movidas u ocultas desde el editor)
+let escenaLista = !!window.BLIZZARD_EDITOR, chispasHasta = 0;   // (las chispas se colocan cuando ya están las piezas del editor: si no, alguna quedaba dentro de una roca)
 const tramosChispas = () => { const P = [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4, PLATAFORMA5, PLATAFORMA6, PLATAFORMA7]; return P.slice(0, -1).map((A, k) => [A.z - A.r - 5, P[k + 1].z + P[k + 1].r + 5]); };
 const crearChispas = () => {
   const L = [], N = 14, rC = generador(7171);
   const centro = z => z < HIELO.desde && z > HIELO.hasta ? centroLago(z) : caminoX(z);
   const libreC = (x, z) => { const y = alturaSuelo(x, z); if (y < -5 || alturaSuelo(x + 1.2, z) < -5 || alturaSuelo(x - 1.2, z) < -5 || alturaSuelo(x, z + 1.2) < -5 || alturaSuelo(x, z - 1.2) < -5) return false;
-    return !colisiones.some(c => !c.rampa && c.techo > y + 0.8 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6); };
+    if (ARENAS.some(A => Math.abs(z - A.z) < A.largo / 2 + 1.8)) return false;   // (ni sobre las arenas que tragan)
+    return !colisiones.some(c => !c.rampa && c.techo > y + 0.8 && Math.hypot(c.x - x, c.z - z) < c.r + 0.8); };
   tramosChispas().forEach(([zA, zB], k) => {
     const paso = (zA - zB) / CHISPAS_TRAMO;
     for (let i = 0; i < CHISPAS_TRAMO; i++) {
@@ -1874,13 +1876,14 @@ const crearChispas = () => {
     }
   });
   for (const it of chispaEd.values()) aplicarChispaEd(it, L);
+  for (const C of L) if (C.tramo < chispasHasta) C.abs = 1;
   return L;
 };
 function aplicarChispaEd(it, L = chispas) { if (!L) return; const C = L.find(c => c.id === it.id); if (!C) return; C.oculta = !!it.oculto;
   const p = it.p || C.base; if (p) { it = { p }; C.x = it.p[0]; C.y = it.p[1]; C.z = it.p[2]; C.p.set(C.x, C.y, C.z); for (const q of C.cola) q.copy(C.p); } }
 // El tramo en el que se está (el siguiente santuario aún sin aprender) y lo recogido en él.
 const tramoActual = () => !muevePiedras ? 0 : !abrePuertas ? 1 : !giraBloques ? 2 : !barre ? 3 : !onda ? 4 : 5;
-function cuentaTramo(k) { if (!chispas) chispas = crearChispas(); const L = chispas.filter(c => c.tramo === k && !c.oculta); return [L.filter(c => c.abs >= 0).length, L.length]; }
+function cuentaTramo(k) { if (!chispas) { if (!escenaLista) return [0, CHISPAS_TRAMO]; chispas = crearChispas(); } const L = chispas.filter(c => c.tramo === k && !c.oculta); return [L.filter(c => c.abs >= 0).length, L.length]; }
 let avisoChispasT = 0;
 function chispasListas(k) { const [n, t] = cuentaTramo(k); if (n >= t) return true;
   if (reloj - avisoChispasT > 5) { avisoChispasT = reloj; rotular(t - n === 1 ? "Falta una chispa de luz." : `Faltan ${t - n} chispas de luz.`, 3); } return false; }
@@ -1890,7 +1893,7 @@ function chispaCerca() { if (!chispas || !tieneBaston) return null; let m = null
 function absorberChispa(C) { C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
 const barraChispas = (() => { const d = document.createElement("div"); d.id = "barraChispas"; d.setAttribute("aria-hidden", "true"); d.appendChild(document.createElement("i")); document.body.appendChild(d); return d; })();
 function moverChispas(dt) {
-  if (!chispas) chispas = crearChispas();
+  if (!chispas) { if (!escenaLista) return; chispas = crearChispas(); }
   { const k = tramoActual(), [n, t] = cuentaTramo(k), ver = tieneBaston && estado !== "portada" && estado !== "intro" && t > 0;
     barraChispas.classList.toggle("ver", ver); barraChispas.firstChild.style.width = (t ? n / t * 100 : 0) + "%";
     if (barraChispas._n !== undefined && n > barraChispas._n && ver) { barraChispas.classList.remove("pulso"); void barraChispas.offsetWidth; barraChispas.classList.add("pulso"); clearTimeout(barraChispas._t); barraChispas._t = setTimeout(() => barraChispas.classList.remove("pulso"), 750); }
@@ -4276,7 +4279,7 @@ function empezarEnSantuario(n) {
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
   rotular(SANTUARIOS[n - 1].nombre, 4);
   if (n >= 6) puzle.col4.t = 99;   // (la columna, ya caída)
-  { if (!chispas) chispas = crearChispas(); for (const C of chispas) if (C.tramo < n - 1) C.abs = 1; }   // (las chispas de los tramos de atrás, ya recogidas)
+  chispasHasta = n - 1; if (chispas) for (const C of chispas) if (C.tramo < n - 1) C.abs = 1;   // (las chispas de los tramos de atrás, ya recogidas)
 }
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -5657,7 +5660,7 @@ buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con 
     if (d > 10.8) { o.visible = false; for (let i = colisiones.length - 1; i >= 0; i--) if (dentro(colisiones[i])) colisiones.splice(i, 1); }
     else if (b.min.y > 2.6) { const dy = b.min.y - 2.45; o.position.y -= dy; o.updateMatrixWorld(true); for (const cc of colisiones) if (dentro(cc) && isFinite(cc.techo) && cc.techo < 90) cc.techo -= dy; }
   } }
-if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) for (const it of j.items) { try { ponerEd(it); } catch (e) { console.warn("escena: no se pudo poner", it.id, e); } } }).catch(() => {});   // (una pieza que falle no corta las demás)   // (lo colocado en el editor, ya fijado en el juego)
+if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) for (const it of j.items) { try { ponerEd(it); } catch (e) { console.warn("escena: no se pudo poner", it.id, e); } } }).catch(() => {}).finally(() => { escenaLista = true; });   // (una pieza que falle no corta las demás)   // (lo colocado en el editor, ya fijado en el juego)
 window.__blizzard = { chispas: () => chispas, trazo, figuras: FIGURAS, ed: { chispasBase: () => { if (!chispas) chispas = crearChispas(); return chispas.map(c => ({ id: c.id, tramo: c.tramo, p: c.base.map(v => +v.toFixed(2)) })); }, MODELOS, KITS, aplicarMatEd, ponerEd, quitarEd, crearPiezaEd, firmaDe, cajaReal, unidadesMundo, cajaInstancia, firmaInstancia, sueloMat: () => MAT_SUELO, escenaEd, camara, renderer, scene, alturaTerreno, caminoX, nieblaLago, coposBajos, santuarios: [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4, PLATAFORMA5, PLATAFORMA6].map(P => P.z), hielo: HIELO, cuevaZ: PLATAFORMA7.z }, centroLago, colis: () => colisiones, hielos: () => losasHielo, TRAS, puzle, vel, pozoEn, guia: () => [guia.modo, +guia.t.toFixed(1), guia.p.toArray().map(v => +v.toFixed(1)), guia.cola[43].p.toArray().map(v => +v.toFixed(1))], bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },

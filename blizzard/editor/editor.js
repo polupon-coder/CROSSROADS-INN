@@ -294,16 +294,18 @@
   });
   // Las chispas de luz del recorrido: se ven y se mueven como una pieza más (borrar las oculta).
   const baseChispa = new Map();
-  for (const c of E.chispasBase()) { baseChispa.set(c.id, c.p); if (!items.has(c.id)) { const it = { id: c.id, tipo: "chispa", p: c.p.slice() }; items.set(it.id, it); E.ponerEd(it); } }
+  // (se colocan cuando ya están puestas las piezas guardadas, igual que en el juego: así salen en el mismo sitio)
+  const ponerChispas = () => { for (const c of E.chispasBase()) { baseChispa.set(c.id, c.p); if (!items.has(c.id)) { const it = { id: c.id, tipo: "chispa", p: c.p.slice() }; items.set(it.id, it); E.ponerEd(it); } } };
   const chispaSinCambio = it => it.tipo === "chispa" && !it.oculto && baseChispa.has(it.id) && it.p.every((v, i) => Math.abs(v - baseChispa.get(it.id)[i]) < 0.01);
   verBloque(bloques[0]);
   // La base de datos se carga aparte: el editor responde desde el principio.
   (async () => {
     let db = null; try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
     col = db ? db.collection("escena") : null;
-    if (!col) { estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true); return; }
+    if (!col) { estado("Sin guardado: abre esta página desde tu cuenta para que se guarde.", true); ponerChispas(); return; }
     try { const snap = await col.get(); snap.docs.forEach(d => { const it = { ...d.data(), id: d.id }; items.set(it.id, it); ultimo.set(it.id, copia(it)); E.ponerEd(it); }); estado(`${items.size} piezas · se guarda solo`); pintarNieblas(); }
     catch (e) { estado("No se pudo leer lo guardado: " + (e.message || e.code), true); }
+    ponerChispas();
   })();
 
   // ── Publicar: avisa a Claude, que pasa la escena al juego ─────────────
