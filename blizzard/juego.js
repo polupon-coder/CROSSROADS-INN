@@ -1891,7 +1891,7 @@ function chispasListas(k) { const [n, t] = cuentaTramo(k); if (n >= t) return tr
 // La chispa a tiro (para recogerla con la magia): la más cercana, a unos pasos.
 function chispaCerca() { if (!chispas || !tieneBaston) return null; let m = null, dm = 3.6;
   for (const C of chispas) { if (C.abs >= 0 || C.oculta || Math.abs(C.z - pos.z) > 5) continue; const d = Math.hypot(pos.x - C.p.x, pos.z - C.p.z); if (d < dm && Math.abs(pos.y + 1 - C.p.y) < 2.5) { dm = d; m = C; } } return m; }
-function absorberChispa(C) { musica.arpegio(); C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
+function absorberChispa(C) { musica.arpegio(cuentaTramo(C.tramo)[0]); C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
 const barraChispas = (() => { const d = document.createElement("div"); d.id = "barraChispas"; d.setAttribute("aria-hidden", "true"); d.appendChild(document.createElement("i")); document.body.appendChild(d); return d; })();
 function moverChispas(dt) {
   if (!chispas) { if (!escenaLista) return; chispas = crearChispas(); }
@@ -3908,7 +3908,7 @@ estilo.textContent = `
   html, body { height: 100%; margin: 0; overflow: hidden; background: #c9d8ee; }
   #lienzo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   /* Al caer: un velo claro y desenfocado (no se ve lo de debajo del mundo); se va al volver a tierra. */
-  #veloCaida { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0; background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(234,240,249,.35) 0%, rgba(234,240,249,.85) 65%, rgba(240,244,251,.97) 100%); -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); }
+  #veloCaida { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0; --centro: .3; --borroso: 0px; background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(234,240,249,var(--centro)) 0%, rgba(234,240,249,.85) 65%, rgba(240,244,251,.98) 100%); -webkit-backdrop-filter: blur(var(--borroso)); backdrop-filter: blur(var(--borroso)); }
   .capa-ui { z-index: 4; position: fixed; inset: 0; pointer-events: none; font-family: "Marcellus", Georgia, serif; color: var(--tinta); }
   #portada { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 18px; background: var(--velo); pointer-events: auto; padding-inline: 28px; transition: opacity 1.2s ease; }
   #portada h1 { margin: 0; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: clamp(30px, 9.5vw, 128px); letter-spacing: .32em; padding-left: .32em; line-height: 1; }
@@ -4296,8 +4296,12 @@ const musica = (() => {
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
   function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
-  // Las campanillas en glissando al recoger una chispa.
-  function arpegio() { if (!ctx || !arpegioB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
+  // Al recoger una chispa: las campanillas y, encima, el arpegio de piano una octava más alto, en una escala
+  // que sube con cada chispa del tramo (la séptima, la más alta); cada vez con un leve matiz distinto.
+  const ESCALA = [1, 1.1225, 1.2599, 1.4983, 1.6818, 2, 2.2449];
+  function arpegio(paso = 0) { if (!ctx) return; const r = ESCALA[Math.max(0, Math.min(6, paso))] * (0.985 + Math.random() * 0.03);
+    if (arpegioB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; f.playbackRate.value = r * 0.75; g.gain.value = 0.42; f.connect(g).connect(ctx.destination); f.start(); }
+    if (impulsoB) { const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = impulsoB; f.playbackRate.value = r * 1.5; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(ctx.currentTime + 0.05); } }
   // El acorde disonante al caerse (cuando el viento te recoge).
   function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
   // La nota de piano con soplo: para los momentos especiales (un puzle resuelto, el bastón, la puerta…).
@@ -4538,10 +4542,11 @@ const veloCaida = (() => { const d = document.createElement("div"); d.id = "velo
 let caidaK = 0;
 function actualizarVelo(dt) {
   let obj = 0;
-  if (rescate) obj = rescate.pozo ? Math.min(0.85, rescate.pt / 1.1) : rescate.t < 0.7 ? 1 : 1 - (rescate.t - 0.7) / 0.3;   // (en el pozo se ve caer; luego, velado mientras el viento te lleva)
-  else if (vel.y < -2 && !enSuelo) obj = clamp((seguro.y - pos.y - 1.2) / 3, 0, 1);   // (cayendo por debajo de donde se pisa)
-  caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? 5 : 3)));
-  const o = caidaK < 0.01 ? 0 : caidaK; if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = o.toFixed(3); }
+  if (rescate) obj = rescate.pozo ? Math.min(0.85, rescate.pt / 1.1) : 1;   // (en el pozo se ve caer; luego, cubierto del todo mientras el viento te lleva: no se ve el traslado)
+  else if (vel.y < -2 && !enSuelo) obj = clamp((seguro.y - pos.y - 0.8) / 4, 0, 1);   // (cayendo por debajo de donde se pisa: cada vez más borroso)
+  caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? 4 : 2.2)));
+  const o = caidaK < 0.01 ? 0 : +caidaK.toFixed(3);
+  if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.68 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); }   // (más borroso y opaco según se cae; al final, cubre del todo)
 }
 function actualizar(dt) {
   reloj += dt;
