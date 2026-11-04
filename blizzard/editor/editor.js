@@ -88,7 +88,8 @@
     for (let y = 0; y < 84; y++) im.data.set(buf.subarray((83 - y) * 112 * 4, (84 - y) * 112 * 4), y * 112 * 4);
     x.putImageData(im, 0, 0); return cv.toDataURL();
   };
-  const siguienteMiniatura = () => { if (window.SIN_MINIATURAS) return; const e = cola.shift(); if (!e) return; if (!miniaturas.has(e.id)) { try { miniaturas.set(e.id, hacerMiniatura(e.id)); } catch { miniaturas.set(e.id, null); } } if (miniaturas.get(e.id) && e.img.isConnected) e.img.src = miniaturas.get(e.id); setTimeout(siguienteMiniatura, 160); };
+  const miniaturasDesde = performance.now() + 4000;   // (las miniaturas, cuando el mundo ya está a punto: no frenan la carga)
+  const siguienteMiniatura = () => { if (window.SIN_MINIATURAS) return; if (performance.now() < miniaturasDesde) { setTimeout(siguienteMiniatura, miniaturasDesde - performance.now()); return; } const e = cola.shift(); if (!e) return; if (!miniaturas.has(e.id)) { try { miniaturas.set(e.id, hacerMiniatura(e.id)); } catch { miniaturas.set(e.id, null); } } if (miniaturas.get(e.id) && e.img.isConnected) e.img.src = miniaturas.get(e.id); setTimeout(siguienteMiniatura, 160); };
   let colocando = null;
   const pintarLista = () => {
     const q = $("buscar").value.trim().toLowerCase(), l = $("lista"); l.textContent = "";
