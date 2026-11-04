@@ -4601,8 +4601,8 @@ function actualizarVelo(dt) {
   // Mientras el viento lo lleva (todo cubierto), Blizzard no está; al volver, primero aparece su espiral de viento
   // donde regresa y, dentro de ella, Blizzard.
   { const oculto = (rescate && !rescate.pozo && caidaK > 0.9) || (retornoT >= 0 && retornoT < 0.6);
-    if (oculto) { if (blizzard.visible) { blizzard.visible = false; blizzard.userData.ocultoCaida = true; } }
-    else if (blizzard.userData.ocultoCaida) { blizzard.visible = true; blizzard.userData.ocultoCaida = false; }
+    if (oculto) { if (blizzard.visible) { blizzard.visible = false; blizzard.userData.ocultoCaida = true; if (capaTela) capaTela.malla.visible = false; } }   // (la capa también: si no, asomaba sola antes que Blizzard)
+    else if (blizzard.userData.ocultoCaida) { blizzard.visible = true; blizzard.userData.ocultoCaida = false; if (capaTela) capaTela.malla.visible = true; }
     if (retornoT >= 0 && retornoT < 1.1) { efectoEspiral = Math.max(efectoEspiral, 1.5); espiralEn = null; } }
   const o = caidaK < 0.01 ? 0 : +caidaK.toFixed(3);
   if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.7 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); veloCaida.style.background = o > 0.97 ? "rgb(238,243,250)" : ""; }   // (del todo cubierto: un color liso, nada se transparenta)   // (más borroso y opaco según se cae; al final, cubre del todo)
@@ -5820,6 +5820,14 @@ function moverPaseantes(dt) {
 // dejan surco en la nieve acumulada y se pierden: no vuelven a aparecer.
 const _ejeE = new THREE.Vector3(), _qE = new THREE.Quaternion();
 let esferasRepartidas = false;
+function recorridoLibre(E, d, maxL) {   // metros que puede rodar en esa dirección sin chocar con nada, sin simas ni escalones bruscos
+  let x = E.g.position.x, z = E.g.position.z, y = alturaSuelo(x, z), L = 0;
+  while (L < maxL) { const nx = x + d.x * 0.3, nz = z + d.z * 0.3, ny = alturaSuelo(nx, nz);
+    if (ny < -5 || Math.abs(ny - y) > 0.3) break;
+    if (colisiones.some(c => c !== E.col && !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 1.2 + 0.15)) break;
+    x = nx; z = nz; y = ny; L += 0.3; }
+  return L;
+}
 function repartirEsferas() {   // unas 6 por tramo entre santuarios, a un lado del camino y en zonas abiertas (además de las puestas en el editor)
   const rE = generador(9393);
   const abierto = (x, z, yC, rr) => { const y = alturaSuelo(x, z); if (y < -5 || Math.abs(y - yC) > 1.6) return false;
@@ -5838,21 +5846,24 @@ function moverEsferas(dt) {
   if (!esferasRepartidas && escenaLista && !window.BLIZZARD_EDITOR) { esferasRepartidas = true; repartirEsferas(); }
   let son = 0;
   for (const E of esferasEd) {
-    if (E.estado === 2) continue; const g = E.g;
+    if (E.estado >= 2) continue; const g = E.g;
     if (E.estado === 0) {
       const dzJ = pos.z - g.position.z; if (rescate || dzJ > 8.5 || dzJ < 2 || Math.abs(g.position.x - pos.x) > 24) continue;   // (cuando queda unos 5-7 m por delante)
       const cx = caminoX(g.position.z), lado = g.position.x - cx > 0.5 ? 1 : g.position.x - cx < -0.5 ? -1 : (Math.random() < 0.5 ? 1 : -1);
-      E.dir = new THREE.Vector3(-lado, 0, -0.55 - Math.random() * 0.2).normalize();   // (en diagonal hacia el otro lado, alejándose un poco)
-      E.largo = (Math.abs(g.position.x - cx) * (lado * (g.position.x - cx) > 0 ? 1 : -1) + 14) / Math.abs(E.dir.x); E.recorrido = 0; E.estado = 1; E.t = 0; E.v = 4.5 + Math.random() * 1.5; E.va = 0; E.y = g.position.y;
+      // Nunca atraviesa nada: prueba varias diagonales hacia el otro lado y se queda con la de recorrido libre más largo.
+      const quiere = Math.abs(g.position.x - cx) * (lado * (g.position.x - cx) > 0 ? 1 : -1) + 14, base = Math.atan2(-0.62, -lado);
+      let mejor = null, dM = 0; for (const da of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8]) { const a = base + da, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)); if (d.z > 0.2) continue; const L = recorridoLibre(E, d, quiere / Math.max(0.3, Math.abs(d.x))); if (L > dM + 0.5) { dM = L; mejor = d; } }
+      if (!mejor || dM < 5) { E.estado = 3; continue; }   // (sin paso libre: se queda quieto, como una roca más)
+      E.dir = mejor; E.largo = dM; E.recorrido = 0; E.estado = 1; E.t = 0; E.v = 4.5 + Math.random() * 1.5; E.va = 0; E.y = g.position.y;
       const k = colisiones.indexOf(E.col); if (k >= 0) colisiones.splice(k, 1); musica.rocas(0.5);
     }
     E.t += dt; if (E.t < E.retraso) continue;
     E.va = Math.min(E.v, E.va + dt * 3.5);   // (arranca poco a poco: sin tirones)
     const paso = Math.min(E.va * dt, E.largo - E.recorrido); E.recorrido += paso;
     g.position.x += E.dir.x * paso; g.position.z += E.dir.z * paso;
-    E.y = lerp(E.y, alturaTerreno(g.position.x, g.position.z) + E.y0, 1 - Math.exp(-dt * 3)); g.position.y = E.y;   // (la altura, suavizada: no salta con cada bache)
+    { const sup = alturaSuelo(g.position.x, g.position.z) + E.y0; E.y = Math.max(lerp(E.y, sup, 1 - Math.exp(-dt * 3)), sup - 0.04); g.position.y = E.y; }   // (la altura, suavizada, pero nunca por debajo del suelo: no se mete en las cuestas)
     _ejeE.set(E.dir.z, 0, -E.dir.x); g.quaternion.premultiply(_qE.setFromAxisAngle(_ejeE, paso / Math.max(E.R, 0.2)));   // (rueda hacia donde va)
-    if ((E.huella += paso) > 0.4) { E.huella = 0; hundirNieve(g.position.x, g.position.z, E.R * 0.75); }   // (su surco en la nieve acumulada)
+    if ((E.huella += paso) > 0.4) { E.huella = 0; hundirNieve(g.position.x, g.position.z, E.R * 0.9); }   // (su surco en la nieve acumulada: tan ancho como la esfera)
     const dj = Math.hypot(g.position.x - pos.x, g.position.z - pos.z); son = Math.max(son, clamp(1 - dj / 25, 0, 1));
     if (!rescate && dj < E.R + 0.4 && pos.y < g.position.y + E.R) { const nx = (pos.x - g.position.x) / (dj || 1), nz = (pos.z - g.position.z) / (dj || 1); vel.x = nx * 7 + E.dir.x * 4; vel.z = nz * 7 + E.dir.z * 4; vel.y = Math.max(vel.y, 3); enSuelo = false; }   // (si lo pilla, lo aparta)
     const fin = E.largo - E.recorrido; if (fin < 4) g.scale.setScalar(g.scale.x * (1 - dt * 1.5));   // (al final se pierde en la niebla)
