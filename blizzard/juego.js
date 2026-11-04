@@ -4097,7 +4097,16 @@ const portada = ui.querySelector("#portada"), rotulo = ui.querySelector("#rotulo
 portada.addEventListener("click", e => { if (!e.target.closest("button")) return; try { const a = new Audio("musica/nota-soplo.mp3"); a.volume = 0.35; a.play().catch(() => {}); } catch (err) {} });
 // El título en vídeo: si no carga, queda el texto; si el navegador no deja reproducirlo solo, se muestra su último fotograma.
 { const vt = portada.querySelector("video.titulo"); if (vt) { const ult = vt.querySelector("source:last-of-type"); if (ult) ult.addEventListener("error", () => vt.remove()); const fin = () => { if (isFinite(vt.duration)) vt.currentTime = vt.duration; };
-  const pr = vt.play(); if (pr && pr.catch) pr.catch(() => { if (vt.readyState >= 1) fin(); else vt.addEventListener("loadedmetadata", fin, { once: true }); }); } }
+  const pr = vt.play(); if (pr && pr.catch) pr.catch(() => { if (vt.readyState >= 1) fin(); else vt.addEventListener("loadedmetadata", fin, { once: true }); });
+  // Su sonido: el viento que va descubriendo las letras y, al quedar el título, el arpegio de piano (tres notas que suben).
+  // Si el navegador no deja sonar nada antes de tocar la página, al primer toque (fuera de los botones) se repite con sonido.
+  let sonado = false;
+  const sonar = () => { if (sonado) return Promise.resolve(); const v = new Audio("musica/viento-niebla.mp3"); v.volume = 0;
+    return v.play().then(() => { sonado = true; let t = 0; const paso = setInterval(() => { t += 0.05; v.volume = Math.max(0, Math.min(0.55, t < 0.8 ? t / 0.8 * 0.55 : t < 4 ? 0.55 : 0.55 * (1 - (t - 4) / 2))); if (t > 6.1 || estado !== "portada") { clearInterval(paso); v.pause(); } }, 50);
+      setTimeout(() => { if (estado === "portada") { const a = new Audio("musica/arpegio-especial.mp3"); a.volume = 0.5; a.play().catch(() => {}); } }, 2300); }); };
+  if (!window.BLIZZARD_EDITOR) sonar().catch(() => { const alTocar = e => { if (estado !== "portada" || sonado) return; if (e.target && e.target.closest && e.target.closest("button")) return; removeEventListener("pointerdown", alTocar);
+      try { vt.currentTime = 0; vt.play().catch(() => {}); } catch (err) {} sonar().catch(() => {}); };
+    addEventListener("pointerdown", alTocar); }); } }
 cerrar.addEventListener("click", () => location.reload());
 let rotuloHasta = 0;
 // Cada frase en su línea.
