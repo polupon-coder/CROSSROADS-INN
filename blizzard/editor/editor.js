@@ -259,7 +259,7 @@
       if (colocando === "esp:niebla") it = { id, tipo: "niebla", p, radio: 8, alto: 1.5, densidad: 0.5, color: "#efe6ee" };
       else if (colocando === "esp:nota") it = { id, tipo: "nota", p, texto: "" };
       else { it = { id, tipo: "objeto", modelo: colocando, p, r: [0, 0, 0], s: [1, 1, 1], colision: true };
-        const g = E.ponerEd(it); if (g) { const t = E.cajaReal(g).getSize(new THREE.Vector3()), k = +((colocando === "gltf:golem" ? 3.2 / Math.max(t.y, 0.001) : 3 / Math.max(t.x, t.y, t.z, 0.001))).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m; el golem, el doble de alto que Blizzard)
+        const g = E.ponerEd(it); if (g) { const t = E.cajaReal(g).getSize(new THREE.Vector3()), k = +((colocando === "gltf:golem" || colocando === "gltf:golem_grande" ? (colocando === "gltf:golem" ? 3.2 : 6.4) / Math.max(t.y, 0.001) : 3 / Math.max(t.x, t.y, t.z, 0.001))).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m; el golem, el doble de alto que Blizzard)
       items.set(id, it); E.ponerEd(it); guardar(it); seleccionar(it);
       if (!e.shiftKey) { colocando = null; aviso(""); pintarLista(); }   // (con Mayús se siguen colocando)
       return;

@@ -120,7 +120,7 @@ const cargar = nombre => window.BLIZZARD_MODELOS_JSON
   : new Promise((ok, ko) => cargador.load("modelos/" + nombre + ".glb", ok, undefined, ko));
 // La capa es de tela simulada hecha aquí (ver «Capa de tela»): el modelo de capa no se carga.
 const CON_CAPA = false;
-const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gPuente, gArcoRuina, gCamino, gHieloA, gHieloB, gIceberg, gBloques, gCristal, gRuinaAntigua, gPortalRuina, gPlataformaRuina, gEscaleraPiedra, gGolemPiedra, gGolemRoca, gRuinaPiedra, gPlatFlotante, gRocaBrillante, gArcoRoca, gGolemAnim, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", "plataforma_antigua", "acantilado", "esfera", "escalinata", "ruina_alta", "puente", "arco_ruina", "camino", "hielo_bloque", "hielo_azul", "iceberg", "bloques", "cristal", "ruina_antigua", "portal_ruina", "plataforma_ruina", "escalera_piedra", "golem_piedra", "golem_roca", "ruina_piedra", "plataforma_flotante", "roca_brillante", "arco_roca", "golem_anim", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
+const [gPersonaje, gPlataforma, gRocas, gRuinas, gPilares, gPlatSimple, gMuro, gLadrillos, gEscudo, gAnilloP, gHuella, gPlatAntigua, gAcantilado, gEsfera, gEscalinata, gRuinaAlta, gPuente, gArcoRuina, gCamino, gHieloA, gHieloB, gIceberg, gBloques, gCristal, gRuinaAntigua, gPortalRuina, gPlataformaRuina, gEscaleraPiedra, gGolemPiedra, gGolemRoca, gRuinaPiedra, gPlatFlotante, gRocaBrillante, gArcoRoca, gGolemAnim, gGolemGrande, gCapa] = await Promise.all(["personaje", "plataforma", "rocas", "ruinas", "pilares", "plataforma_simple", "muro", "ladrillos", "escudo", "anillo_piedra", "huella", "plataforma_antigua", "acantilado", "esfera", "escalinata", "ruina_alta", "puente", "arco_ruina", "camino", "hielo_bloque", "hielo_azul", "iceberg", "bloques", "cristal", "ruina_antigua", "portal_ruina", "plataforma_ruina", "escalera_piedra", "golem_piedra", "golem_roca", "ruina_piedra", "plataforma_flotante", "roca_brillante", "arco_roca", "golem_anim", "golem_grande", ...(CON_CAPA ? ["capa"] : [])].map(cargar));
 // El resto de la escena usa colores sin corrección de gamma: las texturas se toman tal cual.
 // Los modelos nuevos traen la piedra tirando a amarillo: su textura de color se pasa a gris azulado, el
 // tono de la piedra del juego (se conserva el dibujo y el contraste).
@@ -433,8 +433,9 @@ PLATAFORMA7.x = caminoX(PLATAFORMA7.z); PLATAFORMA7.base = alturaTerreno(PLATAFO
 PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z) + 0.5;   // (algo más alta: a la altura del camino)
 
 // ─── Escena ────────────────────────────────────────────────────────────────
+const BRUMA_HIELO = new THREE.Color("#c4c2cb"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
 const CIELO = new THREE.Color("#c9d8ee"), AMANECER_ROSA = new THREE.Color("#efdcdc"), AMANECER_ORO = new THREE.Color("#ffcf8a");
-const CIELO_LAGO = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#e6dde6"); g.addColorStop(0.35, "#efdde2"); g.addColorStop(0.6, "#f4e0df"); g.addColorStop(0.78, "#f6e5dc"); g.addColorStop(1, "#f2e0e0");   /* (rosados claros) */   /* (siempre más claro que lo lejano en la niebla) */ x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c); })();   // (azul violáceo arriba, rosa y oro al horizonte)
+const CIELO_LAGO = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#93a3bf"); g.addColorStop(0.3, "#aeb6c9"); g.addColorStop(0.52, "#cbc3c8"); g.addColorStop(0.64, "#dcc6b4"); g.addColorStop(0.76, "#cfc5c5"); g.addColorStop(1, "#c4c2cb");   /* (amanecer: azul grisáceo arriba, un resplandor cálido y apagado en el horizonte, bruma gris abajo) */   /* (siempre más claro que lo lejano en la niebla) */ x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c); })();   // (azul violáceo arriba, rosa y oro al horizonte)
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 const TACTIL = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 renderer.setPixelRatio(Math.min(TACTIL ? 1.5 : 1.25, window.devicePixelRatio || 1));   // en ordenador, con el desenfoque a pantalla completa, 2 era muy lento
@@ -444,6 +445,13 @@ renderer.localClippingEnabled = true;          // para recortar la cima de los p
 renderer.domElement.id = "lienzo";
 document.body.appendChild(renderer.domElement);
 
+// El mapa de la niebla pintada: 2 m por celda; R densidad, G techo ((y + 60) * 2), B movimiento, A niebla del lago.
+const NIEBLA_MAPA = { x0: -96, z0: -1760, paso: 2, nx: 97, nz: 961 };
+NIEBLA_MAPA.datos = new Uint8Array(NIEBLA_MAPA.nx * NIEBLA_MAPA.nz * 4);
+NIEBLA_MAPA.tex = new THREE.DataTexture(NIEBLA_MAPA.datos, NIEBLA_MAPA.nx, NIEBLA_MAPA.nz, THREE.RGBAFormat);
+NIEBLA_MAPA.tex.magFilter = NIEBLA_MAPA.tex.minFilter = THREE.LinearFilter; NIEBLA_MAPA.tex.generateMipmaps = false; NIEBLA_MAPA.tex.needsUpdate = true;
+const NIEBLA_U = { nieblaMapa: { value: NIEBLA_MAPA.tex }, nieblaT: { value: 0 }, nieblaHueco: { value: new THREE.Vector3() }, nieblaColor: { value: new THREE.Color("#d9d3da") }, nieblaLagoK: { value: 1 } };
+let mapaNieblaSucio = false;
 // Niebla baja de las dunas: se suma a la niebla normal en lo hondo, entre las dunas (por debajo de unos
 // metros sobre el paso), en bancos irregulares; las crestas y lo alto asoman por encima.
 {
@@ -462,8 +470,26 @@ document.body.appendChild(renderer.domElement);
     float hondo = smoothstep(-3.0, -32.0, vNieblaP.y) * 0.97;
     return max(enD * (1.0 - smoothstep(techo - 4.0, techo + 1.5, vNieblaP.y)) * smoothstep(3.0, 26.0, d) * 0.82, hondo);
   }
+  // Niebla pintada (pincel del editor, nieblas, lago helado): un mapa de densidad y techo que se aplica a cada
+  // superficie que queda dentro (sin capas planas: no corta al personaje ni a las rocas con líneas).
+  uniform sampler2D nieblaMapa; uniform float nieblaT; uniform vec3 nieblaHueco; uniform vec3 nieblaColor; uniform float nieblaLagoK;
+  float ruidoN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); vec2 k = vec2(127.1, 311.7);
+    return mix(mix(fract(sin(dot(i, k)) * 43758.5453), fract(sin(dot(i + vec2(1.0, 0.0), k)) * 43758.5453), f.x), mix(fract(sin(dot(i + vec2(0.0, 1.0), k)) * 43758.5453), fract(sin(dot(i + vec2(1.0, 1.0), k)) * 43758.5453), f.x), f.y); }
+  float nieblaPintada(float d) {
+    vec4 m = texture2D(nieblaMapa, vec2(((vNieblaP.x - ${NIEBLA_MAPA.x0.toFixed(1)}) / ${NIEBLA_MAPA.paso.toFixed(1)} + 0.5) / ${NIEBLA_MAPA.nx.toFixed(1)}, ((vNieblaP.z - ${NIEBLA_MAPA.z0.toFixed(1)}) / ${NIEBLA_MAPA.paso.toFixed(1)} + 0.5) / ${NIEBLA_MAPA.nz.toFixed(1)}));
+    float dens = max(m.r, m.a * nieblaLagoK);
+    if (dens < 0.004) return 0.0;
+    vec2 q = vNieblaP.xz; float v = 0.25 + m.b * 1.5;
+    float r = ruidoN(q * 0.13 + vec2(nieblaT * 0.3, nieblaT * 0.08) * v) * 0.6 + ruidoN(q * 0.41 - vec2(nieblaT * 0.45, -nieblaT * 0.12) * v) * 0.4;
+    float techo = m.g * 127.5 - 60.0 + (r - 0.5) * 0.8 + 0.22 * sin(q.x * 0.19 + q.y * 0.07 + nieblaT * 1.1);   // (el techo ondea)
+    float a = dens * smoothstep(techo + 0.25, techo - 0.9, vNieblaP.y) * (0.8 + 0.2 * r);
+    a *= mix(1.0, smoothstep(8.0, 26.0, distance(q, nieblaHueco.xy)), nieblaHueco.z);   // (la onda la aparta)
+    return a * smoothstep(0.8, 3.5, d);
+  }
 #endif`;
-  C.fog_fragment = C.fog_fragment.replace("gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );", "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, max(fogFactor, nieblaBaja(fogDepth)) );");
+  C.fog_fragment = C.fog_fragment.replace("gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );", "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, max(fogFactor, nieblaBaja(fogDepth)) );\n gl_FragColor.rgb = mix( gl_FragColor.rgb, nieblaColor, nieblaPintada(fogDepth) * (1.0 - fogFactor) );");
+  // Sus valores (el mapa, la hora…) los comparten todos los materiales: se añaden al copiar los de cada uno.
+  const copia = THREE.UniformsUtils.clone; THREE.UniformsUtils.clone = u => { const c = copia(u); if (c.fogColor) Object.assign(c, NIEBLA_U); return c; };
 }
 const scene = new THREE.Scene();
 let capaNiebla = () => {};                                     // la niebla a ras de suelo (se monta más abajo)
@@ -677,6 +703,7 @@ const kitRocas = separarKit(gRocas), kitRuinas = separarKit(gRuinas), kitHielo =
 const kitPilares = separarKit(gPilares), PILAR_ALTO = kitPilares[kitPilares.length - 1];
 // Nieve fina, sin volumen: solo en la textura, en las caras que miran hacia arriba, con el borde
 // irregular. Normal en el mundo con la escala de cada eje corregida (las piezas se estiran).
+let cieloRefHielo = null;   // (el reflejo del hielo del lago: también para el hielo puesto en el editor)
 const nieveFina = (() => {
   const m = kitPilares[0].material.clone(), tex = new THREE.TextureLoader().load("texturas/nieve.jpg");
   tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
@@ -1655,7 +1682,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
   // posición). Primero un camino de nieve; luego la nieve, a trozos; luego hielo que se quiebra tras de ti:
   // hay que correr y saltar a la nieve del otro lado. Después, entre icebergs, y un paso entre acantilados de hielo.
   { const C = 2, y0 = alturaTerreno(caminoX(HIELO.desde + 3), HIELO.desde + 3), geo = new THREE.BoxGeometry(C + 0.02, 0.5, C + 0.02); geo.translate(0, -0.25, 0);
-    const cieloRef = (() => { const c = document.createElement("canvas"); c.width = 64; c.height = 32; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 32); g.addColorStop(0, "#e9dde0"); g.addColorStop(0.5, "#f4f1f2"); g.addColorStop(1, "#9fb3c9"); x.fillStyle = g; x.fillRect(0, 0, 64, 32); const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; return t; })();   // (lo que refleja el hielo)
+    const cieloRef = (() => { const c = document.createElement("canvas"); c.width = 64; c.height = 32; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 32); g.addColorStop(0, "#e9dde0"); g.addColorStop(0.5, "#f4f1f2"); g.addColorStop(1, "#9fb3c9"); x.fillStyle = g; x.fillRect(0, 0, 64, 32); const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; return t; })(); cieloRefHielo = cieloRef;   // (lo que refleja el hielo)
     const tex = new THREE.TextureLoader().load("texturas/placas.jpg"); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;   // (el hielo del lago: tu textura de hielo roto, en grande)
     const porMundo = (m, inst) => { m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace("#include <uv_vertex>", "#include <uv_vertex>\n  vUv = (modelMatrix * " + (inst ? "instanceMatrix * " : "") + "vec4(position, 1.0)).xz * 0.035;"); }; return m; };   // (la textura por posición: sin juntas)
     const matCian = new THREE.MeshStandardMaterial({ color: 0x9fd6e4, emissive: 0x2b5f6e, roughness: 0.28, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 });   /* (todo el hielo de la zona: un cian uniforme, con algo de brillo) */
@@ -1698,7 +1725,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
           gp.setAttribute("color", new THREE.BufferAttribute(ca, 4)); gp.computeVertexNormals(); const mp = new THREE.Mesh(gp, matPolvo); mp.receiveShadow = true; mp.raycast = () => {}; mp.renderOrder = 1; scene.add(mp); } } }
     { // La niebla baja: capas finas apiladas hasta la cintura; su techo ondea como olas (de rodillas a cintura).
       const largoN = HIELO.desde - HIELO.hasta + 60, zcN = (HIELO.desde + HIELO.hasta) / 2 - 10;
-      for (let i = 0; i < 36; i++) { const capa = 0.02 + i * 0.04, m = new THREE.Mesh(new THREE.PlaneGeometry(150, largoN), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: nieblaLago.u,
+      for (let i = 0; i < 0; i++) { const capa = 0.02 + i * 0.04,   /* (ya no: la niebla del lago va en el mapa de la niebla, sin capas que corten con líneas) */ m = new THREE.Mesh(new THREE.PlaneGeometry(150, largoN), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: nieblaLago.u,
           vertexShader: "varying vec3 vP; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
           fragmentShader: "uniform float t, ap, apT, base, desde, hasta; uniform vec3 color, centro, jug; varying vec3 vP; float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }" +
             " void main() { float y = vP.y - base; vec2 q = vP.xz, dc = q - centro.xz; float dd = length(dc), gi = -ap * apT * 6.0 / (1.0 + dd * 0.07); vec2 qn = centro.xz + mat2(cos(gi), -sin(gi), sin(gi), cos(gi)) * dc;" +   /* (al apartarse, gira en espiral inversa) */
@@ -1710,7 +1737,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             " a *= smoothstep(0.35, 1.5, distance(q, jug.xz));" +   /* (alrededor del cuerpo no hay capas: sin líneas) */
             " gl_FragColor = vec4(mix(color, vec3(0.9, 0.86, 0.92), 0.3), a); }"   /* (clara, rosada y azulada) */ }));
         m.rotation.x = -Math.PI / 2; m.position.set(caminoX(zcN), y0 + capa, zcN); m.renderOrder = 4; m.raycast = () => {}; m.userData.capa = capa; scene.add(m); nieblaLago.capas.push(m); }
-      nieblaLago.u.base.value = y0; nieblaLago.u.desde.value = HIELO.desde; nieblaLago.u.hasta.value = HIELO.hasta; }
+      nieblaLago.u.base.value = y0; nieblaLago.u.desde.value = HIELO.desde; nieblaLago.u.hasta.value = HIELO.hasta; mapaNieblaSucio = true; }
     { const kitB = separarKit(gBloques), texPl = new THREE.TextureLoader().load("texturas/placas.jpg"), matT = new THREE.MeshStandardMaterial({ map: texPl, emissive: 0x2a4050, color: 0xb4cadb, roughness: 0.05, metalness: 0.45, envMap: cieloRef, envMapIntensity: 1.2 });   /* (las placas, con tu textura de hielo roto) */   // (el hielo roto: tus bloques de piedra, en hielo)
       for (let i = 0; i < 24; i++) { const B = kitB[i % kitB.length], m = new THREE.Mesh(B.geo, matT), g = new THREE.Group(); m.position.copy(B.desplaza); g.add(m); const k = 1.9 / Math.max(B.radio * 2, B.alto); g.scale.set(k, k * 0.35, k); /* (placas grandes) */ g.visible = false; scene.add(g); trozosHielo.push({ g, t: -1, vx: 0, vz: 0, giro: new THREE.Vector3() }); } }
     losasHielo.push(...celdas); losasHielo.y0 = y0; losasHielo.cols = new Set(celdas.filter(T => T.tipo === "hielo").map(T => T.col)); losasHielo.R = C * 0.72; losasHielo.forEach(hieloMatriz);
@@ -1965,7 +1992,7 @@ function moverZonas(dt) {
     if (!B.polvo) { B.f += dt * 0.35; B.m.position.x += B.vx * dt; const cx0 = caminoX(B.m.position.z); if (B.m.position.x > cx0 + 38) B.m.position.x -= 76; if (B.m.position.x < cx0 - 38) B.m.position.x += 76; const v = 0.5 + 0.5 * Math.sin(B.f); B.aparta = Math.max(0, (B.aparta || 0) - dt); const ap = B.aparta > 0 ? Math.max(0, 1 - Math.min(1, (5 - B.aparta) * 3)) + Math.max(0, 1 - B.aparta) : 1, dz = Math.abs(B.m.position.z - pos.z), cerca = Math.min(1, dz / 5), dentro = suave(HIELO.desde + 6, HIELO.desde - 4, pos.z); B.m.material.opacity = (B.y0 - losasHielo.y0 < 0.7 ? 0.7 + 0.25 * v : 0.35 + 0.2 * v) * Math.min(1, ap) * (0.5 + 0.5 * cerca) * dentro * Math.max(0, 1 - Math.max(0, dz - 28) / 18); const sc = B.m.userData.sc * (1 + 0.12 * Math.sin(B.f * 1.3)); B.m.scale.set(sc * 1.7, B.m.userData.alto * (1 + 0.15 * Math.sin(B.f * 0.9)), 1);   /* (espesa y ondeante, solo ya en el lago) */ B.m.position.y = B.y0 + 0.35 * Math.sin(B.f * 0.7); }   // (de lado, tapando a ratos tobillos, rodillas o cintura)
     if (B.polvo) { B.f += dt; const r = Math.max(0, Math.sin(B.f * 0.7)); B.m.material.opacity = 0.5 * r * r * (B.aparta > 0 ? 0 : 1) * suave(HIELO.desde + 6, HIELO.desde - 4, pos.z); B.aparta = Math.max(0, (B.aparta || 0) - dt); B.m.position.x = B.x0 + Math.sin(B.f * 0.35) * 14; B.m.position.y = losasHielo.y0 + 0.1 + r * 0.9; }
   }
-  { const N = nieblaLago; N.u.t.value += dt; N.aparta = Math.max(0, N.aparta - dt); N.u.ap.value = Math.min(1, N.aparta * 1.5) * Math.min(1, (3 - N.aparta) * 4); N.u.apT.value = 3 - N.aparta; N.u.color.value.copy(scene.fog.color); N.u.jug.value.copy(pos); }
+  { const N = nieblaLago; N.u.t.value += dt; N.aparta = Math.max(0, N.aparta - dt); N.u.ap.value = Math.min(1, N.aparta * 1.5) * Math.min(1, (3 - N.aparta) * 4); N.u.apT.value = 3 - N.aparta; N.u.color.value.copy(scene.fog.color); N.u.jug.value.copy(pos); NIEBLA_U.nieblaT.value = N.u.t.value; NIEBLA_U.nieblaHueco.value.set(N.u.centro.value.x, N.u.centro.value.z, N.u.ap.value); }
   { const hz = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z) * (pos.z > HIELO.hasta - 40 ? 1 : 0); coposBajos.visible = hz > 0.05;
     if (coposBajos.visible) { coposBajos.material.opacity = 0.85 * hz; const a = coposBajos.geometry.attributes.position.array, base = losasHielo.y0 || pos.y; coposBajos.position.set(pos.x, base, pos.z);
       for (let i = 0; i < a.length; i += 3) { a[i] -= (6 + (i % 7)) * dt; a[i + 1] += Math.sin(nieblaLago.u.t.value * 3 + i) * 0.4 * dt; a[i + 2] += Math.sin(i * 0.37) * 0.8 * dt;
@@ -5132,7 +5159,8 @@ function actualizar(dt) {
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
   { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0.5) scene.background = CIELO_LAGO;   // (cielo en degradado)
-    if (h > 0) { scene.fog.color.lerp(AMANECER_ROSA, h * 0.85); sol.color.lerp(AMANECER_ORO, h * 0.8); sol.intensity = lerp(sol.intensity, 0.6, h); luzCielo.intensity *= 1 - 0.62 * h; } }   // (y la luz ambiente, más floja)   // (amanecer rosado y dorado)
+    NIEBLA_U.nieblaColor.value.copy(scene.fog.color).lerp(_blancoN, 0.08);
+    if (h > 0) { scene.fog.color.lerp(BRUMA_HIELO, h); sol.color.lerp(AMANECER_ORO, h * 0.85); sol.intensity = lerp(sol.intensity, 0.75, h); luzCielo.intensity *= 1 - 0.12 * h; luzCielo.color.lerp(LUZ_CIELO_HIELO, h); luzCielo.groundColor.lerp(LUZ_SUELO_HIELO, h); NIEBLA_U.nieblaColor.value.lerp(NIEBLA_BAJA_HIELO, h); } }   // (amanecer realista: bruma gris lavanda, sol bajo dorado, nieve bien iluminada)   // (y la luz ambiente, más floja)   // (amanecer rosado y dorado)
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
   renderer.shadowMap.autoUpdate = alba > 0 && enCanon2 < 0.95;
@@ -5648,6 +5676,8 @@ function bucle(ahora) {
   if (!window.BLIZZARD_EDITOR) ocultarTapadores();
   if (!window.BLIZZARD_EDITOR) vigilarCalidad(ahora - anterior0);
   if (!window.BLIZZARD_EDITOR) esconderTrasNiebla();
+  if (mapaNieblaSucio) rehacerMapaNiebla();
+  if (window.BLIZZARD_EDITOR) NIEBLA_U.nieblaLagoK.value = scene.fog && scene.fog.far > 1e4 ? 0 : 1;   // (en el editor, sin niebla, el lago se ve)
   if (window.BLIZZARD_EDITOR && window.__edRender && !window.__edRender()) {}   // (el editor dibuja solo cuando algo cambia)
   else if (desenfoque && calidad.desenfoque && !window.BLIZZARD_EDITOR) desenfoque.dibujar(); else renderer.render(scene, camara);   // (en el editor, nítido y a resolución completa)
   requestAnimationFrame(bucle);
@@ -5656,7 +5686,7 @@ requestAnimationFrame(bucle);
 // Gancho de pruebas: simula segundos de juego con teclas mantenidas, sin esperar al render.
 // ─── Escena colocada a mano (desde el editor): objetos, nieblas y notas ───
 const MODELOS = { rocas: gRocas, ruinas: gRuinas, pilares: gPilares, plataforma: gPlataforma, plataforma_simple: gPlatSimple, plataforma_antigua: gPlatAntigua, muro: gMuro, ladrillos: gLadrillos, escudo: gEscudo, anillo_piedra: gAnilloP,
-  acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente_grande: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal, ruina_antigua: gRuinaAntigua, portal: gPortalRuina, plataforma_escalinata: gPlataformaRuina, escalera_roca: gEscaleraPiedra, golem_piedra: gGolemPiedra, golem_roca: gGolemRoca, ruina_piedra: gRuinaPiedra, plataforma_flotante: gPlatFlotante, roca_brillante: gRocaBrillante, arco_roca: gArcoRoca, golem: gGolemAnim };
+  acantilado: gAcantilado, esfera: gEsfera, escalinata: gEscalinata, ruina_alta: gRuinaAlta, puente_grande: gPuente, arco: gArcoRuina, camino: gCamino, hielo_bloque: gHieloA, hielo_azul: gHieloB, iceberg: gIceberg, bloques: gBloques, cristal: gCristal, ruina_antigua: gRuinaAntigua, portal: gPortalRuina, plataforma_escalinata: gPlataformaRuina, escalera_roca: gEscaleraPiedra, golem_piedra: gGolemPiedra, golem_roca: gGolemRoca, ruina_piedra: gRuinaPiedra, plataforma_flotante: gPlatFlotante, roca_brillante: gRocaBrillante, arco_roca: gArcoRoca, golem: gGolemAnim, golem_grande: gGolemGrande };
 const KITS = { rocas: kitRocas, ruinas: kitRuinas, pilares: kitPilares, "pilastra hielo": kitHielo, "cubo hielo": kitCubosHielo, "bloque piedra": kitBloques };
 const escenaEd = new Map(), rodantesEd = [], golemsEd = [];
 // Clonar un modelo con esqueleto (cada copia, sus propios huesos), como SkeletonUtils.clone.
@@ -5683,6 +5713,23 @@ function aplicarMatEd(g, it) {
 const texPolvoEd = (() => { const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d"); for (let i = 0; i < 3800; i++) { const r = Math.random() < 0.85 ? 0.6 + Math.random() * 1.3 : 1.8 + Math.random() * 3; x.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.6})`; x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, r, 0, 7); x.fill(); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
 const texNieveEd = (() => { const t = new THREE.TextureLoader().load("texturas/nieve.jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
 const nieblasMovEd = [];
+function rehacerMapaNiebla() {   // el mapa de la niebla: el lago helado y lo pintado con el editor
+  mapaNieblaSucio = false; const M = NIEBLA_MAPA, D = M.datos; D.fill(0);
+  const techoB = y => Math.max(0, Math.min(255, Math.round((y + 60) * 2)));
+  const sello = (x, z, r, dens, techo, mov, canal) => { const R = r + 4, i0 = Math.max(0, Math.floor((x - R - M.x0) / M.paso)), i1 = Math.min(M.nx - 1, Math.ceil((x + R - M.x0) / M.paso)), k0 = Math.max(0, Math.floor((z - R - M.z0) / M.paso)), k1 = Math.min(M.nz - 1, Math.ceil((z + R - M.z0) / M.paso));
+    for (let k = k0; k <= k1; k++) for (let i = i0; i <= i1; i++) { const d = Math.hypot(M.x0 + i * M.paso - x, M.z0 + k * M.paso - z); if (d > R) continue; const c = (k * M.nx + i) * 4;
+      D[c + 1] = Math.max(D[c + 1], techoB(techo)); const a = Math.round(255 * dens * suave(r + M.paso, r * 0.4, d)); if (a > D[c + canal]) D[c + canal] = a; if (a > 0) D[c + 2] = Math.max(D[c + 2], Math.round(255 * clamp(mov, 0, 1))); } };
+  // El lago helado: niebla baja muy densa, de rodillas a cintura, en todo su ancho.
+  if (nieblaLago.u.base.value) { const y0 = nieblaLago.u.base.value, za = HIELO.desde + 18, zb = HIELO.hasta - 30;
+    for (let k = 0; k < M.nz; k++) { const z = M.z0 + k * M.paso; if (z > za || z < zb) continue; const dens = 0.94 * suave(za, HIELO.desde + 6, z) * suave(zb, HIELO.hasta - 10, z);
+      for (let i = 0; i < M.nx; i++) { const c = (k * M.nx + i) * 4; D[c + 3] = Math.round(255 * dens); D[c + 1] = Math.max(D[c + 1], techoB(y0 + 1.5)); D[c + 2] = Math.max(D[c + 2], 60); } } }
+  for (const { it } of escenaEd.values()) {
+    if (!it || it.oculto) continue; const P = it.p || [0, 0, 0];
+    if (it.tipo === "trazo" && it.clase === "niebla") { const I = it.i ?? 0.6; for (const [x0, y, z0] of it.puntos || []) { const x = x0 + P[0], z = z0 + P[2], y0 = sobrePieza(x0, y, z0) ? y + P[1] : alturaSuelo(x, z); sello(x, z, it.r || 2, 0.35 + 0.6 * I, y0 + 0.6 + 2 * I, it.mov || 0, 0); } }
+    else if (it.tipo === "niebla") sello(P[0], P[2], it.radio || 8, Math.min(0.95, 0.3 + 0.7 * (it.densidad ?? 0.5)), P[1] + (it.alto || 1.5), 0.3, 0);
+  }
+  M.tex.needsUpdate = true;
+}
 function puntosTrazo(it) { const P = it.puntos || [], r = it.r || 3, paso = Math.max(0.4, r * 0.7), out = []; if (!P.length) return out; out.push(P[0]);
   for (let k = 1; k < P.length; k++) { const a = out[out.length - 1], b = P[k], d = Math.hypot(b[0] - a[0], b[2] - a[2]); if (d >= paso) { const n = Math.floor(d / paso); for (let j = 1; j <= n; j++) { const t = j * paso / d; out.push([a[0] + (b[0] - a[0]) * t, (a[1] ?? 0) + ((b[1] ?? 0) - (a[1] ?? 0)) * t, a[2] + (b[2] - a[2]) * t]); } } }
   return out; }
@@ -5708,10 +5755,14 @@ function crearTrazoEd(it, g) {
     for (const [x, y, z] of pts) g.add(mantoPintado(x, z, r, mat, clase === "nieve" ? 0.05 : 0.03, sobrePieza(x, y, z) ? y : null)); }
   else if (clase === "niebla") {
     const mat = new THREE.MeshBasicMaterial({ map: texNieblaEd, color: new THREE.Color("#efe6ee"), transparent: true, depthWrite: false, opacity: 0.22 * I, side: THREE.DoubleSide, fog: false });
-    for (const [x, y, z] of pts) { const y0 = sobrePieza(x, y, z) ? y : alturaSuelo(x, z); for (let k = 0; k < 6; k++) { const m = new THREE.Mesh(new THREE.CircleGeometry(r * (1 - k * 0.06), 32), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y0 + 0.1 + k * (0.25 + I * 0.3), z); m.renderOrder = 4; m.userData.base = m.position.clone(); m.userData.fase = Math.random() * 6; if (!window.BLIZZARD_EDITOR) m.raycast = () => {}; g.add(m); } }
-    if ((it.mov || 0) > 0 && !window.BLIZZARD_EDITOR) nieblasMovEd.push({ g, mov: it.mov, r }); }
+    mapaNieblaSucio = true; }   // (la niebla pintada va en el mapa de la niebla: sin capas planas)
 }
 function moverNieblasEd(dt) { const t = reloj; for (const N of nieblasMovEd) { if (!N.g.parent) continue; for (const m of N.g.children) { const b = m.userData.base, f = m.userData.fase; m.position.x = b.x + Math.sin(t * 0.35 * (0.5 + N.mov) + f) * N.r * 0.35 * N.mov; m.position.z = b.z + Math.cos(t * 0.28 * (0.5 + N.mov) + f * 1.3) * N.r * 0.25 * N.mov; m.rotation.z += dt * 0.15 * N.mov; } } }
+const HIELOS_ED = new Set(["hielo_bloque", "hielo_azul", "iceberg", "cristal", "pilastra hielo", "cubo hielo"]);
+function hieloClaroEd(g, it) {   // el hielo puesto en el editor, con el mismo acabado que el del lago (claro, azulado y con reflejo)
+  g.traverse(o => { if (!o.isMesh) return; const m = o.material.clone(); m.color = new THREE.Color(0xbccfde); m.emissive = new THREE.Color(0x2a4050); m.roughness = 0.3; m.metalness = 0.05; m.envMap = cieloRefHielo; m.envMapIntensity = 0.5; m.onBeforeCompile = it.nieve ? hieloPalidoNieve : hieloPalido; o.material = m; }); }
+const hieloPalido = sh => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.6) * 1.35;"); };   // (aclarado y menos saturado: como el hielo del lago)
+const hieloPalidoNieve = sh => { nieveFina.onBeforeCompile(sh); hieloPalido(sh); };   // (con nieve encima)
 function crearPiezaEd(it) {
   if (it.tipo === "trazo") { const g = new THREE.Group(); crearTrazoEd(it, g); g.position.fromArray(it.p || [0, 0, 0]); g.userData.trazo = true; scene.add(g); g.updateMatrixWorld(true); return { g, col: null }; }
   if (it.tipo === "chispa") {   // una chispa del recorrido, movida u oculta: en el juego, solo cambia su sitio
@@ -5723,8 +5774,8 @@ function crearPiezaEd(it) {
   const g = new THREE.Group(), p = it.p || [0, 0, 0];
   if (it.tipo === "niebla") {   // capas de niebla apiladas, de borde suave
     const n = 10, alto = it.alto || 1.5, radio = it.radio || 8, d = it.densidad ?? 0.5;
-    for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.CircleGeometry(radio, 40), new THREE.MeshBasicMaterial({ map: texNieblaEd, color: new THREE.Color(it.color || "#efe6ee"), transparent: true, depthWrite: false, opacity: d * 0.22 * (1 - i / n), side: THREE.DoubleSide, fog: false }));
-      m.rotation.x = -Math.PI / 2; m.position.y = (i / (n - 1)) * alto; m.renderOrder = 4; m.raycast = window.BLIZZARD_EDITOR ? m.raycast : () => {}; g.add(m); }
+    mapaNieblaSucio = true;   // (va en el mapa de la niebla; aquí, solo su marca en el editor)
+    if (window.BLIZZARD_EDITOR) { const m = new THREE.Mesh(new THREE.CylinderGeometry(radio, radio, alto, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x8fb4ff, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.y = alto / 2; g.add(m); }
     g.position.fromArray(p); g.userData.niebla = true;
   } else if (it.tipo === "nota") {
     if (!window.BLIZZARD_EDITOR) return { g: null };
@@ -5733,14 +5784,15 @@ function crearPiezaEd(it) {
   } else {
     const [k, nombre, i] = (it.modelo || "").split(":");
     if (k === "kit" && KITS[nombre] && KITS[nombre][+i]) { const P = KITS[nombre][+i], m = new THREE.Mesh(P.geo, it.nieve ? nieveFina : P.material); m.position.copy(P.desplaza); m.castShadow = m.receiveShadow = true; g.add(m); }
-    else if (k === "gltf" && nombre === "golem") {   // el golem: con su esqueleto y sus animaciones; anda de un lado a otro y empuja
-      const d = clonarConEsqueleto(gGolemAnim.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); g.add(d);
-      const mix = new THREE.AnimationMixer(d), clip = gGolemAnim.animations.find(a => /Walk/i.test(a.name)) || gGolemAnim.animations[0], idle = gGolemAnim.animations.find(a => /Idle/i.test(a.name));
+    else if (k === "gltf" && (nombre === "golem" || nombre === "golem_grande")) { const GA = nombre === "golem" ? gGolemAnim : gGolemGrande;   // el golem: con su esqueleto y sus animaciones; anda de un lado a otro y empuja
+      const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); g.add(d);
+      const mix = new THREE.AnimationMixer(d), clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], idle = GA.animations.find(a => /Idle/i.test(a.name));
       const andar = mix.clipAction(clip); andar.play(); if (window.BLIZZARD_EDITOR && idle) { andar.stop(); mix.clipAction(idle).play(); } mix.update(0.01);
       g.userData.golem = { mix, andar };
     }
     else if (k === "gltf" && MODELOS[nombre]) { const d = MODELOS[nombre].scene.clone(); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (it.nieve) { o.material = o.material.clone(); o.material.onBeforeCompile = nieveFina.onBeforeCompile; } } }); g.add(d); }
     else return { g: null };
+    if (HIELOS_ED.has(nombre)) hieloClaroEd(g, it);
     aplicarMatEd(g, it);
     g.position.fromArray(p); const r = it.r || [0, 0, 0]; g.rotation.set(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180); g.scale.fromArray(it.s || [1, 1, 1]);
   }
@@ -5822,7 +5874,7 @@ function ajustarMundo(it, objeto) {
   P.userData.cols.forEach((c, i) => { c.x = P.userData.cols0[i][0] + p[0] - c0[0]; c.z = P.userData.cols0[i][1] + p[2] - c0[2]; const k = colisiones.indexOf(c); if (it.oculto && k >= 0) colisiones.splice(k, 1); if (!it.oculto && k < 0) colisiones.push(c); });
   return P;
 }
-function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo" && e.it.id[0] === "p") { const P = pivotesEd.get(id); if (P) { scene.remove(P); for (const c of P.userData.cols) { const k = colisiones.indexOf(c); if (k >= 0) colisiones.splice(k, 1); } pivotesEd.delete(id); } escenaEd.delete(id); return; } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) { scene.remove(e.g); const gi = golemsEd.findIndex(G => G.g === e.g); if (gi >= 0) golemsEd.splice(gi, 1); for (const v of e.g.userData.ventis || []) { const vi = ventisqueros.indexOf(v); if (vi >= 0) ventisqueros.splice(vi, 1); } const ni = nieblasMovEd.findIndex(N => N.g === e.g); if (ni >= 0) nieblasMovEd.splice(ni, 1); } for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
+function quitarEd(id) { const e = escenaEd.get(id); if (!e) return; if (e.it && (e.it.tipo === "niebla" || e.it.clase === "niebla")) mapaNieblaSucio = true; if (e.it && e.it.tipo === "chispa" && !escenaEd._poniendo) { chispaEd.delete(id); aplicarChispaEd({ id }); } if (e.it && e.it.tipo === "mundo" && e.it.id[0] === "p") { const P = pivotesEd.get(id); if (P) { scene.remove(P); for (const c of P.userData.cols) { const k = colisiones.indexOf(c); if (k >= 0) colisiones.splice(k, 1); } pivotesEd.delete(id); } escenaEd.delete(id); return; } if (e.it && e.it.tipo === "mundo") { ajustarMundo({ ...e.it, p: e.it.firma.c, r: [0, 0, 0], s: [1, 1, 1], oculto: false }); escenaEd.delete(id); return; }   /* (vuelve a su sitio) */ if (e.g) { scene.remove(e.g); const gi = golemsEd.findIndex(G => G.g === e.g); if (gi >= 0) golemsEd.splice(gi, 1); for (const v of e.g.userData.ventis || []) { const vi = ventisqueros.indexOf(v); if (vi >= 0) ventisqueros.splice(vi, 1); } const ni = nieblasMovEd.findIndex(N => N.g === e.g); if (ni >= 0) nieblasMovEd.splice(ni, 1); } for (const k of e.cols || (e.col ? [e.col] : [])) { const i = colisiones.indexOf(k); if (i >= 0) colisiones.splice(i, 1); } escenaEd.delete(id); }
 function ponerEd(it, objeto) { if (it.tipo === "mundo") { const g = ajustarMundo(it, objeto); if (g) { escenaEd.set(it.id, { it, g }); if (!g.userData.inst) aplicarMatEd(g, it); } return g; } escenaEd._poniendo = true; quitarEd(it.id); escenaEd._poniendo = false; const r = crearPiezaEd(it); escenaEd.set(it.id, { it, ...r }); return r.g; }
 buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con sus sitios de origen: antes de mover nada)
 { // Las dos agujas de roca a los lados del camino justo antes del bastón: fuera (y su choque).
