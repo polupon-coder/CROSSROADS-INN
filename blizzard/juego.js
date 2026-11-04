@@ -4556,13 +4556,12 @@ function actualizarVelo(dt) {
   if (enRescateAntes && !rescate) retornoT = 0; enRescateAntes = !!rescate;
   if (retornoT >= 0) { retornoT += dt; obj = 0; if (retornoT > 1.4) retornoT = -1; }
   caidaK += (obj - caidaK) * (1 - Math.exp(-dt * (obj > caidaK ? (rescate ? 7 : 4) : 2.2)));
-  { let op = 0, esc = 1; espiralGiro += dt * 5;
-    if (rescate && !rescate.pozo) { op = clamp((caidaK - 0.8) / 0.2, 0, 1) * clamp(rescate.t / 0.25, 0, 1); esc = 1.5 - 0.3 * rescate.t; }
-    else if (retornoT >= 0) { const k = clamp(retornoT / 1.3, 0, 1); op = 1 - k * k; esc = 1.2 - 0.95 * k; }
-    if (op > 0.005) { _pEsp.copy(pos).add(new THREE.Vector3(0, 0.9, 0)).project(camara); const x = (_pEsp.x + 1) / 2 * innerWidth, y = (1 - _pEsp.y) / 2 * innerHeight;
-      const cx = rescate ? innerWidth / 2 : x, cy = rescate ? innerHeight / 2 : y;   // (mientras se viaja, en el centro; al volver, sobre Blizzard)
-      espiralRetorno.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) rotate(${(-espiralGiro * 57.3).toFixed(1)}deg) scale(${esc.toFixed(3)})`; }
-    espiralRetorno.style.opacity = op.toFixed(3); }
+  // Mientras el viento lo lleva (todo cubierto), Blizzard no está; al volver, primero aparece su espiral de viento
+  // donde regresa y, dentro de ella, Blizzard.
+  { const oculto = (rescate && !rescate.pozo && caidaK > 0.9) || (retornoT >= 0 && retornoT < 0.6);
+    if (oculto) { if (blizzard.visible) { blizzard.visible = false; blizzard.userData.ocultoCaida = true; } }
+    else if (blizzard.userData.ocultoCaida) { blizzard.visible = true; blizzard.userData.ocultoCaida = false; }
+    if (retornoT >= 0 && retornoT < 1.1) { efectoEspiral = Math.max(efectoEspiral, 1.5); espiralEn = null; } }
   const o = caidaK < 0.01 ? 0 : +caidaK.toFixed(3);
   if (veloCaida._o !== o) { veloCaida._o = o; veloCaida.style.opacity = Math.min(1, o * 1.15).toFixed(3); veloCaida.style.setProperty("--borroso", (o * 16).toFixed(1) + "px"); veloCaida.style.setProperty("--centro", (0.3 + 0.7 * clamp((o - 0.55) / 0.4, 0, 1)).toFixed(3)); veloCaida.style.background = o > 0.97 ? "rgb(238,243,250)" : ""; }   // (del todo cubierto: un color liso, nada se transparenta)   // (más borroso y opaco según se cae; al final, cubre del todo)
 }
