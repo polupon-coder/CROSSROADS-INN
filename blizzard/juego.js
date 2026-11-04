@@ -4224,7 +4224,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9;
+  let acordeB = null, arpegioB = null, caidaB = null, soploB = null, avisoB = null, avisoT = -9, saltoB = null;
   let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
@@ -4241,6 +4241,7 @@ const musica = (() => {
       fetch("musica/caida.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { caidaB = b; }).catch(() => {});
       fetch("musica/nota-soplo.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { soploB = b; }).catch(() => {});
       fetch("musica/aviso-viento.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { avisoB = b; }).catch(() => {});
+      fetch("musica/salto.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { saltoB = b; }).catch(() => {});
       // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
       ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
       ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
@@ -4277,7 +4278,9 @@ const musica = (() => {
   function especial() { if (!ctx || !soploB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = soploB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
   // La nota desafinada cuando el viento avisa de que por ahí no se sigue (como mucho, una vez cada pocos segundos).
   function aviso() { if (!ctx || !avisoB || ctx.currentTime - avisoT < 4) return; avisoT = ctx.currentTime; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = avisoB; g.gain.value = 0.45; f.connect(g).connect(ctx.destination); f.start(); }
-  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso };
+  // El contrabajo, flojito, en cada salto normal.
+  function salto() { if (!ctx || !saltoB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = saltoB; f.playbackRate.value = 0.97 + Math.random() * 0.06; g.gain.value = 0.16; f.connect(g).connect(ctx.destination); f.start(); }
+  return { empezar, viento, niebla, cancion, acorde, arpegio, caida, especial, aviso, salto };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
@@ -4620,7 +4623,7 @@ function actualizar(dt) {
     vel.z = lerp(vel.z, deseo.z, 1 - Math.exp(-dt * agarre));
 
     coyote = enSuelo ? 0.12 : Math.max(0, coyote - dt);
-    if (pulsada("Space") && coyote > 0 && !agachado && !llevando) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; }
+    if (pulsada("Space") && coyote > 0 && !agachado && !llevando) { vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.salto(); }
     if (pulsada("KeyE", "KeyJ") && enSuelo && llevando) {
       // Soltar: la roca cae donde está y vuelve a ser un obstáculo allí.
       llevando.estado = "cayendo"; llevando.vy = 0; llevando.enCanto = false; llevando.vx = Math.sin(rumbo) * 0.6; llevando.vz = Math.cos(rumbo) * 0.6; fijarEje(llevando, llevando.vx, llevando.vz); llevando = null;
