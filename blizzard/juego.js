@@ -1977,6 +1977,7 @@ function moverZonas(dt) {
 function moverBolas(dt) {
   moverGuia(dt);
   moverChispas(dt);
+  musica.niebla(suave(HEX_FIN + 20, HEX_FIN - 6, pos.z));   // (el viento de fondo, desde que empieza la niebla hasta la cueva)
   moverZonas(dt);
   arrastre = Math.max(0, arrastre - dt);
   // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
@@ -4217,7 +4218,7 @@ const musica = (() => {
   // La pista suena ya ralentizada (preparada con rubberband, al 45 %): estirarla en el navegador
   // la ensuciaba. Va a volumen fijo: ninguna acción la toca. Aparte, ráfagas de viento para la magia.
   const URL_MUSICA = "musica/wandering-light-lenta.mp3", VOLUMEN = 0.28;
-  let ctx = null, pista = null, ganancia = null, rafaga = null;
+  let ctx = null, pista = null, ganancia = null, rafaga = null, ambiente = null, gAmb = null, nivelAmb = -1;
   function empezar() {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -4227,6 +4228,9 @@ const musica = (() => {
       ctx.createMediaElementSource(pista).connect(ganancia).connect(ctx.destination);
       pista.play().catch(() => {});
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
+      // El viento suave de fondo de la niebla y el hielo: en bucle, a volumen cero hasta llegar allí.
+      ambiente = new Audio("musica/viento-niebla.mp3"); ambiente.loop = true; gAmb = ctx.createGain(); gAmb.gain.value = 0;
+      ctx.createMediaElementSource(ambiente).connect(gAmb).connect(ctx.destination); ambiente.play().catch(() => {});
     } catch (e) { ctx = null; }
   }
   // Ráfaga de viento suave para la magia: volumen bajo, a veces algo más corta y aguda.
@@ -4237,7 +4241,9 @@ const musica = (() => {
     g.gain.value = volumen;
     f.connect(g).connect(ctx.destination); f.start();
   }
-  return { empezar, viento };
+  // Cuánto se oye el viento de la niebla (0 a 1): sube y baja despacio.
+  function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
+  return { empezar, viento, niebla };
 })();
 
 // ─── Controles ─────────────────────────────────────────────────────────────
