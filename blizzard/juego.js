@@ -4239,7 +4239,7 @@ const musica = (() => {
       sonando.set(0, { a: pista, g: ganancia, t: 0 }); pistaActual = 0;
       fetch("musica/rafaga.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { rafaga = b; }).catch(() => {});
       fetch("musica/acorde-runa.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { acordeB = b; }).catch(() => {});
-      fetch("musica/arpegio-especial.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { arpegioB = b; }).catch(() => {});
+      fetch("musica/chispa.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { arpegioB = b; }).catch(() => {});
       fetch("musica/caida.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { caidaB = b; }).catch(() => {});
       fetch("musica/nota-soplo.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { soploB = b; }).catch(() => {});
       fetch("musica/aviso-viento.mp3").then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(b => { avisoB = b; }).catch(() => {});
@@ -4272,7 +4272,7 @@ const musica = (() => {
   function niebla(nivel) { if (!ctx || !gAmb) return; nivel = Math.round(nivel * 50) / 50; if (nivel === nivelAmb) return; nivelAmb = nivel; gAmb.gain.setTargetAtTime(nivel * 0.55, ctx.currentTime, 1.2); if (nivel > 0 && ambiente.paused) ambiente.play().catch(() => {}); }
   // El acorde de piano al aprender una runa (al completar su trazo).
   function acorde() { if (!ctx || !acordeB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = acordeB; g.gain.value = 0.6; f.connect(g).connect(ctx.destination); f.start(); }
-  // El arpegio de piano al recoger una chispa.
+  // Las campanillas en glissando al recoger una chispa.
   function arpegio() { if (!ctx || !arpegioB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = arpegioB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
   // El acorde disonante al caerse (cuando el viento te recoge).
   function caida() { if (!ctx || !caidaB) return; const f = ctx.createBufferSource(), g = ctx.createGain(); f.buffer = caidaB; g.gain.value = 0.55; f.connect(g).connect(ctx.destination); f.start(); }
