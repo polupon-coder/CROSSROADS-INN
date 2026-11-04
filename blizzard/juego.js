@@ -5693,6 +5693,13 @@ function mantoPintado(x, z, r, mat, alto) {   // un disco que se pega al terreno
   g.setAttribute("color", new THREE.BufferAttribute(c, 4)); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.renderOrder = 2; m.receiveShadow = true; return m; }
 function crearTrazoEd(it, g) {
   const r = it.r || 3, I = it.i ?? 0.6, pts = puntosTrazo(it), clase = it.clase;
+  if (window.BLIZZARD_EDITOR && pts.length) {   // (en el editor, el trazo se marca con una línea de color y su anchura, para verlo desde arriba)
+    const col = { nieve: 0x5aa0ff, acumulada: 0x2f6bd8, espolvoreada: 0x8fd0ff, niebla: 0xff7ac8 }[clase] || 0xffffff, alto = (x, z) => alturaSuelo(x, z) + 0.4;
+    const linea = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x, , z]) => new THREE.Vector3(x, alto(x, z), z))), new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true }));
+    linea.renderOrder = 998; g.add(linea);
+    const anillo = new THREE.RingGeometry(r * 0.94, r, 40); anillo.rotateX(-Math.PI / 2); const ma = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, depthTest: false, side: THREE.DoubleSide });
+    pts.forEach(([x, , z], k) => { if (k % 2 && k !== pts.length - 1) return; const m = new THREE.Mesh(anillo, ma); m.position.set(x, alto(x, z), z); m.renderOrder = 998; g.add(m); });
+  }
   if (clase === "acumulada") { g.userData.ventis = []; for (const [x, , z] of pts) { const v = ventisquero(x, z, 2 * r, 2 * r, 0.12 + 0.5 * I, null, true); if (v) { scene.remove(v.malla); g.add(v.malla); g.userData.ventis.push(v); } } }
   else if (clase === "nieve" || clase === "espolvoreada") {
     const mat = clase === "nieve" ? new THREE.MeshStandardMaterial({ map: texNieveEd, color: 0xeef2f8, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, opacity: 0.35 + 0.65 * I })

@@ -300,18 +300,22 @@
   const chispaSinCambio = it => it.tipo === "chispa" && !it.oculto && baseChispa.has(it.id) && it.p.every((v, i) => Math.abs(v - baseChispa.get(it.id)[i]) < 0.01);
   // ── Pinceles: nieve, nieve acumulada, nieve espolvoreada y niebla, pintadas arrastrando sobre el terreno ──
   let pincel = null, trazoEd = null, trazoT = 0;
-  const pintarPinceles = () => { document.querySelectorAll("#pinceles button").forEach(b => b.classList.toggle("activo", b.dataset.pincel === pincel)); $("filaMov").hidden = pincel !== "niebla"; dom.style.cursor = pincel ? "crosshair" : ""; aviso(pincel ? "Pincel: arrastra sobre el terreno para pintar · Esc para dejarlo" : ""); };
+  // El círculo del pincel bajo el ratón (del tamaño que pinta).
+  const cursorPincel = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }));
+  cursorPincel.renderOrder = 999; cursorPincel.visible = false; scene.add(cursorPincel);
+  const pintarPinceles = () => { cursorPincel.visible = false; document.querySelectorAll("#pinceles button").forEach(b => b.classList.toggle("activo", b.dataset.pincel === pincel)); $("filaMov").hidden = pincel !== "niebla"; dom.style.cursor = pincel ? "crosshair" : ""; aviso(pincel ? "Pincel: arrastra sobre el terreno para pintar · Esc para dejarlo" : ""); };
   document.querySelectorAll("#pinceles button").forEach(b => b.onclick = () => { pincel = pincel === b.dataset.pincel ? null : b.dataset.pincel; colocando = null; pintarLista(); pintarPinceles(); });
   for (const [k, v, d] of [["pTam", "vTam", 1], ["pInt", "vInt", 2], ["pMov", "vMov", 2]]) $(k).addEventListener("input", () => { $(v).textContent = (+$(k).value).toFixed(d); });
   const sueloBajo = e => { rayoDe(e); const o = ray.ray.origin, d = ray.ray.direction, en = t => [o.x + d.x * t, o.y + d.y * t, o.z + d.z * t]; let t0 = 0, t1 = null, paso = 1;
     for (let t = 0; t < 4000; t += paso) { const q = en(t); if (q[1] <= E.alturaTerreno(q[0], q[2])) { t1 = t; break; } t0 = t; paso = Math.min(10, paso * 1.06); }
     if (t1 === null) return null; for (let k = 0; k < 18; k++) { const tm = (t0 + t1) / 2, q = en(tm); if (q[1] <= E.alturaTerreno(q[0], q[2])) t1 = tm; else t0 = tm; } return en(t1).map(v => +v.toFixed(2)); };
-  dom.addEventListener("pointerdown", e => { if (!pincel || e.button !== 0) return; const q = sueloBajo(e); if (!q) return; e.stopImmediatePropagation(); e.preventDefault(); orbit.enabled = false; try { dom.setPointerCapture(e.pointerId); } catch {}
+  dom.addEventListener("pointerdown", e => { if (!pincel || e.button !== 0) return; const q = sueloBajo(e); if (!q) { aviso("Apunta al terreno para pintar."); return; } aviso("Pintando…"); e.stopImmediatePropagation(); e.preventDefault(); orbit.enabled = false; try { dom.setPointerCapture(e.pointerId); } catch {}
     trazoEd = { id: nuevoId(), tipo: "trazo", clase: pincel, puntos: [q], r: +$("pTam").value, i: +$("pInt").value, mov: pincel === "niebla" ? +$("pMov").value : 0, p: [0, 0, 0] }; items.set(trazoEd.id, trazoEd); E.ponerEd(trazoEd); trazoT = performance.now(); }, true);
-  dom.addEventListener("pointermove", e => { if (!trazoEd) return; e.stopImmediatePropagation(); const q = sueloBajo(e); if (!q) return; const u = trazoEd.puntos[trazoEd.puntos.length - 1];
+  dom.addEventListener("pointermove", e => { if (pincel && !trazoEd) { const q = sueloBajo(e); cursorPincel.visible = !!q; if (q) { cursorPincel.position.set(q[0], q[1] + 0.3, q[2]); cursorPincel.scale.setScalar(+$("pTam").value); } return; }
+    if (!trazoEd) return; e.stopImmediatePropagation(); const q = sueloBajo(e); if (!q) return; cursorPincel.position.set(q[0], q[1] + 0.3, q[2]); const u = trazoEd.puntos[trazoEd.puntos.length - 1];
     if (Math.hypot(q[0] - u[0], q[2] - u[2]) >= Math.max(0.3, trazoEd.r * 0.35)) trazoEd.puntos.push(q);
     if (performance.now() - trazoT > 160) { trazoT = performance.now(); E.ponerEd(trazoEd); } }, true);
-  dom.addEventListener("pointerup", e => { if (!trazoEd) return; e.stopImmediatePropagation(); const t = trazoEd; trazoEd = null; orbit.enabled = true; E.ponerEd(t); guardar(t); }, true);
+  dom.addEventListener("pointerup", e => { if (!trazoEd) return; e.stopImmediatePropagation(); const t = trazoEd; trazoEd = null; orbit.enabled = true; E.ponerEd(t); guardar(t); aviso("Trazo pintado (" + t.puntos.length + " puntos) · sigue arrastrando para otro · Esc para dejar el pincel"); }, true);
   verBloque(bloques[0]);
   // La base de datos se carga aparte: el editor responde desde el principio.
   (async () => {
