@@ -1794,7 +1794,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             " float a = smoothstep(ola + 0.08, ola - 0.4, y) * (0.09 + 0.11 * r) * (0.8 + 0.35 * max(0.0, cos(fase)));" +
             " a *= smoothstep(desde + 18.0, desde + 6.0, vP.z) * smoothstep(-1540.0, -1525.0, vP.z) * mix(1.0, 0.55, smoothstep(hasta + 2.0, hasta - 8.0, vP.z));" +
             " a *= mix(1.0, smoothstep(8.0, 26.0, distance(q, centro.xz)), ap);" +   /* (la onda la aparta) */
-            " a *= smoothstep(0.35, 1.5, distance(q, jug.xz));" +   /* (alrededor del cuerpo no hay capas: sin líneas) */
+            " a *= 1.0;" +   /* (sin hueco alrededor del cuerpo: los huecos de cada capa, apilados, se veían como manchas) */   /* (alrededor del cuerpo no hay capas: sin líneas) */
             " gl_FragColor = vec4(mix(color, vec3(0.85, 0.9, 0.99), 0.45), a); }"   /* (gris azulada, más oscura que la bruma: se distingue del fondo) */ }));
         m.rotation.x = -Math.PI / 2; m.position.set(caminoX(zcN), y0 + capa, zcN); m.renderOrder = 4; m.raycast = () => {}; m.userData.capa = capa; scene.add(m); nieblaLago.capas.push(m); }
       // Y una capa alta, también ondeante pero menos densa (de 2 a 5 m sobre el hielo).
@@ -1804,7 +1804,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             " void main() { float y = vP.y - base; vec2 q = vP.xz; float r = n(q * 0.05 + vec2(t * 0.2, t * 0.04)) * 0.6 + n(q * 0.15 - vec2(t * 0.28, -t * 0.07)) * 0.4;" +
             " float techo = 4.4 + 0.9 * sin(q.x * 0.09 + q.y * 0.04 + t * 1.1) + 0.4 * sin(q.y * 0.21 - t * 1.6);" +
             " float a = smoothstep(techo + 0.2, techo - 1.2, y) * smoothstep(1.8, 2.6, y) * (0.025 + 0.04 * r);" +
-            " a *= smoothstep(desde + 14.0, desde + 4.0, vP.z) * smoothstep(hasta - 12.0, hasta + 2.0, vP.z) * smoothstep(1.0, 3.0, distance(q, jug.xz));" +
+            " a *= smoothstep(desde + 14.0, desde + 4.0, vP.z) * smoothstep(hasta - 12.0, hasta + 2.0, vP.z);" +
             " vec3 vv = normalize(cameraPosition - vP); a *= smoothstep(0.03, 0.25, abs(vv.y));" +
             " gl_FragColor = vec4(mix(color, vec3(0.86, 0.93, 0.98), 0.5), a); }" }));   /* (más fina y alta: velo sobre el lago) */
         m.rotation.x = -Math.PI / 2; m.position.set(caminoX((HIELO.desde + HIELO.hasta) / 2), y0 + capa, (HIELO.desde + HIELO.hasta) / 2); m.renderOrder = 4; m.raycast = () => {}; scene.add(m); }
