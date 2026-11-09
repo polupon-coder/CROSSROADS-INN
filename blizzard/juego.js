@@ -1856,12 +1856,12 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
           colisiones.push({ x: xb, z: zb, r: 1.6, techo: yb + 0.3, plataforma: true, fija: true }); } } }
     // Cristales de hielo (las tres piezas) a los lados del paso: del suelo, junto a las paredes, y colgando de lo alto, inclinados hacia dentro.
     { const rK = generador(8282);
-      for (let z = HIELO.hasta - 4; z > zE - 2; z -= 2.6 + rK() * 2.2) for (const lado of [-1, 1]) { if (rK() < 0.25) continue;
+      for (let z = HIELO.hasta - 4; z > zE - 2; z -= 2.6 + rK() * 2.2) for (const lado of [-1, 1]) { if (rK() < 0.25 || murosHielo.some(M => Math.abs(z - M.z) < 4 || Math.abs(z - (M.z + 5.5)) < 6)) continue;   /* (ni junto a los muros ni sobre sus bases) */
         const C = kitHielo[Math.floor(rK() * kitHielo.length)], arriba = rK() < 0.35, h = arriba ? 2.5 + rK() * 3.5 : 2 + rK() * 5.5, s = h / C.alto, g = new THREE.Group(), cm = new THREE.Mesh(C.geo, C.material); cm.position.copy(C.desplaza).multiplyScalar(1); g.add(cm); g.scale.setScalar(s);
-        const x = sx(z) + lado * (3.0 + rK() * 0.9), y = alturaTerreno(x, z);
-        if (arriba) { g.rotation.set(Math.PI + lado * (0.15 + rK() * 0.2), rK() * 6.28, 0); g.position.set(x + lado * 0.6, y + 9 + rK() * 4, z); }   /* (del techo: cuelgan de lo alto de la pared) */
-        else { g.rotation.set(0, rK() * 6.28, -lado * (0.08 + rK() * 0.22)); g.position.set(x, y - 0.3, z); colisiones.push({ x, z, r: Math.max(0.5, C.radio * s * 0.55), techo: 99 }); }   /* (del suelo: estrechan el paso) */
-        g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material.clone(); m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08; m.onBeforeCompile = hieloPalidoNieve; o.material = m; } }); scene.add(g); } }
+        const rr = Math.max(0.5, C.radio * s * 0.55), x = sx(z) + lado * Math.max(3.0 + rK() * 0.9, (arriba ? 3.4 : 2.4 + rr)), y = alturaTerreno(x, z);   /* (nunca en medio: el paso queda libre al menos 2,4 m a cada lado) */
+        if (arriba) { g.rotation.set(Math.PI + lado * (0.06 + rK() * 0.1), rK() * 6.28, 0); g.position.set(x + lado * 0.8, y + 11 + rK() * 3, z); }   /* (del techo: cuelgan de lo alto de la pared) */
+        else { g.rotation.set(0, rK() * 6.28, lado * (0.04 + rK() * 0.1)); g.position.set(x, y - 0.3, z);   /* (algo inclinados hacia la pared, no hacia el paso) */ colisiones.push({ x, z, r: rr, techo: 99 }); }   /* (del suelo: estrechan el paso) */
+        g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material.clone(); m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08; m.onBeforeCompile = hieloPalidoNieve; o.material = m; } }); g.userData.tapa = true; scene.add(g); } }   /* (tapa: si se pone entre la cámara y Blizzard, se oculta) */
     // Un camino muy ancho de nieve acumulada por el centro del paso, desde el lago hasta la sala de la cueva (fino: los pies apenas se hunden).
     { const Q = []; for (let z = HIELO.hasta - 0.5; z > P7.z - R + 2; z -= 1) Q.push({ x: (z > zE - 2 ? sx(z) : P7.x) + 1.4 * Math.sin(z * 0.09) + 0.7 * Math.sin(z * 0.23 + 1.3), z }); const RA = 4.2;   /* (serpenteando) */
       const dist = (x, z) => { let m = Infinity; for (let k = 0; k < Q.length - 1; k++) { const a = Q[k], b = Q[k + 1]; if (Math.abs(z - a.z) > RA + 2) continue; const vx = b.x - a.x, vz = b.z - a.z, l2 = vx * vx + vz * vz, t = clamp(((x - a.x) * vx + (z - a.z) * vz) / l2, 0, 1), dx = x - a.x - vx * t, dz = z - a.z - vz * t; m = Math.min(m, dx * dx + dz * dz); } return Math.sqrt(m) / (0.78 + 0.16 * Math.sin(z * 0.27) + 0.1 * Math.sin(z * 0.71 + x * 0.4) + 0.06 * Math.sin(x * 1.3 - z * 0.9)); };   /* (bordes irregulares: el ancho cambia a cada paso) */
@@ -3808,7 +3808,10 @@ const ventisqueros = [];
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
 let _matNieveHielo = null;
 const matNieveHielo = () => _matNieveHielo || (_matNieveHielo = (() => { const t = new THREE.TextureLoader().load("texturas/nieve.jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 70);
-  return new THREE.MeshStandardMaterial({ map: t, color: 0xe3e7ec, emissive: 0x30353c, roughness: 1, vertexColors: true }); })());   /* (algo azulada, cerca del tono del hielo pero más clara) */   /* (menos luz propia: se ven las sombras y el surco al pasar) */   // (como el camino de nieve del lago)
+  const m = new THREE.MeshStandardMaterial({ map: t, color: 0xe3e7ec, emissive: 0x30353c, roughness: 1, vertexColors: true, transparent: true });
+  m.onBeforeCompile = sh => { sh.vertexShader = "attribute float alfa;\nvarying float vAlfa;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vAlfa = alfa;");
+    sh.fragmentShader = "varying float vAlfa;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= vAlfa;"); };   /* (bordes difuminados) */
+  m.customProgramCacheKey = () => "nieveAlfa"; return m; })());   /* (algo azulada, cerca del tono del hielo pero más clara) */   /* (menos luz propia: se ven las sombras y el surco al pasar) */   // (como el camino de nieve del lago)
 function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, sueloFijo = null) {
   if (!manto && !forzar && ((cz < DUNAS.desde + 2 && cz > PUZLE_Z - 6) || cz < DUNAS2.desde + 2)) return;                 // en las dunas, solo el manto (los montones resaltaban)
   // (el manto de las dunas, con celdas de 0,16 m: con las de 0,76 el surco salía ancho, y con 0,25 en dientes)
@@ -3838,6 +3841,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, s
     }
     geo.setIndex(bien); }
   geo.computeVertexNormals();
+  if (manto && (manto.blanca || manto.mat)) { const al = new Float32Array(p.count); for (let i = 0; i < p.count; i++) al[i] = Math.min(1, afila[i] / 0.62 * 2.2); geo.setAttribute("alfa", new THREE.BufferAttribute(al, 1)); }   /* (borde difuminado: se funde con el suelo) */
   // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
   // Mismo material que el suelo (el tono de la nieve va en el color de cada vértice): no se distingue.
   const tono = new Float32Array(p.count * 3); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3));
