@@ -256,7 +256,7 @@ const PLATAFORMA7 = { x: -6, z: -1612.5, r: 13, alto: 0.9, base: 27 }; PLATAFORM
 const CUEVA7 = { x: 0, z: HIELO.hasta - 100 };   /* (la sala de hielo de antes, con su anillo de icebergs) */
 // El puente de la cueva (Santuario del puente): tras la plataforma, una sima; encima, aspas de dos vigas cruzadas que giran sobre un pilar.
 let aspas = [];
-const SIMA7 = { desde: -1592, hasta: -1653.6 };   /* (la sima de la cueva del editor: bajo las pilastras y la plataforma flotante, y luego las vigas giratorias) */
+const SIMA7 = { desde: -1569, hasta: -1653.6 };   /* (la sima de la cueva del editor: bajo las pilastras y la plataforma flotante, y luego las vigas giratorias) */
 function dentroAspa(A, x, z) { if (Math.abs(z - A.z) > A.L / 2 + 0.5 || Math.abs(x - A.x) > A.L / 2 + 0.5) return false; const a = A.ang, ux = Math.sin(a), uz = Math.cos(a), dx = x - A.x, dz = z - A.z; return Math.abs(dx * ux + dz * uz) < A.L / 2 && Math.abs(-dx * uz + dz * ux) < A.W / 2; }   // (una sola viga por pivote)
 function alturaAspas(x, z) { let h = -Infinity; for (const A of aspas) if (dentroAspa(A, x, z)) h = Math.max(h, A.top); return h; }   // (la gran plataforma arcana de hielo, en la cueva)   // (arriba del acantilado: la runa de la onda)
 const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2.hasta + 2, CANON2.hasta - 8, z));   // dentro del desfiladero final
@@ -1869,13 +1869,15 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
         const v = new THREE.Mesh(pieza.geo, mat); v.scale.set(W / tb.x, H / tb.y, L / tb.z); v.position.set(-cb.x * W / tb.x, -cb.y * H / tb.y, -cb.z * L / tb.z); v.castShadow = v.receiveShadow = true; g.add(v);
         g.position.set(x, top - H / 2, z); g.rotation.y = ang; scene.add(g); const pil = new THREE.Mesh(geoP, matP); pil.position.set(x, top - 20.6, z); scene.add(pil);
         aspas.push({ x, z, top, ang, objetivo: ang, L, W, g, mat, pil }); });
-      { const x = 0.6, z = -1598.4, top = 35.2, w = 3.6, h = 2, d = 9.2, g = new THREE.Group(), mat = pieza.material.clone(); mat.color = new THREE.Color(0xe8f0f8); mat.emissive = new THREE.Color(0); mat.roughness = 0.6;   /* (una pilastra más, entre la segunda del editor y la plataforma flotante: sin ella el salto no llegaba) */
+      // Bloques de paso sobre la sima (los saltos entre los bloques del editor, sus pilastras y la plataforma flotante, a una distancia que se puede saltar).
+      for (const [x, z, top, w, d] of [[1, -1573.4, 34.9, 3.4, 4.4], [1.5, -1585.3, 34.4, 3.2, 3.6], [0.6, -1598.4, 35.2, 3.6, 9.2]]) { const h = 2, g = new THREE.Group(), mat = pieza.material.clone(); mat.color = new THREE.Color(0xe8f0f8); mat.emissive = new THREE.Color(0); mat.roughness = 0.6;
         const v = new THREE.Mesh(pieza.geo, mat); v.scale.set(w / tb.x, h / tb.y, d / tb.z); v.position.set(-cb.x * w / tb.x, -cb.y * h / tb.y, -cb.z * d / tb.z); v.castShadow = v.receiveShadow = true; g.add(v); g.position.set(x, top - h / 2, z); scene.add(g);
-        const pil = new THREE.Mesh(geoP, matP); pil.position.set(x, top - h - 19, z); scene.add(pil); for (const dz of [3.6, 1.2, -1.2, -3.6]) colisiones.push({ x, z: z + dz, r: 1.75, techo: top, plataforma: true }); } }
+        const pil = new THREE.Mesh(geoP, matP); pil.position.set(x, top - h - 19, z); scene.add(pil);
+        const n = Math.max(1, Math.round(d / 2.4)); for (let k = 0; k < n; k++) colisiones.push({ x, z: z + (n > 1 ? (k / (n - 1) - 0.5) * (d - 2.2) : 0), r: Math.max(w, 2.4) / 2 + 0.05, techo: top, plataforma: true }); } }
     { const zA = HIELO.hasta + 0.5, zB = P7.z - R - 6, gS = new THREE.PlaneGeometry(2 * R + 10, zA - zB, 48, 110); gS.rotateX(-Math.PI / 2); const PS = gS.attributes.position; for (let i = 0; i < PS.count; i++) { const x = P7.x + PS.getX(i), z = (zA + zB) / 2 + PS.getZ(i); PS.setXYZ(i, x, alturaTerreno(x, z) + 0.06, z); } gS.computeVertexNormals(); const mS = matL.clone(); mS.onBeforeCompile = matL.onBeforeCompile; const sueloCueva = new THREE.Mesh(gS, mS);   /* (el mismo hielo del lago, que no se rompe; desde el final del lago hasta la cueva) */   /* (sigue el relieve: de hielo, en toda la cueva y el pasillo) */ sueloCueva.receiveShadow = false; sueloCueva.raycast = () => {}; sueloCueva.material.polygonOffset = true; sueloCueva.material.polygonOffsetFactor = -1; scene.add(sueloCueva); }   // (suelo de hielo, que no se rompe)
 
   }
-  const zr = ANILLO_Z - 16, xr = caminoX(zr) - 22; encajar(gRuinaAlta, xr, alturaTerreno(xr, zr) - 1.5, zr, 36, 35, 14.5, 0.15);   // (a su proporción, grande)
+  /* (la ruina alta de la cueva del editor, quitada) */   // (a su proporción, grande)
 }
 // En las dunas de los pozos, a los lados: rocas y paños de acantilado cortados (en sección), de perímetro.
 { const rP = generador(6464);
