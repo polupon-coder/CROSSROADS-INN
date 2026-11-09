@@ -462,7 +462,7 @@ PLATAFORMA7.x = caminoX(PLATAFORMA7.z); PLATAFORMA7.base = alturaTerreno(PLATAFO
 PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z) + 0.5;   // (algo más alta: a la altura del camino)
 
 // ─── Escena ────────────────────────────────────────────────────────────────
-const BRUMA_HIELO = new THREE.Color("#f0f3f7"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
+const BRUMA_HIELO = new THREE.Color("#e8f0fa"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
 const CIELO = new THREE.Color("#c9d8ee"), AMANECER_ROSA = new THREE.Color("#d9dce6"), AMANECER_ORO = new THREE.Color("#f6dcb8");
 const CIELO_LAGO = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#cdd6e6"); g.addColorStop(0.35, "#d8dde8"); g.addColorStop(0.6, "#e1e1e7"); g.addColorStop(0.78, "#e6e3e3"); g.addColorStop(1, "#dee0e7");   /* (azulado apagado, apenas un toque cálido en el horizonte) */   /* (siempre más claro que lo lejano en la niebla) */ x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c); })();   // (azul violáceo arriba, rosa y oro al horizonte)
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1739,8 +1739,8 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     const tex = new THREE.TextureLoader().load("texturas/placas.jpg"); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;   // (el hielo del lago: tu textura de hielo roto, en grande)
     const porMundo = (m, inst) => { m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace("#include <uv_vertex>", "#include <uv_vertex>\n  vUv = (modelMatrix * " + (inst ? "instanceMatrix * " : "") + "vec4(position, 1.0)).xz * 0.055;"); sh.fragmentShader = sh.fragmentShader.replace("#include <tonemapping_fragment>", LUZ_HIELO); }; return m; };   // (la textura por posición: sin juntas)
     const matCian = new THREE.MeshStandardMaterial({ color: 0x9fd6e4, emissive: 0x2b5f6e, roughness: 0.28, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 });   /* (todo el hielo de la zona: un cian uniforme, con algo de brillo) */
-    const matH = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xbac6d0, emissive: 0x2c3a45, roughness: 0.22, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 }), true);   /* (tu textura de hielo, con matiz azulado) */
-    const matL = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xbac6d0, emissive: 0x2c3a45, roughness: 0.22, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 }), false); void matCian;
+    const matH = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xdfe7ef, emissive: 0x3d4c5a, roughness: 0.22, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 }), true);   /* (tu textura de hielo, con matiz azulado) */
+    const matL = porMundo(new THREE.MeshStandardMaterial({ map: tex, color: 0xdfe7ef, emissive: 0x3d4c5a, roughness: 0.22, metalness: 0.05, envMap: cieloRef, envMapIntensity: 0.45 }), false); void matCian;
     const matN = new THREE.MeshStandardMaterial({ color: 0xe8eef6, roughness: 1 });
     const A1 = HIELO.desde - 20, A2 = HIELO.desde - 46, A3 = HIELO.hasta + 6;   // (fin del camino de nieve; fin de la nieve a trozos; donde empieza la nieve del otro lado)
     const celdas = []; void A1;
@@ -1788,7 +1788,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             " a *= smoothstep(desde + 18.0, desde + 6.0, vP.z) * smoothstep(hasta - 30.0, hasta - 10.0, vP.z);" +
             " a *= mix(1.0, smoothstep(8.0, 26.0, distance(q, centro.xz)), ap);" +   /* (la onda la aparta) */
             " a *= smoothstep(0.35, 1.5, distance(q, jug.xz));" +   /* (alrededor del cuerpo no hay capas: sin líneas) */
-            " gl_FragColor = vec4(mix(color, vec3(0.74, 0.78, 0.85), 0.45), a); }"   /* (gris azulada, más oscura que la bruma: se distingue del fondo) */ }));
+            " gl_FragColor = vec4(mix(color, vec3(0.88, 0.92, 0.98), 0.45), a); }"   /* (gris azulada, más oscura que la bruma: se distingue del fondo) */ }));
         m.rotation.x = -Math.PI / 2; m.position.set(caminoX(zcN), y0 + capa, zcN); m.renderOrder = 4; m.raycast = () => {}; m.userData.capa = capa; scene.add(m); nieblaLago.capas.push(m); }
       nieblaLago.u.base.value = y0; nieblaLago.u.desde.value = HIELO.desde; nieblaLago.u.hasta.value = HIELO.hasta; mapaNieblaSucio = true; }
     { const kitB = separarKit(gBloques), texPl = new THREE.TextureLoader().load("texturas/placas.jpg"), matT = new THREE.MeshStandardMaterial({ map: texPl, emissive: 0x2a4050, color: 0xb4cadb, roughness: 0.05, metalness: 0.45, envMap: cieloRef, envMapIntensity: 1.2 });   /* (las placas, con tu textura de hielo roto) */   // (el hielo roto: tus bloques de piedra, en hielo)
@@ -6085,9 +6085,9 @@ function surcoEsfera(E) {
 }
 // Material de los golems esfera: la piedra de las rocas que se colocan, proyectada desde los tres ejes (uniforme, sin
 // costuras del modelo), y una capa de nieve encima, en su lado de arriba al aparecer; al rodar gira con ella y se suelta.
-let _texNieveE = null;
+let _texNieveE = null, _texPiedraE = null;
 function materialEsfera(o, uNieve) {
-  const m = kitRocas[1].material.clone(); m.transparent = false; m.opacity = 1; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null; m.aoMap = null;
+  const m = kitRocas[1].material.clone(); if (!_texPiedraE) { _texPiedraE = new THREE.TextureLoader().load("texturas/piedra.jpg"); _texPiedraE.wrapS = _texPiedraE.wrapT = THREE.RepeatWrapping; } m.map = _texPiedraE; m.color.setRGB(0.82, 0.85, 0.9);   /* (piedra lisa: la textura de las rocas trae nieve pintada) */ m.transparent = false; m.opacity = 1; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null; m.aoMap = null;
   if (!_texNieveE) { _texNieveE = new THREE.TextureLoader().load("texturas/nieve.jpg"); _texNieveE.wrapS = _texNieveE.wrapT = THREE.RepeatWrapping; }
   o.geometry.computeBoundingSphere(); const rL = o.geometry.boundingSphere.radius || 1, cL = o.geometry.boundingSphere.center.clone();
   const arriba = new THREE.Vector3(0, 1, 0).applyQuaternion(o.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
