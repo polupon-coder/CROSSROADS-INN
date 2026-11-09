@@ -1854,7 +1854,10 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
         mat.color = new THREE.Color(0xe8f0f8); mat.emissive = new THREE.Color(0); mat.roughness = 0.6;
         const v = new THREE.Mesh(pieza.geo, mat); v.scale.set(W / tb.x, H / tb.y, L / tb.z); v.position.set(-cb.x * W / tb.x, -cb.y * H / tb.y, -cb.z * L / tb.z); v.castShadow = v.receiveShadow = true; g.add(v);
         g.position.set(x, top - H / 2, z); g.rotation.y = ang; scene.add(g); const pil = new THREE.Mesh(geoP, matP); pil.position.set(x, top - 20.6, z); scene.add(pil);
-        aspas.push({ x, z, top, ang, objetivo: ang, L, W, g, mat, pil }); }); }
+        aspas.push({ x, z, top, ang, objetivo: ang, L, W, g, mat, pil }); });
+      { const x = 0.8, z = -1596.6, top = 35.3, w = 2.4, h = 2, d = 2.4, g = new THREE.Group(), mat = pieza.material.clone(); mat.color = new THREE.Color(0xe8f0f8); mat.emissive = new THREE.Color(0); mat.roughness = 0.6;   /* (una pilastra más, entre la segunda del editor y la plataforma flotante: sin ella el salto no llegaba) */
+        const v = new THREE.Mesh(pieza.geo, mat); v.scale.set(w / tb.x, h / tb.y, d / tb.z); v.position.set(-cb.x * w / tb.x, -cb.y * h / tb.y, -cb.z * d / tb.z); v.castShadow = v.receiveShadow = true; g.add(v); g.position.set(x, top - h / 2, z); scene.add(g);
+        const pil = new THREE.Mesh(geoP, matP); pil.position.set(x, top - h - 19, z); scene.add(pil); colisiones.push({ x, z, r: 1.5, techo: top }); } }
     { const zA = HIELO.hasta + 0.5, zB = P7.z - R - 6, gS = new THREE.PlaneGeometry(2 * R + 10, zA - zB, 48, 110); gS.rotateX(-Math.PI / 2); const PS = gS.attributes.position; for (let i = 0; i < PS.count; i++) { const x = P7.x + PS.getX(i), z = (zA + zB) / 2 + PS.getZ(i); PS.setXYZ(i, x, alturaTerreno(x, z) + 0.06, z); } gS.computeVertexNormals(); const mS = matL.clone(); mS.onBeforeCompile = matL.onBeforeCompile; const sueloCueva = new THREE.Mesh(gS, mS);   /* (el mismo hielo del lago, que no se rompe; desde el final del lago hasta la cueva) */   /* (sigue el relieve: de hielo, en toda la cueva y el pasillo) */ sueloCueva.receiveShadow = false; sueloCueva.raycast = () => {}; sueloCueva.material.polygonOffset = true; sueloCueva.material.polygonOffsetFactor = -1; scene.add(sueloCueva); }   // (suelo de hielo, que no se rompe)
 
   }
@@ -1892,7 +1895,7 @@ const guia = (() => {
   return { luz, cola, quieto: 0, z: null, modo: "vuelta", t: 0, reloj: 0, paso: 0, p: new THREE.Vector3(), y: 0, fin: 0 };
 })();
 function fueraDeGeometria(p) {   // aparta un punto de lo que choca: por encima si es bajo, a un lado si es alto; y nunca bajo el suelo
-  for (const c of colisiones) { if (c.rampa || Math.abs(c.z - p.z) > c.r + 1 || Math.abs(c.x - p.x) > c.r + 1) continue;
+  for (const c of colisiones) { if (c.rampa || c.soloSuelo || Math.abs(c.z - p.z) > c.r + 1 || Math.abs(c.x - p.x) > c.r + 1) continue;
     const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), R = c.r + 0.45; if (d >= R || (c.bajo !== undefined && p.y < c.bajo - 0.3) || p.y > c.techo + 0.35) continue;
     if (c.techo < p.y + 1.6) p.y = c.techo + 0.4; else if (d > 1e-3) { p.x = c.x + dx / d * R; p.z = c.z + dz / d * R; } }
   const s = alturaSuelo(p.x, p.z); if (s > -5 && p.y < s + 0.35) p.y = s + 0.35;
@@ -4671,7 +4674,7 @@ function moverHorizontal(dx, dz) {
   const paso = enSuelo ? PASO : 0.55;                         // en el aire no se «sube» un escalón
   // Piedras con malla: su cara, 35 cm por delante, no puede subir más de 0,35 m sobre los pies (no se
   // trepa por las faldas inclinadas de las rocas; lo que es más alto se salta).
-  const cerca = colisiones.filter(c => c.obj && c.techo > pos.y + 0.35 && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.8);
+  const cerca = colisiones.filter(c => c.obj && !c.soloSuelo && c.techo > pos.y + 0.35 && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.8);
   const piedra = (x, z) => cerca.every(c => Math.hypot(x - c.x, z - c.z) >= c.r || alturaObj(c, x, z) <= pos.y + 0.35);
   const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + paso && alturaSuelo(x + ax, z + az) <= pos.y + paso + 0.1 && piedra(x + ax, z + az);
   if (prueba(pos.x + dx, pos.z + dz)) { pos.x += dx; pos.z += dz; }
@@ -4684,7 +4687,7 @@ function moverHorizontal(dx, dz) {
       if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001 && !colisiones.some(k => k.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= k.bajo && Math.hypot(k.x - pos.x, k.z - pos.z) < k.r + 0.6)) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }   // (si por debajo se cabe, de pie o agachado, no empuja: era un muro invisible)
       continue;
     }
-    if (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo) continue;   // por debajo, agachado, se pasa
+    if (c.soloSuelo || (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo)) continue;   // por debajo, agachado, se pasa (soloSuelo: solo para pisar encima)
     const ex = pos.x - c.x, ez = pos.z - c.z, d = Math.hypot(ex, ez), r = (c.borde ? radioBorde(c, pos.x, pos.z) : c.r) + 0.25;
     if (d < r && pos.y < c.techo - PASO && d > 0.001 && !(c.obj && d < c.r && encima(c))) { pos.x = c.x + ex / d * r; pos.z = c.z + ez / d * r; }
   }
@@ -5095,7 +5098,7 @@ function actualizar(dt) {
       p.g.position.lerp(_v2.set(hx, hy, hz), 1 - Math.exp(-dt * 5));
       let tx = p.g.position.x, tz = p.g.position.z, apartaX = 0, apartaZ = 0;
       for (let vuelta = 0; vuelta < 3; vuelta++) for (const c of colisiones) {
-        if (c.rampa || c.techo <= p.g.position.y - p.medio + 0.2) continue;
+        if (c.rampa || c.soloSuelo || c.techo <= p.g.position.y - p.medio + 0.2) continue;
         const r = (c.borde ? radioBorde(c, tx, tz) : c.r) + p.R * 0.85, dx = tx - c.x, dz = tz - c.z, d = Math.hypot(dx, dz);
         if (d < r && d > 1e-3) { tx = c.x + dx / d * r; tz = c.z + dz / d * r; apartaX += dx / d; apartaZ += dz / d; }
       }
@@ -5249,7 +5252,7 @@ function actualizar(dt) {
   { const cabeza = _camQ.set(pos.x, pos.y + 1.4, pos.z), d = _camD.copy(ojo).sub(cabeza), L2 = d.x * d.x + d.z * d.z;
     const dentro = colisiones.some(c => !c.rampa && c.bajo === undefined && c.techo > ojo.y - 0.3 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.3);
     if ((Math.abs(giroCam) > 0.05 || dentro || orbitaT >= 0) && L2 > 0.01) {   /* (también en la vuelta tras la runa: tan lejos como deje el entorno, sin que nada tape) */ let tMin = 1;
-      for (const c of colisiones) { if (c.rampa || c.bajo !== undefined) continue; const fx = cabeza.x - c.x, fz = cabeza.z - c.z, R = c.r + 0.35;
+      for (const c of colisiones) { if (c.rampa || c.soloSuelo || c.bajo !== undefined) continue; const fx = cabeza.x - c.x, fz = cabeza.z - c.z, R = c.r + 0.35;
         if (fx * fx + fz * fz < R * R) continue;   // (si Blizzard está junto a ella, no cuenta)
         const bq = 2 * (fx * d.x + fz * d.z), cq = fx * fx + fz * fz - R * R, disc = bq * bq - 4 * L2 * cq; if (disc < 0) continue;
         const t = (-bq - Math.sqrt(disc)) / (2 * L2); if (t > 0 && t < tMin && c.techo > cabeza.y + d.y * t - 0.2) tMin = t; }
@@ -5644,7 +5647,7 @@ camara.position.set(0, pos.y + 3.6, pos.z + 7.2);
   }
   // Y junto a las rocas, columnas y piedras (lo que tiene choque): la niebla baja tampoco las corta.
   for (const c of colisiones) {
-    if (!(c.r > 0.4) || c.rampa || c.borde) continue;
+    if (!(c.r > 0.4) || c.rampa || c.borde || c.soloSuelo) continue;
     const R = c.r + 1.2;
     for (let iz = Math.floor(c.z - R - Z0); iz <= Math.ceil(c.z + R - Z0); iz++) for (let ix = Math.floor(c.x - R - X0); ix <= Math.ceil(c.x + R - X0); ix++) {
       if (ix < 0 || iz < 0 || ix >= NX || iz >= NZ) continue;
@@ -6278,7 +6281,8 @@ function crearPiezaEd(it) {
       if (ancho < largo * 0.6) { const ex = new THREE.Vector3(Math.cos(ry), 0, -Math.sin(ry)), ez = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)), cen = g.position.clone().add(ex.clone().multiplyScalar(c0.x)).add(ez.clone().multiplyScalar(c0.z)), eje = t0.x >= t0.z ? ex : ez, r = ancho * 0.38, n = Math.max(2, Math.ceil((largo - 2 * r) / (r * 1.2)) + 1);
         cols = []; for (let i = 0; i < n; i++) { const f = n > 1 ? i / (n - 1) - 0.5 : 0, q = cen.clone().addScaledVector(eje, f * (largo - 2 * r)); cols.push({ x: q.x, z: q.z, r, techo: b.max.y }); }
         col = cols[0]; } }
-    if (FORMA_ED.has((it.modelo || "").split(":")[1]) && !rueda) { const y0 = Math.max(p[1], alturaSuelo(p[0], p[2])), cf = colisionPorForma(g, y0 + 1.1, y0 + 2.0, b.max.y); if (cf.length) { cols = cf; col = cf[0]; } }   // (con cueva o arco: se choca con su forma real, y se puede pasar por dentro)
+    if (FORMA_ED.has((it.modelo || "").split(":")[1]) && !rueda) { const y0 = Math.max(p[1], alturaSuelo(p[0], p[2])), cf = colisionPorForma(g, y0 + 1.1, y0 + 2.0, b.max.y); if (cf.length) { cols = cf; col = cf[0]; } { cols = cols || (col ? [col] : []); col = col || null; cols.push({ x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, r: Math.hypot(b.max.x - b.min.x, b.max.z - b.min.z) / 2, techo: b.max.y, obj: g, soloSuelo: true }); g.traverse(m => { if (m.isMesh) m.material.side = THREE.DoubleSide; }); if (!col) col = cols[0]; } }   /* (por las dos caras: el bloque volcado, con el hueco arriba, se ve cerrado y se pisa) */   /* (y se puede pisar por encima: su superficie real, con un rayo) */   // (con cueva o arco: se choca con su forma real, y se puede pasar por dentro)
+    if (!rueda && b.min.y > alturaSuelo(g.position.x, g.position.z) + 1.5) for (const c of (cols || [col])) if (c) c.bajo = b.min.y;   /* (lo que cuelga, como los icebergs del techo de la cueva: por debajo se pasa) */
     if (cols) colisiones.push(...cols); else colisiones.push(col); if (rueda) rodantesEd.push({ g, col, x0: g.position.x, cx: caminoX(g.position.z), R: t.y / 2, fase: rodantesEd.length * 1.7, x: g.position.x }); }   /* (las ruedas que rueden: cruzan el paso de lado a lado) */
   return { g, col, cols };
 }
