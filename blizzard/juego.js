@@ -1781,15 +1781,15 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             Q.setXYZ(n, x, y0 + 0.006, z); uq.setXY(n, x / 2.5, z / 2.5); ca.set([1, 1, 1, Math.pow(1 - Math.abs(u), 0.5) * Math.min(1, ini * 0.25)], n * 4); }
           gp.setAttribute("color", new THREE.BufferAttribute(ca, 4)); gp.computeVertexNormals(); const mp = new THREE.Mesh(gp, matPolvo); mp.receiveShadow = true; mp.raycast = () => {}; mp.renderOrder = 1; scene.add(mp); } } }
     { // La niebla baja: capas finas apiladas hasta la cintura; su techo ondea como olas (de rodillas a cintura).
-      const largoN = HIELO.desde - HIELO.hasta + 60, zcN = (HIELO.desde + HIELO.hasta) / 2 - 10;
+      const largoN = HIELO.desde + 20 + 1545, zcN = (HIELO.desde + 20 - 1545) / 2;   /* (hasta la sala de la cueva) */
       for (let i = 0; i < 40; i++) { const capa = 0.01 + i * 0.04,   /* (más alta: hasta el pecho y algo más) */ m = new THREE.Mesh(new THREE.PlaneGeometry(150, largoN), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: nieblaLago.u,
           vertexShader: "varying vec3 vP; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
           fragmentShader: "uniform float t, ap, apT, base, desde, hasta; uniform vec3 color, centro, jug; varying vec3 vP; float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }" +
             " void main() { float y = vP.y - base; vec2 q = vP.xz, dc = q - centro.xz; float dd = length(dc), gi = -ap * apT * 6.0 / (1.0 + dd * 0.07); vec2 qn = centro.xz + mat2(cos(gi), -sin(gi), sin(gi), cos(gi)) * dc;" +   /* (al apartarse, gira en espiral inversa) */
             " float r = n(qn * 0.07 + vec2(t * 0.32, t * 0.05)) * 0.6 + n(qn * 0.21 - vec2(t * 0.45, -t * 0.12)) * 0.4;" +
-            " float fase = qn.x * 0.16 + qn.y * 0.05 + t * 1.9 + r * 2.2, ola = 1.0 + 0.38 * sin(fase) + 0.18 * sin(qn.x * 0.33 - qn.y * 0.2 + t * 2.8) + 0.1 * sin(qn.y * 0.6 + t * 3.7);"   /* (más alta y ondeando más) */ +   /* (el techo: entre rodillas y cintura) */
+            " float fase = qn.x * 0.16 + qn.y * 0.05 + t * 1.9 + r * 2.2, ola = (1.0 + 0.38 * sin(fase) + 0.18 * sin(qn.x * 0.33 - qn.y * 0.2 + t * 2.8) + 0.1 * sin(qn.y * 0.6 + t * 3.7)) * mix(1.0, 0.3, smoothstep(hasta + 2.0, hasta - 8.0, vP.z));"   /* (más alta y ondeando más; en la cueva, a ras de suelo) */   /* (más alta y ondeando más) */ +   /* (el techo: entre rodillas y cintura) */
             " float a = smoothstep(ola + 0.08, ola - 0.4, y) * (0.09 + 0.11 * r) * (0.8 + 0.35 * max(0.0, cos(fase)));" +
-            " a *= smoothstep(desde + 18.0, desde + 6.0, vP.z) * smoothstep(hasta - 30.0, hasta - 10.0, vP.z);" +
+            " a *= smoothstep(desde + 18.0, desde + 6.0, vP.z) * smoothstep(-1540.0, -1525.0, vP.z) * mix(1.0, 0.55, smoothstep(hasta + 2.0, hasta - 8.0, vP.z));" +
             " a *= mix(1.0, smoothstep(8.0, 26.0, distance(q, centro.xz)), ap);" +   /* (la onda la aparta) */
             " a *= smoothstep(0.35, 1.5, distance(q, jug.xz));" +   /* (alrededor del cuerpo no hay capas: sin líneas) */
             " gl_FragColor = vec4(mix(color, vec3(0.85, 0.9, 0.99), 0.45), a); }"   /* (gris azulada, más oscura que la bruma: se distingue del fondo) */ }));
@@ -5346,7 +5346,7 @@ function actualizar(dt) {
     }
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
-    scene.fog.near = 2; scene.fog.far = lerp(lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 46, suave(DUNAS.desde, DUNAS.desde - 20, pos.z)), 28, enC2Z(pos.z));   // (en el desfiladero final, más niebla)   // en las dunas, algo menos niebla
+    scene.fog.near = 2; scene.fog.far = lerp(lerp(lerp(lerp(NIEBLA_LEJOS, 36, enTunel), 46, suave(DUNAS.desde, DUNAS.desde - 20, pos.z)), 28, enC2Z(pos.z)), 72, suave(HIELO.hasta + 5, HIELO.hasta - 10, pos.z));   /* (en la cueva de hielo, menos niebla general) */   // (en el desfiladero final, más niebla)   // en las dunas, algo menos niebla
     // Al caer por un precipicio, la niebla se cierra enseguida: no se ve toda la caída.
     nieblaCaida = lerp(nieblaCaida, !enSuelo && pos.y < seguro.y - 2.5 ? 1 : 0, 1 - Math.exp(-dt * (pos.y < seguro.y - 2.5 ? 5 : 1.5)));
     scene.fog.near = lerp(2, 0.3, nieblaCaida); scene.fog.far = lerp(scene.fog.far, 5, nieblaCaida);
