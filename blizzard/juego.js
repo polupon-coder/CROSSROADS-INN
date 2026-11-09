@@ -1854,6 +1854,12 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const dist = (x, z) => { let m = Infinity; for (let k = 0; k < Q.length - 1; k++) { const a = Q[k], b = Q[k + 1]; if (Math.abs(z - a.z) > RA + 2) continue; const vx = b.x - a.x, vz = b.z - a.z, l2 = vx * vx + vz * vz, t = clamp(((x - a.x) * vx + (z - a.z) * vz) / l2, 0, 1), dx = x - a.x - vx * t, dz = z - a.z - vz * t; m = Math.min(m, dx * dx + dz * dz); } return Math.sqrt(m) / (0.78 + 0.16 * Math.sin(z * 0.27) + 0.1 * Math.sin(z * 0.71 + x * 0.4) + 0.06 * Math.sin(x * 1.3 - z * 0.9)); };   /* (bordes irregulares: el ancho cambia a cada paso) */
       const xs = Q.map(q => q.x), x0 = Math.min(...xs) - RA * 1.4, x1 = Math.max(...xs) + RA * 1.4, z0 = Q[Q.length - 1].z - RA, z1 = Q[0].z + RA;
       nievePendiente.push(() => ventisquero((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.2, { dist, R: RA, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.3, blanca: true }, true)); }   /* (se hace cuando la nieve acumulada ya está lista) */
+    // La sima de la cueva: bruma por capas que se oscurece hacia abajo (con la niebla blanca, el fondo parecía un suelo de nieve).
+    { const borde = (() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), d = x.createImageData(64, 64);
+        for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) { const u = Math.abs(i / 63 - 0.5) * 2, v = Math.abs(j / 63 - 0.5) * 2, a = (1 - suave(0.05, 0.95, u)) * (1 - suave(0.3, 0.98, v)); const q = (j * 64 + i) * 4; d.data[q] = d.data[q + 1] = d.data[q + 2] = 255 * a; d.data[q + 3] = 255; }
+        x.putImageData(d, 0, 0); return new THREE.CanvasTexture(c); })();   /* (bordes difuminados: sin bandas donde tocan las paredes) */
+      const mat = k => new THREE.MeshBasicMaterial({ color: 0x5f738d, alphaMap: borde, transparent: true, opacity: 0.05 + k * 0.008, depthWrite: false, fog: false, side: THREE.DoubleSide });
+      for (let k = 0; k < 16; k++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(70, SIMA7.desde - SIMA7.hasta + 30), mat(k)); m.rotation.x = -Math.PI / 2; m.position.set(PLATAFORMA7.x, 30 - k * 2.6, (SIMA7.desde + SIMA7.hasta) / 2); m.renderOrder = 1; m.raycast = () => {}; scene.add(m); } }
     // El puente sobre la sima, tras la plataforma: tres vigas de hielo (los bloques de hielo, estirados), cada una gira sobre su pilar.
     { const top = 35, geoP = new THREE.CylinderGeometry(0.45, 0.6, 40, 10), matP = new THREE.MeshStandardMaterial({ color: 0xcfdbe8, roughness: 0.6 });
       const pieza = kitCubosHielo[2], caja = new THREE.Box3(), v3 = new THREE.Vector3(), pa = pieza.geo.attributes.position, ix = pieza.geo.index.array; for (let n = 0; n < ix.length; n++) caja.expandByPoint(v3.fromBufferAttribute(pa, ix[n]));
@@ -2851,15 +2857,22 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
   { // Sin la figurilla del centro (viene fundida con el modelo): fuera los triángulos que asoman sobre el suelo, en el centro.
     const anillo = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const d = Math.hypot(-R + i * paso, -R + j * paso), y = h[j * n + i]; if (d > 1.6 && d < 3.2 && y > -1e9) anillo.push(y); }
     anillo.sort((a, c) => a - c); const suelo = anillo.length ? anillo[Math.floor(anillo.length / 2)] : null, va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3();
-    if (suelo !== null) { g.updateMatrixWorld(true); g.traverse(o => { if (!o.isMesh || !o.geometry.index) return; const geo = o.geometry.clone(), pa = geo.attributes.position, ix = geo.index.array, bien = [];
-      for (let t = 0; t < ix.length; t += 3) { va.fromBufferAttribute(pa, ix[t]).applyMatrix4(o.matrixWorld); vb.fromBufferAttribute(pa, ix[t + 1]).applyMatrix4(o.matrixWorld); vc.fromBufferAttribute(pa, ix[t + 2]).applyMatrix4(o.matrixWorld);
-        const cx = (va.x + vb.x + vc.x) / 3, cy = (va.y + vb.y + vc.y) / 3, cz = (va.z + vb.z + vc.z) / 3;
-        if (Math.hypot(cx - P.x, cz - P.z) < P.r * 0.45 && cy > suelo + 0.3) continue;   /* (en la parte interior: las columnas del borde se quedan) */ bien.push(ix[t], ix[t + 1], ix[t + 2]); }
-      geo.setIndex(bien); o.geometry = geo; });
+    if (suelo !== null) { g.updateMatrixWorld(true); let fx = 0, fz = 0, fn = 0;
+      const recorrer = (o, f) => { const pa = o.geometry.attributes.position, ix = o.geometry.index.array; for (let t = 0; t < ix.length; t += 3) { va.fromBufferAttribute(pa, ix[t]).applyMatrix4(o.matrixWorld); vb.fromBufferAttribute(pa, ix[t + 1]).applyMatrix4(o.matrixWorld); vc.fromBufferAttribute(pa, ix[t + 2]).applyMatrix4(o.matrixWorld); f(t, (va.x + vb.x + vc.x) / 3, (va.y + vb.y + vc.y) / 3, (va.z + vb.z + vc.z) / 3, Math.max(va.y, vb.y, vc.y)); } };
+      g.traverse(o => { if (o.isMesh && o.geometry.index) recorrer(o, (t, cx, cy, cz) => { if (Math.hypot(cx - P.x, cz - P.z) < P.r * 0.45 && cy > suelo + 0.3) { fx += cx; fz += cz; fn++; } }); });   /* (dónde está la figurilla) */
+      if (fn) { fx /= fn; fz /= fn; }
+      g.traverse(o => { if (!o.isMesh || !o.geometry.index) return; const ix = o.geometry.index.array, bien = [];
+        recorrer(o, (t, cx, cy, cz, my) => { const fuera = (Math.hypot(cx - P.x, cz - P.z) < P.r * 0.45 && cy > suelo + 0.3) || (fn && Math.hypot(cx - fx, cz - fz) < 1.5 && my > suelo + 0.06); if (!fuera) bien.push(ix[t], ix[t + 1], ix[t + 2]); });   /* (y sus restos bajos, alrededor de donde estaba) */
+        const geo = o.geometry.clone(); geo.setIndex(bien); o.geometry = geo; });
       rejillaPorTriangulos(P, R, paso, n, h); }
   }
   const v = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (h[k] > -1e9 && Math.hypot(-R + i * paso, -R + j * paso) < P.r * 0.5) v.push(h[k]); }
   v.sort((a, c) => a - c); P.techo = v.length ? v[Math.floor(v.length * 0.6)] : b.max.y;
+  { // Nieve acumulada en buena parte de la plataforma: manchas grandes e irregulares, finas.
+    const man = []; for (let k = 0; k < 9; k++) { const a = k * 2.4 + 0.7, d = P.r * (0.15 + 0.55 * ((k * 0.37) % 1)); man.push({ x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, r: P.r * (0.22 + 0.12 * ((k * 0.61) % 1)) }); }
+    const dist = (x, z) => { let m = Infinity; for (const c of man) m = Math.min(m, Math.hypot(x - c.x, z - c.z) / c.r); return m * (1 + 0.12 * Math.sin(x * 1.3 + z * 0.9)); };
+    const sueloEn = (x, z) => { const y = alturaPlatDe(P, x, z); return Math.abs(y - P.techo) < 0.8 ? y : -100; };
+    try { const vv = ventisquero(P.x, P.z, 2 * R, 2 * R, 0.16, { dist, R: 1, sueloEn, celda: 0.25, blanca: true }, true); if (vv) vv.malla.raycast = () => {}; } catch (e) { console.warn("nieve plataforma", e); } }
 }
 function montarPlataforma(P, plat, giro) {
   const caja = new THREE.Box3().setFromObject(plat);
