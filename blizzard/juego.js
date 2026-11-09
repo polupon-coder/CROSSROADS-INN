@@ -2870,11 +2870,10 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
   }
   const v = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (h[k] > -1e9 && Math.hypot(-R + i * paso, -R + j * paso) < P.r * 0.5) v.push(h[k]); }
   v.sort((a, c) => a - c); P.techo = v.length ? v[Math.floor(v.length * 0.6)] : b.max.y;
-  { // Nieve acumulada en buena parte de la plataforma: manchas grandes e irregulares, finas.
-    const man = []; for (let k = 0; k < 9; k++) { const a = k * 2.4 + 0.7, d = P.r * (0.15 + 0.55 * ((k * 0.37) % 1)); man.push({ x: P.x + Math.sin(a) * d, z: P.z + Math.cos(a) * d, r: P.r * (0.22 + 0.12 * ((k * 0.61) % 1)) }); }
-    const dist = (x, z) => { let m = Infinity; for (const c of man) m = Math.min(m, Math.hypot(x - c.x, z - c.z) / c.r); return m * (1 + 0.12 * Math.sin(x * 1.3 + z * 0.9)); };
-    const sueloEn = (x, z) => { const y = alturaPlatDe(P, x, z); return Math.abs(y - P.techo) < 0.8 ? y : -100; };
-    try { const vv = ventisquero(P.x, P.z, 2 * R, 2 * R, 0.16, { dist, R: 1, sueloEn, celda: 0.25, blanca: true }, true); if (vv) vv.malla.raycast = () => {}; } catch (e) { console.warn("nieve plataforma", e); } }
+  { // Nieve sobre la propia piedra de la plataforma: en las caras que miran arriba, con grano y a zonas (no manchas puestas encima).
+    g.traverse(o => { if (!o.isMesh) return; const m = o.material = o.material.clone();
+      m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("cubre * 0.98);", "cubre * 0.95 * smoothstep(0.38, 0.62, texture2D(nieveFina, vMundoN.xz * 0.045 + 0.3).g * 0.7 + texture2D(nieveFina, vMundoN.xz * 0.16).r * 0.3));"); };
+      m.customProgramCacheKey = () => "platNieve"; m.needsUpdate = true; }); }
 }
 function montarPlataforma(P, plat, giro) {
   const caja = new THREE.Box3().setFromObject(plat);
@@ -4573,6 +4572,7 @@ function empezarEnSantuario(n) {
   if (n >= 3) abrePuertas = true;
   if (n >= 4) giraBloques = true;
   if (n >= 5) { barre = true; avisoPuzle = true; }
+  if (n >= 7) giraAspas = true;   /* (el del puente: con su runa ya aprendida, como en los demás santuarios) */
   if (n >= 6) { onda = true; crecerBaston(3); capaTela.rasgar(true); }   // (desde el panel: llegas con su magia, sin reseguir la runa)
   estado = "juego"; tIntro = INTRO_DURA;
   camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
