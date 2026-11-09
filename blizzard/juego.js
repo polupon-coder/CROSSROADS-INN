@@ -233,7 +233,7 @@ const DUNAS = { desde: -558, hasta: -756 };                   // campo de dunas 
 const RUEDAS_Z = { desde: -305, hasta: -321.8 };   // (las ruedas que te echan a las grietas)
 const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1565, HEX_FIN = -1323, HIELO = { desde: -1329, hasta: -1403 },   /* (los pilares movedizos, un tercio más largos) */ PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
 const CUEVA_Z = HIELO.hasta - 100;   // (la cueva de hielo, tras pasar bajo el gran iceberg)
-const FIN_Z = CUEVA_Z;
+const FIN_Z = -1750;   // (el final, al fondo de las dunas tras la cueva)
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
 const DUNAS2 = { desde: -990, hasta: -1094 }, ACANT = { pie: -1121, cima: -1176, alto: 20.7 }, PLAT_ANTIGUA_Z = -1106, BASALTO = { desde: -1098, hasta: -1220 };
@@ -428,6 +428,8 @@ function alturaTerreno(x, z) {
   if (z < ACANT.pie + 0.5) h += ACANT.alto * suave(ACANT.cima + 0.4, ACANT.cima - 0.4, z);
   { const z0 = ACANT.cima - 33, z1 = HEX_FIN + 14; if (z < z0 && z > z1) h -= 7 * Math.sin(Math.PI * (z0 - z) / (z0 - z1)); }   // bajada y subida por los hexágonos
   if (z < ACANT.pie + 16.8 && z > ACANT.cima - 0.5 && Math.abs(x) < 90) h = -60;
+  { const zD = HIELO.hasta - 100 - 32; if (z < zD) { const k = suave(zD, zD - 15, z), d = Math.abs(x - caminoX(z)), A = 2.4 * k * (0.45 + 0.55 * suave(3, 14, d));   // tras la cueva de hielo: dunas suaves y extensas (más bajas junto al camino)
+      h += A * (0.6 * Math.sin(x * 0.07 + z * 0.045) * Math.sin(z * 0.06 - x * 0.025 + 1.3) + 0.4 * Math.sin(x * 0.13 - z * 0.085 + 0.7)); } }
   if (z < HIELO.desde && z > HIELO.hasta && Math.abs(x) < 90) h = -60;   // (bajo el hielo: el vacío)   // (tampoco bajo la escalera: debajo, roca)   // (y bajo el muro: ninguna nieve del suelo asoma en la roca)   // (la nieve no llega al pie del muro)   // el abismo delante del muro (se cruza por el puente)   // (el escalón, metido dentro del acantilado; la escalera, aparte)
   return h - hoyoHuellas(x, z);
 }
@@ -529,7 +531,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-1580, ACANT.pie, 0.7), ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
+  const zs = [...filas(-1780, -1580, 1.1), ...filas(-1580, ACANT.pie, 0.7),   /* (hasta el fondo de las dunas tras la cueva) */ ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -1796,7 +1798,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     const P7 = PLATAFORMA7, R = 24, zE = P7.z + R;   // la cueva: tras el iceberg, un pasillo que serpentea hasta una sala amplia
     const sx = z => cx(z) + 6 * Math.sin((HIELO.hasta - 36 - z) * 0.13) * suave(HIELO.hasta - 36, HIELO.hasta - 44, z) * suave(zE - 2, zE + 6, z);
     for (let z = HIELO.hasta - 36, k = 0; z > zE - 2; z -= 3.4, k++) for (const lado of [-1, 1]) { const h = 13 + rI() * 7, w = ancho(gHieloB, h), x = sx(z) + lado * (3.3 + w * 0.5); propio(gHieloB, x, alturaTerreno(x, z) - 1.5, z, h, rI() * 6).traverse(claro); colisiones.push({ x, z, r: w * 0.45, techo: 99 }); }
-    for (let k = 0; k < 32; k++) { const a = k / 32 * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.2) continue;   /* (la entrada) */
+    for (let k = 0; k < 32; k++) { const a = k / 32 * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.2 || Math.abs(Math.atan2(Math.sin(a - Math.PI), Math.cos(a - Math.PI))) < 0.25) continue;   /* (la entrada y, al otro lado, la salida hacia las dunas) */
       const h = 24 + rI() * 12, w = ancho(gHieloB, h), d = R + w * 0.35, x = P7.x + Math.sin(a) * d, z = P7.z + Math.cos(a) * d; propio(gHieloB, x, alturaTerreno(x, z) - 2, z, h, rI() * 6).traverse(claro);
       // (su choque, sin invadir el paso de la entrada: antes, los de junto a la puerta cerraban el pasillo)
       let r = w * 0.45; for (let zz = zE + 8; zz > P7.z + R - 10; zz -= 0.5) { const xx = sx(zz); r = Math.min(r, Math.max(0.8, Math.hypot(x - xx, z - zz) - 2.6)); }
@@ -3842,6 +3844,10 @@ function animarPaso(dt) {
     const lado = rndN() < 0.5 ? -1 : 1, x = caminoX(z) + lado * (1.5 + rndN() * 5), a = 4 + rndN() * 3.5, l = 3 + rndN() * 2.5;
     if (libre(x, z, Math.max(a, l) / 2)) ventisquero(x, z, a, l, 0.3 + rndN() * 0.25);
   }
+  // Las dunas tras la cueva de hielo: mucha nieve acumulada, en montones anchos y blandos repartidos por todas partes.
+  { const rD = generador(5151);
+    for (let k = 0; k < 44; k++) { const z = -1545 - rD() * 205, x = caminoX(z) + (rD() - 0.5) * 70, a = 5 + rD() * 6, l = 4 + rD() * 5;
+      if (libre(x, z, Math.max(a, l) / 2)) ventisquero(x, z, a, l, 0.35 + rD() * 0.35, null, true); } }
 }
 // Un hundimiento que no se rellena (donde se hundieron las piedras de runas): como un surco hondo.
 // Ruedas de piedra que cruzan el llano de lado a lado, cada una por su carril: si te pillan, te empujan a la grieta.
