@@ -6221,7 +6221,7 @@ function crearPiezaEd(it) {
   let cols = null;
   if ((it.golemEsfera || it.modelo === "gltf:roca_brillante") && !window.BLIZZARD_EDITOR) {   /* (todas las rocas brillantes son golems esfera) */   // golem esfera: quieto hasta que llega Blizzard; entonces cruza rodando por delante y no vuelve
     const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), R = Math.max(t.x, t.z) / 2; col = { x: g.position.x, z: g.position.z, r: R * 0.9, techo: b.max.y }; colisiones.push(col);
-    const uNieve = { value: 1 }; g.updateMatrixWorld(true); g.traverse(o => { if (o.isMesh) o.material = materialEsfera(o, uNieve); });   /* (la piedra de las rocas, uniforme, y nieve encima hasta que echa a rodar) */
+    const uNieve = { value: 0 };   /* (sin nieve: solo la piedra) */ g.updateMatrixWorld(true); g.traverse(o => { if (o.isMesh) o.material = materialEsfera(o, uNieve); });   /* (la piedra de las rocas, uniforme) */
     esferasEd.push({ g, col, R, uNieve, y0: g.position.y - alturaTerreno(g.position.x, g.position.z), estado: 0, t: 0, retraso: Math.random() * 0.7, huella: 0, curva: (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.16) });
     return { g, col };
   }
