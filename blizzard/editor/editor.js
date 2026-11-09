@@ -75,6 +75,7 @@
   // ── Piezas disponibles ────────────────────────────────────────────────
   const catalogo = [{ id: "esp:niebla", nombre: "Niebla", grupo: "Especial" }, { id: "esp:nota", nombre: "Nota para Claude", grupo: "Especial" }];
   Object.keys(E.MODELOS).forEach(n => catalogo.push({ id: "gltf:" + n, nombre: n.replace(/_/g, " "), grupo: "Modelos" }));
+  catalogo.push({ id: "silueta:grande", nombre: "golem silueta grande", grupo: "Modelos" }, { id: "silueta:mediano", nombre: "golem silueta mediano", grupo: "Modelos" });   // (paseantes en la niebla: la flecha marca hacia dónde andan; el tono, con la opacidad del panel de material)
   Object.entries(E.KITS).forEach(([n, kit]) => kit.forEach((_, i) => catalogo.push({ id: `kit:${n}:${i}`, nombre: `${n} ${i + 1}`, grupo: "Piezas" })));
   // Miniaturas: cada pieza, dibujada aparte en pequeño (una a una, sin parar el editor).
   const rtT = new THREE.WebGLRenderTarget(112, 84), escT = new THREE.Scene(), camT = new THREE.PerspectiveCamera(32, 112 / 84, 0.01, 2000), buf = new Uint8Array(112 * 84 * 4), miniaturas = new Map(), cola = [];
@@ -259,7 +260,7 @@
       if (colocando === "esp:niebla") it = { id, tipo: "niebla", p, radio: 8, alto: 1.5, densidad: 0.5, color: "#efe6ee" };
       else if (colocando === "esp:nota") it = { id, tipo: "nota", p, texto: "" };
       else { it = { id, tipo: "objeto", modelo: colocando, p, r: [0, 0, 0], s: [1, 1, 1], colision: true };
-        const g = E.ponerEd(it); if (g) { const t = E.cajaReal(g).getSize(new THREE.Vector3()), k = +((colocando === "gltf:golem" || colocando === "gltf:golem_grande" ? (colocando === "gltf:golem" ? 3.2 : 6.4) / Math.max(t.y, 0.001) : 3 / Math.max(t.x, t.y, t.z, 0.001))).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m; el golem, el doble de alto que Blizzard)
+        const g = E.ponerEd(it); if (g) { const t = E.cajaReal(g).getSize(new THREE.Vector3()), k = +((colocando === "gltf:golem" || colocando === "gltf:golem_grande" || colocando.startsWith("silueta:") ? ({ "gltf:golem": 3.2, "gltf:golem_grande": 6.4, "silueta:grande": 10, "silueta:mediano": 5 }[colocando]) / Math.max(t.y, 0.001) : 3 / Math.max(t.x, t.y, t.z, 0.001))).toFixed(3); it.s = [k, k, k]; } }   // (de entrada, unos 3 m; el golem, el doble de alto que Blizzard)
       items.set(id, it); E.ponerEd(it); guardar(it); seleccionar(it);
       if (!e.shiftKey) { colocando = null; aviso(""); pintarLista(); }   // (con Mayús se siguen colocando)
       return;

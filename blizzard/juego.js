@@ -18,6 +18,10 @@ const INGLES = {
   "Una puerta sellada.\nSube a la plataforma.": "A sealed door.\nClimb onto the platform.",
   "Cruza por la pilastra.": "Cross on the fallen pillar.",
   "E alza las rocas.": "E lifts the rocks.",
+  "Falta una chispa. Recógela con magia.": "One spark left. Gather it with magic.",
+  "Faltan chispas. Recógelas con magia.": "Sparks missing. Gather them with magic.",
+  "Recoge las chispas: acércate a una y pulsa ◇.": "Gather the sparks: get close to one and press ◇.",
+  "Recoge las chispas: acércate a una y pulsa E.": "Gather the sparks: get close to one and press E.",
   "◇ alza las rocas.": "◇ lifts the rocks.",
   "Muy alta. Salta y usa el viento.": "Too high. Jump and use the wind.",
   "Se rompe. ¡Corre y salta!": "It's breaking. Run and jump!",
@@ -1937,14 +1941,16 @@ const tramoActual = () => !muevePiedras ? 0 : !abrePuertas ? 1 : !giraBloques ? 
 function cuentaTramo(k) { if (!chispas) { if (!escenaLista) return [0, CHISPAS_TRAMO]; chispas = crearChispas(); } const L = chispas.filter(c => c.tramo === k && !c.oculta); return [L.filter(c => c.abs >= 0).length, L.length]; }
 let avisoChispasT = 0;
 function chispasListas(k) { const [n, t] = cuentaTramo(k); if (n >= t) return true;
-  if (reloj - avisoChispasT > 5) { avisoChispasT = reloj; rotular(t - n === 1 ? "Falta una chispa de luz." : `Faltan ${t - n} chispas de luz.`, 3); } return false; }
+  if (reloj - avisoChispasT > 5) { avisoChispasT = reloj; rotular(t - n === 1 ? tr("Falta una chispa. Recógela con magia.") : tr("Faltan chispas. Recógelas con magia.") + " (" + (t - n) + ")", 3); } return false; }
 // La chispa a tiro (para recogerla con la magia): la más cercana, a unos pasos.
 function chispaCerca() { if (!chispas || !tieneBaston) return null; let m = null, dm = 3.6;
   for (const C of chispas) { if (C.abs >= 0 || C.oculta || Math.abs(C.z - pos.z) > 5) continue; const d = Math.hypot(pos.x - C.p.x, pos.z - C.p.z); if (d < dm && Math.abs(pos.y + 1 - C.p.y) < 2.5) { dm = d; m = C; } } return m; }
 function absorberChispa(C) { musica.arpegio(cuentaTramo(C.tramo)[0]); C.abs = 0; rumbo = Math.atan2(C.p.x - pos.x, C.p.z - pos.z); vel.set(0, 0, 0); estado = "empujando"; gesto = 0.6; musica.viento(0.18, 1.5); }   // (estira el brazo hacia ella)
 const barraChispas = (() => { const d = document.createElement("div"); d.id = "barraChispas"; d.setAttribute("aria-hidden", "true"); d.appendChild(document.createElement("i")); document.body.appendChild(d); return d; })();
+let avisoRecoger = false;
 function moverChispas(dt) {
   if (!chispas) { if (!escenaLista) return; chispas = crearChispas(); }
+  if (!avisoRecoger && tieneBaston && estado === "juego" && chispas.some(C => C.abs < 0 && !C.oculta && Math.hypot(C.x - pos.x, C.z - pos.z) < 12)) { avisoRecoger = true; rotular(tactil ? tr("Recoge las chispas: acércate a una y pulsa ◇.") : tr("Recoge las chispas: acércate a una y pulsa E."), 5); }   // (la primera vez que hay una cerca)
   { const k = tramoActual(), [n, t] = cuentaTramo(k), ver = tieneBaston && estado !== "portada" && estado !== "intro" && t > 0;
     barraChispas.classList.toggle("ver", ver); barraChispas.firstChild.style.width = (t ? n / t * 100 : 0) + "%";
     if (barraChispas._n !== undefined && n > barraChispas._n && ver) { barraChispas.classList.remove("pulso"); void barraChispas.offsetWidth; barraChispas.classList.add("pulso"); clearTimeout(barraChispas._t); barraChispas._t = setTimeout(() => barraChispas.classList.remove("pulso"), 750); }
@@ -3531,7 +3537,7 @@ function luzBaston(dt) {
   const quiere = efectoEspiral > 0.05 || estado === "llamando" || estado === "trazando" || estado === "despertando" || llevando ? 1 : 0;
   brilloBaston = lerp(brilloBaston, quiere, 1 - Math.exp(-dt * (quiere ? 8 : 2)));
   const { luz, piedra } = baston.userData;
-  luz.material.opacity = Math.max(brilloBaston, tieneBaston ? 0.35 : 0) * 0.55;   // (la esfera, siempre algo encendida) if (luz.userData.halo) { luz.userData.halo.material.opacity = Math.max(brilloBaston, tieneBaston ? 0.35 : 0) * 0.28; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
+  luz.material.opacity = brilloBaston * 0.55;   // (la bola de luz, solo al hacer magia)   // (la esfera, siempre algo encendida) if (luz.userData.halo) { luz.userData.halo.material.opacity = Math.max(brilloBaston, tieneBaston ? 0.35 : 0) * 0.28; luz.userData.halo.scale.setScalar(1.3 + 0.15 * Math.sin(reloj * 5)); } luz.scale.setScalar(0.7 + brilloBaston * 0.4 + Math.sin(reloj * 9) * 0.04 * brilloBaston);
   piedra.emissive.setRGB(0.06, 0.07, 0.09).multiplyScalar(brilloBaston);   // solo el bastón se aclara un poco
 }
 function colocarBaston(dt, v) {
@@ -4057,7 +4063,7 @@ estilo.textContent = `
   /* Veladura: mientras se traza, el resto de la escena queda apagada y algo desenfocada. */
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
-  body:has(#trazo:not([hidden])) #rotulo, body:has(#trazo:not([hidden])) #ayuda { color: #fff; text-shadow: none; }   /* sobre el velo de las runas: blanco, sin sombra */
+  #rotulo, #cita, #desarrollo, #ayuda, #trazo .frase { color: #fff !important; background: none !important; text-shadow: 0 0 6px rgba(52, 66, 92, .35); }   /* todos los textos del juego: en blanco, sin fondo (una sombra muy suave para leerse sobre la nieve) */
   #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 64px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; bottom: auto; transform: translateY(-50%); width: min(38vw, 520px); } }
   @media (min-aspect-ratio: 1/1) { #trazo { place-items: center start; padding: 0 0 0 max(48px, 6vw); } #trazo svg { width: min(45vw, 68vh); height: min(45vw, 68vh); } }
@@ -5839,9 +5845,9 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 // Los grandes, muy lentos y más lejos; los pequeños, más cerca y más rápidos.
 const PASEANTES = [   // (en tramos donde pueden andar sin atravesar nada: medidos; separados entre sí)
   { z: -100, grande: true, huellas: true },   // (al principio, antes del bastón: el que dejó las huellas gigantes; sigue su diagonal y se pierde en la niebla)
-  { z: -568, lado: -1, d: 17, grande: true, dir: -1 }, { z: -688, lado: 1, d: 12, grande: false, dir: -1 }, { z: -928, lado: -1, d: 12, grande: false, dir: -1 },
-  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, blando: true, trasOnda: true },   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */ { z: -1423, lado: 1, d: 26, grande: true, dir: -1 }];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
-let paseantes = null;
+  { z: -928, lado: -1, d: 12, grande: false, dir: -1 },   /* (los de las dunas y el del hielo, fuera: se ponen con el editor) */
+  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, blando: true, trasOnda: true },   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
+let paseantes = null; const siluetasEd = [];   // (golems silueta puestos con el editor: dónde, hacia dónde andan, su tamaño y su tono)
 function pasoGolem(x, z, yP, rad, alto = 1.5) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
   const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.2)) return null;
   if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + rad + 1.5) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + rad)) return null;   // (ni sobre un santuario, ni por un aro arcano)
@@ -5865,17 +5871,20 @@ function cruceLibre(z0) {   // ¿puede un golem grande cruzar de lado a lado (36
 function escalarPaseantes() {   // se dibuja a escala en el borde de la niebla: lo tapa solo lo que se ve, no las colinas ya borradas por la niebla
   if (!paseantes) return; const c = camara.position;
   for (const P of paseantes) { if (!P.g || !P.g.visible || !P.real) continue; const dd = P.real.distanceTo(c), D = Math.min(dd, scene.fog.far + 0.5), k2 = D / dd;
-    P.g.position.copy(P.real).sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.grande ? 10 : 5) * k2 * (P.huellas ? 1.5 : 1); }
+    P.g.position.copy(P.real).sub(c).multiplyScalar(k2).add(c); P.g.scale.setScalar(P.esc * k2); P.uBase.value = P.g.position.y; P.uAlto.value = (P.alto || (P.grande ? 10 : 5)) * k2 * (P.grande ? 1.5 : 1); }   // (los grandes, más niebla en la parte baja)
 }
 function moverPaseantes(dt) {
   if (window.BLIZZARD_EDITOR) return;
-  if (!paseantes) paseantes = PASEANTES.map(P => ({ ...P, g: null, t: Math.random() * 30 }));
+  if (!paseantes) { if (!escenaLista) return; paseantes = PASEANTES.concat(siluetasEd).map(P => ({ ...P, g: null, t: Math.random() * 30 })); }   // (y los puestos con el editor)
   for (const P of paseantes) {
     // Una aparición por visita: al acercarse a su zona, cruza despacio de un lado a otro por delante (a unos 25-30 m,
     // siguiendo al jugador para no quedarse atrás en segundos) y se pierde en la niebla.
-    const dz = Math.abs(pos.z - P.z);
+    const dz = P.ed ? Math.hypot(pos.x - P.ini.x, pos.z - P.ini.z) : Math.abs(pos.z - P.z);
     if (dz > 110) { P.hecho = false; P.activo = false; }   // (lejos: la próxima vez que se pase, vuelve a aparecer)
-    if (P.huellas) { if (!P.activo && !P.hecho && !tieneBaston && pos.z < -70 && pos.z > -98) { const H = huellasGigantes(), a = H[0], e = H[H.length - 1], dx = e.x - a.x, dz2 = e.z - a.z, L0 = Math.hypot(dx, dz2);
+    if (P.ed) { if (!P.activo && !P.hecho && dz < 40) { let yP = null, L = 0; for (; L < 45; L += 1) { const x = P.ini.x + P.dir.x * L, z = P.ini.z + P.dir.z * L, y = alturaTerreno(x, z);   // (puesto con el editor: anda hacia donde mira, hasta toparse con algo alto)
+          if (y >= -5) { if ((yP !== null && Math.abs(y - yP) > 1.5) || colisiones.some(c => !c.rampa && c.techo > y + 3 && Math.hypot(c.x - x, c.z - z) < c.r + 1)) break; yP = y; } }
+        P.T = Math.max(4, L / P.v); P.hecho = true; P.activo = true; P.t = 0; P.tapado = 0; P.recto = true; } }
+    else if (P.huellas) { if (!P.activo && !P.hecho && !tieneBaston && pos.z < -70 && pos.z > -98) { const H = huellasGigantes(), a = H[0], e = H[H.length - 1], dx = e.x - a.x, dz2 = e.z - a.z, L0 = Math.hypot(dx, dz2);
         let mejor = 0;   // (en medio, más allá de las huellas, alejándose de frente; las rocas bajas no cuentan: lo tapan un poco, como debe ser)
         const libre = (x, z, yP) => { const y = alturaTerreno(x, z); if (y < -5) return yP;   /* (la grieta: un gigante pasa por encima) */ if (yP !== null && Math.abs(y - yP) > 1.5) return null; if (PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z - Q.z) < Q.r + 3) || ARCANOS.some(A => Math.hypot(x - A.x, z - A.z) < A.r + 1.5)) return null;
           return colisiones.some(c => !c.rampa && c.techo > y + 3 && Math.hypot(c.x - x, c.z - z) < c.r + 1.5) ? null : y; };
@@ -5888,17 +5897,18 @@ function moverPaseantes(dt) {
       if (P.recto) { const v = P.grande ? 3.6 : 4.5, L = rutaRecta(P, v * (P.grande ? 22 : 10)); P.T = (L - 3) / v; if (P.T < 4) { P.activo = false; } } else P.T = 15; }   // (recto: solo el tramo libre; si es corto, no aparece)   // (con acantilados, rocas, simas o agua de por medio no cruza: anda recto por el camino)
     if (!P.activo) { if (P.g) P.g.visible = false; continue; }
     if (!P.g) { const GA = P.grande ? gGolemGrande : gGolemAnim, d = clonarConEsqueleto(GA.scene), t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3());
-      P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 };
-      P.mat.onBeforeCompile = sh => { sh.uniforms.uBase = P.uBase; sh.uniforms.uAlto = P.uAlto;   // (las piernas se pierden en la bruma baja: no parece que floten)
+      P.mat = new THREE.MeshBasicMaterial({ color: 0x777777, fog: false, skinning: true }); P.uBase = { value: 0 }; P.uAlto = { value: 1 }; P.uNiebla = { value: scene.fog.color };   // (opaco: sin solapes de transparencia)
+      P.mat.onBeforeCompile = sh => { sh.uniforms.uBase = P.uBase; sh.uniforms.uAlto = P.uAlto; sh.uniforms.uNiebla = P.uNiebla;   // (las piernas se pierden en la bruma baja: no parece que floten)
         sh.vertexShader = "varying float vSilY;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vSilY = (modelMatrix * vec4(transformed, 1.0)).y;");
-        sh.fragmentShader = "varying float vSilY; uniform float uBase, uAlto;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= smoothstep(uBase + uAlto * 0.05, uBase + uAlto * 0.5, vSilY);"); };
+        sh.fragmentShader = "varying float vSilY; uniform float uBase, uAlto; uniform vec3 uNiebla;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.rgb = mix(uNiebla, diffuseColor.rgb, smoothstep(uBase + uAlto * 0.05, uBase + uAlto * 0.55, vSilY));"); };   /* (las piernas se funden con el color de la niebla, sin transparencia: todo el perfil del mismo tono) */
       d.traverse(o => { if (o.isMesh) { o.material = P.mat; o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.raycast = () => {}; } });
-      P.g = new THREE.Group(); P.g.add(d); P.esc = (P.grande ? 10 : 5) / Math.max(t.y, 0.001); P.g.scale.setScalar(P.esc); scene.add(P.g);
+      P.g = new THREE.Group(); P.g.add(d); P.esc = P.escEd || (P.grande ? 10 : 5) / Math.max(t.y, 0.001); P.alto = t.y * P.esc; P.g.scale.setScalar(P.esc); scene.add(P.g);
       P.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], A = P.mix.clipAction(clip); A.timeScale = P.grande ? 1.15 : 1.9; A.play(); }
     // Grandes: cruzan de lado a lado por delante (a unos 30 m), muy despacio: pasan por el centro de la imagen (también en el móvil).
     // Pequeños: aparecen en medio de la imagen, sobre el camino (a unos 22 m), y se alejan hasta perderse en la niebla o tras una roca.
     const T = P.T; P.t += dt; if (P.t >= T) { P.activo = false; P.g.visible = false; continue; }
-    let x, z; if (P.huellas) { x = P.ini.x + P.dir.x * 2.1 * P.t; z = P.ini.z + P.dir.z * 2.1 * P.t; }
+    let x, z; if (P.ed) { x = P.ini.x + P.dir.x * P.v * P.t; z = P.ini.z + P.dir.z * P.v * P.t; }
+    else if (P.huellas) { x = P.ini.x + P.dir.x * 2.1 * P.t; z = P.ini.z + P.dir.z * 2.1 * P.t; }
     else if (!P.recto) { P.zA = lerp(P.zA, pos.z - 30, 1 - Math.exp(-dt * 0.6)); z = P.zA; x = caminoX(z) + lerp(P.lado * 18, -P.lado * 18, P.t / T); }
     else { z = P.zS - (P.grande ? 3.6 : 4.5) * P.t; x = caminoX(z) + P.xS; }
     { const yS = alturaTerreno(x, z); if (P.tapado > 0 || colisiones.some(c => !c.rampa && c.techo > yS + 2 && Math.hypot(c.x - x, c.z - z) < c.r + 0.6)) P.tapado += dt; }   // (si se topa con una roca, se pierde tras ella: no la atraviesa)
@@ -5910,9 +5920,9 @@ function moverPaseantes(dt) {
       const yN = alturaEn(x, z); if (yN !== null) P.yS += clamp(yN - P.yS, -dt * 1.2, dt * 1.2);   // (luego la sigue despacio, como mucho 1,2 m/s: nunca de golpe)
       P.real = (P.real || new THREE.Vector3()).set(x, P.yS - 0.15, z); P.g.position.copy(P.real); }
     // (la escala hacia el borde de la niebla se aplica justo antes de dibujar, con la cámara ya colocada: escalarPaseantes)
-    P.g.rotation.y = P.huellas ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
+    P.g.rotation.y = P.huellas || P.ed ? Math.atan2(P.dir.x, P.dir.z) : P.recto ? Math.PI : P.lado > 0 ? -Math.PI / 2 : Math.PI / 2;   // (mira hacia donde anda)
     P.mix.update(dt);   // (anda de verdad: sus pasos van con lo que avanza)
-    P.mat.opacity = 1; P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.huellas ? 0.27 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
+    P.mat.color.copy(scene.fog.color).lerp(_siluetaG, (P.ed ? 0.45 * P.tono : P.huellas ? 0.27 : P.grande ? 0.2 : 0.23) * op);   // (el de las huellas, más presente)   // (no transparente: al alejarse se aclara hacia el tono de la niebla y se pierde en ella)
   }
 }
 // Golems esfera: al acercarse Blizzard (por delante de ellos), cruzan rodando en diagonal a unos 5 m por delante,
@@ -6021,6 +6031,17 @@ function crearPiezaEd(it) {
   } else {
     const [k, nombre, i] = (it.modelo || "").split(":");
     if (k === "kit" && KITS[nombre] && KITS[nombre][+i]) { const P = KITS[nombre][+i], m = new THREE.Mesh(P.geo, it.nieve ? nieveFina : P.material); m.position.copy(P.desplaza); m.castShadow = m.receiveShadow = true; g.add(m); }
+    else if (k === "silueta" && !window.BLIZZARD_EDITOR) {   // golem silueta (editor): en el juego no es una pieza, sino un paseante en la niebla
+      const ry = (it.r || [0, 0, 0])[1] * Math.PI / 180, grande = nombre !== "mediano";
+      siluetasEd.push({ ed: true, grande, ini: { x: p[0], z: p[2] }, dir: { x: Math.sin(ry), z: Math.cos(ry) }, escEd: (it.s || [1, 1, 1])[1], tono: it.mat && it.mat.opac != null ? it.mat.opac : 0.5, v: grande ? 2.6 : 4.5, z: p[2] });
+      return { g: null };
+    }
+    else if (k === "silueta") {   // en el editor: el golem quieto y una flecha hacia donde andará
+      const GA = nombre === "mediano" ? gGolemAnim : gGolemGrande, d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); g.add(d);
+      const mix = new THREE.AnimationMixer(d), idle = GA.animations.find(a => /Idle/i.test(a.name)) || GA.animations[0]; mix.clipAction(idle).play(); mix.update(0.01);
+      const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()), fl = new THREE.Mesh(new THREE.ConeGeometry(t.y * 0.12, t.y * 0.4, 12), new THREE.MeshBasicMaterial({ color: 0x3b82f6, depthTest: false, transparent: true, opacity: 0.85 }));
+      fl.rotation.x = Math.PI / 2; fl.position.set(0, t.y * 0.15, t.y * 0.7); fl.renderOrder = 999; g.add(fl);
+    }
     else if (k === "gltf" && (nombre === "golem" || nombre === "golem_grande")) { const GA = nombre === "golem" ? gGolemAnim : gGolemGrande;   // el golem: con su esqueleto y sus animaciones; anda de un lado a otro y empuja
       const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); g.add(d);
       const mix = new THREE.AnimationMixer(d), clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], idle = GA.animations.find(a => /Idle/i.test(a.name));
