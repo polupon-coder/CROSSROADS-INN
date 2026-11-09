@@ -4186,6 +4186,7 @@ estilo.textContent = `
   /* Veladura: mientras se traza, el resto de la escena queda apagada y algo desenfocada. */
   @keyframes velo { from { background: rgba(28, 38, 58, 0); -webkit-backdrop-filter: none; backdrop-filter: none; } }
   #trazo[hidden] { display: none; }
+  #trazo, #trazo *, #rotulo, #cita { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }   /* (con el ratón, al trazar no se selecciona texto: si no, al volver a pulsar el navegador arrastraba la selección y no dejaba resiguir) */
   #rotulo, #cita, #desarrollo, #ayuda, #trazo .frase { color: #fff !important; background: none !important; text-shadow: 0 0 6px rgba(52, 66, 92, .35); }   /* todos los textos del juego: en blanco, sin fondo (una sombra muy suave para leerse sobre la nieve) */
   #trazo .frase { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 64px)); margin: 0; text-align: center; font-family: "Marcellus", Georgia, serif; font-size: clamp(17px, 2.4vw, 23px); line-height: 1.4; color: var(--tinta); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { #trazo .frase { left: auto; right: max(48px, 6vw); top: 50%; bottom: auto; transform: translateY(-50%); width: min(38vw, 520px); } }
@@ -4393,7 +4394,9 @@ const trazo = (() => {
   function fallar(texto) { fase = "fallo"; espera = 1.1; rotular(tr(texto) + " " + tr("Otra vez."), 2.5); dibujar(); }
   function acabar() { fase = "hecho"; progreso = L; espera = 0.5; dibujar(); musica.acorde(); }   // (suena el acorde: runa aprendida)
   const aSvg = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+  for (const t of ["selectstart", "dragstart", "contextmenu"]) capa.addEventListener(t, e => e.preventDefault());
   capa.addEventListener("pointerdown", e => {
+    e.preventDefault(); try { getSelection().removeAllRanges(); } catch (err) {}   /* (sin selección ni arrastre del navegador) */
     if (fase !== "esperando" && fase !== "fallo") return;          // tras un fallo se puede volver a empezar enseguida
     const p = aSvg(e);
     if (Math.hypot(p.x - pts[0][0], p.y - pts[0][1]) > 10) return;
