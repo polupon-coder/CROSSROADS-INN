@@ -2881,13 +2881,13 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
   const v = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (h[k] > -1e9 && Math.hypot(-R + i * paso, -R + j * paso) < P.r * 0.5) v.push(h[k]); }
   v.sort((a, c) => a - c); P.techo = v.length ? v[Math.floor(v.length * 0.6)] : b.max.y;
   { // Nieve sobre la propia piedra de la plataforma: en las caras que miran arriba, con grano y a zonas (no manchas puestas encima).
-    g.traverse(o => { if (!o.isMesh) return; const m = o.material = o.material.clone();
-      m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("cubre * 0.98);", "cubre * 0.95 * smoothstep(0.38, 0.62, texture2D(nieveFina, vMundoN.xz * 0.045 + 0.3).g * 0.7 + texture2D(nieveFina, vMundoN.xz * 0.16).r * 0.3));"); };
-      m.customProgramCacheKey = () => "platNieve"; m.needsUpdate = true; }); }
+    g.traverse(o => { if (!o.isMesh) return; const m = o.material = o.material.clone();   /* (de hielo: el mismo acabado que las formas de hielo de alrededor, con su nieve encima) */
+      m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08;
+      m.onBeforeCompile = hieloPalidoNieve; m.customProgramCacheKey = () => "platHielo"; m.needsUpdate = true; }); }
   { // Y nieve acumulada en la zona central: una mancha irregular, fina y de bordes suaves (tapa también donde estaba la figurilla).
     const dist = (x, z) => { const a = Math.atan2(x - P.x, z - P.z), rr = P.r * (0.36 + 0.06 * Math.sin(a * 3 + 0.7) + 0.04 * Math.sin(a * 7 + 2.1)); return Math.hypot(x - P.x, z - P.z) / rr; };
     const sueloEn = (x, z) => { const y = alturaPlatDe(P, x, z); return Math.abs(y - P.techo) < 0.8 ? y : -100; };
-    try { const vv = ventisquero(P.x, P.z, P.r * 1.2, P.r * 1.2, 0.18, { dist, R: 1, sueloEn, celda: 0.2 }, true);   /* (con la nieve del suelo: la azulada parecía un charco) */ if (vv) vv.malla.raycast = () => {}; } catch (e) { console.warn("nieve plataforma", e); } }
+    try { const vv = ventisquero(P.x, P.z, P.r * 1.2, P.r * 1.2, 0.18, { dist, R: 1, sueloEn, celda: 0.2, blanca: true }, true);   /* (la nieve de la zona de hielo: sobre la plataforma de hielo encaja) */ if (vv) vv.malla.raycast = () => {}; } catch (e) { console.warn("nieve plataforma", e); } }
 }
 function montarPlataforma(P, plat, giro) {
   const caja = new THREE.Box3().setFromObject(plat);
