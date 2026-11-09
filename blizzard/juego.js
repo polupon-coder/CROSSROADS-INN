@@ -462,7 +462,7 @@ PLATAFORMA7.x = caminoX(PLATAFORMA7.z); PLATAFORMA7.base = alturaTerreno(PLATAFO
 PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z) + 0.5;   // (algo más alta: a la altura del camino)
 
 // ─── Escena ────────────────────────────────────────────────────────────────
-const BRUMA_HIELO = new THREE.Color("#b7c1cf"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
+const BRUMA_HIELO = new THREE.Color("#d2dae5"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
 const CIELO = new THREE.Color("#c9d8ee"), AMANECER_ROSA = new THREE.Color("#d9dce6"), AMANECER_ORO = new THREE.Color("#f6dcb8");
 const CIELO_LAGO = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#cdd6e6"); g.addColorStop(0.35, "#d8dde8"); g.addColorStop(0.6, "#e1e1e7"); g.addColorStop(0.78, "#e6e3e3"); g.addColorStop(1, "#dee0e7");   /* (azulado apagado, apenas un toque cálido en el horizonte) */   /* (siempre más claro que lo lejano en la niebla) */ x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c); })();   // (azul violáceo arriba, rosa y oro al horizonte)
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -5316,7 +5316,7 @@ function actualizar(dt) {
   sol.intensity = lerp(0.02, 0.42, alba) * (1 - 0.92 * enCanon2); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
-  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) scene.fog.color.lerp(BRUMA_HIELO, h * 0.7); }   // (en la zona de hielo, la niebla menos blanca: gris claro algo azulado)
+  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) scene.fog.color.lerp(BRUMA_HIELO, h * 0.6); }   /* (niebla y cielo más claros) */   // (en la zona de hielo, la niebla menos blanca: gris claro algo azulado)
   NIEBLA_U.nieblaColor.value.copy(scene.fog.color).lerp(_blancoN, 0.08);
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
@@ -5965,7 +5965,7 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
 const PASEANTES = [   // (en tramos donde pueden andar sin atravesar nada: medidos; separados entre sí)
   { z: -100, grande: true, huellas: true },   // (al principio, antes del bastón: el que dejó las huellas gigantes; sigue su diagonal y se pierde en la niebla)
   { z: -928, lado: -1, d: 12, grande: false, dir: -1 },   /* (los de las dunas y el del hielo, fuera: se ponen con el editor) */
-  { z: -1222, lado: 1, d: 12, grande: true, dir: -1, trasOnda: true, lejos: true },   /* (lejos: más lejos y sin pasar por nada, ni las rocas bajas) */   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
+  /* (el de tras el santuario de la onda, quitado) */   /* (en la explanada tras el santuario de la onda: grande, por el centro, alejándose) */];   // (dentro del alcance de la cámara: con niebla densa, unos 45 m)
 let paseantes = null; const siluetasEd = [];   // (golems silueta puestos con el editor: dónde, hacia dónde andan, su tamaño y su tono)
 function pasoGolem(x, z, yP, rad, alto = 1.5) {   // ¿puede pisar ahí un golem? (ni rocas ni piezas, ni santuarios, ni simas ni agua, ni escalones)
   const y = alturaTerreno(x, z); if (y < -5 || (yP !== null && Math.abs(y - yP) > 1.2)) return null;
