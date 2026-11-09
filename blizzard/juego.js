@@ -1770,7 +1770,10 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       const tramos = []; let cur = null;
       for (let z = HIELO.desde - 0.2; z > HIELO.hasta + 1; z -= 0.4) { if (hay(z)) { if (!cur) tramos.push(cur = []); cur.push(z); } else cur = null; }
       const c = new THREE.Color(1, 1, 1), texC = new THREE.TextureLoader().load("texturas/nieve.jpg"); texC.wrapS = texC.wrapT = THREE.RepeatWrapping; texC.repeat.set(40, 70);
-      const texPol = (() => { const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d"); for (let i = 0; i < 5200; i++) { const r = Math.random() < 0.85 ? 0.6 + Math.random() * 1.4 : 2 + Math.random() * 4; x.fillStyle = `rgba(255,255,255,${0.35 + Math.random() * 0.6})`; x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, r, 0, 7); x.fill(); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+      const texPol = (() => { const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d");   /* (polvo suave y continuo: nubecillas difuminadas que se repiten sin costura; los puntitos de antes, vistos de lado, hacían manchas) */
+        for (let i = 0; i < 260; i++) { const cx = Math.random() * 256, cy = Math.random() * 256, r = 18 + Math.random() * 46, a = 0.05 + Math.random() * 0.07;
+          for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256], [256, 256], [-256, -256], [256, -256], [-256, 256]]) { const g = x.createRadialGradient(cx + dx, cy + dy, 0, cx + dx, cy + dy, r); g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(cx + dx - r, cy + dy - r, 2 * r, 2 * r); } }
+        const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
       const matPolvo = new THREE.MeshStandardMaterial({ map: texPol, color: 0xeef1f6, emissive: 0x4a4a5a, roughness: 1, transparent: true, depthWrite: false, vertexColors: true, side: THREE.DoubleSide });
       const matCinta = new THREE.MeshStandardMaterial({ map: texC, color: 0xf6f8fb, emissive: 0x8c8e9c, roughness: 1, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide });   // (clara, como nieve al sol)
       _matsCinta = { matCinta, matPolvo };
@@ -1782,7 +1785,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
         geo.setAttribute("color", new THREE.BufferAttribute(col, 4)); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, matCinta); m.renderOrder = 2; m.receiveShadow = true; m.raycast = () => {}; scene.add(m);
         { const gp = new THREE.PlaneGeometry(1, 1, N, T.length - 1), Q = gp.attributes.position, uq = gp.attributes.uv, ca = new Float32Array(Q.count * 4);   /* (polvo de nieve sobre el hielo, alrededor del camino) */
           for (let j = 0; j < T.length; j++) for (let i = 0; i <= N; i++) { const z = T[j], u = i / N * 2 - 1, n = j * (N + 1) + i, ini = Math.min(j, T.length - 1 - j), an = (z <= A3 ? 4.6 : 2.7) * (1.55 + 0.25 * Math.sin(z * 0.6 + u)), x = centro(z) + u * an / 2 + 0.45 * Math.sin(z * 1.7 + u);
-            Q.setXYZ(n, x, y0 + 0.006, z); uq.setXY(n, x / 2.5, z / 2.5); ca.set([1, 1, 1, Math.pow(1 - Math.abs(u), 0.5) * Math.min(1, ini * 0.25)], n * 4); }
+            Q.setXYZ(n, x, y0 + 0.006, z); uq.setXY(n, x / 6, z / 6); ca.set([1, 1, 1, Math.pow(1 - Math.abs(u), 0.5) * Math.min(1, ini * 0.25)], n * 4); }
           gp.setAttribute("color", new THREE.BufferAttribute(ca, 4)); gp.computeVertexNormals(); const mp = new THREE.Mesh(gp, matPolvo); mp.receiveShadow = true; mp.raycast = () => {}; mp.renderOrder = 1; scene.add(mp); } } }
     { // La niebla baja: capas finas apiladas hasta la cintura; su techo ondea como olas (de rodillas a cintura).
       const largoN = HIELO.desde + 20 + 1545, zcN = (HIELO.desde + 20 - 1545) / 2;   /* (hasta la sala de la cueva) */
@@ -5753,7 +5756,14 @@ function suavizar() {
 // (antes, al acercarse, ya se ven desenfocadas). Esfera de cada pieza para descartar rápido; rayo solo
 // con las que quedan.
 const tapadores = [];
-scene.traverse(o => { if (o.userData.tapa) { const caja = new THREE.Box3().setFromObject(o), e = caja.getBoundingSphere(new THREE.Sphere()); tapadores.push({ o, e, caja, oculto: false }); } });
+const registrarTapador = o => { if (tapadores.some(t => t.o === o)) return; const caja = new THREE.Box3().setFromObject(o), e = caja.getBoundingSphere(new THREE.Sphere()); tapadores.push({ o, e, caja, oculto: false }); };
+scene.traverse(o => { if (o.userData.tapa) registrarTapador(o); });
+function nieveSueloCueva() {   /* (tras la segunda pared, el suelo de la cueva son bloques de hielo del editor: se veían grises por arriba; un manto de nieve, de bordes difuminados, que sigue sus escalones) */
+  const dist = (x, z) => Math.hypot((x - 4.5) / 8, (z + 1549.5) / 19.5) * (1 + 0.1 * Math.sin(x * 0.8 + z * 0.37) + 0.06 * Math.sin(x * 2.1 - z * 1.4));
+  ventisquero(4.5, -1549.5, 18, 40, 0.16, { dist, R: 1, sueloEn: (x, z) => sueloEn(x, z, 40).h, celda: 0.3, blanca: true }, true); }
+function tapadoresHielo() {   /* (en la zona de hielo, los icebergs y bloques puestos en el editor también se apartan de la vista si tapan al protagonista) */
+  for (const { g } of escenaEd.values()) { if (!g || !g.isObject3D || g.userData.inst || !g.parent) continue; const p = g.position; if (p.z > HIELO.desde + 15 || p.z < -1700) continue; g.userData.hieloTapa = true; registrarTapador(g); }
+  for (const g of bloquesPaso) registrarTapador(g); }   /* (y los pilares de salto: al saltar de uno a otro, la cámara quedaba dentro del anterior) */
 const _rayoT = new THREE.Raycaster(), _ojoT = new THREE.Vector3(), _hastaT = new THREE.Vector3();
 let _turnoT = 0;
 const _cajaT = new THREE.Vector3();
@@ -5763,7 +5773,7 @@ function ocultarTapadores() {
   const largo = _ojoT.distanceTo(_hastaT), dir = _hastaT.clone().sub(_ojoT).normalize();
   // Con la cámara girada a mano, se oculta todo lo que tape el centro de la imagen (lo que corta la línea
   // hasta Blizzard, a cualquier distancia); si no, solo lo que está pegado a la cámara.
-  const alcance = Math.abs(giroCam) > 0.12 || tactil ? largo - 0.5 : 4.5;   // (en móvil, siempre: la pantalla es pequeña)
+  const alcance = Math.abs(giroCam) > 0.12 || tactil || (pos.z < HIELO.desde + 10 && pos.z > -1700) ? largo - 0.5 : 4.5;   /* (en el hielo, siempre: hay muchos bloques grandes entre la cámara y el protagonista) */   // (en móvil, siempre: la pantalla es pequeña)
   _rayoT.set(_ojoT, dir); _rayoT.far = largo;
   for (const t of tapadores) {
     let tapa = false;
@@ -5772,8 +5782,8 @@ function ocultarTapadores() {
       const proy = clamp(_hastaT.clone().sub(_ojoT).dot(t.e.center.clone().sub(_ojoT)) / (largo * largo), 0, 1);
       const cerca = _ojoT.clone().lerp(_hastaT, proy).distanceTo(t.e.center) < t.e.radius;
       // Primero, contra su caja (barato); solo si la toca cerca de la cámara, el rayo contra la malla.
-      const enCaja = cerca && _rayoT.ray.intersectBox(t.caja, _cajaT) && _cajaT.distanceTo(_ojoT) < Math.min(alcance, largo - 0.6);
-      if (enCaja) { t.o.visible = true; const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(alcance, largo - 0.6); }
+      const enCaja = cerca && (t.caja.containsPoint(_ojoT) || (_rayoT.ray.intersectBox(t.caja, _cajaT) && _cajaT.distanceTo(_ojoT) < Math.min(alcance, largo - 0.6)));   /* (con la cámara dentro de la caja de una pieza grande, también cuenta) */
+      if (enCaja) { const g = _rayoT.intersectObject(t.o, true)[0]; tapa = !!g && g.distance < Math.min(alcance, largo - 0.6); t.o.visible = !tapa; }   /* (antes se volvía a mostrar para el rayo y, si seguía tapando, ya no se ocultaba: el rayo no mira si se ve) */
     }
     if (tapa !== t.oculto) { t.oculto = tapa; t.o.visible = !tapa; }
   }
@@ -6153,7 +6163,11 @@ function colisionPorForma(g, lo, hi, techo) {   // círculos pequeños donde la 
       if (Math.max(a.y, b.y, c.y) < lo || Math.min(a.y, b.y, c.y) > hi) continue;
       const m = Math.max(1, Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / (C * 0.5)));
       for (let u = 0; u <= m; u++) for (let w = 0; w <= m - u; w++) marca(q.set(0, 0, 0).addScaledVector(a, u / m).addScaledVector(b, w / m).addScaledVector(c, 1 - (u + w) / m)); } });
-  return [...celdas].map(k => { const [i, j] = k.split(",").map(Number); return { x: (i + 0.5) * C, z: (j + 0.5) * C, r: C * 0.62, techo }; });
+  const rc = new THREE.Raycaster(), abajo = new THREE.Vector3(0, -1, 0), lados = []; g.traverse(o => { if (o.isMesh) { lados.push([o.material, o.material.side]); o.material.side = THREE.DoubleSide; } });
+  const res = [...celdas].map(k => { const [i, j] = k.split(",").map(Number), x = (i + 0.5) * C, z = (j + 0.5) * C, c = { x, z, r: C * 0.62, techo };
+    rc.set(q.set(x, lo - 0.05, z), abajo); rc.far = 400; const hs = rc.intersectObject(g, true), bajoP = hs.length ? hs[hs.length - 1].point.y : lo - 0.3; if (bajoP - sueloEn(x, z, bajoP - 2.3).h > 2.3) c.bajo = bajoP;   /* (si por debajo de la franja no hay nada de la pieza en esa columna, es techo: por debajo se pasa; antes, un techo o un iceberg colgante del editor chocaba hasta el suelo) */
+    return c; });
+  for (const [m, s] of lados) m.side = s; return res;
 }
 // Golems a lo lejos: siluetas en la niebla que pasan andando, lejos del camino (no se llega a ellos: si te acercas, se desvanecen).
 // Los grandes, muy lentos y más lejos; los pequeños, más cerca y más rápidos.
@@ -6182,7 +6196,7 @@ function cruceLibre(z0, alto = 2) {   // ¿puede un golem grande cruzar de lado 
     if (colisiones.some(c => !c.rampa && c.techo > y + alto && Math.hypot(c.x - x, c.z - z0) < c.r + 2.6) || PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z0 - Q.z) < Q.r + 4) || ARCANOS.some(A => Math.hypot(x - A.x, z0 - A.z) < A.r + 2.6)) return false; }   // (rocas, acantilados, santuarios)
   return true;
 } const _siluetaG = new THREE.Color(0x56606e);
-let _texGrietaM = null, _espejoMuro = null, _cuadroMuro = 0; let ondaN = 0; const _cajaMuro = new THREE.Box3(), _vCaja = new THREE.Vector3();
+let _texGrietaM = null, _espejoMuro = null, _cuadroMuro = 0; let ondaN = 0;
 function soltarTrozo(q) { const i = penascos.findIndex(p => p.g === q); if (i < 0) return false; const P = penascos[i]; if (P.estado !== "suelo") return false; const k = colisiones.indexOf(P.col); if (k >= 0) colisiones.splice(k, 1); penascos.splice(i, 1); return true; }
 function ondaTrozo(M, q) {   /* (la onda alcanza un trozo del muro ya caído: los grandes se parten en trozos pequeños; todos salen despedidos, lejos del camino) */
   if (!soltarTrozo(q)) return; const U = q.userData, dx = q.position.x - pos.x, dz = q.position.z - pos.z, d = Math.hypot(dx, dz) || 1, lado = Math.sign(q.position.x - (caminoPasoX ? caminoPasoX(q.position.z) : M.x)) || (Math.random() < 0.5 ? -1 : 1);
@@ -6190,11 +6204,6 @@ function ondaTrozo(M, q) {   /* (la onda alcanza un trozo del muro ya caído: lo
   if (U.peq) { lanza(q, 1); return; }
   musica.rocas(0.35); const b = cajaReal(q), t = b.getSize(new THREE.Vector3()), n = 3 + (t.x * t.y * t.z > 30 ? 1 : 0); scene.remove(q); M.trozos.splice(M.trozos.indexOf(q), 1);
   for (let k = 0; k < n; k++) { const f = M.bloque(0.8 + Math.random() * 0.9, 0.7 + Math.random() * 1.0, 0.6 + Math.random() * 0.8); f.position.set(b.min.x + Math.random() * t.x, b.min.y + 0.6 + Math.random() * t.y * 0.7, b.min.z + Math.random() * t.z); f.rotation.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28); scene.add(f); f.userData.peq = true; lanza(f, 1.2); M.trozos.push(f); } }
-function cajaReal(q, b = _cajaMuro) {   /* (la caja de los trozos de hielo con sus vértices de verdad: la geometría del kit trae puntos sueltos fuera, y la de three salía enorme) */
-  b.makeEmpty(); q.updateMatrixWorld(true);
-  q.traverse(o => { if (!o.isMesh) return; const g = o.geometry; if (!g.userData.cajaReal) { const cj = new THREE.Box3(), pa = g.attributes.position, ix = g.index ? g.index.array : null, n = ix ? ix.length : pa.count; for (let k = 0; k < n; k++) cj.expandByPoint(_vCaja.fromBufferAttribute(pa, ix ? ix[k] : k)); g.userData.cajaReal = cj; }
-    const cj = g.userData.cajaReal; for (let k = 0; k < 8; k++) b.expandByPoint(_vCaja.set(k & 1 ? cj.max.x : cj.min.x, k & 2 ? cj.max.y : cj.min.y, k & 4 ? cj.max.z : cj.min.z).applyMatrix4(o.matrixWorld)); });
-  return b; }
 // Hielo ópalo (muros de hielo y sus trozos): blanco azulado lechoso, algo translúcido, con un brillo de colores tenue en los bordes.
 function matOpalo() {
   if (_matOpalo) return _matOpalo;
@@ -6224,6 +6233,7 @@ function aPenasco(q, M) {   // un trozo de hielo del muro, ya en el suelo: se pu
     for (let it = 0; it < 6; it++) { let dm = Infinity, sg = 1; for (let z = q.position.z - R - 1.5; z <= q.position.z + R + 1.5; z += 0.5) { const d = q.position.x - caminoPasoX(z); if (Math.abs(d) < dm) { dm = Math.abs(d); sg = Math.sign(d) || 1; } } if (dm >= minD) break; q.position.x += sg * (minD - dm + 0.05); } q.position.y += alturaTerreno(q.position.x, q.position.z) - alturaTerreno(x0, q.position.z); }
   const col = { x: q.position.x, z: q.position.z, r: R * 0.9, techo: q.position.y - medio + alto + 1.6, deRoca: true }; colisiones.push(col);
   penascos.push({ g: q, col, alto, medio, R, estado: "suelo", vy: 0, vx: 0, vz: 0, eje: new THREE.Vector3(1, 0, 0), rodado: 0, volcada: 0, alto0: alto, movible, hielo: true });
+  if (!movible) registrarTapador(q);   /* (los trozos grandes, si quedan entre la cámara y el protagonista, se apartan de la vista) */
 }
 function caerMuro(M) {
   M.roto = true; M.m.visible = false; for (const c of M.cols) { const i = colisiones.indexOf(c); if (i >= 0) colisiones.splice(i, 1); }
@@ -6610,7 +6620,7 @@ buscarMundo({ n: -1, c: [0, 0, 0] });   // (el índice de piezas del mundo, con 
     if (d > 10.8) { o.visible = false; for (let i = colisiones.length - 1; i >= 0; i--) if (dentro(colisiones[i])) colisiones.splice(i, 1); }
     else if (b.min.y > 2.6) { const dy = b.min.y - 2.45; o.position.y -= dy; o.updateMatrixWorld(true); for (const cc of colisiones) if (dentro(cc) && isFinite(cc.techo) && cc.techo < 90) cc.techo -= dy; }
   } }
-if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) for (const it of j.items) { try { ponerEd(it); } catch (e) { console.warn("escena: no se pudo poner", it.id, e); } } try { quitarNieveFlotante(); despejarPaso(); } catch (e) { console.warn("nieve flotante", e); } }).catch(() => {}).finally(() => { escenaLista = true; });   // (una pieza que falle no corta las demás)   // (lo colocado en el editor, ya fijado en el juego)
+if (!window.BLIZZARD_EDITOR) fetch("escena.json").then(r => r.ok ? r.json() : null).then(j => { if (j && j.items) for (const it of j.items) { try { ponerEd(it); } catch (e) { console.warn("escena: no se pudo poner", it.id, e); } } try { quitarNieveFlotante(); despejarPaso(); tapadoresHielo(); nieveSueloCueva(); } catch (e) { console.warn("nieve flotante", e); } }).catch(() => {}).finally(() => { escenaLista = true; });   // (una pieza que falle no corta las demás)   // (lo colocado en el editor, ya fijado en el juego)
 window.__blizzard = { golems: () => !!(gGolemAnim && gGolemGrande), aspas: () => aspas, baseLago: () => nieblaLago.u.base.value, pasoG: (x, z, yP, r) => pasoGolem(x, z, yP, r), huellasG: () => huellasGigantes(), rutaGolem: (z, grande) => rutaRecta({ zS: z, xS: 0, grande }, 80), chispas: () => chispas, esferas: () => esferasEd, paseantes: () => paseantes, hundidos: () => ventisqueros.reduce((a, v) => a + (v.fijo ? v.fijo.filter(f => f > 0.1).length : 0), 0), trazo, figuras: FIGURAS, ed: { chispasBase: () => { if (!chispas) chispas = crearChispas(); return chispas.map(c => ({ id: c.id, tramo: c.tramo, p: c.base.map(v => +v.toFixed(2)) })); }, MODELOS, KITS, aplicarMatEd, ponerEd, quitarEd, crearPiezaEd, firmaDe, cajaReal, unidadesMundo, cajaInstancia, firmaInstancia, sueloMat: () => MAT_SUELO, escenaEd, camara, renderer, scene, alturaTerreno, caminoX, nieblaLago, coposBajos, santuarios: [PLATAFORMA, PLATAFORMA2, PLATAFORMA3, PLATAFORMA4, PLATAFORMA5, PLATAFORMA6].map(P => P.z), hielo: HIELO, cuevaZ: PLATAFORMA7.z }, centroLago, colis: () => colisiones, hielos: () => losasHielo, TRAS, puzle, vel, pozoEn, guia: () => [guia.modo, +guia.t.toFixed(1), guia.p.toArray().map(v => +v.toFixed(1)), guia.cola[guia.cola.length - 1].p.toArray().map(v => +v.toFixed(1))], bolas: () => bolas.map(b => b.g.visible ? b.g.position.z : null), medir: () => { const t0 = performance.now(); actualizar(1 / 60); const t1 = performance.now(); ocultarTapadores(); const t2 = performance.now(); renderer.info.autoReset = false; renderer.info.reset(); if (desenfoque) desenfoque.dibujar(); else renderer.render(scene, camara); renderer.getContext().finish(); const t3 = performance.now(); const r = { logica: +(t1 - t0).toFixed(2), tapadores: +(t2 - t1).toFixed(2), dibujo: +(t3 - t2).toFixed(1), llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, geometrias: renderer.info.memory.geometries }; renderer.info.autoReset = true; return r; }, irSantuario: n => empezarEnSantuario(n), get giraBloques() { return giraBloques; }, get estadoJuego() { return estado; }, ventis: () => ventisqueros.map(v => [+v.cx.toFixed(1), +v.cz.toFixed(1), +v.ancho.toFixed(1)]), monticulos: () => MONTICULOS.map(m => [+m.x.toFixed(1), +m.z.toFixed(1), +m.r.toFixed(1)]), verCapa: (a, b) => { capaTela.malla.visible = a; esclavina.malla.visible = b; esclavina.malla.material.color.set(b === 2 ? 0xff00ff : 0xb88521); }, huesoMundo: n => { blizzard.updateMatrixWorld(true); return enMundo(n).toArray().map(v => +v.toFixed(3)); }, capaEstado: () => capaTela.estado(), capaRed: () => [0, 5, 66, 126, 131].map(k => [k, capaTela.P[k].toArray().map(v => +v.toFixed(2)), capaTela.A[k].toArray().map(v => +v.toFixed(2))]), capaDatos: () => { const a = capaTela.malla.geometry.attributes.position.array; return [a.length, Array.from(a.slice(0, 6)).map(v => +v.toFixed(2)), Array.from(a.slice(-3)).map(v => +v.toFixed(2)), capaTela.malla.visible, !!capaTela.malla.parent]; }, huesos: () => { blizzard.updateMatrixWorld(true); return ["Hips","Spine2","Neck","LeftShoulder","LeftArm","RightArm","LeftUpLeg","LeftFoot"].map(n => [n, ...enMundo(n).toArray().map(v => +v.toFixed(3))]); }, efectos: () => [+efectoEspiral.toFixed(2), +rachaViento.toFixed(2), !!espiralEn, estado, !!rescate], forzarAnim: n => { animForzada = n; }, pasosSalto: () => ZONA_PILASTRAS.map((z, i) => [caminoX(z) + PASO_SALTO[i], z]), rutaBosque: () => RUTA_BOSQUE.slice(), saltosBosque: () => SALTOS_BOSQUE.slice(), losas: () => losas.map(L => L.estado[0]).join(""), saltosLosas: () => SALTOS_LOSAS.slice(), pilares: () => PILARES.map(([x, z, r]) => [caminoX(z) + x, z, r]), get abrePuertas() { return abrePuertas; }, niebla: f => { NIEBLA_LEJOS = f; }, scene, probarRodilla: () => { escalonDura = 0.45; escalonAlto = 0.5; escalon = 0.3; blizzard.updateMatrixWorld(true); const a = blizzard.worldToLocal(enMundo("RightFoot")); gestoEscalon(); blizzard.updateMatrixWorld(true); const b = blizzard.worldToLocal(enMundo("RightFoot")); escalon = 0; return [a.toArray(), b.toArray()].map(v => v.map(x => +x.toFixed(2))); }, manos: () => { blizzard.updateMatrixWorld(true); const c = enMundo("Hips"); return ["LeftHand", "RightHand"].map(n => { const p = enMundo(n); return +Math.hypot(p.x - c.x, p.z - c.z).toFixed(3); }).concat([+pesoReposo.toFixed(2)]); }, camara, verEspiral: t => { efectoEspiral = t; }, baston: () => baston.position.toArray().map(v => +v.toFixed(2)).concat([bastonEnMano]), colisionesCerca: (x, z) => colisiones.filter(c => Math.hypot(c.x - x, c.z - z) < c.r + 3).map(c => [+c.x.toFixed(1), +c.z.toFixed(1), +c.r.toFixed(2), +c.techo.toFixed(2), !!c.plataforma]), suelo: (x, z) => +alturaTerreno(x, z).toFixed(2),
   pos, get estado() { return estado; }, get animacion() { return accion && accion.getClip().name; },
   saltarIntro() { if (estado === "intro") { tIntro = INTRO_DURA; actualizar(1 / 60); } }, get tieneBaston() { return tieneBaston; }, get muevePiedras() { return muevePiedras; }, kitsObj: () => ({ kitRocas, kitRuinas }), fijarCamara: v => { camaraFija = v; }, penascos: () => penascos.map(p => p.estado + " " + p.g.position.x.toFixed(1) + "," + p.g.position.z.toFixed(1)), get rescatando() { return !!rescate; },
