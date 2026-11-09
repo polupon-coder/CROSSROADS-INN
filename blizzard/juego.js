@@ -41,6 +41,8 @@ const INGLES = {
   "El puente está tendido.": "The bridge is laid.",
   "Una pared de hielo. Rómpela con la onda.": "A wall of ice. Break it with the wave.",
   "Una pared de hielo.": "A wall of ice.",
+  "Una pared de hielo.\nRómpela con la onda: mantén E.": "A wall of ice.\nBreak it with the wave: hold E.",
+  "Una pared de hielo.\nRómpela con la onda: mantén ◇.": "A wall of ice.\nBreak it with the wave: hold ◇.",
   "Junto a una viga, pulsa ◇: gira.\nAlinéalas para tender el puente.": "Next to a beam, press ◇: it turns.\nAlign them to lay the bridge.",
   "Junto a una viga, pulsa E: gira.\nAlinéalas para tender el puente.": "Next to a beam, press E: it turns.\nAlign them to lay the bridge.",
   "Un juego de Pol Lupon": "A game by Pol Lupon",
@@ -1829,7 +1831,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     for (let z = HIELO.hasta - 4, k = 0; z > HIELO.hasta - 36; z -= 4.2, k++) for (const lado of [-1, 1]) {
       const M = gHieloB, h = z > HIELO.hasta - 16 ? 16 + rI() * 8 : 9 + rI() * 2, w = ancho(M, h), x = cx(z) + lado * (3.4 + w * 0.5); propio(M, x, suelo(z) - 1.5, z, h, rI() * 6).traverse(claro); colisiones.push({ x, z, r: w * 0.45, techo: 99 });
     }
-    { const zI = HIELO.hasta - 26, h = 17; propio(gIceberg, cx(zI), suelo(zI) + 6.2, zI, h, 0.3).traverse(claro); }   // (el gran iceberg: se pasa por debajo)
+    gIceberg.scene.traverse(o => { if (o.isMesh) rI(); });   /* (el gran iceberg que se pasaba por debajo, quitado: tapaba demasiado el paso; se gasta su número al azar para no mover lo demás) */   // (el gran iceberg: se pasa por debajo)
     const P7 = CUEVA7, R = 24, zE = P7.z + R;   // la cueva: tras el iceberg, un pasillo que serpentea hasta una sala amplia
     const sx = z => cx(z) + 6 * Math.sin((HIELO.hasta - 36 - z) * 0.13) * suave(HIELO.hasta - 36, HIELO.hasta - 44, z) * suave(zE - 2, zE + 6, z);
     for (let z = HIELO.hasta - 36, k = 0; z > zE - 2; z -= 3.4, k++) for (const lado of [-1, 1]) { const h = 13 + rI() * 7, w = ancho(gHieloB, h), x = sx(z) + lado * (3.3 + w * 0.5); propio(gHieloB, x, alturaTerreno(x, z) - 1.5, z, h, rI() * 6).traverse(claro); colisiones.push({ x, z, r: w * 0.45, techo: 99 }); }
@@ -1843,14 +1845,14 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
     // Dos paredes de hielo en el túnel, separadas: solo la onda las rompe.
     // (de lado a lado y hasta arriba: el bloque de hielo, estirado; al romperse, se agrieta y cae a trozos como el hielo del suelo)
     { const pieza = kitCubosHielo[2], caja = new THREE.Box3(), v3 = new THREE.Vector3(), pa = pieza.geo.attributes.position, ix = pieza.geo.index.array; for (let n = 0; n < ix.length; n++) caja.expandByPoint(v3.fromBufferAttribute(pa, ix[n]));
-      const tb = caja.getSize(new THREE.Vector3()), cb = caja.getCenter(new THREE.Vector3()), W = 11, H = 15, D = 1.4;
+      const tb = caja.getSize(new THREE.Vector3()), cb = caja.getCenter(new THREE.Vector3()), W = 22, H = 18, D = 1.8;   /* (de pared a pared y hasta el techo) */
       const bloque = (w, h, d) => { const g = new THREE.Group(), v = new THREE.Mesh(pieza.geo, pieza.material); v.scale.set(w / tb.x, h / tb.y, d / tb.z); v.position.set(-cb.x * w / tb.x, -cb.y * h / tb.y, -cb.z * d / tb.z); g.add(v); g.traverse(claro); g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); return g; };
       for (const zw of [HIELO.hasta - 38, P7.z - R - 1.5]) { const x = sx(zw),   /* (una al empezar el paso de la cueva de hielo; otra a la salida de la sala, antes de la cueva de la plataforma) */ y = alturaTerreno(x, zw), m = bloque(W, H, D); m.position.set(x, y + H / 2 - 1, zw); scene.add(m);
-        const cols = []; for (let k = -4; k <= 4; k++) cols.push({ x: x + k * 1.2, z: zw, r: 0.8, techo: 99 }); colisiones.push(...cols); murosHielo.push({ m, cols, x, z: zw, y, W, H, bloque, roto: false, trozos: null }); } }
+        const cols = []; for (let k = -8; k <= 8; k++) cols.push({ x: x + k * 1.3, z: zw, r: 0.9, techo: 99 }); colisiones.push(...cols); murosHielo.push({ m, cols, x, z: zw, y, W, H, bloque, roto: false, trozos: null }); } }
     // Un camino muy ancho de nieve acumulada por el centro del paso, desde el lago hasta la sala de la cueva (fino: los pies apenas se hunden).
-    { const Q = []; for (let z = HIELO.hasta - 0.5; z > P7.z - R - 3; z -= 1) Q.push({ x: z > zE - 2 ? sx(z) : P7.x, z }); const RA = 4.2;
-      const dist = (x, z) => { let m = Infinity; for (let k = 0; k < Q.length - 1; k++) { const a = Q[k], b = Q[k + 1]; if (Math.abs(z - a.z) > RA + 2) continue; const vx = b.x - a.x, vz = b.z - a.z, l2 = vx * vx + vz * vz, t = clamp(((x - a.x) * vx + (z - a.z) * vz) / l2, 0, 1), dx = x - a.x - vx * t, dz = z - a.z - vz * t; m = Math.min(m, dx * dx + dz * dz); } return Math.sqrt(m); };
-      const xs = Q.map(q => q.x), x0 = Math.min(...xs) - RA, x1 = Math.max(...xs) + RA, z0 = Q[Q.length - 1].z - RA, z1 = Q[0].z + RA;
+    { const Q = []; for (let z = HIELO.hasta - 0.5; z > P7.z - R - 3; z -= 1) Q.push({ x: (z > zE - 2 ? sx(z) : P7.x) + 1.4 * Math.sin(z * 0.09) + 0.7 * Math.sin(z * 0.23 + 1.3), z }); const RA = 4.2;   /* (serpenteando) */
+      const dist = (x, z) => { let m = Infinity; for (let k = 0; k < Q.length - 1; k++) { const a = Q[k], b = Q[k + 1]; if (Math.abs(z - a.z) > RA + 2) continue; const vx = b.x - a.x, vz = b.z - a.z, l2 = vx * vx + vz * vz, t = clamp(((x - a.x) * vx + (z - a.z) * vz) / l2, 0, 1), dx = x - a.x - vx * t, dz = z - a.z - vz * t; m = Math.min(m, dx * dx + dz * dz); } return Math.sqrt(m) / (0.78 + 0.16 * Math.sin(z * 0.27) + 0.1 * Math.sin(z * 0.71 + x * 0.4) + 0.06 * Math.sin(x * 1.3 - z * 0.9)); };   /* (bordes irregulares: el ancho cambia a cada paso) */
+      const xs = Q.map(q => q.x), x0 = Math.min(...xs) - RA * 1.4, x1 = Math.max(...xs) + RA * 1.4, z0 = Q[Q.length - 1].z - RA, z1 = Q[0].z + RA;
       nievePendiente.push(() => ventisquero((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.2, { dist, R: RA, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.3, blanca: true }, true)); }   /* (se hace cuando la nieve acumulada ya está lista) */
     // El puente sobre la sima, tras la plataforma: tres vigas de hielo (los bloques de hielo, estirados), cada una gira sobre su pilar.
     { const top = 35, geoP = new THREE.CylinderGeometry(0.45, 0.6, 40, 10), matP = new THREE.MeshStandardMaterial({ color: 0xcfdbe8, roughness: 0.6 });
@@ -2846,6 +2848,16 @@ function rejillaPorTriangulos(P, R, paso, n, h) {
 function usarPlataforma7(g) {   // la plataforma flotante del editor como santuario 7: su rejilla de alturas, sin moverla
   const P = PLATAFORMA7, b = cajaReal(g); P.obj = g; P.x = (b.min.x + b.max.x) / 2; P.z = (b.min.z + b.max.z) / 2; P.r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2 * 0.92; P.base = b.min.y;
   const R = P.r * 1.08, paso = 0.25, n = Math.ceil(2 * R / paso) + 1, h = new Float32Array(n * n); rejillaPorTriangulos(P, R, paso, n, h); P.rejilla = { n, paso, h };
+  { // Sin la figurilla del centro (viene fundida con el modelo): fuera los triángulos que asoman sobre el suelo, en el centro.
+    const anillo = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const d = Math.hypot(-R + i * paso, -R + j * paso), y = h[j * n + i]; if (d > 1.6 && d < 3.2 && y > -1e9) anillo.push(y); }
+    anillo.sort((a, c) => a - c); const suelo = anillo.length ? anillo[Math.floor(anillo.length / 2)] : null, va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3();
+    if (suelo !== null) { g.updateMatrixWorld(true); g.traverse(o => { if (!o.isMesh || !o.geometry.index) return; const geo = o.geometry.clone(), pa = geo.attributes.position, ix = geo.index.array, bien = [];
+      for (let t = 0; t < ix.length; t += 3) { va.fromBufferAttribute(pa, ix[t]).applyMatrix4(o.matrixWorld); vb.fromBufferAttribute(pa, ix[t + 1]).applyMatrix4(o.matrixWorld); vc.fromBufferAttribute(pa, ix[t + 2]).applyMatrix4(o.matrixWorld);
+        const cx = (va.x + vb.x + vc.x) / 3, cy = (va.y + vb.y + vc.y) / 3, cz = (va.z + vb.z + vc.z) / 3;
+        if (Math.hypot(cx - P.x, cz - P.z) < P.r * 0.45 && cy > suelo + 0.3) continue;   /* (en la parte interior: las columnas del borde se quedan) */ bien.push(ix[t], ix[t + 1], ix[t + 2]); }
+      geo.setIndex(bien); o.geometry = geo; });
+      rejillaPorTriangulos(P, R, paso, n, h); }
+  }
   const v = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (h[k] > -1e9 && Math.hypot(-R + i * paso, -R + j * paso) < P.r * 0.5) v.push(h[k]); }
   v.sort((a, c) => a - c); P.techo = v.length ? v[Math.floor(v.length * 0.6)] : b.max.y;
 }
@@ -3739,7 +3751,7 @@ const ventisqueros = [];
 // si se pide, al principio y al final), para que los tramos seguidos casen sin costura.
 let _matNieveHielo = null;
 const matNieveHielo = () => _matNieveHielo || (_matNieveHielo = (() => { const t = new THREE.TextureLoader().load("texturas/nieve.jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 70);
-  return new THREE.MeshStandardMaterial({ map: t, color: 0xf6f8fb, emissive: 0x8c8e9c, roughness: 1, vertexColors: true }); })());   // (como el camino de nieve del lago)
+  return new THREE.MeshStandardMaterial({ map: t, color: 0xedf1f6, emissive: 0x4e505c, roughness: 1, vertexColors: true }); })());   /* (menos luz propia: se ven las sombras y el surco al pasar) */   // (como el camino de nieve del lago)
 function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, sueloFijo = null) {
   if (!manto && !forzar && ((cz < DUNAS.desde + 2 && cz > PUZLE_Z - 6) || cz < DUNAS2.desde + 2)) return;                 // en las dunas, solo el manto (los montones resaltaban)
   // (el manto de las dunas, con celdas de 0,16 m: con las de 0,76 el surco salía ancho, y con 0,25 en dientes)
@@ -3751,7 +3763,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, s
     const borde = 1 - 0.18 * (0.5 + 0.5 * Math.sin(th * 3 + cx * 1.7)) - 0.12 * (0.5 + 0.5 * Math.sin(th * 5 + cz * 2.3)) - 0.06 * (0.5 + 0.5 * Math.sin(th * 9 + cx));
     const r = Math.min(1, (u * u + v * v) / (borde * borde));
     if (manto) {
-      const k = manto.dist ? suave(manto.R, manto.R * 0.55, manto.dist(x, z)) : suave(1, 0.7, Math.abs(u)) * (manto.ini && v > 0 ? suave(1, 0.6, v) : 1) * (manto.fin && v < 0 ? suave(-1, -0.6, v) : 1);   /* (dist: un manto que sigue un trazo del editor, continuo) */
+      const k = manto.dist ? suave(manto.R, manto.R * 0.3, manto.dist(x, z)) : suave(1, 0.7, Math.abs(u)) * (manto.ini && v > 0 ? suave(1, 0.6, v) : 1) * (manto.fin && v < 0 ? suave(-1, -0.6, v) : 1);   /* (dist: un manto que sigue un trazo del editor, continuo) */
       base[i] = alto * k * (0.9 + 0.1 * Math.sin(x * 1.3 + z * 0.7)) - 0.04; afila[i] = k * 0.62;   // surco algo más estrecho que en los montones
     } else {
       base[i] = alto * (1 - r) * (1 - r) * (1 - r * 0.5) * (0.85 + 0.15 * Math.sin(x * 2.3 + z * 1.7) * Math.sin(z * 3.1)) - 0.06;
@@ -3772,7 +3784,7 @@ function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, s
   // Tono por vértice: algo más oscuro al pie del montón; el fondo del surco, más oscuro aún (ver pisar).
   // Mismo material que el suelo (el tono de la nieve va en el color de cada vértice): no se distingue.
   const tono = new Float32Array(p.count * 3); geo.setAttribute("color", new THREE.BufferAttribute(tono, 3));
-  const nieveC = manto && manto.blanca ? new THREE.Color(1, 1, 1) : new THREE.Color(TONO_NIEVE), sombra = () => 1;   /* (blanca: la nieve acumulada de la zona de hielo, más blanca) */
+  const nieveC = manto && manto.blanca ? new THREE.Color(0.97, 0.98, 1) : new THREE.Color(TONO_NIEVE), sombra = () => 1;   /* (blanca: la nieve acumulada de la zona de hielo, más blanca) */
   for (let i = 0; i < p.count; i++) { tono[i * 3] = nieveC.r; tono[i * 3 + 1] = nieveC.g; tono[i * 3 + 2] = nieveC.b; }
   const malla = new THREE.Mesh(geo, manto && manto.blanca ? matNieveHielo() : MAT_SUELO); malla.receiveShadow = true; scene.add(malla);   /* (blanca: el mismo blanco que el camino de nieve del lago) */
   const vv = { malla, cx, cz, ancho, largo, geo, base, suelo, hundido, tono, sombra, afila, nieveC, cambia: false, nx: NX + 1, nz: NZ + 1, tocado: new Uint8Array(p.count) }; ventisqueros.push(vv); return vv;
@@ -6022,7 +6034,7 @@ function cruceLibre(z0, alto = 2) {   // ¿puede un golem grande cruzar de lado 
     if (colisiones.some(c => !c.rampa && c.techo > y + alto && Math.hypot(c.x - x, c.z - z0) < c.r + 2.6) || PLATAFORMAS.some(Q => Math.hypot(x - Q.x, z0 - Q.z) < Q.r + 4) || ARCANOS.some(A => Math.hypot(x - A.x, z0 - A.z) < A.r + 2.6)) return false; }   // (rocas, acantilados, santuarios)
   return true;
 } const _siluetaG = new THREE.Color(0x56606e);
-let _texGrietaM = null;
+let _texGrietaM = null, _espejoMuro = null, _cuadroMuro = 0;
 function romperMuro(M, yaRoto = false) {   // la pared de hielo: se agrieta (la estrella del hielo del suelo), tiembla y cae a trozos que se hunden
   if (M.roto || M.grieta) return;
   if (yaRoto) { M.roto = true; M.m.visible = false; for (const c of M.cols) { const i = colisiones.indexOf(c); if (i >= 0) colisiones.splice(i, 1); } return; }
@@ -6032,14 +6044,21 @@ function romperMuro(M, yaRoto = false) {   // la pared de hielo: se agrieta (la 
 }
 function caerMuro(M) {
   M.roto = true; M.m.visible = false; for (const c of M.cols) { const i = colisiones.indexOf(c); if (i >= 0) colisiones.splice(i, 1); }
-  musica.golpe(0.55); musica.rocas(0.5); M.trozos = []; const nx = 4, ny = 5, w = M.W / nx, h = M.H / ny, sale = Math.sign(M.z - pos.z) || -1;
+  musica.golpe(0.55); musica.rocas(0.5); M.trozos = []; const nx = 6, ny = 5, w = M.W / nx, h = M.H / ny, sale = Math.sign(M.z - pos.z) || -1;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) { const q = M.bloque(w * (0.85 + Math.random() * 0.15), h * (0.85 + Math.random() * 0.15), 1.2 + Math.random() * 0.3);
     q.position.set(M.x - M.W / 2 + (i + 0.5) * w, M.m.position.y - M.H / 2 + (j + 0.5) * h, M.z); q.rotation.set((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2);
     q.userData.v = new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 1.5, sale * (1 + Math.random() * 2.5)); q.userData.w = new THREE.Vector3((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 3); q.userData.suelo = false; scene.add(q); M.trozos.push(q); }
   M.t = 0;
 }
 function moverMurosYAspas(dt) {
-  for (const M of murosHielo) { if (!M.roto && !M.avisado && Math.hypot(M.x - pos.x, M.z - pos.z) < 8 && estado === "juego") { M.avisado = true; if (!murosHielo.some(o => o !== M && o.avisado)) rotular(onda ? "Una pared de hielo. Rómpela con la onda." : "Una pared de hielo.", 4); }
+  _cuadroMuro++;
+  for (const M of murosHielo) { const dM = Math.hypot(M.x - pos.x, M.z - pos.z);
+    if (!M.roto && !M.avisado && dM < 9 && estado === "juego") { M.avisado = true; rotular(onda ? (tactil ? "Una pared de hielo.\nRómpela con la onda: mantén ◇." : "Una pared de hielo.\nRómpela con la onda: mantén E.") : "Una pared de hielo.", 5); }   /* (en cada pared) */
+    if (!M.roto && M.m.visible && dM < 40) {   /* (palpita: una luz azulada que va y viene; y refleja un poco lo que tiene delante, al protagonista también) */
+      const k = 0.5 + 0.5 * Math.sin(reloj * 2.4 + M.z), mats = M.mats || (M.mats = []); if (!mats.length) M.m.traverse(o => { if (o.isMesh) { mats.push(o.material); o.material.roughness = 0.22; o.material.metalness = 0.15; o.material.envMapIntensity = 0.5; } });
+      for (const m of mats) m.emissive.setRGB(0.07 + 0.09 * k, 0.11 + 0.12 * k, 0.16 + 0.16 * k);
+      if (dM < 14 && _cuadroMuro % 4 === 0) { if (!_espejoMuro) { const rt = new THREE.WebGLCubeRenderTarget(128, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter }); _espejoMuro = new THREE.CubeCamera(0.3, 40, rt); }
+        const lado = Math.sign(pos.z - M.z) || 1; _espejoMuro.position.set(M.x, pos.y + 1.2, M.z + lado * 1.2); M.m.visible = false; _espejoMuro.update(renderer, scene); M.m.visible = true; for (const m of mats) { if (m.envMap !== _espejoMuro.renderTarget.texture) { m.envMap = _espejoMuro.renderTarget.texture; m.needsUpdate = true; } } } }
     if (M.grieta) { const G = M.grieta; G.t += dt; G.d.material.opacity = 0.55 * Math.min(1, G.t * 3); M.m.position.x = M.x + Math.sin(G.t * 60) * 0.03 * Math.min(1, G.t * 2);   /* (se agrieta y tiembla, como el hielo del suelo) */
       if (G.t > 0.9) { scene.remove(G.d); M.grieta = null; M.m.position.x = M.x; caerMuro(M); } }
     if (M.trozos) { M.t += dt; for (const q of M.trozos) { const v = q.userData.v, yS = alturaTerreno(q.position.x, q.position.z);
