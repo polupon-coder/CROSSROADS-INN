@@ -5077,7 +5077,7 @@ function actualizar(dt) {
     if (enSuelo && v > 0.4 && !s.sobre && Math.floor(fase / Math.PI) !== ultimoPaso) {
       ultimoPaso = Math.floor(fase / Math.PI);
       const lado = ultimoPaso % 2 ? 0.13 : -0.13;
-      huellas(pos.x + Math.cos(rumbo) * lado, pos.z - Math.sin(rumbo) * lado, rumbo);
+      if (pos.z > HIELO.desde + 5) huellas(   /* (en la zona de hielo y la cueva, sin estas huellas: se veían como manchas; allí marca la propia nieve) */pos.x + Math.cos(rumbo) * lado, pos.z - Math.sin(rumbo) * lado, rumbo);
     }
     animar(dt, v, agachado);
   }
