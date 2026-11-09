@@ -462,7 +462,7 @@ PLATAFORMA7.x = caminoX(PLATAFORMA7.z); PLATAFORMA7.base = alturaTerreno(PLATAFO
 PLATAFORMA6.x = caminoX(PLATAFORMA6.z); PLATAFORMA6.base = alturaTerreno(PLATAFORMA6.x, PLATAFORMA6.z) + 0.5;   // (algo más alta: a la altura del camino)
 
 // ─── Escena ────────────────────────────────────────────────────────────────
-const BRUMA_HIELO = new THREE.Color("#d2dae5"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
+const BRUMA_HIELO = new THREE.Color("#f0f3f7"), NIEBLA_BAJA_HIELO = new THREE.Color("#d0ccd3"), LUZ_CIELO_HIELO = new THREE.Color("#cdd7ea"), LUZ_SUELO_HIELO = new THREE.Color("#cbc1c0"), _blancoN = new THREE.Color(1, 1, 1);
 const CIELO = new THREE.Color("#c9d8ee"), AMANECER_ROSA = new THREE.Color("#d9dce6"), AMANECER_ORO = new THREE.Color("#f6dcb8");
 const CIELO_LAGO = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 256; const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#cdd6e6"); g.addColorStop(0.35, "#d8dde8"); g.addColorStop(0.6, "#e1e1e7"); g.addColorStop(0.78, "#e6e3e3"); g.addColorStop(1, "#dee0e7");   /* (azulado apagado, apenas un toque cálido en el horizonte) */   /* (siempre más claro que lo lejano en la niebla) */ x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c); })();   // (azul violáceo arriba, rosa y oro al horizonte)
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -5316,7 +5316,7 @@ function actualizar(dt) {
   sol.intensity = lerp(0.02, 0.42, alba) * (1 - 0.92 * enCanon2); sol.color.lerpColors(SOL_DIA, SOL_ALBA, alba);
   luzCielo.intensity = lerp(0.92, 0.8, alba); luzCielo.color.lerpColors(CIELO_DIA, CIELO_ALBA, alba); luzCielo.groundColor.lerpColors(SUELO_DIA, SUELO_ALBA, alba);
   scene.fog.color.lerpColors(CIELO, BRUMA_ALBA, alba); scene.background = scene.fog.color;
-  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) scene.fog.color.lerp(BRUMA_HIELO, h * 0.6); }   /* (niebla y cielo más claros) */   // (en la zona de hielo, la niebla menos blanca: gris claro algo azulado)
+  { const h = suave(HIELO.desde + 25, HIELO.desde - 5, pos.z); if (h > 0) scene.fog.color.lerp(BRUMA_HIELO, h * 0.9); }   /* (niebla y cielo casi blancos) */   // (en la zona de hielo, la niebla menos blanca: gris claro algo azulado)
   NIEBLA_U.nieblaColor.value.copy(scene.fog.color).lerp(_blancoN, 0.08);
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
