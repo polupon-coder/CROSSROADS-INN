@@ -188,7 +188,7 @@
   $("nColor").onchange = () => { sel.color = $("nColor").value; rehacer(); };
   $("nota").addEventListener("input", () => { sel.texto = $("nota").value; guardar(sel); });
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 2; it.p[2] += 2; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
+  $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 3; it.p[2] += 3; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
   const borrar = () => { if (!sel) return; if (sel.tipo === "mundo" || sel.tipo === "chispa") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
     const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
   $("borrar").onclick = borrar;
@@ -274,14 +274,14 @@
       for (const k of ["x", "y", "z"]) { if (Math.abs(d[k]) < 1e-12) { if (o[k] < b.min[k] || o[k] > b.max[k]) return null; continue; }
         let a = (b.min[k] - o[k]) / d[k], c = (b.max[k] - o[k]) / d[k]; if (a > c) [a, c] = [c, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, c); }
       return t1 >= Math.max(t0, 0) ? [Math.max(t0, 0), t1] : null; };
-    const probar = (b, que, clave) => { if (!b || b.isEmpty()) return; const t = tramo(b); if (!t) return; b.getSize(tam); cands.push({ que, clave, t0: t[0], t1: t[1], vol: Math.max(tam.x, 0.05) * Math.max(tam.y, 0.05) * Math.max(tam.z, 0.05) }); };
-    for (const e of entradas) { if (!e.g.visible && e.it.tipo !== "mundo") continue; probar(e.g.userData.inst ? E.cajaInstancia(e.g.userData.inst.m, e.g.userData.inst.i) : E.cajaReal(e.g), { entrada: e }, "e:" + e.it.id); }
+    const probar = (b, que, clave, pri = 0) => { if (!b || b.isEmpty()) return; const t = tramo(b); if (!t) return; b.getSize(tam); cands.push({ que, clave, pri, t0: t[0], t1: t[1], vol: Math.max(tam.x, 0.05) * Math.max(tam.y, 0.05) * Math.max(tam.z, 0.05) }); };   // (pri: 0 piezas, 1 trazos, 2 ocultas: estas, solo si no hay otra cosa)
+    for (const e of entradas) { if (!e.g.visible && e.it.tipo !== "mundo") continue; probar(e.g.userData.inst ? E.cajaInstancia(e.g.userData.inst.m, e.g.userData.inst.i) : E.cajaReal(e.g), { entrada: e }, "e:" + e.it.id, e.it.oculto ? 2 : e.it.tipo === "trazo" ? 1 : 0); }
     for (const u of E.unidadesMundo()) { if (!visible(u) || u.userData.enPivote) continue;
       if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(e => e.g.userData.inst && e.g.userData.inst.m === u && e.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i), t = b.getSize(tam); if (Math.max(t.x, t.y, t.z) < 60) probar(b, { m: u, i }, "i:" + u.uuid + ":" + i); } }
       else probar(cajaMundo(u), { o: u }, "o:" + u.uuid); }
     // Las que el rayo cruza antes de salir de la más cercana se solapan en el clic: de menor a mayor; luego, por distancia.
     cands.sort((a, b) => a.t0 - b.t0);
-    const salida = cands.length ? cands[0].t1 : 0, juntas = cands.filter(c => c.t0 <= salida).sort((a, b) => a.vol - b.vol), lejos = cands.filter(c => c.t0 > salida);
+    const prim = cands.filter(c => c.pri === 0), salida = prim.length ? prim[0].t1 : cands.length ? cands[0].t1 : 0, juntas = cands.filter(c => c.t0 <= salida).sort((a, b) => a.pri - b.pri || a.vol - b.vol), lejos = cands.filter(c => c.t0 > salida).sort((a, b) => a.pri - b.pri || a.t0 - b.t0);
     const lista = [...juntas, ...lejos].slice(0, 12);
     let mejor = null;
     if (lista.length) { let k = 0;
