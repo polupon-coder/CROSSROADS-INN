@@ -1672,7 +1672,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       colisiones.push({ x: cx, z: ACANT.pie + 1.3, r: 3, techo: yt, rampa: { a: V(ACANT.pie + 2.4, yt), b: V(ACANT.pie + 0.2, yp + 0.05), ancho: 2.3 } }); }
     // Se sube por los peldaños: una rampa continua a ras de su borde (como las pasarelas).
     const A = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.pie + 17) + 0.05, ACANT.pie + 0.15), B = new THREE.Vector3(cx, alturaTerreno(cx, ACANT.cima - 2) + 0.85, ACANT.cima - 0.2); /* (a la altura del último peldaño: no se hunde) */ const B2 = new THREE.Vector3(cx, B.y, ACANT.cima - 3.5);
-    colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 2.3 } });   // (arriba, el rellano hasta el llano)
+    colisiones.push({ x: cx, z: (B.z + B2.z) / 2, r: 4, techo: B.y, rampa: { a: B, b: B2, ancho: 2.3, corta: true } });   // (arriba, el rellano hasta el llano)   /* (corta: sin prolongarse antes de su inicio; si no, a 2,5 m del final de la escalera hacía de pared de 1 m y no se podía acabar de subir) */
     colisiones.push({ x: cx, z: (A.z + B.z) / 2, r: A.distanceTo(B) / 2 + 3, techo: B.y, rampa: { a: A, b: B, ancho: 2.3 } }); }   // (toda la anchura del paso: no hay huecos por donde caer)
   // Arriba, todo el suelo de prismas hexagonales de basalto, a alturas distintas y con nieve encima
   // (junto al paso, escalones suaves; hacia los lados, más altos).
@@ -1796,6 +1796,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
             " float r = n(qn * 0.07 + vec2(t * 0.32, t * 0.05)) * 0.6 + n(qn * 0.21 - vec2(t * 0.45, -t * 0.12)) * 0.4;" +
             " float fase = qn.x * 0.16 + qn.y * 0.05 + t * 1.9 + r * 2.2, ola = (1.0 + 0.38 * sin(fase) + 0.18 * sin(qn.x * 0.33 - qn.y * 0.2 + t * 2.8) + 0.1 * sin(qn.y * 0.6 + t * 3.7)) * mix(1.0, 0.3, smoothstep(hasta + 2.0, hasta - 8.0, vP.z));"   /* (más alta y ondeando más; en la cueva, a ras de suelo) */   /* (más alta y ondeando más) */ +   /* (el techo: entre rodillas y cintura) */
             " float a = smoothstep(ola + 0.08, ola - 0.4, y) * (0.09 + 0.11 * r) * (0.8 + 0.35 * max(0.0, cos(fase)));" +
+            " float rod = 0.54 + 0.07 * sin(fase * 0.8) + 0.06 * r; a = max(a, (1.0 - smoothstep(rod - 0.28, rod + 0.04, y)) * 0.36);" +   /* (hasta las rodillas, muy densa: no se ve el suelo del lago; la onda la aparta) */
             " a *= smoothstep(desde + 18.0, desde + 6.0, vP.z) * smoothstep(hasta - 10.0, hasta + 2.0, vP.z);"   /* (solo sobre el lago: en el paso, las capas cortaban el suelo en manchas) */ +
             " a *= mix(1.0, smoothstep(8.0, 26.0, distance(q, centro.xz)), ap);" +   /* (la onda la aparta) */
             " a *= 1.0;" +   /* (sin hueco alrededor del cuerpo: los huecos de cada capa, apilados, se veían como manchas) */   /* (alrededor del cuerpo no hay capas: sin líneas) */
@@ -4766,7 +4767,7 @@ const _espMono = new THREE.Vector3();
 let giraAspas = false, puenteHecho = false, abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, barre = false, onda = false, cargaOnda = 0, ondaT = -1, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEsp = { obj: null, pos: null, t: 1 };
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
-let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0;
+const _ejeArriba = new THREE.Vector3(); let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0, antePlat = 0;
 let orbitaT = -1, atrasT = 0, alanteT = 0, vueltaCam = false, vueltaP = 0, vueltaLado = 1, vueltaDesde = -9, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
@@ -5429,6 +5430,10 @@ function actualizar(dt) {
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
   for (const c of colisiones) if (c.bajo !== undefined && !c.soloSuelo && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
+  // Los metros antes de llegar a una plataforma (viniendo hacia ella), la cámara sube: cenital, ladeada; al pisarla, vuelve.
+  { let k = 0; for (const P of PLATAFORMAS) { if (pos.z < P.z + P.r * 0.5) continue; const d = Math.hypot(pos.x - P.x, pos.z - P.z) - P.r; k = Math.max(k, suave(16, 9, d) * suave(0.4, 3, d)); }
+    antePlat = lerp(antePlat, estado === "juego" && Math.abs(giroCam) < 0.05 ? k : 0, 1 - Math.exp(-dt * 1.2));
+    if (antePlat > 0.001) { const der = _camD.set(-adelante.z, 0, adelante.x); _camQ.copy(pos).addScaledVector(adelante, -4.2).addScaledVector(der, 3.4).add(_ejeArriba.set(0, 11.5, 0)); ojo.lerp(_camQ, antePlat); mira.lerp(_camQ.copy(pos).addScaledVector(adelante, 1.6).add(_ejeArriba.set(0, 0.6, 0)), antePlat); } }
   // Cerca del bastón (aún sin cogerlo) la cámara lo encuadra junto a Blizzard.
   const haciaBaston = !tieneBaston && estado === "juego" ? suave(10, 5, Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z)) : 0;
   if (haciaBaston > 0) mira.lerp(new THREE.Vector3().copy(baston.position).add(new THREE.Vector3(0, 1.2, 0)), haciaBaston * 0.6);
