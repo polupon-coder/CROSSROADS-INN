@@ -1536,7 +1536,7 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
       for (let n = 0; n < ix.length; n++) bb.expandByPoint(v.fromBufferAttribute(pa, ix[n]));
       const g = new THREE.BufferGeometry(), t = bb.getSize(new THREE.Vector3()); for (const n in B.geo.attributes) g.setAttribute(n, B.geo.attributes[n].clone()); g.setIndex(Array.from(ix));
       g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(1 / t.x, 6 / t.y, 1 / t.z); g.computeVertexNormals(); return g; })();
-    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiply(new THREE.Color(1.7, 1.82, 2.15));   // (las pilastras que se abaten, algo más claras)
+    const matOnda = kitPilares[3].material.clone(); matOnda.color.multiply(new THREE.Color(1.78, 1.8, 1.86));   // (las pilastras que se abaten, algo más claras)   /* (piedra casi neutra: con 2,15 en el azul se veían azuladas, sobre todo las del acceso, al sol) */
     _ondaKit = { geos: [geoPr, geoPr2, geoPr3, geoPr4], mat: matOnda };
     const rc = generador(3131), d = P6.r + 2;
     for (let a0 = 0.5; a0 < Math.PI * 2 - 0.5;) {   // (hueco de llegada; cada una de su tamaño, no repetidas)
