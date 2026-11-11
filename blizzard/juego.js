@@ -3815,7 +3815,7 @@ function nieblaEnPersonaje(raiz) { raiz.traverse(o => { if (!o.isMesh) return; f
   m.onBeforeCompile = (sh, r) => { if (antes) antes(sh, r); sh.uniforms.nieblaP = nieblaPersU.p; const U = nieblaLago.u; Object.assign(sh.uniforms, { nlT: U.t, nlAp: U.ap, nlApT: U.apT, nlBase: U.base, nlDesde: U.desde, nlHasta: U.hasta, nlColor: U.color, nlCentro: U.centro, nlSolDir: U.solDir, nlSolF: U.solF });
     sh.vertexShader = "varying vec3 vPMundoN;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vPMundoN = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     /* (la misma niebla que las capas del lago, calculada en cada punto del cuerpo: cuánto la tapan las capas que tiene por encima; mismo color, mismas olas) */
-    sh.fragmentShader = "uniform vec4 nieblaP; uniform float nlT, nlAp, nlApT, nlBase, nlDesde, nlHasta, nlSolF; uniform vec3 nlColor, nlCentro, nlSolDir; varying vec3 vPMundoN;\n float nlH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float nlN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(nlH(i), nlH(i + vec2(1, 0)), f.x), mix(nlH(i + vec2(0, 1)), nlH(i + vec2(1, 1)), f.x), f.y); }\n" + sh.fragmentShader.replace("#include <fog_fragment>", `#include <fog_fragment>
+    sh.fragmentShader = "uniform vec4 nieblaP; uniform float nlT, nlAp, nlApT, nlBase, nlDesde, nlHasta, nlSolF; uniform vec3 nlColor, nlCentro, nlSolDir; varying vec3 vPMundoN;\n float nlH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float nlN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(nlH(i), nlH(i + vec2(1, 0)), f.x), mix(nlH(i + vec2(0, 1)), nlH(i + vec2(1, 1)), f.x), f.y); }\n" + sh.fragmentShader.replace("#include <premultiplied_alpha_fragment>", `
       if (nieblaP.z > 0.001) { vec2 q = vPMundoN.xz, dc = q - nlCentro.xz; float dd = length(dc), gi = -nlAp * nlApT * 6.0 / (1.0 + dd * 0.07); vec2 qn = nlCentro.xz + mat2(cos(gi), -sin(gi), sin(gi), cos(gi)) * dc;
         float r = nlN(qn * 0.07 + vec2(nlT * 0.32, nlT * 0.05)) * 0.6 + nlN(qn * 0.21 - vec2(nlT * 0.45, -nlT * 0.12)) * 0.4;
         float fase = qn.x * 0.16 + qn.y * 0.05 + nlT * 1.9 + r * 2.2, ola = (1.0 + 0.38 * sin(fase) + 0.18 * sin(qn.x * 0.33 - qn.y * 0.2 + nlT * 2.8) + 0.1 * sin(qn.y * 0.6 + nlT * 3.7)) * mix(1.0, 0.3, smoothstep(nlHasta + 2.0, nlHasta - 8.0, vPMundoN.z));
@@ -3824,7 +3824,8 @@ function nieblaEnPersonaje(raiz) { raiz.traverse(o => { if (!o.isMesh) return; f
         for (int i = 0; i < 40; i++) { float capa = 0.01 + float(i) * 0.04; if (capa <= y) continue; float a = smoothstep(ola + 0.08, ola - 0.4, capa) * (0.09 + 0.11 * r) * (0.8 + 0.35 * max(0.0, cos(fase))); a = max(a, (1.0 - smoothstep(rod - 0.28, rod + 0.04, capa)) * 0.36); pasa *= 1.0 - a * zona; }
         vec3 vdS = normalize(vPMundoN - cameraPosition); float scS = pow(max(0.0, dot(vdS, nlSolDir)), 4.0) * nlSolF; vec3 cN = mix(mix(nlColor, vec3(0.85, 0.9, 0.99), 0.45), vec3(1.0, 0.985, 0.95), scS * 0.75 + 0.14 * nlSolF);
         gl_FragColor.rgb = mix(gl_FragColor.rgb, cN * vec3(0.885, 0.925, 0.965), (1.0 - pasa) * nieblaP.z); }   /* (al tono que dan las capas sobre la nieve: si no, los pies salían más blancos que la niebla) */
-      gl_FragColor.rgb = mix(gl_FragColor.rgb, nlColor, nieblaP.w);`); };   /* (y un velo general de bruma en toda la zona de hielo) */
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, nlColor, nieblaP.w);
+      #include <premultiplied_alpha_fragment>`); };   /* (antes del final del sombreado: en el cuerpo, su sombreado propio quitaba el punto de la niebla y el velo no se aplicaba) */   /* (y un velo general de bruma en toda la zona de hielo) */
   m.customProgramCacheKey = () => (clave ? clave.call(m) : "") + "|nieblaP"; m.needsUpdate = true; } }); }
 let bastonEnMano = false, inclinacionBaston = 0.1, vueloBaston = null, espiralEn = null;
 const _espBaston = new THREE.Vector3();
@@ -5010,7 +5011,7 @@ function actualizar(dt) {
   { const sp = Math.hypot(vel.x, vel.z), dv = sp > 0.01 ? (vel.x * c.fx + vel.z * c.fz) / sp : 0;
     atrasT = sp > 1.2 && dv < -0.4 ? atrasT + dt : Math.max(0, atrasT - dt * 2); alanteT = sp > 1.2 && dv > 0.4 ? alanteT + dt : Math.max(0, alanteT - dt * 2);
     const antes = vueltaCam, puede = reloj - vueltaDesde > 1.5;   // (sin bandazos: entre una vuelta y otra, un respiro)
-    if (estado !== "juego" || rescate) vueltaCam = false; else if (puede && !vueltaCam && atrasT > 0.8) vueltaCam = true; else if (puede && vueltaCam && alanteT > 0.8) vueltaCam = false;
+    if ((estado !== "juego" && estado !== "empujando") || rescate) vueltaCam = false;   /* (al hacer magia mirando hacia atrás, la cámara no se da la vuelta sola) */ else if (puede && !vueltaCam && atrasT > 0.8) vueltaCam = true; else if (puede && vueltaCam && alanteT > 0.8) vueltaCam = false;
     if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; vueltaDesde = reloj;
       if (vueltaCam) vueltaLado = Math.sign(vel.x * c.fz - vel.z * c.fx) || vueltaLado; } }   // (gira por el lado hacia el que va; mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
   vueltaP = clamp(vueltaP + (vueltaCam ? dt : -dt) / 1.8, 0, 1);   // (media vuelta en ~1,8 s, suave al empezar y al acabar)
