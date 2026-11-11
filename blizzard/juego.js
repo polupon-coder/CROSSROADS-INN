@@ -494,7 +494,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 const TACTIL = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 renderer.setPixelRatio(Math.min(TACTIL ? 1.5 : 1.25, window.devicePixelRatio || 1));   // en ordenador, con el desenfoque a pantalla completa, 2 era muy lento
 renderer.shadowMap.enabled = false;                           // sombras solo en las dunas (fuera, el sol casi no tiene fuerza): se encienden al llegar
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;           // suavizada entre texels: con un mapa grueso, sombra difusa
+let cuadroSombra = 0; renderer.shadowMap.type = THREE.PCFSoftShadowMap;           // suavizada entre texels: con un mapa grueso, sombra difusa
 renderer.localClippingEnabled = true;          // para recortar la cima de los pilares
 renderer.domElement.id = "lienzo";
 document.body.appendChild(renderer.domElement);
@@ -4276,18 +4276,22 @@ function hundirNieve(x, z, R) {
 // Normales solo donde ha cambiado algo (el surco y su borde), con los vecinos de la rejilla: recalcularlas
 // en todo el montón cada fotograma era lo más caro del juego.
 function normalesLocales(v) {
+  // Solo los vértices tocados (su lista), y a la tarjeta solo sube ese tramo de la malla: recorrerla y subirla
+  // entera en cada fotograma era lo que más costaba de la lógica.
+  const L = v.lista; if (!L || !L.length) return;
   const p = v.geo.attributes.position, n = v.geo.attributes.normal, A = p.array, N = n.array, nx = v.nx, nz = v.nz, t = v.tocado;
-  for (let i = 0; i < p.count; i++) {
-    if (!t[i]) continue;
+  let lo = Infinity, hi = -1;
+  for (const i of L) {
     const c = i % nx, r = (i - c) / nx;
     const i0 = r * nx + Math.max(0, c - 1), i1 = r * nx + Math.min(nx - 1, c + 1), j0 = Math.max(0, r - 1) * nx + c, j1 = Math.min(nz - 1, r + 1) * nx + c;
     const ax = A[i1 * 3] - A[i0 * 3], ay = A[i1 * 3 + 1] - A[i0 * 3 + 1], az = A[i1 * 3 + 2] - A[i0 * 3 + 2];
     const bx = A[j1 * 3] - A[j0 * 3], by = A[j1 * 3 + 1] - A[j0 * 3 + 1], bz = A[j1 * 3 + 2] - A[j0 * 3 + 2];
     let qx = by * az - bz * ay, qy = bz * ax - bx * az, qz = bx * ay - by * ax; if (qy < 0) { qx = -qx; qy = -qy; qz = -qz; }
     const l = Math.hypot(qx, qy, qz) || 1; N[i * 3] = qx / l; N[i * 3 + 1] = qy / l; N[i * 3 + 2] = qz / l;
-    t[i] = 0;
+    t[i] = 0; if (i < lo) lo = i; if (i > hi) hi = i;
   }
-  n.needsUpdate = true;
+  L.length = 0;
+  for (const a of [p, n, v.geo.attributes.color]) { a.updateRange.offset = lo * 3; a.updateRange.count = (hi - lo + 1) * 3; a.needsUpdate = true; }
 }
 // Cada fotograma: hunde lo que pisa Blizzard (con los bordes del surco algo levantados) y rellena el resto.
 function pisarVentisqueros(dt) {
@@ -4303,7 +4307,7 @@ function pisarVentisqueros(dt) {
       if (dentro) { const d = Math.hypot(p.getX(i) - pos.x, p.getZ(i) - pos.z); const a = v.afila[i], rad = 0.04 + 0.38 * a; if (d < rad) { const q = 1 - (d / rad) * (d / rad), k = q * q * (0.08 + 0.92 * a); if (k > h) { h = k; } } }   // perfil de cuenco: sin escalones aunque se cruce en diagonal
       if (h > 0) h = Math.max(0, h - dt * 0.14); if (v.fijo && v.fijo[i] > h) h = v.fijo[i];   // (lo hundido para siempre no se rellena)
       // se rellena en unos 7 s
-      if (h !== v.hundido[i]) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, nx = v.nx; t[i] = 1; if (i > 0) t[i - 1] = 1; if (i + 1 < t.length) t[i + 1] = 1; if (i >= nx) t[i - nx] = 1; if (i + nx < t.length) t[i + nx] = 1; } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
+      if (h !== v.hundido[i]) { v.hundido[i] = h; p.setY(i, v.suelo[i] + v.base[i] * (1 - 0.92 * h)); { const t = v.tocado, L = v.lista || (v.lista = []), m = j => { if (!t[j]) { t[j] = 1; L.push(j); } }; m(i); if (i > 0) m(i - 1); if (i + 1 < t.length) m(i + 1); if (i >= v.nx) m(i - v.nx); if (i + v.nx < t.length) m(i + v.nx); } { const w = 0.2 * suave(0.05, 0.45, h) * (1 - suave(0.6, 0.95, h)); v.tono[i * 3] = v.nieveC.r * (1 - w); v.tono[i * 3 + 1] = v.nieveC.g * (1 - w * 0.8); v.tono[i * 3 + 2] = v.nieveC.b * (1 - w * 0.45); } cambia = true; }   // sombra suave en las paredes; el fondo, blanco
       if (h > (v.fijo ? v.fijo[i] : 0)) v.activos.add(i); else v.activos.delete(i);
     };
     const vistos = new Set(v.activos);
@@ -4314,8 +4318,8 @@ function pisarVentisqueros(dt) {
       for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) vistos.add(r * nx + c);
     }
     for (const i of vistos) tocar(i);
-    if (cambia || v.cambia) { p.needsUpdate = true; v.geo.attributes.color.needsUpdate = true; normalesLocales(v); }
-    v.cambia = cambia;
+    if (cambia) normalesLocales(v);
+    v.cambia = false;
   }
 }
 const huellas = (() => {
@@ -5654,7 +5658,7 @@ function actualizar(dt) {
     const kq = suave(PLATAFORMA7.z + 45, PLATAFORMA7.z + 25, pos.z); if (kq > 0) { luzCielo.groundColor.lerp(SUELO_PLAT7, kq); luzCielo.intensity = lerp(luzCielo.intensity, 0.72, kq); }  { const ks = suave(SALIDA_CUEVA_Z, SALIDA_CUEVA_Z - 25, pos.z); if (ks > 0) { sol.intensity = lerp(sol.intensity, 0.62, ks); sol.color.lerp(SOL_FUERA, ks); luzCielo.intensity = lerp(luzCielo.intensity, 0.74, ks); luzCielo.color.lerp(CIELO_FUERA, ks); luzCielo.groundColor.lerp(SUELO_FUERA, ks); scene.fog.color.lerp(BRUMA_FUERA, ks); } }   /* (al salir de la cueva, sol) */ } }   /* (en la plataforma, la nieve devuelve luz: las columnas, de cara, no se ven negras) */   /* (en el paso y hasta la cueva, el sol vuelve: más fuerte y algo cálido, con sus sombras) */
 
   // Fuera de las dunas el sol casi no tiene fuerza (0,02): su sombra no se aprecia y no se recalcula.
-  renderer.shadowMap.autoUpdate = (alba > 0 && enCanon2 < 0.95) || (renderer.shadowMap.enabled && pos.z < HIELO.desde + 25);   /* (en el hielo también: si no, quedaba la sombra congelada de las dunas, a manchas) */
+  { const vivas = (alba > 0 && enCanon2 < 0.95) || (renderer.shadowMap.enabled && pos.z < HIELO.desde + 25); renderer.shadowMap.autoUpdate = false; if (vivas && (window.BLIZZARD_EDITOR || (++cuadroSombra & 1))) renderer.shadowMap.needsUpdate = true; }   /* (las sombras se rehacen un fotograma sí y otro no: casi todo es quieto, y era la mitad del dibujo) */   /* (en el hielo también: si no, quedaba la sombra congelada de las dunas, a manchas) */
   // Sin sombras (por rendimiento) salvo en las dunas: se encienden al llegar (en móvil y en ordenador).
   if (alba > 0 && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
   { const c = sol.shadow.camera; if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
@@ -6185,6 +6189,49 @@ function esconderTrasNiebla() {
   const lejos = scene.fog ? scene.fog.far * 1.15 + 6 : Infinity, c = camara.position;
   for (const o of trasNiebla) { const s = o.geometry.boundingSphere; o.visible = s.center.distanceTo(c) - s.radius < lejos; }
 }
+// Piezas muy detalladas (rocas de hielo, icebergs, ruinas…): de lejos, entre la niebla, el detalle no se ve y
+// costaba millones de triángulos por fotograma. Más allá de LOD_LEJOS se dibuja una versión simplificada
+// (agrupando vértices cercanos); de cerca, la de siempre. La versión simplificada se hace una vez por modelo.
+const LOD_LEJOS = 42, LOD_MUY_LEJOS = 70, _lodCache = new Map(), _lodPiezas = [], _lodS = new THREE.Sphere(); let _lodRevisa = 0, _lodI = 0;
+function simplificarGeo(geo, div = 34) {
+  const ck = _lodCache.get(geo) || {}; _lodCache.set(geo, ck); if (div in ck) return ck[div];
+  let out = null;
+  const at = Object.keys(geo.attributes);
+  if (geo.index && at.every(k => k === "position" || k === "normal" || k === "uv") && geo.attributes.normal && !Object.keys(geo.morphAttributes).length && geo.groups.length <= 1) {
+    const P = geo.attributes.position, N = geo.attributes.normal, U = geo.attributes.uv, I = geo.index.array;
+    geo.computeBoundingBox(); const bb = geo.boundingBox, cel = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) / div || 1;
+    const clave = new Map(), nuevo = new Int32Array(P.count), sp = [], sn = [], su = [], cu = [];
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i), nx = N.getX(i), ny = N.getY(i), nz = N.getZ(i), ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+      const nb = ax >= ay && ax >= az ? (nx > 0 ? 0 : 1) : ay >= az ? (ny > 0 ? 2 : 3) : (nz > 0 ? 4 : 5);   // (por cara dominante: no se funden las dos caras de un canto)
+      const k = ((nb * 64 + Math.floor((x - bb.min.x) / cel)) * 64 + Math.floor((y - bb.min.y) / cel)) * 64 + Math.floor((z - bb.min.z) / cel);
+      let j = clave.get(k); if (j === undefined) { j = cu.length; clave.set(k, j); cu.push(0); sp.push(0, 0, 0); sn.push(0, 0, 0); if (U) su.push(U.getX(i), U.getY(i)); }
+      nuevo[i] = j; cu[j]++; sp[j * 3] += x; sp[j * 3 + 1] += y; sp[j * 3 + 2] += z; sn[j * 3] += nx; sn[j * 3 + 1] += ny; sn[j * 3 + 2] += nz;
+    }
+    const idx = [];
+    for (let t = 0; t < I.length; t += 3) { const a = nuevo[I[t]], b = nuevo[I[t + 1]], c = nuevo[I[t + 2]]; if (a !== b && b !== c && a !== c) idx.push(a, b, c); }
+    if (idx.length < I.length * 0.6) {
+      for (let j = 0; j < cu.length; j++) { for (let e = 0; e < 3; e++) sp[j * 3 + e] /= cu[j]; const l = Math.hypot(sn[j * 3], sn[j * 3 + 1], sn[j * 3 + 2]) || 1; for (let e = 0; e < 3; e++) sn[j * 3 + e] /= l; }
+      out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3)); out.setAttribute("normal", new THREE.Float32BufferAttribute(sn, 3)); if (U) out.setAttribute("uv", new THREE.Float32BufferAttribute(su, 2));
+      out.setIndex(cu.length > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1)); out.boundingSphere = geo.boundingSphere || (geo.computeBoundingSphere(), geo.boundingSphere); out.boundingBox = bb;
+    }
+  }
+  ck[div] = out; return out;
+}
+function lodPiezas() {
+  if (window.BLIZZARD_EDITOR) return;
+  if (--_lodRevisa <= 0) {   // de vez en cuando, las piezas nuevas (la escena se carga a trozos)
+    _lodRevisa = 180;
+    scene.traverse(o => { if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || o.userData.lod !== undefined || !o.geometry.index || o.geometry.index.count < 36000) return;
+      const low = simplificarGeo(o.geometry), muyLejos = low && simplificarGeo(o.geometry, 18); o.userData.lod = low ? { full: o.geometry, low, muy: muyLejos || low } : null; if (low) _lodPiezas.push(o); });
+  }
+  const c = camara.position, n = Math.min(_lodPiezas.length, 40);   // (unas cuantas por fotograma: sin picos)
+  for (let k = 0; k < n; k++) {
+    const o = _lodPiezas[_lodI = (_lodI + 1) % _lodPiezas.length], L = o.userData.lod;
+    _lodS.copy(L.full.boundingSphere).applyMatrix4(o.matrixWorld);
+    const d = _lodS.center.distanceTo(c) - _lodS.radius, g = d > LOD_MUY_LEJOS ? L.muy : d > LOD_LEJOS ? L.low : L.full; if (o.geometry !== g) o.geometry = g;
+  }
+}
 function bucle(ahora) {
   const anterior0 = anterior;
   medFotos++; medPeor = Math.max(medPeor, ahora - anterior);
@@ -6195,7 +6242,7 @@ function bucle(ahora) {
   if (camaraFija) { camara.position.fromArray(camaraFija, 0); camara.lookAt(camaraFija[3], camaraFija[4], camaraFija[5]); }
   if (!window.BLIZZARD_EDITOR) ocultarTapadores();
   if (!window.BLIZZARD_EDITOR) vigilarCalidad(ahora - anterior0);
-  if (!window.BLIZZARD_EDITOR) esconderTrasNiebla();
+  if (!window.BLIZZARD_EDITOR) esconderTrasNiebla(); lodPiezas();
   if (mapaNieblaSucio) rehacerMapaNiebla();
   if (!window.BLIZZARD_EDITOR) escalarPaseantes();   // (con la cámara de este fotograma)
   if (window.BLIZZARD_EDITOR) NIEBLA_U.nieblaLagoK.value = scene.fog && scene.fog.far > 1e4 ? 0 : 1;   // (en el editor, sin niebla, el lago se ve)
