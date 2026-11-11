@@ -32,8 +32,8 @@
     if (scene.fog) { scene.fog.near = on ? 2 : 1e5; scene.fog.far = on ? 70 : 2e5; }
     (E.nieblaLago?.capas || []).forEach(m => m.visible = on); };
   // Bloques por santuario: solo se ve (y se dibuja) el tramo elegido.
-  const S = E.santuarios, bloques = [["Todo", 60, -1600], ["1 · Bastón", 40, (S[0] + S[1]) / 2], ["2 · Rocas", (S[0] + S[1]) / 2, (S[1] + S[2]) / 2], ["3 · Puerta", (S[1] + S[2]) / 2, (S[2] + S[3]) / 2],
-    ["4 · Giro", (S[2] + S[3]) / 2, (S[3] + S[4]) / 2], ["5 · Revelación", (S[3] + S[4]) / 2, (S[4] + S[5]) / 2], ["6 · Onda", (S[4] + S[5]) / 2, S[5] - 20], ["Pilares y lago", S[5] - 20, E.hielo.hasta], ["Cueva", E.hielo.hasta, E.cuevaZ - 40]];
+  const S = E.santuarios, bloques = [["Todo", 60, -2040], ["1 · Bastón", 40, (S[0] + S[1]) / 2], ["2 · Rocas", (S[0] + S[1]) / 2, (S[1] + S[2]) / 2], ["3 · Puerta", (S[1] + S[2]) / 2, (S[2] + S[3]) / 2],
+    ["4 · Giro", (S[2] + S[3]) / 2, (S[3] + S[4]) / 2], ["5 · Revelación", (S[3] + S[4]) / 2, (S[4] + S[5]) / 2], ["6 · Onda", (S[4] + S[5]) / 2, S[5] - 20], ["Pilares y lago", S[5] - 20, E.hielo.hasta], ["Cueva", E.hielo.hasta, E.cuevaZ - 40], ["Dunas tras la cueva", E.cuevaZ - 40, -2040]];
   const cajas = new Map(), _b = new THREE.Box3();
   const cajaDe = o => { if (!cajas.has(o)) { _b.setFromObject(o); cajas.set(o, _b.isEmpty() ? null : [_b.min.z, _b.max.z]); } return cajas.get(o); };
   let bloque = bloques[0];
