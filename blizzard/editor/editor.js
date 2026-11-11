@@ -140,18 +140,28 @@
   const tc = { attach(g) { gizG = g; medirSel(); colocarGiz(); }, detach() { gizG = null; giz.visible = false; resaltar(null); }, setMode() {}, get dragging() { return !!arrastre; } };
   let sel = null;
   const grupoDe = id => E.escenaEd.get(id)?.g;
-  const leerGrupo = () => { const g = grupoDe(sel.id); if (!g) return; sel.p = g.position.toArray().map(v => +v.toFixed(2));
-    if ((sel.tipo === "objeto" || sel.tipo === "mundo")) { sel.r = [g.rotation.x, g.rotation.y, g.rotation.z].map(v => +(v * 180 / Math.PI).toFixed(1)); sel.s = g.scale.toArray().map(v => +v.toFixed(3)); } };
+  const leerGrupoIt = it => { const g = grupoDe(it.id); if (!g) return; it.p = g.position.toArray().map(v => +v.toFixed(2));
+    if ((it.tipo === "objeto" || it.tipo === "mundo")) { it.r = [g.rotation.x, g.rotation.y, g.rotation.z].map(v => +(v * 180 / Math.PI).toFixed(1)); it.s = g.scale.toArray().map(v => +v.toFixed(3)); } };
+  const leerGrupo = () => leerGrupoIt(sel);
+  // Selección múltiple: «sel» es la principal (lleva los tiradores); «extra», las demás, que la acompañan en todo.
+  const extra = new Set(), marcos = new THREE.Group(); scene.add(marcos); let nombreBase = "";
+  const cajaDeIt = it => { const g = grupoDe(it.id); if (!g) return null; return (g.userData.inst ? E.cajaInstancia(g.userData.inst.m, g.userData.inst.i) : E.cajaReal(g)).clone(); };
+  const pintarMarcos = () => { for (const h of [...marcos.children]) { marcos.remove(h); h.geometry.dispose(); }
+    for (const it of extra) { const b = cajaDeIt(it); if (!b || b.isEmpty()) continue; const h = new THREE.Box3Helper(b, 0x7dd3fc); h.material.depthTest = false; h.material.transparent = true; h.renderOrder = 998; marcos.add(h); }
+    if (sel) $("selNombre").textContent = nombreBase + (extra.size ? ` (+${extra.size} más)` : ""); };
+  const sumarSel = lista => { for (const it of lista) { if (!it) continue; if (!sel) { seleccionar(it, true); continue; } if (it !== sel) extra.add(it); } pintarMarcos(); };
+  const restarSel = lista => { for (const it of lista) { if (!it) continue; if (it === sel) { const n = extra.values().next().value; if (n) extra.delete(n); seleccionar(n || null, true); } else extra.delete(it); } pintarMarcos(); };
   const rehacer = () => { const g = E.ponerEd(sel); if (g) tc.attach(g); guardar(sel); };
-  const seleccionar = it => {
-    sel = it; $("sel").hidden = !it; if (!it) { tc.detach(); pintarNieblas(); return; }
+  const seleccionar = (it, mantener) => {
+    if (!mantener) extra.clear();
+    sel = it; $("sel").hidden = !it; if (!it) { extra.clear(); pintarMarcos(); tc.detach(); pintarNieblas(); return; }
     const g = grupoDe(it.id); if (g) tc.attach(g);
     const mundo = it.tipo === "mundo", obj = it.tipo === "objeto" || mundo; $("filaRot").hidden = !obj; $("filaEsc").hidden = !obj; $("filaObj").hidden = it.tipo !== "objeto"; $("filaMundo").hidden = !(mundo || it.tipo === "chispa"); $("ayudaMapa").hidden = false;
     $("filaNiebla").hidden = it.tipo !== "niebla"; $("filaNota").hidden = it.tipo !== "nota"; $("filaMat").hidden = !(it.tipo === "objeto" || (mundo && g && !g.userData.inst));
     pintarNieblas();
     if (!obj) tc.setMode("translate");
     $("selNombre").textContent = it.tipo === "trazo" ? "Trazo de " + ({ nieve: "nieve", acumulada: "nieve acumulada", espolvoreada: "nieve espolvoreada", niebla: "niebla" }[it.clase] || it.clase) : it.tipo === "chispa" ? "Chispa de luz · tramo " + (+it.id.slice(2).split("_")[0] + 1) + (it.oculto ? " (oculta)" : "") : it.tipo === "niebla" ? "Niebla" : it.tipo === "nota" ? "Nota para Claude" : it.tipo === "mundo" ? "Pieza del mundo" + (it.oculto ? " (oculta)" : "") : (catalogo.find(c => c.id === it.modelo)?.nombre || it.modelo);
-    pintarCampos();
+    pintarCampos(); nombreBase = $("selNombre").textContent; pintarMarcos();
   };
   const campos = { px: ["p", 0], py: ["p", 1], pz: ["p", 2], rx: ["r", 0], ry: ["r", 1], rz: ["r", 2], sx: ["s", 0], sy: ["s", 1], sz: ["s", 2] };
   const pintarCampos = () => {
@@ -188,9 +198,11 @@
   $("nColor").onchange = () => { sel.color = $("nColor").value; rehacer(); };
   $("nota").addEventListener("input", () => { sel.texto = $("nota").value; guardar(sel); });
   const nuevoId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  $("dup").onclick = () => { if (!sel) return; const it = JSON.parse(JSON.stringify(sel)); it.id = nuevoId(); it.p[0] += 3; it.p[2] += 3; items.set(it.id, it); E.ponerEd(it); guardar(it); seleccionar(it); };
-  const borrar = () => { if (!sel) return; if (sel.tipo === "mundo" || sel.tipo === "chispa") { sel.oculto = true; rehacer(); seleccionar(null); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
-    const id = sel.id; historial.push({ id, antes: ultimo.get(id) ?? copia(sel) }); ultimo.delete(id); seleccionar(null); E.quitarEd(id); items.delete(id); borrarDato(id); };
+  const dupIt = src => { const it = JSON.parse(JSON.stringify(src)); it.id = nuevoId(); it.oculto = false; it.p[0] += 3; it.p[2] += 3; items.set(it.id, it); const g = E.ponerEd(it); if (g) { g.visible = true; g.traverse(o => { if (o.isMesh) o.visible = true; }); } guardar(it); return it; };   /* (la copia, siempre visible: la del mundo salía invisible) */
+  $("dup").onclick = () => { if (!sel) return; const todos = [sel, ...extra].filter(it => it.tipo !== "chispa"), nuevos = todos.map(dupIt); seleccionar(nuevos[0] || null); sumarSel(nuevos.slice(1)); };
+  const borrarIt = it => { if (it.tipo === "mundo" || it.tipo === "chispa") { it.oculto = true; const g = E.ponerEd(it); guardar(it); return; }   /* (las del mundo se ocultan; «Devolver a su sitio» las recupera) */
+    const id = it.id; historial.push({ id, antes: ultimo.get(id) ?? copia(it) }); ultimo.delete(id); E.quitarEd(id); items.delete(id); borrarDato(id); };
+  const borrar = () => { if (!sel) return; const todos = [sel, ...extra]; seleccionar(null); todos.forEach(borrarIt); if (todos.length > 1) aviso(`${todos.length} piezas borradas`), setTimeout(() => aviso(""), 2500); };
   $("borrar").onclick = borrar;
   const deshacer = () => { const h = historial.pop(); if (!h) { aviso("No hay nada que deshacer."); setTimeout(() => aviso(""), 2000); return; } seleccionar(null);
     if (!h.antes) { E.quitarEd(h.id); items.delete(h.id); ultimo.delete(h.id); borrarDato(h.id); }
@@ -224,7 +236,8 @@
     if (e.button !== 0 || !sel || colocando) return;
     const g = grupoDe(sel.id); if (!g) return;
     const q = asaBajo(e), c = cajaSel.getCenter(new THREE.Vector3());
-    const base = { g, x0: e.clientX, y0: e.clientY, rot0: g.rotation.y, esc0: g.scale.clone(), pos0: g.position.clone(), caja0: cajaSel.clone() };
+    const base = { g, x0: e.clientX, y0: e.clientY, rot0: g.rotation.y, esc0: g.scale.clone(), pos0: g.position.clone(), caja0: cajaSel.clone(),
+      extras: [...extra].map(it => { const q = grupoDe(it.id); return q ? { it, g: q, p0: q.position.clone(), r0: q.rotation.y, s0: q.scale.clone() } : null; }).filter(Boolean) };
     if (q) { const tipo = q.userData.asa;
       if (tipo === "eje") { const ax = q.userData.eje, v = new THREE.Vector3(); cam.getWorldDirection(v); const n = ax.clone().cross(v.clone().cross(ax)); if (n.lengthSq() < 1e-8) n.copy(v); n.normalize();
         const o = new THREE.Vector3(); q.getWorldPosition(o); planoA.setFromNormalAndCoplanarPoint(n, o); if (!ray.ray.intersectPlane(planoA, ptA)) return; arrastre = { ...base, modo: "eje", ax, p0: ptA.clone() }; }
@@ -247,8 +260,13 @@
     else { const f = A.modo === "escalar" ? Math.max(0.02, Math.hypot(e.clientX - A.cp[0], e.clientY - A.cp[1]) / A.d0) : Math.exp(-(e.clientY - A.y0) * 0.006); g.scale.copy(A.esc0).multiplyScalar(f);
       cajaSel.min.copy(A.caja0.min).sub(A.pos0).multiplyScalar(f).add(A.pos0); cajaSel.max.copy(A.caja0.max).sub(A.pos0).multiplyScalar(f).add(A.pos0); }
     if (A.modo === "mover" || A.modo === "eje") { const dl = g.position.clone().sub(A.pos0); cajaSel.min.copy(A.caja0.min).add(dl); cajaSel.max.copy(A.caja0.max).add(dl); }
-    g.updateMatrixWorld(true); leerGrupo(); pintarCampos(); if (g.userData.inst) E.ponerEd(sel); });
-  dom.addEventListener("pointerup", () => { if (!arrastre) return; const pend = arrastre.pend; arrastre = null; orbit.enabled = true; if (pend) return; leerGrupo(); rehacer(); medirSel(); });
+    g.updateMatrixWorld(true); leerGrupo(); pintarCampos(); if (g.userData.inst) E.ponerEd(sel);
+    if (A.extras.length) { marcos.visible = false; const dl = g.position.clone().sub(A.pos0), dr = g.rotation.y - A.rot0, f = g.scale.x / (A.esc0.x || 1), c = Math.cos(dr), s = Math.sin(dr);   /* (las demás siguen a la principal: se mueven, giran y escalan alrededor de ella) */
+      for (const X of A.extras) { const x = X.p0.x - A.pos0.x, y = X.p0.y - A.pos0.y, z = X.p0.z - A.pos0.z;
+        X.g.position.set(A.pos0.x + dl.x + (x * c + z * s) * f, A.pos0.y + dl.y + y * f, A.pos0.z + dl.z + (-x * s + z * c) * f); X.g.rotation.y = X.r0 + dr; X.g.scale.copy(X.s0).multiplyScalar(f); X.g.updateMatrixWorld(true);
+        if (X.g.userData.inst) { leerGrupoIt(X.it); E.ponerEd(X.it); } } } });
+  dom.addEventListener("pointerup", () => { if (!arrastre) return; const pend = arrastre.pend, A = arrastre; arrastre = null; orbit.enabled = true; if (pend) return; leerGrupo(); rehacer(); medirSel();
+    for (const X of A.extras) { leerGrupoIt(X.it); E.ponerEd(X.it); guardar(X.it); } marcos.visible = true; if (A.extras.length) pintarMarcos(); });
   dom.addEventListener("pointerup", e => {
     if (!abajo || huboArrastre || Math.hypot(e.clientX - abajo[0], e.clientY - abajo[1]) > 5 || e.button !== 0) return;
     const r = dom.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ptr, cam);
@@ -280,20 +298,39 @@
       if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(e => e.g.userData.inst && e.g.userData.inst.m === u && e.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i), t = b.getSize(tam); if (Math.max(t.x, t.y, t.z) < 60) probar(b, { m: u, i }, "i:" + u.uuid + ":" + i); } }
       else probar(cajaMundo(u), { o: u }, "o:" + u.uuid); }
     // Las que el rayo cruza antes de salir de la más cercana se solapan en el clic: de menor a mayor; luego, por distancia.
-    cands.sort((a, b) => a.t0 - b.t0);
-    const prim = cands.filter(c => c.pri === 0), salida = prim.length ? prim[0].t1 : cands.length ? cands[0].t1 : 0, juntas = cands.filter(c => c.t0 <= salida).sort((a, b) => a.pri - b.pri || a.vol - b.vol), lejos = cands.filter(c => c.t0 > salida).sort((a, b) => a.pri - b.pri || a.t0 - b.t0);
-    const lista = [...juntas, ...lejos].slice(0, 12);
+    const lista = cands.sort((a, b) => a.pri - b.pri || a.vol - b.vol || a.t0 - b.t0).slice(0, 12);   /* (de la más pequeña a la más grande: las pequeñas se eligen a la primera) */
     let mejor = null;
     if (lista.length) { let k = 0;
       if (ultimoClic && Math.hypot(e.clientX - ultimoClic.x, e.clientY - ultimoClic.y) < 6 && sel) { const ahora = lista.findIndex(c => c.clave === claveDeSel()); if (ahora >= 0) k = (ahora + 1) % lista.length; }
       mejor = lista[k].que; if (lista.length > 1) aviso(`Pieza ${k + 1} de ${lista.length} aquí · otro clic en el mismo sitio elige la siguiente`), clearTimeout(avisoT), avisoT = setTimeout(() => aviso(""), 2500); }
     ultimoClic = { x: e.clientX, y: e.clientY };
-    if (!mejor) { seleccionar(null); return; }
-    if (mejor.entrada) { seleccionar(items.get(mejor.entrada.it.id) || mejor.entrada.it); return; }
-    const firma = mejor.o ? E.firmaDe(mejor.o) : E.firmaInstancia(mejor.m, mejor.i), it = { id: (firma.inst ? "mi" : "m") + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
-    const ya = items.get(it.id); if (ya) { seleccionar(ya); return; }
-    items.set(it.id, it); E.ponerEd(it, mejor.o || { m: mejor.m, i: mejor.i }); seleccionar(it);
+    if (!mejor) { if (!e.shiftKey && !e.altKey) seleccionar(null); return; }
+    const it = itemDe(mejor);
+    if (e.shiftKey) sumarSel([it]); else if (e.altKey) restarSel([it]); else seleccionar(it);   /* (Mayús: suma a lo elegido; Alt: lo quita) */
   });
+  const itemDe = que => { if (que.entrada) return items.get(que.entrada.it.id) || que.entrada.it;
+    const firma = que.o ? E.firmaDe(que.o) : E.firmaInstancia(que.m, que.i), it = { id: (firma.inst ? "mi" : "m") + firma.n + "_" + firma.c.map(v => Math.round(v * 10)).join("_"), tipo: "mundo", firma, p: firma.c.slice(), r: [0, 0, 0], s: [1, 1, 1], oculto: false };
+    const ya = items.get(it.id); if (ya) return ya; items.set(it.id, it); E.ponerEd(it, que.o || { m: que.m, i: que.i }); return it; };
+  // Marco de selección: Ctrl (⌘ en Mac) y arrastrar. Con Mayús suma a lo elegido; con Alt, lo quita.
+  const marco = document.createElement("div"); marco.style.cssText = "position:fixed;border:1px dashed #7dd3fc;background:rgba(125,211,252,0.12);pointer-events:none;display:none;z-index:50"; document.body.appendChild(marco);
+  let caja2d = null;
+  dom.addEventListener("pointerdown", e => { if (e.button !== 0 || !(e.ctrlKey || e.metaKey) || colocando || pincel) return;
+    caja2d = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY, modo: e.shiftKey ? "sumar" : e.altKey ? "restar" : "nuevo" }; abajo = null; orbit.enabled = false; dom.setPointerCapture(e.pointerId); e.preventDefault(); e.stopImmediatePropagation(); }, { capture: true });
+  dom.addEventListener("pointermove", e => { if (!caja2d) return; caja2d.x1 = e.clientX; caja2d.y1 = e.clientY; const C = caja2d;
+    Object.assign(marco.style, { display: "block", left: Math.min(C.x0, C.x1) + "px", top: Math.min(C.y0, C.y1) + "px", width: Math.abs(C.x1 - C.x0) + "px", height: Math.abs(C.y1 - C.y0) + "px" }); e.stopImmediatePropagation(); }, { capture: true });
+  dom.addEventListener("pointerup", e => { if (!caja2d) return; const C = caja2d; caja2d = null; marco.style.display = "none"; orbit.enabled = true; e.stopImmediatePropagation();
+    const x0 = Math.min(C.x0, C.x1), x1 = Math.max(C.x0, C.x1), y0 = Math.min(C.y0, C.y1), y1 = Math.max(C.y0, C.y1); if (x1 - x0 < 4 && y1 - y0 < 4) return;
+    const r = dom.getBoundingClientRect(), v = new THREE.Vector3(), dentro = b => { if (!b || b.isEmpty()) return false; b.getCenter(v).project(cam); if (v.z < -1 || v.z > 1) return false; const x = (v.x + 1) / 2 * r.width + r.left, y = (1 - v.y) / 2 * r.height + r.top; return x >= x0 && x <= x1 && y >= y0 && y <= y1; };
+    const visible = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; }, ques = [], tam = new THREE.Vector3();
+    const entradas = [...E.escenaEd.values()].filter(q => q.g && q.g.visible);
+    for (const q of entradas) if (dentro(q.g.userData.inst ? E.cajaInstancia(q.g.userData.inst.m, q.g.userData.inst.i) : E.cajaReal(q.g))) ques.push({ entrada: q });
+    for (const u of E.unidadesMundo()) { if (!visible(u) || u.userData.enPivote) continue;
+      if (u.isInstancedMesh) { if (u.material === E.sueloMat()) continue; for (let i = 0; i < u.count; i++) { if (entradas.some(q => q.g.userData.inst && q.g.userData.inst.m === u && q.g.userData.inst.i === i)) continue; const b = E.cajaInstancia(u, i); b.getSize(tam); if (Math.max(tam.x, tam.y, tam.z) < 60 && dentro(b)) ques.push({ m: u, i }); } }
+      else if (dentro(cajaMundo(u))) ques.push({ o: u }); }
+    if (ques.length > 400) { aviso(`Hay ${ques.length} piezas en el marco: se toman las 400 primeras.`); setTimeout(() => aviso(""), 3000); }
+    const lista = ques.slice(0, 400).map(itemDe);
+    if (C.modo === "sumar") sumarSel(lista); else if (C.modo === "restar") restarSel(lista); else { seleccionar(lista[0] || null); sumarSel(lista.slice(1)); }
+    if (lista.length) { aviso(`${1 + extra.size} piezas elegidas`); setTimeout(() => aviso(""), 2500); } }, { capture: true });
   // Las chispas de luz del recorrido: se ven y se mueven como una pieza más (borrar las oculta).
   const baseChispa = new Map();
   // (se colocan cuando ya están puestas las piezas guardadas, igual que en el juego: así salen en el mismo sitio)
