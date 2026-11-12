@@ -280,6 +280,7 @@ const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2
 // una pilastra caída que saltar, un paso bajo, una gran escalera de piedras caídas sobre un precipicio
 // (sube a un nivel más alto), rocas que apartar, una grieta ancha (con el viento) y la segunda puerta.
 const CANON2 = { desde: -790, hasta: -968 };
+const ARENA_P = { cx: -16, cz: -1774, R: 17 }, POZO = { x: -16, z: -1781, r: 3.6 };   // (la puerta final: un cerco de acantilados, la sima ante el arco y su gólem)
 const CON_GRIETAS_D = false;   // (las dos grietas de las dunas: quitadas desde el editor)
 const GRIETA_D = { desde: -1748.6, hasta: -1753.2 }, GRIETA_D2 = { desde: -1763.3, hasta: -1767.8 }, ISLA_Z = -1758.25;   // (dos grietas paralelas; entre ellas, una franja con gólems que empujan)   // (en las dunas tras la cueva, de lado a lado: con un salto no llega; con el viento, sí)
 const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hasta: -872, sube: 4.8 }, GRIETA_C2 = { desde: -903, hasta: -907.4 };
@@ -478,6 +479,7 @@ function alturaTerreno(x, z) {
   if (PLATAFORMA5.base !== undefined) h = lerp(PLATAFORMA5.base, h, suave(PLATAFORMA5.r + 0.5, PLATAFORMA5.r + 3, _dist(x - PLATAFORMA5.x, z - PLATAFORMA5.z)));
   if (PLATAFORMA4.base !== undefined) h = lerp(PLATAFORMA4.base, h, suave(PLATAFORMA4.r + 0.5, PLATAFORMA4.r + 4, _dist(x - PLATAFORMA4.x, z - PLATAFORMA4.z)));   // llano alrededor
   if (enGrieta(x, z) && Math.abs(x) < 90) h = -60;
+  if (Math.hypot(x - POZO.x, z - POZO.z) < POZO.r) h = -60;   /* (la sima ante la puerta final) */
   if (z < RUEDAS_Z.desde && z > RUEDAS_Z.hasta) { const d = Math.abs(x - caminoX(z)); if (d < 11.8) h = 2.8; else if (d < 15) h = -60; }   // (llano para las ruedas; a cada lado, la grieta)
   if (Math.abs(x) < 90) { const F = franjasAbismos(); for (let q = 0; q < F.length; q++) { const f = F[q]; if (z < f[2] && z > f[3] && z < f[0](x) && z > f[1](x)) h = -60; } }   // hondo: el fondo no se ve
   // El acantilado de columnas: de lado a lado; solo se sube por la escalera del centro.
@@ -603,12 +605,13 @@ let MAT_SUELO = null;                                        // el material del 
   for (let i = 0; i < pos.count; i++) {
     // Los vértices cercanos al borde de la grieta se llevan justo al filo (el de fuera y el de dentro
     // de cada columna), para que el borde siga la curva limpia en lugar de dibujar dientes.
-    const x = pos.getX(i); let z = pos.getZ(i);
+    let x = pos.getX(i), z = pos.getZ(i);
     const dg = z - grietaZ(x), mg = grietaMedia(x);
     if (Math.abs(x) < 90 && Math.abs(dg) > mg - 0.26 && Math.abs(dg) < mg + 0.26) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
     // Lo mismo en los dos bordes del precipicio.
     for (const [d, a] of ABISMOS) for (const borde of [d(x), a(x)]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.26) z = borde + (z < borde ? -0.02 : 0.02);
     for (const borde of [SIMA7.desde, SIMA7.hasta]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.36) z = borde + (z < borde ? -0.02 : 0.02);   /* (y en la sima de la cueva: su filo, limpio, sin dientes de sierra) */
+    { const dx = x - POZO.x, dz = z - POZO.z, d = Math.hypot(dx, dz); if (d > 0.01 && Math.abs(d - POZO.r) < 0.85) { const k = (d < POZO.r ? POZO.r - 0.03 : POZO.r + 0.03) / d; x = POZO.x + dx * k; z = POZO.z + dz * k; pos.setX(i, x); } }   /* (el filo redondo de la sima de la puerta) */
     // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
     let h = alturaTerreno(x, z);
     for (const [d, a] of ABISMOS) if (h < -1 && Math.abs(x) < 90 && z < d(x) && z > a(x)) {
@@ -2224,7 +2227,7 @@ function moverZonas(dt) {
     const dx = pos.x - G.col.x, dz = pos.z - G.col.z, d = Math.hypot(dx, dz);
     if (!rescate && d < G.col.r + 0.45 && pos.y < G.col.techo && G.golpeT <= 0) { const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.col.x + nx * (G.col.r + 0.5); pos.z = G.col.z + nz * (G.col.r + 0.5); vel.x = nx * 8; vel.z = nz * 8; vel.y = Math.max(vel.y, 3.5); enSuelo = false; G.golpeT = 0.6; musica.rocas(0.45); }   // (el empujón)
   }
-  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt);
+  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt); moverGolemPuerta(dt);
   for (const W of rodantesEd) {   // ruedas del editor: van y vienen rodando de un lado al otro del paso
     const k = 0.5 - 0.5 * Math.cos(relojMov * 0.55 + W.fase), x = lerp(W.x0, 2 * W.cx - W.x0, k), d = x - W.x; W.x = x;
     W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
@@ -2297,7 +2300,7 @@ function moverBolas(dt) {
   // espiral que se abre y lo aparta todo; las pilastras de alrededor de su plataforma caen.
   if (onda && estado === "juego" && vueltaPlat < 0 && enSuelo && !llevando && teclas.has("KeyE") && !ondaSoltar && ondaT < 0 && !(giraAspas && aspaCerca())) {   /* (junto a una viga, E la gira: sin onda) */
     cargaOnda += dt; espiralEn = _espOnda.set(pos.x, pos.y + 0.9, pos.z); espiralTam = { r: 0.6 + cargaOnda * 0.5, alto: 1.6 }; efectoEspiral = Math.max(efectoEspiral, 0.4 + cargaOnda * 0.5);
-    if (cargaOnda > 1.1) { ondaT = 0; ondaN++; cargaOnda = 0; ondaSoltar = true; ondaAlGolem(); ondaAGolemsIsla(); musica.viento(0.6, 0.5, 0.18); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
+    if (cargaOnda > 1.1) { ondaT = 0; ondaN++; cargaOnda = 0; ondaSoltar = true; ondaAlGolem(); ondaAGolemsIsla(); ondaAGolemPuerta(); musica.viento(0.6, 0.5, 0.18); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
   } else if (!teclas.has("KeyE")) { cargaOnda = 0; ondaSoltar = false; }   /* (una onda por pulsación: manteniendo E no se repite sola) */
   if (ondaT >= 0) {
     ondaT += dt; const r = 1 + ondaT * 14.5;
@@ -3115,7 +3118,7 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
               { const q = bloquesPaso.slice(-5).map(g => g.position); RECORRIDO_EXTRA.push([q[0].x, q[0].z, q[4].x, q[4].z], [q[4].x, q[4].z, B.x, B.z], [B.x, B.z, -18.6, -1682],
                 [-18.6, -1682, 5.8, -1684], [5.8, -1684, 11.8, -1697], [11.8, -1697, 11.8, -1746], [11.8, -1746, 11.8, ISLA_Z],   /* (por la derecha de la ruina grande) */
                 [-18.6, -1682, -40, -1684], [-40, -1684, -48.8, -1692], [-48.8, -1692, -48.8, -1720], [-48.8, -1720, -46.8, -1746], [-46.8, -1746, -46.8, ISLA_Z],   /* (o por la izquierda) */
-                [11.8, ISLA_Z, -48, ISLA_Z], [-23.3, ISLA_Z, -23.3, -1792], [-23.3, -1792, -25.8, -1800], [-25.8, -1800, -32.8, -1808], [-32.8, -1808, -32.8, -1990]); }   /* (la franja entre las grietas, y el cañón hasta el final) */   /* (y tras la grieta, rodeando los ladrillos y el acantilado por el oeste) */   /* (por la ruina del portal y el pasillo junto a la ruina grande, hasta la grieta y más allá: el viento no empuja fuera de ese paso) */
+                [11.8, ISLA_Z, -48, ISLA_Z], [-23.3, ISLA_Z, -19, -1762], [-19, -1762, -21.5, -1780], [-21.5, -1780, -16, -1789], [-16, -1789, -16, -1795], [-16, -1795, -25.8, -1800],   /* (por la arena de la puerta: rodeando la sima y bajo el arco) */ [-25.8, -1800, -32.8, -1808], [-32.8, -1808, -32.8, -1990]); }   /* (la franja entre las grietas, y el cañón hasta el final) */   /* (y tras la grieta, rodeando los ladrillos y el acantilado por el oeste) */   /* (por la ruina del portal y el pasillo junto a la ruina grande, hasta la grieta y más allá: el viento no empuja fuera de ese paso) */
               puenteNevado(A, B); for (const c of colisiones) if (!c.rampa && !c.plataforma && c.r < 3 && c.techo > 40) { for (let t = 0; t <= 1; t += 0.1) if (Math.hypot(c.x - lerp(A.x, B.x, t), c.z - lerp(A.z, B.z, t)) < c.r + 2.4) { c.bajo = 99; break; } } } } }   /* (sin choques de techo sobre el tablero) */
         rejillaPorTriangulos(P, R, paso, n, h); } }
     // (y las pilastras de acceso, con el material de la plataforma: proyectado desde los tres ejes, sin costuras)
@@ -4259,8 +4262,22 @@ function animarPaso(dt) {
   { const rD = generador(5151);
     for (let k = 0; k < 64; k++) { const z = -1676 - rD() * 300,   /* (por toda la zona de dunas tras la cueva) */ x = caminoX(z) + (rD() - 0.5) * 80, a = 5 + rD() * 6, l = 4 + rD() * 5;
       if (libre(x, z, Math.max(a, l) / 2) && Math.abs(z - ISLA_Z) > l / 2 + 13) ventisquero(x, z, a, l, 0.35 + rD() * 0.35, null, true); } }
+  // La puerta final: un cerco de acantilados de piedra vertical alrededor de las estatuas; se entra por el norte y
+  // se sale por detrás del arco. Ante el arco, una sima: el gólem que guarda la puerta hay que echarlo a ella.
+  { const A = ARENA_P, nevarA = g => g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.3, 0.62,"); }; m.customProgramCacheKey = () => "arenaNieve"; } });
+    for (const lado of [-1, 1]) for (let k = 0; k < 7; k++) { const th = lado * (0.62 + k * (Math.PI - 0.25 - 0.62) / 6), x = A.cx + Math.sin(th) * A.R, z = A.cz + Math.cos(th) * A.R, w = 8.5, h = 14 + ((k * 7 + (lado > 0 ? 3 : 0)) % 5) * 1.2, y = alturaTerreno(x, z) - 1.8;
+      nevarA(encajar(gAcantilado, x, y, z, w, h, 5, th)); colisiones.push({ x, z, r: 3.7, techo: y + h, de: "arena" }); }
+    let filo = Infinity; for (let k = 0; k < 24; k++) filo = Math.min(filo, alturaTerreno(POZO.x + Math.sin(k * 0.2618) * (POZO.r + 0.05), POZO.z + Math.cos(k * 0.2618) * (POZO.r + 0.05)));
+    const muro = new THREE.Mesh(new THREE.CylinderGeometry(POZO.r - 0.06, POZO.r * 0.9, 40, 48, 1, true), new THREE.MeshStandardMaterial({ color: 0x5c626c, roughness: 1, side: THREE.BackSide }));
+    muro.position.set(POZO.x, filo - 20.04, POZO.z); { const P = muro.geometry.attributes.position; for (let i = 0; i < P.count; i++) if (P.getY(i) > 0) { const ax = P.getX(i), az = P.getZ(i), l = Math.hypot(ax, az) || 1; P.setY(i, alturaTerreno(POZO.x + ax / l * (POZO.r + 0.05), POZO.z + az / l * (POZO.r + 0.05)) - muro.position.y - 0.02); } muro.geometry.computeVertexNormals(); }   /* (su borde sigue el del suelo) */
+    scene.add(muro);
+    const labio = new THREE.RingGeometry(POZO.r - 0.04, POZO.r + 1.5, 72, 4); labio.rotateX(-Math.PI / 2); { const P = labio.attributes.position, uv = labio.attributes.uv, nv = new THREE.Color(TONO_NIEVE), col = [];
+      for (let i = 0; i < P.count; i++) { const x = POZO.x + P.getX(i), z = POZO.z + P.getZ(i), d = Math.hypot(x - POZO.x, z - POZO.z), l = Math.max(d, POZO.r + 0.05) / (d || 1);
+        P.setXYZ(i, x, alturaTerreno(POZO.x + (x - POZO.x) * l, POZO.z + (z - POZO.z) * l) + 0.05 * suave(POZO.r + 1.5, POZO.r + 0.6, d), z); uv.setXY(i, (x + 160) / 320, (80 - z) / 560); col.push(nv.r, nv.g, nv.b); }
+      labio.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); labio.computeVertexNormals(); }
+    const mLabio = new THREE.Mesh(labio, MAT_SUELO); mLabio.receiveShadow = true; scene.add(mLabio); }   /* (un filo de nieve limpio y redondo: tapa los dientes de la rejilla del suelo) */   /* (las paredes de la sima, de roca, que se pierden en lo hondo) */
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
-  nievePendiente.push(() => { const cx = -10, cz = -1831, W = 120, L = 338, R = 6; ventisquero(cx, cz, W, L, 0.2, { dist: (x, z) => Math.max(0, Math.abs(x - cx) - (W / 2 - R), Math.abs(z - cz) - (L / 2 - R)), R, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.75, blanca: true }, true); });
+  nievePendiente.push(() => { const cx = -10, cz = -1831, W = 120, L = 338, R = 6; ventisquero(cx, cz, W, L, 0.2, { dist: (x, z) => Math.max(0, Math.abs(x - cx) - (W / 2 - R), Math.abs(z - cz) - (L / 2 - R), POZO.r + 6.5 - Math.hypot(x - POZO.x, z - POZO.z)), R, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.75, blanca: true }, true); });
   // Y ruinas grandes, medio enterradas y nevadas, a los dos lados del camino; dos arcos que se cruzan por debajo y, al fondo, una ruina inmensa.
   { const rR = generador(8282), nevar = g => g.traverse(o => { if (o.isMesh) { const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.22, 0.55,"); }; m.customProgramCacheKey = () => "ruinaDunaN"; espolvorear(m, 0.85, "ruinaDuna", true, true); } }),   /* (fuera, todo con nieve acumulada encima y espolvoreado) */
       tipos = [[gRuinaAlta, 9, 15, 9], [gRuinaAntigua, 14, 9, 11], [gPortalRuina, 12, 12, 4], [gPlataformaRuina, 15, 5, 15], [gRuinaPiedra, 12, 10, 10], [gMuro, 16, 7, 3], [gEscalinata, 11, 6, 9], [gArcoRuina, 12, 11, 3]];
@@ -4268,7 +4285,7 @@ function animarPaso(dt) {
       const [M, w0, h0, d0] = tipos[(k * 3 + (lado > 0 ? 1 : 0)) % tipos.length], s = 0.8 + rR() * 0.7, w = w0 * s, h = h0 * s, d = d0 * s, x = caminoX(z) + lado * (6 + Math.max(w, d) / 2 + rR() * 16), y = Math.min(...[[0, 0], [1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, c]) => alturaTerreno(x + a * w * 0.45, z + c * d * 0.45))) - h * (0.12 + rR() * 0.12) - 4, giro = rR() * 6.28;   /* (asentada en lo más bajo de su base, y 4 m más honda: semienterrada) */
       if (z < -1688 && z > -1850 && Math.abs(x + 15) < 34 + Math.max(w, d) / 2) continue;   /* (la zona que se ha compuesto en el editor, del portal al arco de roca: sin ruinas al azar que tapen sus pasos) */
       nevar(encajar(M, x, y, z, w, h, d, giro)); colisiones.push({ x, z, r: Math.min(w, d) * 0.42 + 0.4, techo: y + h, deRuina: true }); }
-    for (const z of [-1772, -1902]) { const x = caminoX(z), w = 11, h = 12, y = Math.min(alturaTerreno(x, z), alturaTerreno(x - w * 0.43, z), alturaTerreno(x + w * 0.43, z)) - 4;   /* (semienterrados) */   /* (arcos sobre el camino) */
+    for (const z of [-1902]) {   /* (el de −1772 quedaba dentro de la arena de la puerta) */ const x = caminoX(z), w = 11, h = 12, y = Math.min(alturaTerreno(x, z), alturaTerreno(x - w * 0.43, z), alturaTerreno(x + w * 0.43, z)) - 4;   /* (semienterrados) */   /* (arcos sobre el camino) */
       nevar(encajar(gArcoRuina, x, y, z, w, h, 2.6)); colisiones.push({ x: x - w * 0.43, z, r: 1.3, techo: 99 }, { x: x + w * 0.43, z, r: 1.3, techo: 99 }); }
     { const z = -2010, x = caminoX(z) + 4; const ri = encajar(gRuinaAlta, x, alturaTerreno(x, z) - 7, z, 26, 40, 24, 0.4); nevar(ri); colisionesDeMalla(ri, 1.4);   /* (con su forma: entre sus moles se pasa) */ } }   /* (la ruina inmensa del fondo, un faro en la niebla) */
 }
@@ -4963,6 +4980,7 @@ function alturaObj(c, x, z) {
 // Lo más alto bajo los pies (centro y cuatro puntos alrededor).
 const alturaObjPies = (c, x, z) => Math.max(alturaObj(c, x, z), alturaObj(c, x + 0.16, z), alturaObj(c, x - 0.16, z), alturaObj(c, x, z + 0.16), alturaObj(c, x, z - 0.16));
 function sueloEn(x, z, pies) {
+  if (Math.hypot(x - POZO.x, z - POZO.z) < POZO.r - 0.15) return { h: alturaTerreno(x, z), sobre: null };   /* (en la sima no hay nada que pisar: lo que la cruzaba se rompió) */
   let h = -Infinity, sobre = null;
   for (const [dx, dz] of [[0, 0], [0.16, 0], [-0.16, 0], [0, 0.16], [0, -0.16]]) {
     const t = alturaTerreno(x + dx, z + dz), centro = dx === 0 && dz === 0;
@@ -5324,7 +5342,7 @@ function actualizar(dt) {
 
     // Punto seguro para el rescate.
     seguroReloj += dt;
-    if (enSuelo && seguroReloj > 0.3 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4, GRIETA_D, GRIETA_D2].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && !ARENAS.some(A => Math.abs(pos.z - A.z) < A.largo / 2 + 2) && !pozoEn(pos.x, pos.z, 1.2) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
+    if (enSuelo && seguroReloj > 0.3 && Math.hypot(pos.x - POZO.x, pos.z - POZO.z) > POZO.r + 2.5 && Math.abs(pos.z - grietaZ(pos.x)) > grietaMedia(pos.x) + 3 && !(pos.z < PRECIPICIO.desde + 3 && pos.z > PRECIPICIO.hasta - 1) && !(pos.z < PUENTE.desde + 3 && pos.z > PUENTE.hasta - 1) && !(pos.z < ZANJA.desde + 3 && pos.z > ZANJA.hasta - 1) && !(pos.z < QUIEBRA.desde + 3 && pos.z > QUIEBRA.hasta - 1) && !(pos.z < QUIEBRA2.desde + 3 && pos.z > QUIEBRA2.hasta - 1) && ![GRIETA_C1, ESCALERA, GRIETA_C2, SIMA4, GRIETA_D, GRIETA_D2].some(A => pos.z < A.desde + 3 && pos.z > A.hasta - 1) && !ARENAS.some(A => Math.abs(pos.z - A.z) < A.largo / 2 + 2) && !pozoEn(pos.x, pos.z, 1.2) && c.d < ANCHO_CAMINO) { seguro.copy(pos); seguroReloj = 0; }
 
     // Recoger el bastón.
     if (!tieneBaston && enSuelo && s.sobre === PLATAFORMA && Math.hypot(pos.x - PLATAFORMA.x, pos.z - PLATAFORMA.z) < 3.9) {
@@ -6368,6 +6386,35 @@ function moverGolemsIsla(dt) {
       pos.x = G.x + dx / (d || 1) * 2.15; pos.z = G.z + dz / (d || 1) * 2.15; vel.x = n.x * 9; vel.z = n.z * 9; vel.y = Math.max(vel.y, 4.5); enSuelo = false; G.golpeT = 1.3; musica.rocas(0.5); }
   }
 }
+// El gólem de la puerta final: quieto ante la sima hasta que llega Blizzard; se le encienden los ojos, va a por él
+// y lo empuja. Con la onda se le echa a la sima, y la puerta queda libre.
+const golemPuerta = { g: null, fin: false, cae: false };
+function ondaAGolemPuerta() { const G = golemPuerta; if (!G.g || G.dormido || G.cae || G.fin) return; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 12) return;
+  const f = 11 - d * 0.4; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); }
+function moverGolemPuerta(dt) {
+  const G = golemPuerta, A = ARENA_P, GA = gGolemGrande || gGolemAnim; if (G.fin || !GA || window.BLIZZARD_EDITOR) return;
+  if (!G.g) { if (Math.hypot(pos.x - A.cx, pos.z - A.cz) > 70) return;
+    const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.95); m.emissive = new THREE.Color(0x3a3b3e); } });
+    const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(4.6 / t.y); G.g = new THREE.Group(); G.g.add(d); scene.add(G.g); G.d = d;
+    G.mix = new THREE.AnimationMixer(d); G.andar = G.mix.clipAction(GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]); const idle = GA.animations.find(a => /Idle/i.test(a.name)); if (idle) { G.quieto = G.mix.clipAction(idle); G.quieto.play(); G.quieto.timeScale = 0; } G.mix.update(0);
+    G.x = POZO.x; G.z = POZO.z + POZO.r + 1.9; G.y = alturaTerreno(G.x, G.z); G.vx = G.vz = 0; G.golpeT = 0; G.dormido = true; G.desp = -1; G.g.position.set(G.x, G.y, G.z); G.g.rotation.y = 0; crearOjos(G);
+    G.colD = { x: G.x, z: G.z, r: 1.6, techo: G.y + 4.6 }; colisiones.push(G.colD); }
+  const dx = pos.x - G.x, dz = pos.z - G.z, d = Math.hypot(dx, dz);
+  if (G.cae) { G.caeT += dt; G.y -= dt * (2 + G.caeT * 6); G.g.rotation.x += dt * 0.8; G.g.position.set(G.x, G.y, G.z); G.mix.update(dt * 0.3); moverOjos(G, Math.max(0, 1 - G.caeT)); if (G.caeT > 3.5) { G.fin = true; G.g.visible = false; } return; }
+  if (G.dormido) { if (G.desp < 0 && !rescate && d < 11) { G.desp = 0; musica.golpe(0.35); }
+    if (G.desp >= 0) { G.desp += dt; if (G.desp > 0.9 && !G.ruge) { G.ruge = true; temblorCam = 0.6; musica.rocas(0.7); if (G.quieto) G.quieto.timeScale = 1; rotular(tactil ? "Un gólem guarda la puerta.\nÉchalo a la sima con la onda: mantén ◇." : "Un gólem guarda la puerta.\nÉchalo a la sima con la onda: mantén E.", 6); }
+      if (G.desp > 1.6) { G.dormido = false; const i = colisiones.indexOf(G.colD); if (i >= 0) colisiones.splice(i, 1); if (G.quieto) G.quieto.fadeOut(0.4); G.andar.reset().fadeIn(0.4).play(); } }
+    G.mix.update(dt); moverOjos(G, G.desp >= 0 ? suave(0, 0.8, G.desp) : 0); return; }
+  G.golpeT = Math.max(0, G.golpeT - dt);
+  const dentro = !rescate && Math.hypot(pos.x - A.cx, pos.z - A.cz) < A.R + 1, v = dentro && G.golpeT <= 0 && d > 1.9 ? 1.5 : 0;
+  if (v) { const nx = G.x + dx / d * v * dt, nz = G.z + dz / d * v * dt; if (Math.hypot(nx - POZO.x, nz - POZO.z) > POZO.r + 1.2) { G.x = nx; G.z = nz; } }   /* (andando, no se mete él solo en la sima) */
+  G.x += G.vx * dt; G.z += G.vz * dt; const fr = Math.exp(-dt * 1.6); G.vx *= fr; G.vz *= fr;
+  { const rA = Math.hypot(G.x - A.cx, G.z - A.cz), lim = A.R - 2.6; if (rA > lim) { G.x = A.cx + (G.x - A.cx) / rA * lim; G.z = A.cz + (G.z - A.cz) / rA * lim; G.vx *= 0.3; G.vz *= 0.3; } }   /* (el cerco lo retiene) */
+  if (Math.hypot(G.x - POZO.x, G.z - POZO.z) < POZO.r - 0.6) { G.cae = true; G.caeT = 0; musica.rocas(0.9); temblorCam = 0.8; rotular("El gólem cae a la sima. La puerta queda libre.", 4); return; }
+  G.y = lerp(G.y, alturaTerreno(G.x, G.z), 1 - Math.exp(-dt * 8)); G.g.position.set(G.x, G.y, G.z);
+  G.g.rotation.y = lerpAngulo(G.g.rotation.y, Math.atan2(dx, dz), 1 - Math.exp(-dt * 4)); G.andar.timeScale = clamp(v / 1.4 + Math.hypot(G.vx, G.vz) * 0.1, 0.15, 1.2); G.mix.update(dt); moverOjos(G, 1);
+  if (!rescate && d < 2.3 && Math.abs(pos.y - G.y) < 3 && G.golpeT <= 0) { const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.x + nx * 2.35; pos.z = G.z + nz * 2.35; vel.x = nx * 11; vel.z = nz * 11; vel.y = Math.max(vel.y, 5); enSuelo = false; G.golpeT = 1.2; musica.rocas(0.5); }   /* (el empujón: lejos de él) */
+}
 function moverGolemP7(dt) {
   const G = golemP7, P = PLATAFORMA7, GA = gGolemGrande || gGolemAnim; if (G.anillo) moverAnilloGolem(dt); if (G.caido || !GA || !P.rejilla || giraAspas) { if (G.g && G.caido) { G.g.visible = false; } return; }
   const enPlat = Math.hypot(pos.x - P.x, pos.z - P.z) < P.r * 0.95 && pos.y > (P.techo ?? 0) - 1.5;
@@ -6529,6 +6576,16 @@ const HIELOS_ED = new Set(["hielo_bloque", "hielo_azul", "iceberg", "cristal", "
 function hieloClaroEd(g, it) {   // el hielo puesto en el editor, con el mismo acabado que el del lago (claro, azulado y con reflejo)
   g.traverse(o => { if (!o.isMesh) return; const m = o.material.clone(); m.color = new THREE.Color(0xe8f0f8); m.emissive = new THREE.Color(0x1c2834); m.roughness = 0.85; m.metalness = 0; m.envMap = cieloRefHielo; m.envMapIntensity = 0.08; m.onBeforeCompile = hieloPalidoNieve; o.material = m; }); }
 const FORMA_ED = new Set(["iceberg", "cubo hielo"]);   // (se choca con su forma real: deja ver los huecos entre ellos)
+// Lo que el editor dejó cruzando la sima de la puerta se ve roto: la sima lo corta (no se dibuja dentro del pozo).
+function recortarPozo(g) {
+  const b = new THREE.Box3().setFromObject(g); if (Math.hypot(Math.max(b.min.x - POZO.x, 0, POZO.x - b.max.x), Math.max(b.min.z - POZO.z, 0, POZO.z - b.max.z)) > POZO.r) return;
+  g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material], nuevos = ms.map(m0 => { const m = m0.clone(), prev = m0.onBeforeCompile, clave = m0.customProgramCacheKey ? m0.customProgramCacheKey() : "";
+    m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r);
+      sh.vertexShader = "varying vec3 vPozoW;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vec4 pzW = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n pzW = instanceMatrix * pzW;\n#endif\n vPozoW = (modelMatrix * pzW).xyz;");
+      sh.fragmentShader = "varying vec3 vPozoW;\n" + sh.fragmentShader.replace("#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\n if (length(vPozoW.xz - vec2(" + POZO.x.toFixed(2) + ", " + POZO.z.toFixed(2) + ")) < " + POZO.r.toFixed(2) + ") discard;"); };
+    m.customProgramCacheKey = () => clave + "|pozo"; return m; });
+    o.material = Array.isArray(o.material) ? nuevos : nuevos[0]; });
+}
 function colisionPorForma(g, lo, hi, techo, C = 0.4) {   // círculos pequeños donde la malla corta la franja por la que se anda (sus paredes, no su caja)
   const celdas = new Set(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), q = new THREE.Vector3();
   const sueloC = new Map(), local = C > 0.5;   /* (las piezas grandes: la franja, sobre el suelo de cada sitio; su base a ras de suelo no es pared) */
@@ -6898,6 +6955,7 @@ function crearPiezaEd(it) {
   let col = null; const rueda = it.rodar && !window.BLIZZARD_EDITOR;
   if (rueda) { const bb = cajaReal(g), off = (bb.min.y + bb.max.y) / 2 - g.position.y; g.position.y += off; g.children.forEach(ch => ch.position.y -= off / g.scale.y); g.updateMatrixWorld(true); }   /* (gira sobre su centro) */
   let cols = null;
+  recortarPozo(g);
   if (it.modelo === "gltf:plataforma_flotante" && !PLATAFORMA7.obj && Math.hypot(g.position.x - PLATAFORMA7.x, g.position.z - PLATAFORMA7.z) < 20) { usarPlataforma7(g); return { g, col: null }; }   /* (la del santuario 7: se anda por ella como por las otras plataformas) */
   if ((it.golemEsfera || it.modelo === "gltf:roca_brillante") && !window.BLIZZARD_EDITOR) {   /* (todas las rocas brillantes son golems esfera) */   // golem esfera: quieto hasta que llega Blizzard; entonces cruza rodando por delante y no vuelve
     const b = cajaReal(g), t = b.getSize(new THREE.Vector3()), R = Math.max(t.x, t.z) / 2; col = { x: g.position.x, z: g.position.z, r: R * 0.9, techo: b.max.y }; colisiones.push(col);
