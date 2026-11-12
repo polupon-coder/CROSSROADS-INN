@@ -241,7 +241,9 @@ const gc1Desde = x => bordeSuave(x, GRIETA_C1.desde, 1.3), gc1Hasta = x => borde
 const escDesde = x => bordePrec(x, ESCALERA.desde, 0.9), escHasta = x => bordePrec(x, ESCALERA.hasta, 1.7);
 const gc2Desde = x => bordeSuave(x, GRIETA_C2.desde, 2.6), gc2Hasta = x => bordeSuave(x, GRIETA_C2.hasta, 0.5);
 const s4Desde = x => bordeSuave(x, SIMA4.desde, 1.9), s4Hasta = x => bordeSuave(x, SIMA4.hasta, 0.8);   // (la sima de la columna que cae)
-const gdDesde = x => bordeSuave(x, GRIETA_D.desde, 1.1), gdHasta = x => bordeSuave(x, GRIETA_D.hasta, 2.3), gd2Desde = x => bordeSuave(x, GRIETA_D2.desde, 0.4), gd2Hasta = x => bordeSuave(x, GRIETA_D2.hasta, 1.7);   // (la grieta de las dunas tras la cueva: se cruza con el impulso)
+const tramoG = (G, x) => suave(G.x0, G.x0 + 1.4, x) * suave(G.x1, G.x1 - 1.4, x), entreG = (G, x, b, fa) => { const m = (G.desde + G.hasta) / 2; return m + (bordeSuave(x, b, fa) - m) * tramoG(G, x); };   /* (solo entre los muros laterales: los extremos, redondeados) */
+const gdDesde = x => entreG(GRIETA_D, x, GRIETA_D.desde, 1.1), gdHasta = x => entreG(GRIETA_D, x, GRIETA_D.hasta, 2.3), gd2Desde = x => entreG(GRIETA_D2, x, GRIETA_D2.desde, 0.4), gd2Hasta = x => entreG(GRIETA_D2, x, GRIETA_D2.hasta, 1.7);
+const enGrietaPuerta = (x, z, m = 0) => (z < gdDesde(x) - m && z > gdHasta(x) + m) || (z < gd2Desde(x) - m && z > gd2Hasta(x) + m);   // (la grieta de las dunas tras la cueva: se cruza con el impulso)
 const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta], [zanjaDesde, zanjaHasta], [quiebraDesde, quiebraHasta], [quiebra2Desde, quiebra2Hasta], [gc1Desde, gc1Hasta], [escDesde, escHasta], [gc2Desde, gc2Hasta], [s4Desde, s4Hasta], [gdDesde, gdHasta], [gd2Desde, gd2Hasta]];   /* (las dos grietas de las dunas tras la cueva, quitadas) */
 // Segunda plataforma, ya sobre el rellano: allí el bastón aprende a mover piedras.
 const PLATAFORMA2 = { x: 0, z: LARGO(-154), r: 4.6, alto: 0.7 };
@@ -282,7 +284,7 @@ const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2
 const CANON2 = { desde: -790, hasta: -968 };
 const ARENA_P = { cx: -16, cz: -1774, R: 17 };   // (la puerta final: un cerco de acantilados, dos grietas ante y tras el arco y su gólem)
 const CON_GRIETAS_D = false;   // (las dos grietas de las dunas: quitadas desde el editor)
-const GRIETA_D = { desde: -1779.4, hasta: -1783.9 }, GRIETA_D2 = { desde: -1791.2, hasta: -1795.7 }, ISLA_Z = -1758.25;   /* (ahora, ante la puerta final: una delante del arco y otra detrás, de lado a lado; entre ellas, la franja del gólem) */   // (dos grietas paralelas; entre ellas, una franja con gólems que empujan)   // (en las dunas tras la cueva, de lado a lado: con un salto no llega; con el viento, sí)
+const GRIETA_D = { desde: -1780.9, hasta: -1785.4, x0: -28.5, x1: -3.5 }, GRIETA_D2 = { desde: -1795.4, hasta: -1799.9, x0: -25.5, x1: -2.5 }, ISLA_Z = -1758.25;   /* (ahora, ante la puerta final: una delante del arco y otra detrás, de lado a lado; entre ellas, la franja del gólem) */   // (dos grietas paralelas; entre ellas, una franja con gólems que empujan)   // (en las dunas tras la cueva, de lado a lado: con un salto no llega; con el viento, sí)
 const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hasta: -872, sube: 4.8 }, GRIETA_C2 = { desde: -903, hasta: -907.4 };
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
 // En lugar de la segunda puerta: una columna de cuatro piedras giratorias al borde de una sima de pared a
@@ -3116,7 +3118,7 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
               { const q = bloquesPaso.slice(-5).map(g => g.position); RECORRIDO_EXTRA.push([q[0].x, q[0].z, q[4].x, q[4].z], [q[4].x, q[4].z, B.x, B.z], [B.x, B.z, -18.6, -1682],
                 [-18.6, -1682, 5.8, -1684], [5.8, -1684, 11.8, -1697], [11.8, -1697, 11.8, -1746], [11.8, -1746, 11.8, ISLA_Z],   /* (por la derecha de la ruina grande) */
                 [-18.6, -1682, -40, -1684], [-40, -1684, -48.8, -1692], [-48.8, -1692, -48.8, -1720], [-48.8, -1720, -46.8, -1746], [-46.8, -1746, -46.8, ISLA_Z],   /* (o por la izquierda) */
-                [11.8, ISLA_Z, -48, ISLA_Z], [-23.3, ISLA_Z, -19, -1762], [-19, -1762, -16, -1776], [-16, -1776, -16, -1799], [-16, -1799, -9, -1806], [-9, -1806, -9, -1850], [-9, -1850, -7, -1856], [-7, -1856, -7, -1889], [-7, -1889, -24.3, -1905], [-24.3, -1905, -24.3, -1990],   /* (por la arena de la puerta: las dos grietas y bajo el arco; luego, entre los esqueletos) */ ); }   /* (la franja entre las grietas, y el cañón hasta el final) */   /* (y tras la grieta, rodeando los ladrillos y el acantilado por el oeste) */   /* (por la ruina del portal y el pasillo junto a la ruina grande, hasta la grieta y más allá: el viento no empuja fuera de ese paso) */
+                [11.8, ISLA_Z, -48, ISLA_Z], [-23.3, ISLA_Z, -19, -1762], [-19, -1762, -16, -1776], [-16, -1776, -16, -1802.5], [-16, -1802.5, -9, -1808], [-9, -1808, -9, -1850], [-9, -1850, -7, -1856], [-7, -1856, -7, -1889], [-7, -1889, -24.3, -1905], [-24.3, -1905, -24.3, -1990],   /* (por la arena de la puerta: las dos grietas y bajo el arco; luego, entre los esqueletos) */ ); }   /* (la franja entre las grietas, y el cañón hasta el final) */   /* (y tras la grieta, rodeando los ladrillos y el acantilado por el oeste) */   /* (por la ruina del portal y el pasillo junto a la ruina grande, hasta la grieta y más allá: el viento no empuja fuera de ese paso) */
               puenteNevado(A, B); for (const c of colisiones) if (!c.rampa && !c.plataforma && c.r < 3 && c.techo > 40) { for (let t = 0; t <= 1; t += 0.1) if (Math.hypot(c.x - lerp(A.x, B.x, t), c.z - lerp(A.z, B.z, t)) < c.r + 2.4) { c.bajo = 99; break; } } } } }   /* (sin choques de techo sobre el tablero) */
         rejillaPorTriangulos(P, R, paso, n, h); } }
     // (y las pilastras de acceso, con el material de la plataforma: proyectado desde los tres ejes, sin costuras)
@@ -4263,11 +4265,11 @@ function animarPaso(dt) {
   // La puerta final: un cerco de acantilados de piedra vertical alrededor de las estatuas; se entra por el norte y
   // se sale por detrás del arco. Ante el arco y tras él, dos grietas de lado a lado: se cruzan con el salto mágico; en la franja de en medio, el gólem que guarda la puerta: hay que echarlo a una de ellas.
   { const A = ARENA_P, nevarA = g => g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.3, 0.62,"); }; m.customProgramCacheKey = () => "arenaNieve"; } });
-    for (const lado of [-1, 1]) for (let k = 0; k < 7; k++) { const th = lado * (0.62 + k * (Math.PI - 0.25 - 0.62) / 6), x = A.cx + Math.sin(th) * A.R, z = A.cz + Math.cos(th) * A.R, w = 8.5, h = 14 + ((k * 7 + (lado > 0 ? 3 : 0)) % 5) * 1.2, y0 = alturaTerreno(x, z) - 1.8, honda = k < 6 && [GRIETA_D, GRIETA_D2].some(G => z < G.desde + 2 && z > G.hasta - 2), y = honda ? -40 : y0;   /* (la que cae sobre una grieta nace de su fondo) */
-      nevarA(encajar(gAcantilado, x, y, z, w, h + y0 - y, 5, th)); colisiones.push({ x, z, r: 3.7, techo: y0 + h, de: "arena" }); }
+    for (const lado of [-1, 1]) for (let k = 0; k < 7; k++) { const th = lado * (0.62 + k * (Math.PI - 0.25 - 0.62) / 6), x = A.cx + Math.sin(th) * A.R, z = A.cz + Math.cos(th) * A.R, w = 8.5, h = 14 + ((k * 7 + (lado > 0 ? 3 : 0)) % 5) * 1.2, y = alturaTerreno(x, z) - 1.8;
+      nevarA(encajar(gAcantilado, x, y, z, w, h, 5, th)); colisiones.push({ x, z, r: 3.7, techo: y + h, de: "arena" }); }
   }
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
-  nievePendiente.push(() => { const cx = -10, cz = -1831, W = 120, L = 338, R = 6; ventisquero(cx, cz, W, L, 0.2, { dist: (x, z) => Math.max(0, Math.abs(x - cx) - (W / 2 - R), Math.abs(z - cz) - (L / 2 - R)), R, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.75, blanca: true }, true); });
+  nievePendiente.push(() => { const cx = -10, cz = (SALIDA_CUEVA_Z + 2 - 2010) / 2, W = 170, L = 2010 + SALIDA_CUEVA_Z + 2, R = 6;   /* (todo el suelo tras la cueva, de lado a lado) */ ventisquero(cx, cz, W, L, 0.2, { dist: (x, z) => Math.max(0, Math.abs(x - cx) - (W / 2 - R), Math.abs(z - cz) - (L / 2 - R)), R, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.75, blanca: true }, true); });
   // Y ruinas grandes, medio enterradas y nevadas, a los dos lados del camino; dos arcos que se cruzan por debajo y, al fondo, una ruina inmensa.
   { const rR = generador(8282), nevar = g => g.traverse(o => { if (o.isMesh) { const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.22, 0.55,"); }; m.customProgramCacheKey = () => "ruinaDunaN"; espolvorear(m, 0.85, "ruinaDuna", true, true); } }),   /* (fuera, todo con nieve acumulada encima y espolvoreado) */
       tipos = [[gRuinaAlta, 9, 15, 9], [gRuinaAntigua, 14, 9, 11], [gPortalRuina, 12, 12, 4], [gPlataformaRuina, 15, 5, 15], [gRuinaPiedra, 12, 10, 10], [gMuro, 16, 7, 3], [gEscalinata, 11, 6, 9], [gArcoRuina, 12, 11, 3]];
@@ -4972,7 +4974,7 @@ function alturaObj(c, x, z) {
 // Lo más alto bajo los pies (centro y cuatro puntos alrededor).
 const alturaObjPies = (c, x, z) => Math.max(alturaObj(c, x, z), alturaObj(c, x + 0.16, z), alturaObj(c, x - 0.16, z), alturaObj(c, x, z + 0.16), alturaObj(c, x, z - 0.16));
 function sueloEn(x, z, pies) {
-  if (Math.abs(x) < 90 && ((z < gdDesde(x) && z > gdHasta(x)) || (z < gd2Desde(x) && z > gd2Hasta(x)))) return { h: alturaTerreno(x, z), sobre: null };   /* (en las grietas de la puerta no hay nada que pisar: lo que las cruzaba se rompió) */
+  if (z < GRIETA_D.desde + 0.5 && z > GRIETA_D2.hasta - 0.5 && enGrietaPuerta(x, z)) return { h: alturaTerreno(x, z), sobre: null };   /* (en las grietas de la puerta no hay nada que pisar: lo que las cruzaba se rompió) */
   let h = -Infinity, sobre = null;
   for (const [dx, dz] of [[0, 0], [0.16, 0], [-0.16, 0], [0, 0.16], [0, -0.16]]) {
     const t = alturaTerreno(x + dx, z + dz), centro = dx === 0 && dz === 0;
@@ -6389,7 +6391,7 @@ function moverGolemPuerta(dt) {
     const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.95); m.emissive = new THREE.Color(0x3a3b3e); } });
     const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(4.6 / t.y); G.g = new THREE.Group(); G.g.add(d); scene.add(G.g); G.d = d;
     G.mix = new THREE.AnimationMixer(d); G.andar = G.mix.clipAction(GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]); const idle = GA.animations.find(a => /Idle/i.test(a.name)); if (idle) { G.quieto = G.mix.clipAction(idle); G.quieto.play(); G.quieto.timeScale = 0; } G.mix.update(0);
-    G.x = ARENA_P.cx; G.z = GRIETA_D.hasta - 1.6; G.y = alturaTerreno(G.x, G.z); G.vx = G.vz = 0; G.golpeT = 0; G.dormido = true; G.desp = -1; G.g.position.set(G.x, G.y, G.z); G.g.rotation.y = 0; crearOjos(G);
+    G.x = ARENA_P.cx; G.z = (GRIETA_D.hasta + GRIETA_D2.desde) / 2 - 0.6;   /* (tras el arco, en medio de la franja) */ G.y = alturaTerreno(G.x, G.z); G.vx = G.vz = 0; G.golpeT = 0; G.dormido = true; G.desp = -1; G.g.position.set(G.x, G.y, G.z); G.g.rotation.y = 0; crearOjos(G);
     G.colD = { x: G.x, z: G.z, r: 1.6, techo: G.y + 4.6 }; colisiones.push(G.colD); }
   const dx = pos.x - G.x, dz = pos.z - G.z, d = Math.hypot(dx, dz);
   if (G.cae) { G.caeT += dt; G.y -= dt * (2 + G.caeT * 6); G.g.rotation.x += dt * 0.8; G.g.position.set(G.x, G.y, G.z); G.mix.update(dt * 0.3); moverOjos(G, Math.max(0, 1 - G.caeT)); if (G.caeT > 3.5) { G.fin = true; G.g.visible = false; } return; }
@@ -6401,8 +6403,8 @@ function moverGolemPuerta(dt) {
   const dentro = !rescate && pos.z < GRIETA_D.desde + 6 && pos.z > GRIETA_D2.hasta - 2, v = dentro && G.golpeT <= 0 && d > 1.9 ? 1.05 : 0;
   if (v) { const nx = G.x + dx / d * v * dt, nz = G.z + dz / d * v * dt; G.x = nx; if (nz < GRIETA_D.hasta - 1.2 && nz > GRIETA_D2.desde + 1.2) G.z = nz; }   /* (andando, no se mete él solo en las grietas) */
   G.x += G.vx * dt; G.z += G.vz * dt; const fr = Math.exp(-dt * 1.6); G.vx *= fr; G.vz *= fr;
-  if (Math.abs(G.x - A.cx) > 13) { G.x = A.cx + Math.sign(G.x - A.cx) * 13; G.vx *= 0.3; }   /* (los acantilados de los lados lo retienen) */
-  if (G.z > gdHasta(G.x) + 0.6 || G.z < gd2Desde(G.x) - 0.6) { G.cae = true; G.caeT = 0; musica.rocas(0.9); temblorCam = 0.8; rotular("El gólem cae a la grieta. La puerta queda libre.", 4); return; }
+  if (G.x < GRIETA_D.x0 + 3 || G.x > GRIETA_D.x1 - 3) { G.x = clamp(G.x, GRIETA_D.x0 + 3, GRIETA_D.x1 - 3); G.vx *= 0.3; }   /* (los muros de los lados lo retienen) */
+  if (enGrietaPuerta(G.x, G.z, 0.6)) { G.cae = true; G.caeT = 0; musica.rocas(0.9); temblorCam = 0.8; rotular("El gólem cae a la grieta. La puerta queda libre.", 4); return; }
   G.y = lerp(G.y, alturaTerreno(G.x, G.z), 1 - Math.exp(-dt * 8)); G.g.position.set(G.x, G.y, G.z);
   G.g.rotation.y = lerpAngulo(G.g.rotation.y, Math.atan2(dx, dz), 1 - Math.exp(-dt * 4)); G.andar.timeScale = clamp(v / 1.4 + Math.hypot(G.vx, G.vz) * 0.1, 0.15, 1.2); G.mix.update(dt); moverOjos(G, 1);
   G.empT = !rescate && d < 2.4 && Math.abs(pos.y - G.y) < 3 && G.golpeT <= 0 ? (G.empT || 0) + dt : 0;   /* (antes de empujar, medio segundo: da tiempo a soltar la onda) */
@@ -6571,9 +6573,9 @@ function hieloClaroEd(g, it) {   // el hielo puesto en el editor, con el mismo a
 const FORMA_ED = new Set(["iceberg", "cubo hielo"]);   // (se choca con su forma real: deja ver los huecos entre ellos)
 // Lo que el editor dejó cruzando las grietas de la puerta se ve roto: no se dibuja sobre ellas.
 function recortarPozo(g) {
-  const b = new THREE.Box3().setFromObject(g); if (b.max.z < GRIETA_D2.hasta - 0.5 || b.min.z > GRIETA_D.desde + 0.5 || b.max.x < -90 || b.min.x > 90) return;
-  const f = v => v.toFixed(2), bs = (b, fa) => `(${f(b)} + sin(w.x * 0.45 + ${f(fa)}) * 0.2 + sin(w.x * 1.1 + ${f(fa * 2)}) * 0.08)`,
-    corte = `if (abs(w.x) < 90.0 && ((w.y < ${bs(GRIETA_D.desde, 1.1)} && w.y > ${bs(GRIETA_D.hasta, 2.3)}) || (w.y < ${bs(GRIETA_D2.desde, 0.4)} && w.y > ${bs(GRIETA_D2.hasta, 1.7)}))) discard;`;
+  const b = new THREE.Box3().setFromObject(g); if (b.max.z < GRIETA_D2.hasta - 0.5 || b.min.z > GRIETA_D.desde + 0.5 || b.max.x < GRIETA_D.x0 || b.min.x > GRIETA_D2.x1 || Math.max(b.max.x - b.min.x, b.max.z - b.min.z) > 40) return;   /* (los muros laterales, enteros) */
+  const f = v => v.toFixed(2), tr = G => `(smoothstep(${f(G.x0)}, ${f(G.x0 + 1.4)}, w.x) * smoothstep(${f(G.x1)}, ${f(G.x1 - 1.4)}, w.x))`, bs = (G, b, fa) => `(${f((G.desde + G.hasta) / 2)} + (${f(b)} + sin(w.x * 0.45 + ${f(fa)}) * 0.2 + sin(w.x * 1.1 + ${f(fa * 2)}) * 0.08 - ${f((G.desde + G.hasta) / 2)}) * ${tr(G)})`,
+    corte = `if ((w.y < ${bs(GRIETA_D, GRIETA_D.desde, 1.1)} && w.y > ${bs(GRIETA_D, GRIETA_D.hasta, 2.3)}) || (w.y < ${bs(GRIETA_D2, GRIETA_D2.desde, 0.4)} && w.y > ${bs(GRIETA_D2, GRIETA_D2.hasta, 1.7)})) discard;`;
   g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material], nuevos = ms.map(m0 => { const m = m0.clone(), prev = m0.onBeforeCompile, clave = m0.customProgramCacheKey ? m0.customProgramCacheKey() : "";
     m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r);
       sh.vertexShader = "varying vec3 vPozoW;\n" + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n vec4 pzW = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n pzW = instanceMatrix * pzW;\n#endif\n vPozoW = (modelMatrix * pzW).xyz;");
