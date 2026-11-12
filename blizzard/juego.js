@@ -242,7 +242,7 @@ const escDesde = x => bordePrec(x, ESCALERA.desde, 0.9), escHasta = x => bordePr
 const gc2Desde = x => bordeSuave(x, GRIETA_C2.desde, 2.6), gc2Hasta = x => bordeSuave(x, GRIETA_C2.hasta, 0.5);
 const s4Desde = x => bordeSuave(x, SIMA4.desde, 1.9), s4Hasta = x => bordeSuave(x, SIMA4.hasta, 0.8);   // (la sima de la columna que cae)
 const gdDesde = x => bordeSuave(x, GRIETA_D.desde, 1.1), gdHasta = x => bordeSuave(x, GRIETA_D.hasta, 2.3), gd2Desde = x => bordeSuave(x, GRIETA_D2.desde, 0.4), gd2Hasta = x => bordeSuave(x, GRIETA_D2.hasta, 1.7);   // (la grieta de las dunas tras la cueva: se cruza con el impulso)
-const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta], [zanjaDesde, zanjaHasta], [quiebraDesde, quiebraHasta], [quiebra2Desde, quiebra2Hasta], [gc1Desde, gc1Hasta], [escDesde, escHasta], [gc2Desde, gc2Hasta], [s4Desde, s4Hasta], [gdDesde, gdHasta], [gd2Desde, gd2Hasta]];
+const ABISMOS = [[precDesde, precHasta], [puenteDesde, puenteHasta], [zanjaDesde, zanjaHasta], [quiebraDesde, quiebraHasta], [quiebra2Desde, quiebra2Hasta], [gc1Desde, gc1Hasta], [escDesde, escHasta], [gc2Desde, gc2Hasta], [s4Desde, s4Hasta]];   /* (las dos grietas de las dunas tras la cueva, quitadas) */
 // Segunda plataforma, ya sobre el rellano: allí el bastón aprende a mover piedras.
 const PLATAFORMA2 = { x: 0, z: LARGO(-154), r: 4.6, alto: 0.7 };
 // Tercera plataforma, al final del paso de los arcos: allí se aprende a abrir la puerta arcana.
@@ -280,6 +280,7 @@ const enC2Z = z => suave(CANON2.desde, CANON2.desde - 10, z) * (1 - suave(CANON2
 // una pilastra caída que saltar, un paso bajo, una gran escalera de piedras caídas sobre un precipicio
 // (sube a un nivel más alto), rocas que apartar, una grieta ancha (con el viento) y la segunda puerta.
 const CANON2 = { desde: -790, hasta: -968 };
+const CON_GRIETAS_D = false;   // (las dos grietas de las dunas: quitadas desde el editor)
 const GRIETA_D = { desde: -1748.6, hasta: -1753.2 }, GRIETA_D2 = { desde: -1763.3, hasta: -1767.8 }, ISLA_Z = -1758.25;   // (dos grietas paralelas; entre ellas, una franja con gólems que empujan)   // (en las dunas tras la cueva, de lado a lado: con un salto no llega; con el viento, sí)
 const GRIETA_C1 = { desde: -815, hasta: -817.4 }, ESCALERA = { desde: -852, hasta: -872, sube: 4.8 }, GRIETA_C2 = { desde: -903, hasta: -907.4 };
 const TUMBADA_C = -829, BAJO_C = -841, PUERTA_FINAL_Z = -958;
@@ -2600,7 +2601,6 @@ const AVISOS_TUNEL = [
   { z: QUIEBRA.desde + 2, texto: "Se rompe. ¡Corre y salta!" },
   { z: QUIEBRA2.desde + 2, texto: "Más separadas. ¡Salta rápido!" },
   ...AVISOS_CANON,
-  { z: GRIETA_D.desde + 9, texto: "Una grieta. Corre, salta y usa el viento." },
 ];
 {
   const rndK = generador(5353);
@@ -4259,6 +4259,8 @@ function animarPaso(dt) {
   { const rD = generador(5151);
     for (let k = 0; k < 64; k++) { const z = -1676 - rD() * 300,   /* (por toda la zona de dunas tras la cueva) */ x = caminoX(z) + (rD() - 0.5) * 80, a = 5 + rD() * 6, l = 4 + rD() * 5;
       if (libre(x, z, Math.max(a, l) / 2) && Math.abs(z - ISLA_Z) > l / 2 + 13) ventisquero(x, z, a, l, 0.35 + rD() * 0.35, null, true); } }
+  // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
+  nievePendiente.push(() => { const cx = -10, cz = -1831, W = 120, L = 338, R = 6; ventisquero(cx, cz, W, L, 0.2, { dist: (x, z) => Math.max(0, Math.abs(x - cx) - (W / 2 - R), Math.abs(z - cz) - (L / 2 - R)), R, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.75, blanca: true }, true); });
   // Y ruinas grandes, medio enterradas y nevadas, a los dos lados del camino; dos arcos que se cruzan por debajo y, al fondo, una ruina inmensa.
   { const rR = generador(8282), nevar = g => g.traverse(o => { if (o.isMesh) { const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.22, 0.55,"); }; m.customProgramCacheKey = () => "ruinaDunaN"; espolvorear(m, 0.85, "ruinaDuna", true, true); } }),   /* (fuera, todo con nieve acumulada encima y espolvoreado) */
       tipos = [[gRuinaAlta, 9, 15, 9], [gRuinaAntigua, 14, 9, 11], [gPortalRuina, 12, 12, 4], [gPlataformaRuina, 15, 5, 15], [gRuinaPiedra, 12, 10, 10], [gMuro, 16, 7, 3], [gEscalinata, 11, 6, 9], [gArcoRuina, 12, 11, 3]];
@@ -6344,6 +6346,7 @@ function crearGolemsIsla() {
 function ondaAGolemsIsla() { for (const G of golemsIsla) { if (G.cae || G.fin) continue; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 14) continue;   /* (desde la orilla, antes de saltar, también lo alcanza) */
   const f = 14.2 - d * 0.45; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); } }
 function moverGolemsIsla(dt) {
+  if (!CON_GRIETAS_D) return;   /* (sin las grietas, sin sus gólems) */
   if (!golemsIsla.length) { if (gGolemAnim && !window.BLIZZARD_EDITOR && Math.abs(pos.z - ISLA_Z) < 110) crearGolemsIsla(); return; }
   const zN = GRIETA_D.hasta, zS = GRIETA_D2.desde, enIsla = !rescate && pos.z < zN + 0.3 && pos.z > zS - 0.3;
   for (const G of golemsIsla) {
@@ -6783,10 +6786,10 @@ function materialEsfera(o, uNieve) {
 }
 let esferasRepartidas = false;
 function recorridoLibre(E, d, maxL) {   // metros que puede rodar en esa dirección sin chocar con nada, sin simas ni escalones bruscos
-  let x = E.g.position.x, z = E.g.position.z, y = alturaSuelo(x, z), L = 0;
+  let x = E.g.position.x, z = E.g.position.z, y = alturaSuelo(x, z), L = 0; const cercaR = colisiones.filter(c => c !== E.col && !c.rampa && Math.hypot(c.x - x, c.z - z) < maxL + c.r + 3);   /* (solo las de alrededor: con recorridos largos, mirarlas todas costaba mucho) */
   while (L < maxL) { const nx = x + d.x * 0.3, nz = z + d.z * 0.3, ny = alturaSuelo(nx, nz);
     if (ny < -5 || Math.abs(ny - y) > 0.3 || PLATAFORMAS.some(Q => Math.hypot(nx - Q.x, nz - Q.z) < Q.r + 3 + E.R) || ARCANOS.some(A => Math.hypot(nx - A.x, nz - A.z) < A.r + E.R)) break;   // (ni simas, ni escalones, ni los santuarios con su aro)
-    if (colisiones.some(c => c !== E.col && !c.rampa && c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 1.2 + 0.15)) break;
+    if (cercaR.some(c => c.techo > ny + 0.3 && Math.hypot(c.x - nx, c.z - nz) < c.r + E.R * 1.2 + 0.15)) break;
     x = nx; z = nz; y = ny; L += 0.3; }
   return L;
 }
@@ -6822,7 +6825,7 @@ function moverEsferas(dt) {
       // Siempre se aleja de Blizzard: de 16 direcciones, la libre que más lo aleje (mejor la diagonal por delante).
       const ax = g.position.x - pos.x, az = g.position.z - pos.z, aL = Math.hypot(ax, az) || 1; let mejor = null, dM = 0, sM = -1e9;
       for (let q = 0; q < 16; q++) { const a = base + q * Math.PI / 8, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), lejos = (d.x * ax + d.z * az) / aL; if (lejos < 0.2) continue;
-        const L = recorridoLibre(E, d, 20); if (L < 4) continue; const sc = Math.min(L, 16) + 3 * lejos + 8 * Math.cos(q * Math.PI / 8);   /* (mejor la diagonal que cruza por delante) */ if (sc > sM) { sM = sc; dM = L; mejor = d; } }
+        const L = recorridoLibre(E, d, 48); if (L < 6) continue; const sc = Math.min(L, 48) * 0.6 + 9 * lejos + 3 * Math.cos(q * Math.PI / 8);   /* (recorridos largos, alejándose de Blizzard) */ if (sc > sM) { sM = sc; dM = L; mejor = d; } }
       if (!mejor) { E.estado = 4; E.t = 0; const k = colisiones.indexOf(E.col); if (k >= 0) colisiones.splice(k, 1); continue; }   // (sin salida: se hunde en la nieve y desaparece)
       { g.updateMatrixWorld(true); const cW = cajaReal(g).getCenter(new THREE.Vector3()), cL = cW.clone().applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert());   // (gira sobre su centro: sobre la base daba botes)
         g.children.forEach(ch => ch.position.sub(cL)); g.position.copy(cW); g.updateMatrixWorld(true); E.y0 = g.position.y - alturaSuelo(g.position.x, g.position.z); }
