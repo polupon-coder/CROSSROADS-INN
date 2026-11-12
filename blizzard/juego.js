@@ -2284,7 +2284,7 @@ function moverBolas(dt) {
   arrastre = Math.max(0, arrastre - dt);
   // La onda: con E mantenido (sin nada más), la magia se carga; al cabo de un instante, estalla en una gran
   // espiral que se abre y lo aparta todo; las pilastras de alrededor de su plataforma caen.
-  if (onda && estado === "juego" && enSuelo && !llevando && teclas.has("KeyE") && !ondaSoltar && ondaT < 0 && !(giraAspas && aspaCerca())) {   /* (junto a una viga, E la gira: sin onda) */
+  if (onda && estado === "juego" && vueltaPlat < 0 && enSuelo && !llevando && teclas.has("KeyE") && !ondaSoltar && ondaT < 0 && !(giraAspas && aspaCerca())) {   /* (junto a una viga, E la gira: sin onda) */
     cargaOnda += dt; espiralEn = _espOnda.set(pos.x, pos.y + 0.9, pos.z); espiralTam = { r: 0.6 + cargaOnda * 0.5, alto: 1.6 }; efectoEspiral = Math.max(efectoEspiral, 0.4 + cargaOnda * 0.5);
     if (cargaOnda > 1.1) { ondaT = 0; ondaN++; cargaOnda = 0; ondaSoltar = true; ondaAlGolem(); ondaAGolemsIsla(); musica.viento(0.6, 0.5, 0.18); vel.set(0, 0, 0); estado = "empujando"; gesto = 1.0; }
   } else if (!teclas.has("KeyE")) { cargaOnda = 0; ondaSoltar = false; }   /* (una onda por pulsación: manteniendo E no se repite sola) */
@@ -4924,7 +4924,7 @@ const _espMono = new THREE.Vector3();
 let giraAspas = false, puenteHecho = false, abrePuertas = false, aprende = "", giraBloques = false, avisoPuzle = false, hundimiento = 0, hundePaso = 0, barre = false, onda = false, cargaOnda = 0, ondaSoltar = false, ondaT = -1, avisoCilindros = false, avisoCol4 = false;
 const _espArena = new THREE.Vector3(), _puntaEsp = new THREE.Vector3(), salidaEsp = { obj: null, pos: null, t: 1 };
 let muevePiedras = false, avisoPenascos = false, gesto = 0, llevando = null, espiralTam = null;
-const _ejeArriba = new THREE.Vector3(); const _blancoNiebla = new THREE.Color(0.85, 0.9, 0.99), _nieveSueloPaso = new THREE.Color(0.6, 0.64, 0.7), _nieblaSol = new THREE.Color(1.15, 1.1, 1.0); let temblorCam = 0; let cenitalK = 0; const _ojoC = new THREE.Vector3(), _miraC = new THREE.Vector3(); let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0, antePlat = 0;
+const _ejeArriba = new THREE.Vector3(); const _blancoNiebla = new THREE.Color(0.85, 0.9, 0.99), _nieveSueloPaso = new THREE.Color(0.6, 0.64, 0.7), _nieblaSol = new THREE.Color(1.15, 1.1, 1.0); let temblorCam = 0; let cenitalK = 0, vueltaPlat = -1, vueltaPlatA0 = 0; const VUELTA_PLAT = 6.5; const _ojoC = new THREE.Vector3(), _miraC = new THREE.Vector3(); let NIEBLA_LEJOS = 19, enTunel = 0, anteLaPuerta = 0, enPlat = 0, antePlat = 0;
 let orbitaT = -1, atrasT = 0, alanteT = 0, vueltaCam = false, vueltaP = 0, vueltaLado = 1, vueltaDesde = -9, bloqueoControl = false, yawControl = Math.PI;   // (correr hacia atrás: la cámara da la vuelta y sigue)
 let yawCamara = Math.PI, giroCam = 0, tIntro = 0, quietoDesde = 0, cerca = 0, escalon = 0, alturaVisual = 0;
 let escalonDura = 0.45, escalonAlto = 0.3, escalonDesde = 0, yVis = null, tAire = 0, ultimoEscalon = -9;
@@ -5171,8 +5171,9 @@ function actualizar(dt) {
     if (gesto <= 0) estado = "juego";
   } else if (estado === "juego" || estado === "fin") {
     // Movimiento relativo a la cámara.
-    const ix = clamp((tecla("KeyD", "ArrowRight") ? 1 : 0) - (tecla("KeyA", "ArrowLeft") ? 1 : 0) + joy.x, -1, 1);
-    const iz = clamp((tecla("KeyW", "ArrowUp") ? 1 : 0) - (tecla("KeyS", "ArrowDown") ? 1 : 0) + joy.y, -1, 1);
+    const parado = vueltaPlat >= 0;   /* (mientras la cámara da la vuelta a la plataforma, todo quieto) */
+    const ix = parado ? 0 : clamp((tecla("KeyD", "ArrowRight") ? 1 : 0) - (tecla("KeyA", "ArrowLeft") ? 1 : 0) + joy.x, -1, 1);
+    const iz = parado ? 0 : clamp((tecla("KeyW", "ArrowUp") ? 1 : 0) - (tecla("KeyS", "ArrowDown") ? 1 : 0) + joy.y, -1, 1);
     if (!ix && !iz) { bloqueoControl = false; yawControl = yawCamara; }   // (al soltar, los mandos vuelven a ir con la cámara)
     const deseo = new THREE.Vector3().addScaledVector(bloqueoControl ? adelanteC : adelante, iz).addScaledVector(bloqueoControl ? derechaC : derecha, ix);
     if (deseo.lengthSq() > 1) deseo.normalize();
@@ -5205,7 +5206,7 @@ function actualizar(dt) {
     vel.z = lerp(vel.z, deseo.z, 1 - Math.exp(-dt * agarre));
 
     coyote = enSuelo ? 0.12 : Math.max(0, coyote - dt);
-    if (pulsada("Space") && coyote > 0 && !agachado) {   /* (también llevando algo: para cruzar las pilastras con los trozos) */ vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.salto(); }
+    if (pulsada("Space") && coyote > 0 && !agachado && !parado) {   /* (también llevando algo: para cruzar las pilastras con los trozos) */ vel.y = V_SALTO; enSuelo = false; coyote = 0; impulsoUsado = false; musica.salto(); }
     if (pulsada("KeyE", "KeyJ") && llevando && llevando.hielo && PLATAFORMA7.huecos && PLATAFORMA7.huecos.some(H => !H.lleno && Math.hypot(llevando.g.position.x - H.x, llevando.g.position.z - H.z) < 4.5)) {
       // Junto a un hueco del puente: el trozo de hielo encaja y se vuelve un tramo del puente.
       const H = PLATAFORMA7.huecos.filter(H => !H.lleno).sort((a, b) => Math.hypot(llevando.g.position.x - a.x, llevando.g.position.z - a.z) - Math.hypot(llevando.g.position.x - b.x, llevando.g.position.z - b.z))[0];
@@ -5645,7 +5646,10 @@ function actualizar(dt) {
     }
     { // La lucha con el gólem de la plataforma: la cámara se aleja para verlo todo.
       const P = PLATAFORMA7;
-      if (cenitalK > 0.001) { _ojoC.copy(ojo).sub(mira).multiplyScalar(1 + 0.35 * cenitalK); _ojoC.y += 3.5 * cenitalK; ojo.copy(mira).add(_ojoC);
+      if (vueltaPlat >= 0) {   /* (el gólem cae: la cámara da una vuelta entera a la plataforma, y luego regresa) */
+        vueltaPlat += dt; const k = suave(0, VUELTA_PLAT, vueltaPlat), a = vueltaPlatA0 + Math.PI * 2 * k, R = P.r + 5;
+        ojo.set(P.x + Math.sin(a) * R, P.techo + 9, P.z + Math.cos(a) * R); mira.set(P.x, P.techo + 1, P.z); if (vueltaPlat > VUELTA_PLAT) vueltaPlat = -1; }
+      else if (cenitalK > 0.001) { _ojoC.copy(ojo).sub(mira).multiplyScalar(1 + 0.35 * cenitalK); _ojoC.y += 3.5 * cenitalK; ojo.copy(mira).add(_ojoC);
         const dO = Math.hypot(ojo.x - P.x, ojo.z - P.z), lim = P.r * 0.8; if (dO > lim) { const k = (lim / dO) * cenitalK + (1 - cenitalK); ojo.x = P.x + (ojo.x - P.x) * k; ojo.z = P.z + (ojo.z - P.z) * k; ojo.y += Math.min(3, (dO - lim) * 0.5) * cenitalK; } } }   /* (dentro del círculo: las columnas del borde no la tapan) */   /* (en la lucha, la cámara más lejos: se ve al gólem y el borde) */
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
@@ -6306,7 +6310,7 @@ function prepararAtaques(G) { G.ataques = true; if (!gGolemAnims || G.at) return
 function lanzarFuera(G, fuerte, k) { const P = PLATAFORMA7, rx = pos.x - P.x, rz = pos.z - P.z, rl = Math.hypot(rx, rz) || 1, gx = pos.x - G.x, gz = pos.z - G.z, gl = Math.hypot(gx, gz) || 1;
   let nx = rx / rl * 0.6 + gx / gl * 0.4, nz = rz / rl * 0.6 + gz / gl * 0.4; const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l; const v = (fuerte ? 19 : 10) * (k || 1); vel.x = nx * v; vel.z = nz * v; vel.y = Math.max(vel.y, fuerte ? 6 : 4.5); enSuelo = false; }   /* (más fuerte) */   /* (fuerte: fuera de la plataforma) */
 function ondaAlGolem() { const G = golemP7; if (!G.g || G.cae || G.caido) return; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 11) return;
-  const f = 13.4 - d * 0.45; G.vx += dx / (d || 1) * f;   /* (desde el centro hacen falta unas tres ondas para echarlo) */ G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); }   /* (la onda lo empuja lejos de Blizzard) */
+  const f = 10.8 - d * 0.4; G.vx += dx / (d || 1) * f;   /* (desde el centro hacen falta unas tres ondas para echarlo) */ G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); }   /* (la onda lo empuja lejos de Blizzard) */
 // Los ojos del gólem (los ámbar de su textura): apagados mientras espera; al despertar, se iluminan un poco.
 function crearOjos(G) {
   G.uOjos = { value: 0 };
@@ -6321,13 +6325,13 @@ function moverOjos(G, luz) { if (G.uOjos) G.uOjos.value = luz * (0.9 + 0.1 * Mat
 const golemsIsla = []; let avisoIsla = false;
 function crearGolemsIsla() {
   const GA = gGolemAnim; if (!GA) return;
-  for (const x0 of [-48, 12]) { const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } });
+  for (const x0 of [-48, 12]) { const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(2.1); m.emissive = new THREE.Color(0x3c3d40); } });   /* (más claros, como el de la plataforma) */
     const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(3.4 / t.y); const g = new THREE.Group(); g.add(d); scene.add(g);
     const mix = new THREE.AnimationMixer(d), clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0], andar = mix.clipAction(clip); andar.play();
     const y = alturaTerreno(x0, ISLA_Z); g.position.set(x0, y, ISLA_Z); golemsIsla.push({ g, mix, andar, x: x0, z: ISLA_Z, x0, y, vx: 0, vz: 0, vy: 0, golpeT: 0, cae: false, caeT: 0, fin: false }); }
 }
 function ondaAGolemsIsla() { for (const G of golemsIsla) { if (G.cae || G.fin) continue; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 14) continue;   /* (desde la orilla, antes de saltar, también lo alcanza) */
-  const f = 15 - d * 0.5; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); } }
+  const f = 14.2 - d * 0.45; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); } }
 function moverGolemsIsla(dt) {
   if (!golemsIsla.length) { if (gGolemAnim && !window.BLIZZARD_EDITOR && Math.abs(pos.z - ISLA_Z) < 110) crearGolemsIsla(); return; }
   const zN = GRIETA_D.hasta, zS = GRIETA_D2.desde, enIsla = !rescate && pos.z < zN + 0.3 && pos.z > zS - 0.3;
@@ -6393,7 +6397,7 @@ function moverGolemP7(dt) {
     const l = Math.hypot(nx, nz); if (l > 0) { nx /= l; nz /= l; G.x -= nx * Math.min(0.25, 6 * dt); G.z -= nz * Math.min(0.25, 6 * dt); const dv = G.vx * nx + G.vz * nz; if (dv > 0) { G.vx -= dv * nx * 1.2; G.vz -= dv * nz * 1.2; } } }
   const rG = Math.hypot(G.x - P.x, G.z - P.z), binG = ((Math.round(Math.atan2(G.z - P.z, G.x - P.x) / (Math.PI * 2) * 72) % 72) + 72) % 72, bordeG = G.bordeR ? G.bordeR[binG] : P.r * 0.95, porEntrada = rG > 0.01 && ((G.x - P.x) * G.entX + (G.z - P.z) * G.entZ) / rG > Math.cos(0.8);
   if (!porEntrada && rG > bordeG - 1.5) { const nx = (G.x - P.x) / rG, nz = (G.z - P.z) / rG, dv = G.vx * nx + G.vz * nz, lim = Math.max(1, bordeG - 1.5); G.x = P.x + nx * lim; G.z = P.z + nz * lim; if (dv > 0) { G.vx -= dv * nx * 1.3; G.vz -= dv * nz * 1.3; } }   /* (por los demás lados, las columnas y el reborde lo frenan: solo cae por donde se llega) */
-  else if (porEntrada && rG > bordeG - 0.2) { G.cae = true; G.caeT = 0; G.vy = 0; musica.rocas(0.8); rotular("El gólem cae al vacío.", 4); return; }
+  else if (porEntrada && rG > bordeG - 0.2) { vueltaPlat = 0; vueltaPlatA0 = Math.atan2(camara.position.x - P.x, camara.position.z - P.z); G.cae = true; G.caeT = 0; G.vy = 0; musica.rocas(0.8); rotular("El gólem cae al vacío.", 4); return; }
   G.y = lerp(G.y, alturaPlatDe(P, G.x, G.z) > -1e3 ? Math.min(P.techo + 0.3, alturaPlatDe(P, G.x, G.z)) : P.techo, 1 - Math.exp(-dt * 8));
   const mira = Math.atan2(sigue || d < 6 || G.atq ? dx : G.vx, sigue || d < 6 || G.atq ? dz : G.vz); G.g.rotation.y = lerpAngulo(G.g.rotation.y, mira, 1 - Math.exp(-dt * 4)); G.g.position.set(G.x, G.y, G.z);
   G.andar.timeScale = clamp(v / 1.5 + Math.hypot(G.vx, G.vz) * 0.1, 0.15, 1.2); if (G.atq) G.andar.timeScale = 1; G.mix.update(dt);
