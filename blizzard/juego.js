@@ -597,6 +597,7 @@ let MAT_SUELO = null;                                        // el material del 
     if (Math.abs(x) < 90 && Math.abs(dg) > mg - 0.26 && Math.abs(dg) < mg + 0.26) z = grietaZ(x) + Math.sign(dg) * (Math.abs(dg) < mg ? mg - 0.02 : mg + 0.02);
     // Lo mismo en los dos bordes del precipicio.
     for (const [d, a] of ABISMOS) for (const borde of [d(x), a(x)]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.26) z = borde + (z < borde ? -0.02 : 0.02);
+    for (const borde of [SIMA7.desde, SIMA7.hasta]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.36) z = borde + (z < borde ? -0.02 : 0.02);   /* (y en la sima de la cueva: su filo, limpio, sin dientes de sierra) */
     // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
     let h = alturaTerreno(x, z);
     for (const [d, a] of ABISMOS) if (h < -1 && Math.abs(x) < 90 && z < d(x) && z > a(x)) {
@@ -4032,7 +4033,7 @@ let _matNieveHielo = null;
 const matNieveHielo = () => _matNieveHielo || (_matNieveHielo = (() => { const t = new THREE.TextureLoader().load("texturas/nieve.jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 70);
   const m = new THREE.MeshStandardMaterial({ map: t, color: 0xe3e7ec, emissive: 0x22252b, roughness: 1, vertexColors: true, transparent: true, bumpMap: texGranoNieve(), bumpScale: 0.035 });   /* (con grano: la nieve tiene relieve fino) */
   m.onBeforeCompile = sh => { sh.vertexShader = "attribute float alfa;\nvarying float vAlfa;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vAlfa = alfa;");
-    sh.fragmentShader = "varying float vAlfa;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= vAlfa;"); };   /* (bordes difuminados) */
+    sh.uniforms.blancoS = BLANCO_SUELO; sh.fragmentShader = "uniform float blancoS;\nvarying float vAlfa;\n" + sh.fragmentShader.replace("#include <alphamap_fragment>", "#include <alphamap_fragment>\n diffuseColor.a *= vAlfa;").replace("#include <tonemapping_fragment>", "{ float lS = dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)); gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.94, 0.955, 0.98) * max(lS, 0.82) / 0.82 * 0.94, blancoS * 0.75); }\n#include <tonemapping_fragment>"); };   /* (bordes difuminados; y blanca como el suelo en la zona de hielo: si no, se veía su borde) */
   m.stencilWrite = true; m.stencilRef = 0; m.stencilFunc = THREE.AlwaysStencilFunc; m.stencilZPass = THREE.ReplaceStencilOp; m.customProgramCacheKey = () => "nieveAlfa"; return m; })());   /* (algo azulada, cerca del tono del hielo pero más clara) */   /* (menos luz propia: se ven las sombras y el surco al pasar) */   // (como el camino de nieve del lago)
 function ventisquero(cx, cz, ancho, largo, alto, manto = null, forzar = false, sueloFijo = null) {
   if (!manto && !forzar && ((cz < DUNAS.desde + 2 && cz > PUZLE_Z - 6) || cz < DUNAS2.desde + 2)) return;                 // en las dunas, solo el manto (los montones resaltaban)
@@ -5078,22 +5079,25 @@ function actualizar(dt) {
   // a su sitio (detrás, mirando el recorrido).
   const giroMano = estado === "juego" ? (tecla("KeyV") ? 1 : 0) - (tecla("KeyB") ? 1 : 0) : 0;
   if (giroMano) { giroCam += dt * 1.8 * giroMano; yawCamara += dt * 1.8 * giroMano; }
-  else if (Math.hypot(vel.x, vel.z) > 0.3) giroCam *= Math.exp(-dt * 2.5);
+  /* (el giro que se le da a la cámara se queda: ya no vuelve solo al andar) */
   giroCam = Math.atan2(Math.sin(giroCam), Math.cos(giroCam));
   // Si corre hacia atrás (contra el recorrido) un momento, la cámara da la vuelta y le sigue; al volver a avanzar, vuelve.
   { const sp = Math.hypot(vel.x, vel.z), dv = sp > 0.01 ? (vel.x * c.fx + vel.z * c.fz) / sp : 0;
     atrasT = sp > 1.6 && dv < -0.8 ? atrasT + dt : Math.max(0, atrasT - dt * 3);   /* (solo si de verdad va hacia atrás: antes giraba con facilidad y confundía) */ alanteT = sp > 1.2 && dv > 0.4 ? alanteT + dt : Math.max(0, alanteT - dt * 2);
     const antes = vueltaCam, puede = reloj - vueltaDesde > 1.5;   // (sin bandazos: entre una vuelta y otra, un respiro)
-    if ((estado !== "juego" && estado !== "empujando") || rescate) vueltaCam = false;   /* (al hacer magia mirando hacia atrás, la cámara no se da la vuelta sola) */ else if (puede && !vueltaCam && atrasT > 2.2) vueltaCam = true; else if (puede && vueltaCam && alanteT > 0.8) vueltaCam = false;
+    if ((estado !== "juego" && estado !== "empujando") || rescate) vueltaCam = false;   /* (al hacer magia mirando hacia atrás, la cámara no se da la vuelta sola) */ else if (puede && vueltaCam && alanteT > 0.8) vueltaCam = false;   /* (ya no se da la vuelta sola al ir hacia atrás: se gira la cámara y se avanza hacia donde mira) */
     if (antes !== vueltaCam) { bloqueoControl = true; yawControl = yawCamara; atrasT = alanteT = 0; vueltaDesde = reloj;
       if (vueltaCam) vueltaLado = Math.sign(vel.x * c.fz - vel.z * c.fx) || vueltaLado; } }   // (gira por el lado hacia el que va; mientras se mantenga la dirección, los mandos no se dan la vuelta con la cámara)
   vueltaP = clamp(vueltaP + (vueltaCam ? dt : -dt) / 1.8, 0, 1);   // (media vuelta en ~1,8 s, suave al empezar y al acabar)
   let orbita = 0; if (orbitaT >= 0) { orbitaT += dt; const k = Math.min(1, orbitaT / 6); orbita = Math.PI * 2 * k * k * (3 - 2 * k); efectoEspiral = Math.max(efectoEspiral, 1 - Math.max(0, k - 0.8) * 5); if (!espiralEn) espiralTam = null; if (orbitaT >= 6) orbitaT = -1; }   // (con la espiral rodeando a Blizzard)   // (al recibir el bastón: una vuelta completa, suave)
-  const yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + Math.PI * vueltaLado * vueltaP * vueltaP * (3 - 2 * vueltaP) + orbita;
+  let yawObjetivo = Math.atan2(-c.fx, -c.fz) + giroCam + Math.PI * vueltaLado * vueltaP * vueltaP * (3 - 2 * vueltaP) + orbita;
+  { const G = golemP7, P = PLATAFORMA7, lucha = G.g && !G.dormido && !G.cae && !G.caido && P.rejilla && !rescate && Math.hypot(pos.x - P.x, pos.z - P.z) < P.r * 1.15 && pos.y > P.techo - 4 ? 1 : 0;
+    cenitalK += (lucha - cenitalK) * (1 - Math.exp(-dt * 1.6));
+    if (cenitalK > 0.01 && G.g) { yawObjetivo = lerpAngulo(yawObjetivo, Math.atan2(pos.x - G.x, pos.z - G.z), cenitalK); giroCam *= 1 - cenitalK; } }   /* (en la lucha, la cámara detrás de Blizzard mirando al gólem: adelante es ir hacia él) */
   { const dif = Math.abs(Math.atan2(Math.sin(yawObjetivo - yawCamara), Math.cos(yawObjetivo - yawCamara))); yawCamara = lerpAngulo(yawCamara, yawObjetivo, 1 - Math.exp(-dt * (orbitaT >= 0 || (vueltaP > 0 && vueltaP < 1) ? 5 : dif > 1 ? 2.4 : 1.2))); }
   const adelante = new THREE.Vector3(-Math.sin(yawCamara), 0, -Math.cos(yawCamara));
   const derecha = new THREE.Vector3(-adelante.z, 0, adelante.x);
-  if (!bloqueoControl) yawControl = yawCamara;
+  bloqueoControl = false; yawControl = yawCamara;   /* (los mandos, siempre según hacia dónde mira la cámara) */
   const adelanteC = new THREE.Vector3(-Math.sin(yawControl), 0, -Math.cos(yawControl)), derechaC = new THREE.Vector3(-adelanteC.z, 0, adelanteC.x);
 
   if (rescate) {
@@ -5639,10 +5643,10 @@ function actualizar(dt) {
     if (puertaArcana.t >= 0 && (puertaArcana.t < 1.05 || pos.z > puertaArcana.z + 1.5)) {   // y lejos hasta cruzarla
       const P = puertaArcana; ojo.set(P.x, P.y + 4.2, P.z + 17); mira.set(P.x, P.y + 4.2, P.z);
     }
-    { // La lucha con el gólem de la plataforma, desde arriba (cenital): se ve el borde y por dónde echarlo.
-      const G = golemP7, P = PLATAFORMA7, lucha = G.g && !G.dormido && !G.cae && !G.caido && P.rejilla && !rescate && Math.hypot(pos.x - P.x, pos.z - P.z) < P.r * 1.15 && pos.y > P.techo - 4 ? 1 : 0;
-      cenitalK += (lucha - cenitalK) * (1 - Math.exp(-dt * 1.6));
-      if (cenitalK > 0.001) { const cx = lerp(P.x, pos.x, 0.45), cz = lerp(P.z, pos.z, 0.45), y = yawCamara; _ojoC.set(cx + Math.sin(y) * 5, P.techo + 17, cz + Math.cos(y) * 5); _miraC.set(cx, P.techo, cz); ojo.lerp(_ojoC, cenitalK); mira.lerp(_miraC, cenitalK); } }
+    { // La lucha con el gólem de la plataforma: la cámara se aleja para verlo todo.
+      const P = PLATAFORMA7;
+      if (cenitalK > 0.001) { _ojoC.copy(ojo).sub(mira).multiplyScalar(1 + 0.35 * cenitalK); _ojoC.y += 3.5 * cenitalK; ojo.copy(mira).add(_ojoC);
+        const dO = Math.hypot(ojo.x - P.x, ojo.z - P.z), lim = P.r * 0.8; if (dO > lim) { const k = (lim / dO) * cenitalK + (1 - cenitalK); ojo.x = P.x + (ojo.x - P.x) * k; ojo.z = P.z + (ojo.z - P.z) * k; ojo.y += Math.min(3, (dO - lim) * 0.5) * cenitalK; } } }   /* (dentro del círculo: las columnas del borde no la tapan) */   /* (en la lucha, la cámara más lejos: se ve al gólem y el borde) */
     camara.position.lerp(ojo, 1 - Math.exp(-dt * 4));
     camara.lookAt(mira);
     if (temblorCam > 0) { const k = temblorCam * temblorCam; camara.position.x += (Math.random() - 0.5) * 0.5 * k; camara.position.y += (Math.random() - 0.5) * 0.4 * k; camara.rotation.z += (Math.random() - 0.5) * 0.05 * k; temblorCam = Math.max(0, temblorCam - dt * 1.6); }   /* (los golpes del gólem: la pantalla tiembla) */
@@ -6299,8 +6303,8 @@ function prepararAtaques(G) { G.ataques = true; if (!gGolemAnims || G.at) return
     _impactosGolem = { golpe: mide(slam, "bajo"), barrido: barr ? mide(barr, "rapido") : 1 }; }
   const hacer = (clip, golpe) => { const ac = G.mix.clipAction(clip); ac.setLoop(THREE.LoopOnce, 1); ac.clampWhenFinished = true; return { accion: ac, dura: clip.duration, golpe }; };
   G.at = { golpe: hacer(slam, _impactosGolem.golpe), barrido: barr ? hacer(barr, _impactosGolem.barrido) : null }; }
-function lanzarFuera(G, fuerte) { const P = PLATAFORMA7, rx = pos.x - P.x, rz = pos.z - P.z, rl = Math.hypot(rx, rz) || 1, gx = pos.x - G.x, gz = pos.z - G.z, gl = Math.hypot(gx, gz) || 1;
-  let nx = rx / rl * 0.6 + gx / gl * 0.4, nz = rz / rl * 0.6 + gz / gl * 0.4; const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l; const v = fuerte ? 17 : 8; vel.x = nx * v; vel.z = nz * v; vel.y = Math.max(vel.y, fuerte ? 5.5 : 4); enSuelo = false; }   /* (fuerte: fuera de la plataforma) */
+function lanzarFuera(G, fuerte, k) { const P = PLATAFORMA7, rx = pos.x - P.x, rz = pos.z - P.z, rl = Math.hypot(rx, rz) || 1, gx = pos.x - G.x, gz = pos.z - G.z, gl = Math.hypot(gx, gz) || 1;
+  let nx = rx / rl * 0.6 + gx / gl * 0.4, nz = rz / rl * 0.6 + gz / gl * 0.4; const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l; const v = (fuerte ? 19 : 10) * (k || 1); vel.x = nx * v; vel.z = nz * v; vel.y = Math.max(vel.y, fuerte ? 6 : 4.5); enSuelo = false; }   /* (más fuerte) */   /* (fuerte: fuera de la plataforma) */
 function ondaAlGolem() { const G = golemP7; if (!G.g || G.cae || G.caido) return; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 11) return;
   const f = 13.4 - d * 0.45; G.vx += dx / (d || 1) * f;   /* (desde el centro hacen falta unas tres ondas para echarlo) */ G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); }   /* (la onda lo empuja lejos de Blizzard) */
 // Los ojos del gólem (los ámbar de su textura): apagados mientras espera; al despertar, se iluminan un poco.
@@ -6351,7 +6355,7 @@ function moverGolemP7(dt) {
   const enPlat = Math.hypot(pos.x - P.x, pos.z - P.z) < P.r * 0.95 && pos.y > (P.techo ?? 0) - 1.5;
   if (!G.g) { if (Math.hypot(pos.x - P.x, pos.z - P.z) > 80) return;   /* (quieto en la plataforma, como una estatua, hasta que Blizzard se acerca) */
     const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.95); m.emissive = new THREE.Color(0x3a3b3e); } }); const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(4.6 / t.y);   /* (el gólem grande, más claro) */
-    G.g = new THREE.Group(); G.cuerpo = new THREE.Group(); G.cuerpo.add(d); G.g.add(G.cuerpo); scene.add(G.g); G.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]; G.andar = G.mix.clipAction(clip); G.andar.play(); G.picaCada = 2.5; G.d = d; prepararAtaques(G);
+    G.g = new THREE.Group(); G.cuerpo = new THREE.Group(); G.cuerpo.add(d); G.g.add(G.cuerpo); scene.add(G.g); G.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]; G.andar = G.mix.clipAction(clip); G.andar.play(); G.picaCada = 1.6; G.d = d; prepararAtaques(G);
     let ex = 0, ez = 1, dm = Infinity; for (const b of bloquesPaso) { const q = b.position; if (q.z < P.z) continue; const dd = Math.hypot(q.x - P.x, q.z - P.z); if (dd < dm) { dm = dd; ex = (q.x - P.x) / dd; ez = (q.z - P.z) / dd; } }
     G.bordeR = [];   /* (el borde real del suelo en cada dirección: el anillo que no puede cruzar salvo por la entrada) */
     for (let k = 0; k < 72; k++) { const a = k / 72 * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a); let r = P.r * 0.3; for (let q = P.r * 0.3; q < P.r * 1.1; q += 0.25) { const h = alturaPlatDe(P, P.x + c * q, P.z + sn * q); if (!(Math.abs(h - P.techo) < 0.8)) break; r = q; } G.bordeR.push(r); }
@@ -6371,12 +6375,12 @@ function moverGolemP7(dt) {
   // anda hacia Blizzard (si está en la plataforma), sin salirse solo del borde
   // el golpe al suelo: se alza, echa el cuerpo atrás y descarga; tiembla la pantalla y sale una onda que empuja
   if (!G.at && G.ataques && gGolemAnims) prepararAtaques(G);
-  if (G.at) { const A = G.atq; if (!A) { G.picaCada -= dt; if (G.picaCada <= 0 && Math.hypot(pos.x - G.x, pos.z - G.z) < 10 && G.golpeT <= 0) { const cerca = Math.hypot(pos.x - G.x, pos.z - G.z) < 4.2, tipo = cerca && G.at.barrido && G.ultimo !== "barrido" ? "barrido" : "golpe"; G.ultimo = tipo; const X = G.at[tipo];
-        G.atq = { tipo, X, t: 0, hecho: false }; G.andar.fadeOut(0.25); X.accion.reset().setEffectiveWeight(1).fadeIn(0.25).play(); } }
-      else { A.t += dt; if (!A.hecho && A.t >= A.X.golpe) { A.hecho = true;
+  if (G.at) { const A = G.atq; if (!A) { G.picaCada -= dt; if (G.picaCada <= 0 && Math.hypot(pos.x - G.x, pos.z - G.z) < 10 && G.golpeT <= 0) { const cerca = Math.hypot(pos.x - G.x, pos.z - G.z) < 5.5, tipo = cerca && G.at.barrido && (G.ultimo !== "barrido" || Math.random() < 0.65) ? "barrido" : "golpe";   /* (sobre todo con los codos) */ G.ultimo = tipo; const X = G.at[tipo];
+        G.atq = { tipo, X, t: 0, hecho: false, ts: tipo === "barrido" ? 1.55 : 1.3 }; G.andar.fadeOut(0.2); X.accion.reset().setEffectiveWeight(1).fadeIn(0.2).play(); X.accion.timeScale = G.atq.ts; } }   /* (más rápido) */
+      else { A.t += dt * (A.ts || 1); if (!A.hecho && A.t >= A.X.golpe) { A.hecho = true;
           if (A.tipo === "golpe") { temblorCam = 1; musica.golpe(0.9); musica.rocas(0.7); anilloGolem(G.x, G.y, G.z); }   /* (golpe al suelo: tiembla y sale la onda) */
-          else { temblorCam = 0.45; musica.golpe(0.5); const dx = pos.x - G.x, dz = pos.z - G.z, d = Math.hypot(dx, dz); if (!rescate && d < 5 && Math.abs(pos.y - G.y) < 3) lanzarFuera(G, true); } }   /* (el barrido de codos te echa directamente) */   /* (el barrido: te lanza de lado) */
-        if (A.t >= A.X.dura - 0.3) { A.X.accion.fadeOut(0.3); G.andar.reset().fadeIn(0.3).play(); G.atq = null; G.picaCada = 2.0 + Math.random() * 1.6; } } }
+          else { temblorCam = 0.45; musica.golpe(0.5); const dx = pos.x - G.x, dz = pos.z - G.z, d = Math.hypot(dx, dz); if (!rescate && d < 5.8 && Math.abs(pos.y - G.y) < 3) lanzarFuera(G, true, 1.2); } }   /* (el barrido de codos te echa directamente) */   /* (el barrido: te lanza de lado) */
+        if (A.t >= A.X.dura - 0.3) { A.X.accion.fadeOut(0.3); G.andar.reset().fadeIn(0.3).play(); G.atq = null; G.picaCada = 1.1 + Math.random() * 0.9; } } }
   else if (G.pica < 0) { G.picaCada -= dt; if (G.picaCada <= 0 && Math.hypot(pos.x - G.x, pos.z - G.z) < 10 && G.golpeT <= 0) G.pica = 0; }
   if (!G.at && G.pica >= 0) { G.pica += dt; const t = G.pica, sube = t < 0.7 ? suave(0, 0.7, t) : 1 - suave(0.7, 0.82, t);
     G.cuerpo.position.y = 0.7 * sube; G.cuerpo.rotation.x = t < 0.7 ? -0.35 * suave(0, 0.7, t) : lerp(-0.35, 0.3, suave(0.7, 0.82, t)) * (1 - suave(1.0, 1.4, t));
