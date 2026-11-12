@@ -3037,8 +3037,8 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
       const media = bins.reduce((s, v) => s + v, 0) / 72, muesca = bins.map((v, i) => [v, i * 5 + 2.5]).filter(([v]) => v < media * 0.25).map(([, a]) => a);
       const ult = bloquesPaso.filter(q => q.position.z > P.z + P.r).sort((p2, q2) => p2.position.z - q2.position.z)[0], aEnt = ult ? ((Math.atan2(ult.position.x - P.x, ult.position.z - P.z) * 180 / Math.PI) + 360) % 360 : 0;
       const nota = a => { const d = dA(a); return Math.min(60, ...muesca.map(m => dif(m + d, aEnt)), 60) - Math.abs(d) * 0.05; };   /* (la columna entera más a mano que, girada hacia la salida, deja la muesca lejos de la entrada) */
-      P.giroCol = true;
-      if (ent.length) { const best = ent.reduce((p, q) => nota(q) > nota(p) ? q : p), d = dA(best) * Math.PI / 180, c = new THREE.Vector3(P.x, 0, P.z), off = g.position.clone().sub(c);
+      P.giroCol = true; { const ord = muesca.slice().sort((a, b) => a - b), grupos = []; for (const a of ord) { const u = grupos[grupos.length - 1]; if (u && a - u[u.length - 1] <= 10) u.push(a); else grupos.push([a]); } if (grupos.length > 1 && 360 - ord[ord.length - 1] + ord[0] <= 10) { grupos[0] = grupos.pop().concat(grupos[0]); } P.muesca = grupos.reduce((p, q) => q.length > p.length ? q : p, []); }   /* (las direcciones de la muesca: por ahí cae el gólem) */
+      if (ent.length) { const best = ent.reduce((p, q) => nota(q) > nota(p) ? q : p), d = dA(best) * Math.PI / 180, dG = dA(best), c = new THREE.Vector3(P.x, 0, P.z), off = g.position.clone().sub(c); P.muesca = P.muesca.map(m => ((m + dG) % 360 + 360) % 360);
         g.rotation.y += d; off.applyAxisAngle(new THREE.Vector3(0, 1, 0), d); g.position.set(c.x + off.x, g.position.y, c.z + off.z); g.updateMatrixWorld(true);
         if (P.hueco) { const ho = new THREE.Vector3(P.hueco.x - c.x, 0, P.hueco.z - c.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), d); P.hueco.x = c.x + ho.x; P.hueco.z = c.z + ho.z; }
         const R2 = P.rejilla.n * P.rejilla.paso, h2 = P.rejilla.h; rejillaPorTriangulos(P, P.r * 1.08, P.rejilla.paso, P.rejilla.n, h2); void R2;
@@ -3115,7 +3115,7 @@ function usarPlataforma7(g) {   // la plataforma flotante del editor como santua
       { // El puente grande, nevado: de la última pilastra de salto al borde de la plataforma (en lugar de las dos últimas pilastras).
         const ult = bloquesPaso.filter(g => g.position.z > P.z + P.r && g.position.z < -1580).sort((a, c) => a.position.z - c.position.z)[0], cU = ult ? colisiones.find(c => c.plataforma && c.fija && Math.hypot(c.x - ult.position.x, c.z - ult.position.z) < 2.5) : null;
         if (ult && cU) { const A0 = new THREE.Vector3(ult.position.x, cU.techo, ult.position.z), dir = new THREE.Vector3(A0.x - P.x, 0, A0.z - P.z).normalize(), B = new THREE.Vector3(P.x + dir.x * (P.r - 1.6), P.techo, P.z + dir.z * (P.r - 1.6)), A = A0.clone().addScaledVector(dir, -1.2);
-          puenteNevado(A, B); } }   /* (se camina por el tablero, en pendiente suave) */
+          puenteNevado(A, B); P.puenteAcceso = A.clone().lerp(B, 0.35); } }   /* (se camina por el tablero, en pendiente suave) */   /* (si el gólem te tira, se vuelve a este punto del puente) */
       for (const id of ["pmw3rrthhp34e", "pmw3rt9b1rrz9"]) { const e = escenaEd.get(id); if (e && e.g) e.g.traverse(o => { if (o.isMesh) o.material = mt; }); } }   /* (y las dos pilastras de salto del editor, igual) */
   }
   /* (sin manto de nieve encima: se veían polígonos; la nieve va en la propia piedra) */
@@ -5037,7 +5037,7 @@ function empezarRescate() {
   const zI = enRuedas ? RUEDAS_Z.desde + 1.5 : PRECIPICIO.desde + 2, inicio = new THREE.Vector3(caminoX(zI), 0, zI);   // (en las grietas de las ruedas: al principio de esa zona)
   inicio.y = alturaTerreno(inicio.x, inicio.z);
   rescate = { t: 0, desde: pos.clone(), hacia: enPrecipicio || enRuedas ? inicio : seguro.clone() };
-  if (pos.z < SIMA7.desde + 2 && pos.z > SIMA7.hasta - 6) { const zE = -1533.5, xE = 4.2; rescate.hacia = new THREE.Vector3(xE, sueloEn(xE, zE, 60).h + 0.05, zE); if (golemP7.caido && PLATAFORMA7.techo !== undefined) rescate.hacia = new THREE.Vector3(PLATAFORMA7.x, PLATAFORMA7.techo + 0.05, PLATAFORMA7.z); }   /* (vencido el gólem, se vuelve a la plataforma) */   /* (justo antes de saltar a las pilastras) */   /* (en la sima de la plataforma flotante: de vuelta a la entrada de su cueva) */
+  if (pos.z < SIMA7.desde + 2 && pos.z > SIMA7.hasta - 6) { const zE = -1533.5, xE = 4.2; rescate.hacia = new THREE.Vector3(xE, sueloEn(xE, zE, 60).h + 0.05, zE); if (golemP7.caido && PLATAFORMA7.techo !== undefined) rescate.hacia = new THREE.Vector3(PLATAFORMA7.x, PLATAFORMA7.techo + 0.05, PLATAFORMA7.z); else if (golemP7.g && !golemP7.dormido && PLATAFORMA7.puenteAcceso) rescate.hacia = PLATAFORMA7.puenteAcceso.clone().add(new THREE.Vector3(0, 0.15, 0)); }   /* (en plena lucha, al puente de acceso) */   /* (vencido el gólem, se vuelve a la plataforma) */   /* (justo antes de saltar a las pilastras) */   /* (en la sima de la plataforma flotante: de vuelta a la entrada de su cueva) */
   vel.set(0, 0, 0);
   efectoEspiral = 2;
   if (pos.z < DUNAS2.desde && pos.z > DUNAS2.hasta && barre && ++hundidasD2 >= 2) rotular("Agáchate y barre: el viento descubre el paso.", 5);   // (la pista, solo tras hundirse dos veces: al tercer intento)
@@ -5367,7 +5367,7 @@ function actualizar(dt) {
       trazo.empezar("runa", () => { estado = "despertando"; arrodillado = 0; orbitaT = 0; aprende = "piedras"; });
       musica.viento(0.3, 0.9);
     }
-    { const d = ui.querySelector("#desarrollo"), ver = pos.z < HIELO.desde + 10; if (d.hidden === ver) d.hidden = !ver; }   // (solo en la zona de hielo: lo que sigue, a medio hacer)
+    { const d = ui.querySelector("#desarrollo"), ver = !!golemP7.caido; if (d.hidden === ver) d.hidden = !ver; }   // (solo una vez vencido el gólem de la plataforma: lo que sigue, a medio hacer)
     if (avisoCamara && reloj > avisoCamara) { avisoCamara = 0; rotular(tactil ? "Desliza a los lados la bola de salto\npara girar la cámara." : "V y B giran la cámara.", 4); }
     if (!avisoPuente && pos.z < PUENTE.desde + 6) { avisoPuente = true; rotular("Cruza por las pilastras.", 3); }
     if (!avisoSalto && pos.z < ZONA_PILASTRAS[0] + 4) { avisoSalto = true; rotular(tactil ? "Desliza arriba para saltar." : "Salta con Espacio.", 3); }
@@ -6362,7 +6362,8 @@ function moverGolemP7(dt) {
     G.g = new THREE.Group(); G.cuerpo = new THREE.Group(); G.cuerpo.add(d); G.g.add(G.cuerpo); scene.add(G.g); G.mix = new THREE.AnimationMixer(d); const clip = GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]; G.andar = G.mix.clipAction(clip); G.andar.play(); G.picaCada = 1.6; G.d = d; prepararAtaques(G);
     let ex = 0, ez = 1, dm = Infinity; for (const b of bloquesPaso) { const q = b.position; if (q.z < P.z) continue; const dd = Math.hypot(q.x - P.x, q.z - P.z); if (dd < dm) { dm = dd; ex = (q.x - P.x) / dd; ez = (q.z - P.z) / dd; } }
     G.bordeR = [];   /* (el borde real del suelo en cada dirección: el anillo que no puede cruzar salvo por la entrada) */
-    for (let k = 0; k < 72; k++) { const a = k / 72 * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a); let r = P.r * 0.3; for (let q = P.r * 0.3; q < P.r * 1.1; q += 0.25) { const h = alturaPlatDe(P, P.x + c * q, P.z + sn * q); if (!(Math.abs(h - P.techo) < 0.8)) break; r = q; } G.bordeR.push(r); }
+    for (let k = 0; k < 72; k++) { const a = k / 72 * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a); let r = P.r * 0.3, hueco = 0; for (let q = P.r * 0.3; q < P.r * 1.1; q += 0.25) { const h = alturaPlatDe(P, P.x + c * q, P.z + sn * q); if (Math.abs(h - P.techo) < 1.0) { r = q; hueco = 0; } else if ((hueco += 0.25) > 1.6) break; } G.bordeR.push(r); }   /* (las grietas pequeñas del suelo no cuentan como borde) */
+    if (P.muesca && P.muesca.length) G.abierto = G.bordeR.map((_, k) => { const a = k / 72 * Math.PI * 2, ang = ((Math.atan2(Math.cos(a), Math.sin(a)) * 180 / Math.PI) + 360) % 360; return P.muesca.some(m => Math.abs(((ang - m + 540) % 360) - 180) < 9); });   /* (solo cae por la muesca triangular grande del suelo; por lo demás, el anillo lo retiene) */
     G.entX = ex; G.entZ = ez; G.x = P.x; G.z = P.z;   /* (en el centro del círculo) */ G.y = P.techo; G.vx = G.vz = G.vy = 0; G.g.position.set(G.x, G.y, G.z); G.g.rotation.y = Math.atan2(ex, ez);   /* (mira hacia la entrada, a la espera) */
     G.dormido = true; G.desp = -1; crearOjos(G); const idle = GA.animations.find(a => /Idle/i.test(a.name)); if (idle) { G.quieto = G.mix.clipAction(idle); G.quieto.play(); G.quieto.timeScale = 0; } G.andar.stop(); G.mix.update(0);
     G.colD = { x: G.x, z: G.z, r: 1.6, techo: P.techo + 4.6 }; colisiones.push(G.colD); }
@@ -6373,7 +6374,7 @@ function moverGolemP7(dt) {
       if (G.desp > 1.6) { G.dormido = false; const i = colisiones.indexOf(G.colD); if (i >= 0) colisiones.splice(i, 1); if (G.quieto) G.quieto.fadeOut(0.4); G.andar.reset().fadeIn(0.4).play(); } }
     G.mix.update(dt); moverOjos(G, G.desp >= 0 ? suave(0, 0.8, G.desp) : 0); if (G.dormido) return; }
   moverOjos(G, G.cae ? Math.max(0, 1 - G.caeT) : 1);
-  if (!G.avisado && estado === "juego") { G.avisado = true; rotular(tactil ? "Un gólem guarda la plataforma.\nEmpújalo con la onda (mantén ◇) al vacío, por donde llegaste." : "Un gólem guarda la plataforma.\nEmpújalo con la onda (mantén E) al vacío, por donde llegaste.", 7); }
+  if (!G.avisado && estado === "juego") { G.avisado = true; rotular(tactil ? "Un gólem guarda la plataforma.\nEmpújalo con la onda (mantén ◇) al vacío, por la muesca del suelo." : "Un gólem guarda la plataforma.\nEmpújalo con la onda (mantén E) al vacío, por la muesca del suelo.", 7); }
   G.g.visible = true; G.golpeT = Math.max(0, G.golpeT - dt);
   if (G.cae) { G.caeT += dt; G.vy -= 9.8 * dt; G.x += G.vx * dt; G.z += G.vz * dt; G.y += G.vy * dt; G.g.rotation.x += dt * 1.2; G.g.position.set(G.x, G.y, G.z); G.mix.update(dt * 0.3); if (G.caeT > 4) { G.caido = true; G.g.visible = false; } return; }
   // anda hacia Blizzard (si está en la plataforma), sin salirse solo del borde
@@ -6395,7 +6396,7 @@ function moverGolemP7(dt) {
   G.x += G.vx * dt; G.z += G.vz * dt; const fr = Math.exp(-dt * 1.6); G.vx *= fr; G.vz *= fr;
   { let nx = 0, nz = 0; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a); if (alturaPlatDe(P, G.x + c * 1.25, G.z + s * 1.25) > P.techo + 2.5) { nx += c; nz += s; } }   /* (contra los pilares, se aparta y resbala por su lado: no se mete dentro) */
     const l = Math.hypot(nx, nz); if (l > 0) { nx /= l; nz /= l; G.x -= nx * Math.min(0.25, 6 * dt); G.z -= nz * Math.min(0.25, 6 * dt); const dv = G.vx * nx + G.vz * nz; if (dv > 0) { G.vx -= dv * nx * 1.2; G.vz -= dv * nz * 1.2; } } }
-  const rG = Math.hypot(G.x - P.x, G.z - P.z), binG = ((Math.round(Math.atan2(G.z - P.z, G.x - P.x) / (Math.PI * 2) * 72) % 72) + 72) % 72, bordeG = G.bordeR ? G.bordeR[binG] : P.r * 0.95, porEntrada = rG > 0.01 && ((G.x - P.x) * G.entX + (G.z - P.z) * G.entZ) / rG > Math.cos(0.8);
+  const rG = Math.hypot(G.x - P.x, G.z - P.z), binG = ((Math.round(Math.atan2(G.z - P.z, G.x - P.x) / (Math.PI * 2) * 72) % 72) + 72) % 72, bordeG = G.bordeR ? G.bordeR[binG] : P.r * 0.95, porEntrada = rG > 0.01 && (G.abierto ? G.abierto[binG] : ((G.x - P.x) * G.entX + (G.z - P.z) * G.entZ) / rG > Math.cos(0.8));
   if (!porEntrada && rG > bordeG - 1.5) { const nx = (G.x - P.x) / rG, nz = (G.z - P.z) / rG, dv = G.vx * nx + G.vz * nz, lim = Math.max(1, bordeG - 1.5); G.x = P.x + nx * lim; G.z = P.z + nz * lim; if (dv > 0) { G.vx -= dv * nx * 1.3; G.vz -= dv * nz * 1.3; } }   /* (por los demás lados, las columnas y el reborde lo frenan: solo cae por donde se llega) */
   else if (porEntrada && rG > bordeG - 0.2) { vueltaPlat = 0; vueltaPlatA0 = Math.atan2(camara.position.x - P.x, camara.position.z - P.z); G.cae = true; G.caeT = 0; G.vy = 0; musica.rocas(0.8); rotular("El gólem cae al vacío.", 4); return; }
   G.y = lerp(G.y, alturaPlatDe(P, G.x, G.z) > -1e3 ? Math.min(P.techo + 0.3, alturaPlatDe(P, G.x, G.z)) : P.techo, 1 - Math.exp(-dt * 8));
