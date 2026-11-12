@@ -2003,13 +2003,13 @@ function encajar(gltf, x, y, z, ax, ay, az, giro = 0) {
         for (let j = 0; j < 128; j++) for (let i = 0; i < 128; i++) { let a = 0; for (const [bx, by, br] of bul) a = Math.max(a, 1 - Math.hypot(i - bx, j - by) / br); a = Math.pow(Math.max(0, a), 1.4) * (1 - suave(48, 63, Math.hypot(i - 64, j - 64))); const q = (j * 128 + i) * 4; d.data[q] = d.data[q + 1] = d.data[q + 2] = 255; d.data[q + 3] = 255 * a; }
         x.putImageData(d, 0, 0); return new THREE.CanvasTexture(c); })();
       const rN = generador(5353); nubesSima.length = 0;
-      for (let k = 0; k < 46; k++) { const hondo = false, y = hondo ? 6 + rN() * 18 : 26.5 + rN() * 6.5, s = hondo ? 18 + rN() * 14 : 9 + rN() * 9;
-        const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: hondo ? 0x8394ac : 0xe8eef5, transparent: true, opacity: hondo ? 0.55 : 0.42 + rN() * 0.2, depthWrite: false, fog: false }));
+      for (let k = 0; k < 46; k++) { const hondo = false, y = hondo ? 6 + rN() * 18 : 15 + rN() * 7,   /* (bien por debajo de las columnas y la plataforma: un mar de niebla abajo, no manchas en el aire) */ s = hondo ? 18 + rN() * 14 : 9 + rN() * 9;
+        const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: hondo ? 0x8394ac : 0xffffff, transparent: true, opacity: hondo ? 0.55 : 0.42 + rN() * 0.2, depthWrite: false, fog: false, toneMapped: false }));
         const x0 = PLATAFORMA7.x + (rN() - 0.5) * 60, z0 = SIMA7.hasta + 2 + rN() * (SIMA7.desde - SIMA7.hasta - 4); m.position.set(x0, y, z0); m.scale.set(s, s * 0.55, 1); m.material.rotation = rN() * 6.28; m.renderOrder = 3; scene.add(m);
         nubesSima.push({ m, x0, z0, y0: y, s0: s, f: rN() * 6.28, v: 0.15 + rN() * 0.3 }); }
       // En la sala de la cueva, una niebla tenue a ras de suelo que ondea despacio entre las pilastras: se intuye, no tapa.
-      const rC = generador(6464); for (let k = 0; k < 30; k++) { const an = rC() * 6.28, dd = Math.sqrt(rC()) * 21, x0 = CUEVA7.x + Math.sin(an) * dd, z0 = CUEVA7.z + Math.cos(an) * dd * 1.1, s = 5 + rC() * 4, y = alturaTerreno(x0, z0) + s * 0.3;
-        const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xe4eaf2, transparent: true, opacity: 0.16 + rC() * 0.12, depthWrite: false, fog: false })); m.position.set(x0, y, z0); m.scale.set(s, s * 0.55, 1); m.material.rotation = rC() * 6.28; m.renderOrder = 3; scene.add(m);
+      const rC = generador(6464); for (let k = 0; k < 0; k++) {   /* (quitada: se veían manchas grises flotando en la sala) */ const an = rC() * 6.28, dd = Math.sqrt(rC()) * 21, x0 = CUEVA7.x + Math.sin(an) * dd, z0 = CUEVA7.z + Math.cos(an) * dd * 1.1, s = 5 + rC() * 4, y = alturaTerreno(x0, z0) + s * 0.3;
+        const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0.16 + rC() * 0.12, depthWrite: false, fog: false, toneMapped: false })); m.position.set(x0, y, z0); m.scale.set(s, s * 0.55, 1); m.material.rotation = rC() * 6.28; m.renderOrder = 3; scene.add(m);
         nubesCueva.push({ m, x0, z0, y0: y, s0: s, f: rC() * 6.28, v: 0.2 + rC() * 0.3 }); } }
     // El puente sobre la sima, tras la plataforma: tres vigas de hielo (los bloques de hielo, estirados), cada una gira sobre su pilar.
     { const top = 35, geoP = new THREE.CylinderGeometry(0.45, 0.6, 40, 10), matP = new THREE.MeshStandardMaterial({ color: 0xcfdbe8, roughness: 0.6 });
@@ -4875,12 +4875,14 @@ function empezar(santuario = 0) {
 // Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
 // sin la toma inicial.
 function empezarEnSantuario(n) {
+  let inicioYaw = null;
   const P = n === 7 ? PLATAFORMA7 : n === 6 ? PLATAFORMA6 : PLATAFORMAS[Math.min(n, 5) - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
   pos.set(x, alturaSuelo(x, z) + 0.05, z);
   if (n === 6) { const zz = PLATAFORMA6.z + PLATAFORMA6.r + 1.6, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); }   // (ante la plataforma, ya pasado el puente)
-  if (n === 7) { for (const M of murosHielo) if (!M.roto) romperMuro(M, true); const zz = -1566, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); if (P.rejilla) pos.set(P.x, P.techo + 0.05, P.z + P.r * 0.5); }   // (desde el panel: las paredes del túnel, ya rotas)
+  if (n === 7) { for (const M of murosHielo) if (!M.roto) romperMuro(M, true); const zz = -1566, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); if (P.rejilla) { pos.set(P.x, P.techo + 0.05, P.z + P.r * 0.5); if (P.puenteAcceso) { pos.copy(P.puenteAcceso); pos.y += 0.1; inicioYaw = Math.atan2(pos.x - P.x, pos.z - P.z); } } }   /* (en el puente de acceso, mirando a la plataforma: sin pilastras delante de la cámara) */   // (desde el panel: las paredes del túnel, ya rotas)
   vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
+  if (inicioYaw !== null) { rumbo = inicioYaw + Math.PI; const c = enCamino(pos.x, pos.z); giroCam = Math.atan2(Math.sin(inicioYaw - Math.atan2(-c.fx, -c.fz)), Math.cos(inicioYaw - Math.atan2(-c.fx, -c.fz))); yawCamara = inicioYaw; }
   tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false;
   if (n >= 2) { muevePiedras = true; yaAlzada = true; }
   if (n >= 3) abrePuertas = true;
@@ -4889,7 +4891,7 @@ function empezarEnSantuario(n) {
   if (n >= 7) giraAspas = true;   /* (el del puente: con su runa ya aprendida, como en los demás santuarios) */
   if (n >= 6) { onda = true; crecerBaston(3); capaTela.rasgar(true); }   // (desde el panel: llegas con su magia, sin reseguir la runa)
   estado = "juego"; tIntro = INTRO_DURA;
-  camara.position.set(pos.x, pos.y + 3.6, pos.z + 7.2);
+  camara.position.set(pos.x + Math.sin(yawCamara) * 7.2, pos.y + 3.6, pos.z + Math.cos(yawCamara) * 7.2);
   // Los avisos de lo que queda atrás, ya vistos.
   if (n >= 2) avisoPuente = avisoSalto = avisoAgacharse = avisoMixta = avisoRocas = avisoGrieta = avisoRellano = true;
   if (n >= 3) { avisoPenascos = avisoAlza = true; for (const a of AVISOS_TUNEL) if (a.z > pos.z) a.visto = true; }
@@ -5067,7 +5069,7 @@ function empezarRescate() {
   const zI = enRuedas ? RUEDAS_Z.desde + 1.5 : PRECIPICIO.desde + 2, inicio = new THREE.Vector3(caminoX(zI), 0, zI);   // (en las grietas de las ruedas: al principio de esa zona)
   inicio.y = alturaTerreno(inicio.x, inicio.z);
   rescate = { t: 0, desde: pos.clone(), hacia: enPrecipicio || enRuedas ? inicio : seguro.clone() };
-  if (pos.z < SIMA7.desde + 2 && pos.z > SIMA7.hasta - 6) { const zE = -1533.5, xE = 4.2; rescate.hacia = new THREE.Vector3(xE, sueloEn(xE, zE, 60).h + 0.05, zE); if (golemP7.caido && PLATAFORMA7.techo !== undefined) rescate.hacia = new THREE.Vector3(PLATAFORMA7.x, PLATAFORMA7.techo + 0.05, PLATAFORMA7.z); else if (golemP7.g && !golemP7.dormido && PLATAFORMA7.puenteAcceso) rescate.hacia = PLATAFORMA7.puenteAcceso.clone().add(new THREE.Vector3(0, 0.15, 0)); }   /* (en plena lucha, al puente de acceso) */   /* (vencido el gólem, se vuelve a la plataforma) */   /* (justo antes de saltar a las pilastras) */   /* (en la sima de la plataforma flotante: de vuelta a la entrada de su cueva) */
+  if (pos.z < SIMA7.desde + 2 && pos.z > SIMA7.hasta - 6) { const zE = -1533.5, xE = 4.2; rescate.hacia = new THREE.Vector3(xE, sueloEn(xE, zE, 60).h + 0.05, zE); if (golemP7.caido && PLATAFORMA7.techo !== undefined) rescate.hacia = new THREE.Vector3(PLATAFORMA7.x, PLATAFORMA7.techo + 0.05, PLATAFORMA7.z); else if (golemP7.g && !golemP7.dormido && PLATAFORMA7.puenteAcceso) rescate.hacia = PLATAFORMA7.puenteAcceso.clone().add(new THREE.Vector3(0, 0.15, 0)); }   if (pos.z < PLATAFORMA7.z - PLATAFORMA7.r + 0.5 && pos.z > SIMA7.hasta - 6 && PLATAFORMA7.techo !== undefined) rescate.hacia = new THREE.Vector3(PLATAFORMA7.x, PLATAFORMA7.techo + 0.05, PLATAFORMA7.z - PLATAFORMA7.r + 4.5);   /* (cayendo por las columnas de después de la plataforma: de vuelta a la plataforma) */   /* (en plena lucha, al puente de acceso) */   /* (vencido el gólem, se vuelve a la plataforma) */   /* (justo antes de saltar a las pilastras) */   /* (en la sima de la plataforma flotante: de vuelta a la entrada de su cueva) */
   vel.set(0, 0, 0);
   efectoEspiral = 2;
   if (pos.z < DUNAS2.desde && pos.z > DUNAS2.hasta && barre && ++hundidasD2 >= 2) rotular("Agáchate y barre: el viento descubre el paso.", 5);   // (la pista, solo tras hundirse dos veces: al tercer intento)
