@@ -2263,7 +2263,7 @@ function moverZonas(dt) {
     const dx = pos.x - G.col.x, dz = pos.z - G.col.z, d = Math.hypot(dx, dz);
     if (!rescate && d < G.col.r + 0.45 && pos.y < G.col.techo && G.golpeT <= 0) { const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.col.x + nx * (G.col.r + 0.5); pos.z = G.col.z + nz * (G.col.r + 0.5); vel.x = nx * 8; vel.z = nz * 8; vel.y = Math.max(vel.y, 3.5); enSuelo = false; G.golpeT = 0.6; musica.rocas(0.45); }   // (el empujón)
   }
-  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt); moverGolemPuerta(dt); moverGolemsPozos(dt); moverMontes(dt);
+  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt); moverGolemPuerta(dt); moverGolemsPozos(dt); moverMontes(dt); barreraSima4Paso();
   for (const W of rodantesEd) {   // ruedas del editor: van y vienen rodando de un lado al otro del paso
     const k = 0.5 - 0.5 * Math.cos(relojMov * 0.55 + W.fase), x = lerp(W.x0, 2 * W.cx - W.x0, k), d = x - W.x; W.x = x;
     W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
@@ -4333,7 +4333,7 @@ function animarPaso(dt) {
     const rM2 = generador(5858); for (let k = 0; k < 14; k++) { const a = rM2() * Math.PI - Math.PI / 2, d = 14 + rM2() * 9; enterrar(kitRocas[1 + Math.floor(rM2() * 4)], cx + Math.sin(a) * d, (MONT.claro[0] + MONT.claro[1]) / 2 + Math.cos(a) * 10, 1.4 + rM2() * 3, rM2() * 6, 0.3); } }
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
   { const x0 = -70, x1 = 50, z0 = SALIDA_CUEVA_Z - 2, z1 = -2010, dist = (x, z) => Math.max(0, x0 + 3 - x, x - (x1 - 3), z - (z0 - 3), (z1 + 3) - z);   /* (la zona de pozos y la de los cadáveres: toda cubierta de nieve honda, como la de la zona de las ruedas) */
-    for (let x = x0; x < x1 - 1; x += 40) for (let z = z0; z > z1 + 1; z -= 40) { const zb = Math.max(z1, z - 40); nievePendiente.push(() => ventisquero(x + 20, (z + zb) / 2, 40, z - zb, 0.32, { dist, R: 3, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.35 }, true)); } }
+    for (let x = x0; x < x1 - 1; x += 40) for (let z = z0; z > z1 + 1; z -= 40) { const zb = Math.max(z1, z - 40); ventisquero(x + 20, (z + zb) / 2, 40, z - zb, 0.32, { dist, R: 3, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.35 }, true); } }   /* (directo: la cola de nieve pendiente ya se había vaciado y no se creaba) */
   /* (el manto fino de antes, sustituido por la nieve honda de arriba) */
   // Y ruinas grandes, medio enterradas y nevadas, a los dos lados del camino; dos arcos que se cruzan por debajo y, al fondo, una ruina inmensa.
   { const rR = generador(8282), nevar = g => g.traverse(o => { if (o.isMesh) { const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.22, 0.55,"); }; m.customProgramCacheKey = () => "ruinaDunaN"; espolvorear(m, 0.85, "ruinaDuna", true, true); } }),   /* (fuera, todo con nieve acumulada encima y espolvoreado) */
@@ -6467,6 +6467,11 @@ function ondaAGolemsPozos() { for (const G of golemsPozos) { if (!G.g || G.dormi
 const montes = { listo: false, t: 0, esf: [], sal: [], rod: [], sig: 0, avisos: {} };
 function bolaMonte(R) { const g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group(); g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false; return { g, giro, R }; }
 function empujarBlizzard(vx, vz, vy) { vel.x = vx; vel.z = vz; vel.y = Math.max(vel.y, vy); enSuelo = false; musica.rocas(0.5); temblorCam = Math.max(temblorCam, 0.3); }
+// La sima de la columna que cae (santuario de la revelación): no se cruza de un salto mágico; solo por la columna, cuando cae.
+const barreraSima4 = []; let barreraSima4Puesta = false;
+function barreraSima4Paso() {
+  if (!barreraSima4Puesta) { barreraSima4Puesta = true; if (puzle.col4.t >= 0) return; const z = SIMA4.desde + 0.45, cx = caminoX(z); for (let x = cx - 16; x <= cx + 16; x += 1.1) { const c = { x, z, r: 0.75, techo: 99 }; barreraSima4.push(c); colisiones.push(c); } }
+  if (barreraSima4.length && puzle.col4.t >= 1.2) { for (const c of barreraSima4) { const k = colisiones.indexOf(c); if (k >= 0) colisiones.splice(k, 1); } barreraSima4.length = 0; } }
 function moverMontes(dt) {
   if (window.BLIZZARD_EDITOR || pos.z > -2500 || pos.z < -2900) return; const E = 20;
   if (!montes.listo) { montes.listo = true; for (let k = 0; k < 4; k++) montes.esf.push({ ...bolaMonte(1.3), activa: false });
