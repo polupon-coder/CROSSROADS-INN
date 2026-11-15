@@ -201,7 +201,7 @@ const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2,
     // tras el desfiladero: dunas con un paso serpenteante entre la nieve que se hunde; luego, las columnas de basalto
     [0, -990], [3.5, -1002], [-3.5, -1015], [4, -1028], [-4, -1041], [3.5, -1054], [-3.5, -1067], [3, -1080], [0, -1093], [0, -1100],
     [0, -1185], [-2.5, -1220], [2.5, -1250], [0, -1275], [0, -1380], [0, -1600], [0, -1680], [-5, -1760], [4, -1850], [-3, -1930], [0, -2080],
-    [4, -2120], [-4, -2165], [3, -2205], [0, -2245], [0, -2280], [-3, -2300], [-3, -2338], [0, -2358], [0, -2392], [3, -2420], [3, -2472], [0, -2500], [0, -2720]]);   /* (tras el cementerio de huesos: rocas, montañas y acantilados) */   /* (y por las dunas de la salida, ondulando) */   /* (hasta el final: sin esto, tras la plataforma flotante el viento no dejaba pasar) */   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
+    [4, -2120], [-4, -2165], [3, -2205], [0, -2245], [0, -2280], [-3, -2300], [-3, -2338], [0, -2358], [0, -2392], [3, -2420], [3, -2472], [0, -2500], [0, -2560], [2, -2600], [0, -2650], [-3, -2672], [-3, -2728], [0, -2752], [0, -2960]]);   /* (tras el cementerio de huesos: rocas, montañas y acantilados) */   /* (y por las dunas de la salida, ondulando) */   /* (hasta el final: sin esto, tras la plataforma flotante el viento no dejaba pasar) */   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -266,9 +266,11 @@ const DUNAS = { desde: -558, hasta: -756 };                   // campo de dunas 
 const RUEDAS_Z = { desde: -305, hasta: -321.8 };   // (las ruedas que te echan a las grietas)
 const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1565, HEX_FIN = -1323, HIELO = { desde: -1329, hasta: -1403 },   /* (los pilares movedizos, un tercio más largos) */ PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
 const CUEVA_Z = HIELO.hasta - 100;   // (la cueva de hielo, tras pasar bajo el gran iceberg)
-const FIN_Z = -2530;   /* (ahora, tras los acantilados) */
+const PLAT_MONT = [{ x: 0, z: -2512, r: 6, runa: "espiral" }, { x: 0, z: -2630, r: 13, runa: "onda" }];   /* (las dos plataformas nuevas: la segunda, grande) */
+const FIN_Z = -2930;   /* (ahora, en la puerta de la cueva del claro, tras los acantilados) */
 // Tras el cementerio de huesos: zona de rocas, montañas y grandes acantilados (escaleras y pasos por el borde del precipicio).
-const MONT = { rocas: -2010, mont: -2110, acant: -2235, esc1: [-2245, -2275], esc2: [-2355, -2385], borde1: [-2295, -2340], borde2: [-2425, -2470] };
+const MONT = { rocas: -2010, mont: -2110, acant: -2235, esc1: [-2245, -2275], esc2: [-2355, -2385], borde1: [-2295, -2340], borde2: [-2425, -2470], borde3: [-2674, -2726], platA: -2512, esferas: [-2535, -2600], platB: -2630, rodantes: [-2748, -2792], golem: [-2802, -2872], claro: [-2885, -2948] };
+const anchoMont = z => z < MONT.claro[0] + 6 ? 8 + 18 * suave(MONT.claro[0] + 6, MONT.claro[0] - 6, z) : (z < MONT.golem[0] + 6 && z > MONT.golem[1] - 6) ? 8 + 10 * suave(MONT.golem[0] + 6, MONT.golem[0] - 4, z) * suave(MONT.golem[1] - 6, MONT.golem[1] + 4, z) : (z < MONT.platB + 24 && z > MONT.platB - 24) ? 8 + 10 * suave(MONT.platB + 24, MONT.platB + 14, z) * suave(MONT.platB - 24, MONT.platB - 14, z) : 8;   /* (la anchura entre las paredes: más ancho en la plataforma grande, la arena del gólem y el claro) */
 const altoMont = z => 10 * suave(MONT.esc1[0], MONT.esc1[1], z) + 10 * suave(MONT.esc2[0], MONT.esc2[1], z);   /* (al fondo de la zona de dunas y ruinas) */   // (el final, al fondo de las dunas tras la cueva)
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
@@ -289,8 +291,8 @@ const CANON2 = { desde: -790, hasta: -968 };
 const ARENA_P = { cx: -16, cz: -1774, R: 17 };   // (la puerta final: un cerco de acantilados, dos grietas ante y tras el arco y su gólem)
 // La zona de pozos: un pozo en anillo alrededor de cada hexágono de piedra puesto en el editor; cabe un gólem,
 // y entre pozo y pozo queda paso (no se tocan).
-const POZOS_HEX = [[-25.9, -1758.0, 4.93], [16.93, -1722.29, 4.93], [-36.13, -1735.63, 4.74], [5.33, -1690.19, 3.61], [-17.74, -1687.19, 5.37], [-14.74, -1736.69, 5.37]].map(([x, z, r]) => ({ x, z, rh: r, ri: r * 0.86 - 0.15, ro: r + 3.7 }));   /* (por dentro, bajo las caras del hexágono: sin nieve entre él y el pozo) */
-const enPozoHex = (x, z, m = 0) => { if (z > -1675 + 10 || z < -1770) return null; for (const P of POZOS_HEX) { const d = Math.hypot(x - P.x, z - P.z); if (d > P.ri + m && d < P.ro - m) return P; } return null; };
+const POZOS_HEX = [[-25.9, -1758.0, 4.93], [16.93, -1722.29, 4.93], [-36.13, -1735.63, 4.74], [5.33, -1690.19, 3.61], [-17.74, -1687.19, 5.37], [-14.74, -1736.69, 5.37]].map(([x, z, r]) => ({ x, z, rh: r, ri: r * 0.86 - 0.15, ro: r + 3.7 })).concat([{ x: 7, z: -2846, rh: 0.3, ri: 0, ro: 4.6 }]);   /* (por dentro, bajo las caras del hexágono: sin nieve entre él y el pozo) */   /* (y el pozo de la arena del gólem, tras los acantilados) */
+const enPozoHex = (x, z, m = 0) => { if (z > -1665 || (z < -1770 && z > -2835) || z < -2856) return null; for (const P of POZOS_HEX) { const d = Math.hypot(x - P.x, z - P.z); if (d > P.ri + m && d < P.ro - m) return P; } return null; };
 const CON_GOLEM_PUERTA = false;   /* (sin grietas en la puerta final, sin su gólem) */
 const CON_GRIETAS_D = false;   // (las dos grietas de las dunas: quitadas desde el editor)
 const GRIETA_D = { desde: -1780.9, hasta: -1785.4, x0: -28.5, x1: -3.5 }, GRIETA_D2 = { desde: -1795.4, hasta: -1799.9, x0: -25.5, x1: -2.5 }, ISLA_Z = -1758.25;   /* (ahora, ante la puerta final: una delante del arco y otra detrás, de lado a lado; entre ellas, la franja del gólem) */   // (dos grietas paralelas; entre ellas, una franja con gólems que empujan)   // (en las dunas tras la cueva, de lado a lado: con un salto no llega; con el viento, sí)
@@ -508,9 +510,9 @@ function alturaTerreno(x, z) {
     const k = suave(-1995, -2020, z), cx = caminoX(z), dx = x - cx, d = Math.abs(dx), E = altoMont(z);
     let n = E + 0.9 * Math.sin(x * 0.1 + z * 0.07) * Math.sin(z * 0.05 + 1.1) * suave(2, 9, d);
     n += suave(MONT.mont, MONT.mont - 25, z) * (1 - suave(MONT.acant + 10, MONT.acant, z)) * 46 * suave(14, 70, d) * (0.65 + 0.35 * Math.sin(x * 0.05 + z * 0.03));   /* (montañas a los lados) */
-    const ac = suave(MONT.acant + 5, MONT.acant - 8, z), b1 = z < MONT.borde1[0] && z > MONT.borde1[1], b2 = z < MONT.borde2[0] && z > MONT.borde2[1];
-    if (ac > 0) { const wl = b1 ? 1.6 : 8, wr = b2 ? 1.6 : 8; n += ac * 38 * Math.max(dx < 0 && !b2 ? suave(wl, wl + 3, -dx) : 0, dx > 0 && !b1 ? suave(wr, wr + 3, dx) : 0);   /* (paredes de acantilado) */
-      if ((b1 && dx > 2.3) || (b2 && dx < -2.3)) n = -60; }   /* (el paso por el borde: al otro lado, el precipicio) */
+    const ac = suave(MONT.acant + 5, MONT.acant - 8, z), b1 = (z < MONT.borde1[0] && z > MONT.borde1[1]) || (z < MONT.borde3[0] && z > MONT.borde3[1]), b2 = z < MONT.borde2[0] && z > MONT.borde2[1], W = anchoMont(z);
+    if (ac > 0) { const wl = b1 ? 1.6 : W, wr = b2 ? 1.6 : W; n += ac * 38 * Math.max(dx < 0 && !b2 ? suave(wl, wl + 3, -dx) : 0, dx > 0 && !b1 ? suave(wr, wr + 3, dx) : 0);   /* (paredes de acantilado) */
+      if ((b1 && dx > 2.3) || (b2 && dx < -2.3)) n = -60; if (z < MONT.claro[1]) n += 45 * suave(MONT.claro[1], MONT.claro[1] - 4, z); }   /* (al fondo del claro, la pared de la cueva) */   /* (el paso por el borde: al otro lado, el precipicio) */
     h = lerp(h, n, k); }
   return h - hoyoHuellas(x, z);
 }
@@ -616,7 +618,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-2720, -1772, 1.6), ...filas(-1772, -1674, 0.5), ...filas(-1674, -1580, 1.1),   /* (en la zona de pozos, fina: el filo de los pozos, redondo) */ ...filas(-1580, ACANT.pie, 0.7),   /* (hasta el fondo de las dunas tras la cueva) */ ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
+  const zs = [...filas(-2990, -1772, 1.6), ...filas(-1772, -1674, 0.5), ...filas(-1674, -1580, 1.1),   /* (en la zona de pozos, fina: el filo de los pozos, redondo) */ ...filas(-1580, ACANT.pie, 0.7),   /* (hasta el fondo de las dunas tras la cueva) */ ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -631,7 +633,7 @@ let MAT_SUELO = null;                                        // el material del 
     // Lo mismo en los dos bordes del precipicio.
     for (const [d, a] of ABISMOS) for (const borde of [d(x), a(x)]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.26) z = borde + (z < borde ? -0.02 : 0.02);
     for (const borde of [SIMA7.desde, SIMA7.hasta]) if (Math.abs(x) < 90 && Math.abs(z - borde) < 0.36) z = borde + (z < borde ? -0.02 : 0.02);   /* (y en la sima de la cueva: su filo, limpio, sin dientes de sierra) */
-    if (z < -1670 && z > -1772) for (const P of POZOS_HEX) { const dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz); for (const rb of [P.ri, P.ro]) if (d > 0.01 && Math.abs(d - rb) < 0.4) { const k = (d < rb ? rb - 0.03 : rb + 0.03) / d; x = P.x + dx * k; z = P.z + dz * k; pos.setX(i, x); } }   /* (y en los de la zona de pozos: su filo, redondo) */
+    if ((z < -1670 && z > -1772) || (z < -2838 && z > -2854)) for (const P of POZOS_HEX) { const dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz); for (const rb of [P.ri, P.ro]) if (d > 0.01 && Math.abs(d - rb) < 0.4) { const k = (d < rb ? rb - 0.03 : rb + 0.03) / d; x = P.x + dx * k; z = P.z + dz * k; pos.setX(i, x); } }   /* (y en los de la zona de pozos: su filo, redondo) */
     // Pared rota: bajo el filo, salientes y huecos irregulares en lugar de un corte limpio.
     let h = alturaTerreno(x, z);
     for (const [d, a] of ABISMOS) if (h < -1 && Math.abs(x) < 90 && z < d(x) && z > a(x)) {
@@ -640,7 +642,7 @@ let MAT_SUELO = null;                                        // el material del 
       const filo = d(x) - z < z - a(x) ? alturaTerreno(x, d(x) + 0.05) : alturaTerreno(x, a(x) - 0.05);
       if (dentro < 0.8) h = filo - (0.25 + dentro * 2.2) * (0.8 + ruido);
     }
-    if (h < -1 && z < -1670 && z > -1772) for (const P of POZOS_HEX) { const d = Math.hypot(x - P.x, z - P.z); if (d <= P.ri || d >= P.ro) continue;   /* (en los pozos: el mismo labio roto que en el primer precipicio) */
+    if (h < -1 && ((z < -1670 && z > -1772) || (z < -2838 && z > -2854))) for (const P of POZOS_HEX) { const d = Math.hypot(x - P.x, z - P.z); if (d <= P.ri || d >= P.ro) continue;   /* (en los pozos: el mismo labio roto que en el primer precipicio) */
       const fuera = d - P.ri > P.ro - d, dentro = fuera ? P.ro - d : d - P.ri, ang = Math.atan2(x - P.x, z - P.z), ruido = 0.5 + Math.sin(ang * 7 + P.x) * 0.25 + Math.sin(ang * 17 + P.z) * 0.1, rb = fuera ? P.ro + 0.05 : P.ri - 0.05;
       if (dentro < 0.8) h = alturaTerreno(P.x + (x - P.x) / d * rb, P.z + (z - P.z) / d * rb) - (0.25 + dentro * 2.2) * (0.8 + ruido); }
     if (h < -1 && Math.abs(x) < 90) {
@@ -717,7 +719,7 @@ let MAT_SUELO = null;                                        // el material del 
       float motasR = clamp((texture2D(map, uvR * 2.3 + 0.17).r - 0.9) / 0.05, 0.0, 1.0) * 0.6 + clamp((texture2D(nieve2, uvR * 0.9).g - 0.92) / 0.04, 0.0, 1.0) * 0.4;
       float polvoR = smoothstep(0.55, 0.85, motasR + (nS.y - 0.25) * 0.6) * 0.65;
       diffuseColor.rgb = mix(diffuseColor.rgb, pr * vec3(0.98, 0.99, 1.03), roca * (1.0 - polvoR));
-      diffuseColor.rgb *= 1.0 - 0.96 * hondoP;
+      diffuseColor.rgb *= 1.0 - 0.96 * max(hondoP, smoothstep(-2836.0, -2839.0, vMundo.z) * (1.0 - smoothstep(-2856.0, -2853.0, vMundo.z)) * (1.0 - smoothstep(10.0, 18.5, vMundo.y)));
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.98, 1.025), roca);   // (las paredes espolvoreadas, un punto más azules: como el resto de la piedra)
       // En el desfiladero final, las paredes de los precipicios se pierden en la niebla unos metros bajo el
       // paso (contando desde la cámara): lo hondo no se ve. El suelo llano no se toca.
@@ -2261,7 +2263,7 @@ function moverZonas(dt) {
     const dx = pos.x - G.col.x, dz = pos.z - G.col.z, d = Math.hypot(dx, dz);
     if (!rescate && d < G.col.r + 0.45 && pos.y < G.col.techo && G.golpeT <= 0) { const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.col.x + nx * (G.col.r + 0.5); pos.z = G.col.z + nz * (G.col.r + 0.5); vel.x = nx * 8; vel.z = nz * 8; vel.y = Math.max(vel.y, 3.5); enSuelo = false; G.golpeT = 0.6; musica.rocas(0.45); }   // (el empujón)
   }
-  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt); moverGolemPuerta(dt); moverGolemsPozos(dt);
+  moverPaseantes(dt); moverEsferas(dt); moverMurosYAspas(dt); moverGolemP7(dt); moverGolemsIsla(dt); moverGolemPuerta(dt); moverGolemsPozos(dt); moverMontes(dt);
   for (const W of rodantesEd) {   // ruedas del editor: van y vienen rodando de un lado al otro del paso
     const k = 0.5 - 0.5 * Math.cos(relojMov * 0.55 + W.fase), x = lerp(W.x0, 2 * W.cx - W.x0, k), d = x - W.x; W.x = x;
     W.g.position.x = x; W.g.rotation.z -= d / Math.max(0.5, W.R); W.col.x = x;
@@ -4306,16 +4308,29 @@ function animarPaso(dt) {
   // desde lo hondo hasta el filo; por fuera y por dentro (el pie del hexágono).
   /* (los pozos: sin disco de fondo; lo hondo se oscurece en el propio suelo) */
   // Tras el cementerio de huesos: rocas grandes a los lados; en los acantilados, su choque y las escaleras (dos tipos).
+  const nevarPiezaG = g => g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => nieveFinaBase(sh); m.customProgramCacheKey = () => "nevarPieza"; } });
   { const rM = generador(4747), nevarPieza = g => g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => nieveFinaBase(sh); m.customProgramCacheKey = () => "nevarPieza"; } });
     for (let z = MONT.rocas - 5; z > MONT.mont + 5; z -= 4 + rM() * 4) for (const lado of [-1, 1]) if (rM() < 0.8) enterrar(kitRocas[1 + Math.floor(rM() * 5)], caminoX(z) + lado * (4 + rM() * 12), z, 1.5 + rM() * 4.5, rM() * 6, 0.3);
-    for (let z = MONT.acant - 6; z > FIN_Z - 30; z -= 1.6) { const cx = caminoX(z), b1 = z < MONT.borde1[0] && z > MONT.borde1[1], b2 = z < MONT.borde2[0] && z > MONT.borde2[1];
-      if (!b2) colisiones.push({ x: cx - (b1 ? 1.6 : 8) - 1.2, z, r: 1.3, techo: 99 }); if (!b1) colisiones.push({ x: cx + (b2 ? 1.6 : 8) + 1.2, z, r: 1.3, techo: 99 }); }
+    for (let z = MONT.acant - 6; z > MONT.claro[1] - 2; z -= 1.6) { const cx = caminoX(z), b1 = (z < MONT.borde1[0] && z > MONT.borde1[1]) || (z < MONT.borde3[0] && z > MONT.borde3[1]), b2 = z < MONT.borde2[0] && z > MONT.borde2[1], W = anchoMont(z);
+      if (!b2) colisiones.push({ x: cx - (b1 ? 1.6 : W) - 1.2, z, r: 1.3, techo: 99 }); if (!b1) colisiones.push({ x: cx + (b2 ? 1.6 : W) + 1.2, z, r: 1.3, techo: 99 }); }
+    for (let x = -30; x <= 30; x += 2) colisiones.push({ x: caminoX(MONT.claro[1]) + x, z: MONT.claro[1] - 1.5, r: 1.3, techo: 99 });   /* (la pared del fondo) */
     { const [z0, z1] = MONT.esc1, n = 5, largo = (z0 - z1) / n, sube = 10 / n;   /* (la primera: escalinata de piedra, como la del acantilado de columnas) */
       for (let k = 0; k < n; k++) { const z = z0 - largo * (k + 0.5), e = encajar(gEscalinata, caminoX(z), altoMont(z) - sube * 0.7, z, 6.5, sube * 1.7, largo * 1.4, ESCALINATA_GIRO); if (k % 2) e.scale.x = -1; nevarPieza(e); } }
     { const [z0, z1] = MONT.esc2, n = 12, largo = (z0 - z1) / n;   /* (la segunda: peldaños de piedra tallada, tumbados uno tras otro) */
       for (let k = 0; k < n; k++) { const z = z0 - largo * (k + 0.5), y = altoMont(z), cx = caminoX(z); pilarTallado(kitPilares[k % 3], new THREE.Vector3(cx - 3.2, y - 0.5, z), new THREE.Vector3(cx + 3.2, y - 0.5, z), largo * 1.3, rM() * 0.3); } }
     for (const [z0, z1, lado] of [[MONT.borde1[0], MONT.borde1[1], -1], [MONT.borde2[0], MONT.borde2[1], 1]]) for (let z = z0 - 4; z > z1; z -= 9) { const x = caminoX(z) + lado * 5.5, y = altoMont(z) - 2;   /* (la pared del paso por el borde: paños de acantilado) */
       nevarPieza(encajar(gAcantilado, x, y, z, 10, 40, 6, lado * Math.PI / 2)); } }
+  // Las plataformas nuevas (la segunda, grande, con sus runas), el claro con la puerta de la cueva.
+  for (const S of PLAT_MONT) { S.x = caminoX(S.z); const y = altoMont(S.z); S.techo = y + 0.8; const pl = encajar(gPlatAntigua, S.x, y - 0.6, S.z, S.r * 2, 1.4, S.r * 2); setTimeout(() => pl.traverse(o => { if (o.isMesh) o.material = matHexPozo(); }), 0);
+    colisiones.push({ x: S.x, z: S.z, r: S.r * 0.95, techo: S.techo, plataforma: true, fija: true });
+    setTimeout(() => {   /* (las runas, cuando ya están las figuras) */
+    const c = document.createElement("canvas"); c.width = c.height = 512; const g2 = c.getContext("2d"), pts = FIGURAS[S.runa].puntos; g2.strokeStyle = "#9ff4ff"; g2.lineWidth = 9; g2.lineCap = g2.lineJoin = "round"; g2.shadowColor = "#7feeff"; g2.shadowBlur = 24; g2.beginPath(); pts.forEach(([a, b], i) => i ? g2.lineTo(a * 5.12, b * 5.12) : g2.moveTo(a * 5.12, b * 5.12)); g2.stroke();
+    const runa = new THREE.Mesh(new THREE.PlaneGeometry(S.r * 1.5, S.r * 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); runa.rotation.x = -Math.PI / 2; runa.position.set(S.x, S.techo + 0.03, S.z); scene.add(runa);   /* (la runa grabada en el suelo, que brilla) */
+    if (S.r > 10) for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2 + 0.3, x = S.x + Math.sin(a) * (S.r - 1.6), z = S.z + Math.cos(a) * (S.r - 1.6); const pi = pilarTallado(kitPilares[3], new THREE.Vector3(x, S.techo - 0.3, z), new THREE.Vector3(x, S.techo + 4.5, z), 1.6, a); colisiones.push({ x, z, r: 0.9, techo: S.techo + 4.5 });
+      const rr = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), runa.material); rr.position.set(x - Math.sin(a) * 0.82, S.techo + 2.6, z - Math.cos(a) * 0.82); rr.lookAt(S.x, S.techo + 2.6, S.z); scene.add(rr); } }, 0); }   /* (piedras de runas alrededor de la grande) */
+  { const z = MONT.claro[1] + 2, cx = caminoX(z), y = altoMont(z); nevarPiezaG(encajar(gArcoRuina, cx, y - 0.3, z, 12, 13, 4, 0));
+    const boca = new THREE.Mesh(new THREE.PlaneGeometry(8, 10), new THREE.MeshBasicMaterial({ color: 0x0b0d11 })); boca.position.set(cx, y + 4.6, MONT.claro[1] + 0.4); scene.add(boca);   /* (la boca de la cueva, a oscuras) */
+    const rM2 = generador(5858); for (let k = 0; k < 14; k++) { const a = rM2() * Math.PI - Math.PI / 2, d = 14 + rM2() * 9; enterrar(kitRocas[1 + Math.floor(rM2() * 4)], cx + Math.sin(a) * d, (MONT.claro[0] + MONT.claro[1]) / 2 + Math.cos(a) * 10, 1.4 + rM2() * 3, rM2() * 6, 0.3); } }
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
   { const x0 = -70, x1 = 50, z0 = SALIDA_CUEVA_Z - 2, z1 = -2010, dist = (x, z) => Math.max(0, x0 + 3 - x, x - (x1 - 3), z - (z0 - 3), (z1 + 3) - z);   /* (la zona de pozos y la de los cadáveres: toda cubierta de nieve honda, como la de la zona de las ruedas) */
     for (let x = x0; x < x1 - 1; x += 40) for (let z = z0; z > z1 + 1; z -= 40) { const zb = Math.max(z1, z - 40); nievePendiente.push(() => ventisquero(x + 20, (z + zb) / 2, 40, z - zb, 0.32, { dist, R: 3, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.35 }, true)); } }
@@ -4504,7 +4519,10 @@ estilo.textContent = `
   #portada .santuarios { display: grid; gap: 10px; justify-items: center; }
   #portada .santuarios[hidden], #portada .botones[hidden], #portada .teclas[hidden] { display: none; }
   #portada .santuarios p { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
-  #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); max-height: 46vh; overflow-y: auto; padding: 14px 4px; -webkit-mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); scrollbar-width: none; }   /* (con desplazamiento, velado arriba y abajo) */
+  #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); max-height: 46vh; overflow-y: auto; padding: 14px 4px; -webkit-mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 70px), rgba(0,0,0,.25) calc(100% - 18px), transparent); scrollbar-width: none; }
+  #portada .flechaLista { font: 22px system-ui, sans-serif; color: var(--tinta-suave); line-height: 1; margin-top: -6px; animation: flechaL 1.6s ease-in-out infinite; transition: opacity .3s; pointer-events: none; }
+  #portada .flechaLista.fuera { opacity: 0; }
+  @keyframes flechaL { 50% { transform: translateY(4px); } }   /* (con desplazamiento, velado arriba y abajo) */
   #portada .lista::-webkit-scrollbar { display: none; }
   #portada .lista button { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--tinta); background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(214,226,242,.6)); border: none; border-radius: 14px; padding: 8px 14px; cursor: pointer; }
   #portada .lista button:hover, #portada .lista button:focus-visible { background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(226,235,247,.8)); outline: none; }
@@ -4919,11 +4937,12 @@ function empezar(santuario = 0) {
 // sin la toma inicial.
 function empezarEnSantuario(n) {
   let inicioYaw = null;
-  const P = n === 7 ? PLATAFORMA7 : n === 6 ? PLATAFORMA6 : PLATAFORMAS[Math.min(n, 5) - 1];
+  const P = n >= 7 ? PLATAFORMA7 : n === 6 ? PLATAFORMA6 : PLATAFORMAS[Math.min(n, 5) - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
   pos.set(x, alturaSuelo(x, z) + 0.05, z);
   if (n === 6) { const zz = PLATAFORMA6.z + PLATAFORMA6.r + 1.6, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); }   // (ante la plataforma, ya pasado el puente)
-  if (n === 7) { for (const M of murosHielo) if (!M.roto) romperMuro(M, true); const zz = -1566, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); if (P.rejilla) { pos.set(P.x, P.techo + 0.05, P.z + P.r * 0.5); if (P.puenteAcceso) { pos.copy(P.puenteAcceso); pos.y += 0.1; inicioYaw = Math.atan2(pos.x - P.x, pos.z - P.z); } } }   /* (en el puente de acceso, mirando a la plataforma: sin pilastras delante de la cámara) */   // (desde el panel: las paredes del túnel, ya rotas)
+  if (n === 7 || n >= 8) { for (const M of murosHielo) if (!M.roto) romperMuro(M, true); const zz = -1566, xx = caminoX(zz); pos.set(xx, alturaSuelo(xx, zz) + 0.05, zz); if (P.rejilla) { pos.set(P.x, P.techo + 0.05, P.z + P.r * 0.5); if (P.puenteAcceso) { pos.copy(P.puenteAcceso); pos.y += 0.1; inicioYaw = Math.atan2(pos.x - P.x, pos.z - P.z); } } }   /* (en el puente de acceso, mirando a la plataforma: sin pilastras delante de la cámara) */   // (desde el panel: las paredes del túnel, ya rotas)
+  if (n >= 8) { const S = PLAT_MONT[n - 8]; pos.set(S.x, S.techo + 0.05, S.z + S.r * 0.6); inicioYaw = null; }   /* (los santuarios nuevos, tras los acantilados) */
   vel.set(0, 0, 0); rumbo = Math.PI; seguro.copy(pos);
   if (inicioYaw !== null) { rumbo = inicioYaw + Math.PI; const c = enCamino(pos.x, pos.z); giroCam = Math.atan2(Math.sin(inicioYaw - Math.atan2(-c.fx, -c.fz)), Math.cos(inicioYaw - Math.atan2(-c.fx, -c.fz))); yawCamara = inicioYaw; }
   tieneBaston = true; bastonEnMano = true; if (tactil) ui.querySelector("#b-viento").hidden = false;
@@ -4960,9 +4979,12 @@ const SANTUARIOS = [
   { runa: "barrido", nombre: "Santuario de la revelación", texto: "Tras el desfiladero. Aquí aprendes a barrer la nieve con el viento y revelar las runas." },
   { runa: "onda", nombre: "Santuario de la onda", texto: "En lo alto del acantilado. Aquí aprendes a cargar la magia y soltarla en una onda." },
   { runa: "aspa", nombre: "Santuario del puente", texto: "En la cueva de hielo. Aquí aprendes a girar las aspas y tender el puente para salir." },
+  { runa: "espiral", nombre: "Santuario de las cumbres", texto: "Tras los acantilados, en lo alto." },
+  { runa: "onda", nombre: "Santuario del gran acantilado", texto: "La gran plataforma de las runas, entre los acantilados." },
 ];
 {
   const lista = portada.querySelector(".lista"), caja = portada.querySelector(".santuarios"), botones = portada.querySelector(".botones");
+  { const f = document.createElement("div"); f.className = "flechaLista"; f.textContent = "⌄"; f.setAttribute("aria-hidden", "true"); lista.after(f); const ver = () => f.classList.toggle("fuera", lista.scrollTop + lista.clientHeight >= lista.scrollHeight - 8); lista.addEventListener("scroll", ver); setTimeout(ver, 300); new ResizeObserver(ver).observe(lista); }   /* (hay más santuarios abajo) */
   SANTUARIOS.forEach((S, i) => {
     const pts = FIGURAS[S.runa].puntos.filter((_, k, a) => a.length < 60 || k % 3 === 0);
     const b = document.createElement("button"); b.type = "button";
@@ -6438,11 +6460,33 @@ function ondaAGolemPuerta() { const G = golemPuerta; if (!G.g || G.dormido || G.
   const f = 10 - d * 0.4; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); }   /* (cuesta: de cerca, casi una grieta de un golpe; de lejos, hace falta más de uno) */
 // Los gólems de la zona de pozos (los puso el editor como siluetas): quietos hasta que llega Blizzard; entonces van a por él
 // y lo empujan. Con la onda se les echa a los pozos. Andando, nunca se meten solos en uno.
-const golemsPozos = []; let avisoPozos = false;
+const golemsPozos = [{ x0: -5, z0: -2828, ry: Math.PI }]; let avisoPozos = false;   /* (y uno en la arena tras los acantilados) */
 function ondaAGolemsPozos() { for (const G of golemsPozos) { if (!G.g || G.dormido || G.cae || G.fin) continue; const dx = G.x - pos.x, dz = G.z - pos.z, d = Math.hypot(dx, dz); if (d > 12) continue;
   const f = 10 - d * 0.4; G.vx += dx / (d || 1) * f; G.vz += dz / (d || 1) * f; G.golpeT = 1.4; musica.golpe(0.4); } }
+// Tras los acantilados: esferas que bajan rodando hacia Blizzard, salientes de la pared que empujan al vacío, esferas que cruzan.
+const montes = { listo: false, t: 0, esf: [], sal: [], rod: [], sig: 0, avisos: {} };
+function bolaMonte(R) { const g = encajar(gEsfera, 0, 0, 0, 2 * R, 2 * R, 2 * R), d = g.children[0], giro = new THREE.Group(); g.remove(d); d.position.y -= R; giro.add(d); giro.position.y = R; g.add(giro); g.visible = false; return { g, giro, R }; }
+function empujarBlizzard(vx, vz, vy) { vel.x = vx; vel.z = vz; vel.y = Math.max(vel.y, vy); enSuelo = false; musica.rocas(0.5); temblorCam = Math.max(temblorCam, 0.3); }
+function moverMontes(dt) {
+  if (window.BLIZZARD_EDITOR || pos.z > -2500 || pos.z < -2900) return; const E = 20;
+  if (!montes.listo) { montes.listo = true; for (let k = 0; k < 4; k++) montes.esf.push({ ...bolaMonte(1.3), activa: false });
+    for (let z = MONT.borde3[0] - 4; z > MONT.borde3[1] + 3; z -= 6.5) { const m = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.2, 3.6), matHexPozo()); m.castShadow = m.receiveShadow = true; scene.add(m); montes.sal.push({ m, z, fase: montes.sal.length * 1.25, ext: 0 }); }
+    for (let k = 0; k < 3; k++) { const b = bolaMonte(1.4); b.g.visible = true; montes.rod.push({ ...b, z: MONT.rodantes[0] - 8 - k * 14, fase: k * 2.1, x: 0 }); } }
+  montes.t += dt; const avisa = (k, t) => { if (!montes.avisos[k]) { montes.avisos[k] = true; rotular(t, 4); } };
+  // esferas que te tiran
+  { const [e0, e1] = MONT.esferas; if (pos.z < e0 + 6 && pos.z > e1 - 4 && !rescate) { avisa("esf", "Esferas: apártate o salta."); if ((montes.sig -= dt) <= 0) { const E2 = montes.esf.find(e => !e.activa); if (E2) { montes.sig = 2.4; E2.activa = true; E2.x = caminoX(e1) + (Math.random() - 0.5) * 9; E2.z = e1 - 3; E2.g.visible = true; musica.rocas(0.25); } } }
+    for (const S of montes.esf) { if (!S.activa) continue; S.z += 9 * dt; const y = alturaTerreno(S.x, S.z); S.g.position.set(S.x, y, S.z); S.giro.rotation.x += 9 * dt / S.R; if (S.z > e0 + 10) { S.activa = false; S.g.visible = false; continue; }
+      if (!rescate && Math.hypot(pos.x - S.x, pos.z - S.z) < S.R + 0.5 && pos.y < y + 2 * S.R + 0.3) empujarBlizzard(Math.sign(pos.x - S.x || 1) * 5, 13, 6); } }
+  // salientes que empujan al vacío
+  for (const Q of montes.sal) { const cx = caminoX(Q.z), ant = Q.ext; Q.ext = clamp(Math.sin(montes.t * 1.5 + Q.fase) * 1.4 + 0.4, 0, 1); const bx = cx - 1.6 - 1.4 + Q.ext * 2.6; Q.m.position.set(bx, E + 1.6, Q.z);
+    if (!rescate && Math.abs(pos.z - Q.z) < 2.2 && pos.x < bx + 1.85 && pos.y < E + 3.4) { pos.x = bx + 1.85; if (Q.ext > ant) empujarBlizzard(11, 0, 3); }
+    if (Math.abs(pos.z - Q.z) < 20) avisa("sal", "La pared empuja: pasa cuando se retire."); }
+  // esferas que cruzan
+  for (const R of montes.rod) { const cx = caminoX(R.z), xa = R.x; R.x = cx + Math.sin(montes.t * 0.9 + R.fase) * 6.5; const y = alturaTerreno(R.x, R.z); R.g.position.set(R.x, y, R.z); R.giro.rotation.z -= (R.x - xa) / R.R;
+    if (!rescate && Math.hypot(pos.x - R.x, pos.z - R.z) < R.R + 0.5 && pos.y < y + 2 * R.R + 0.3) empujarBlizzard(Math.sign(R.x - xa || 1) * 12, (pos.z > R.z ? 1 : -1) * 4, 5); }
+}
 function moverGolemsPozos(dt) {
-  const GA = gGolemGrande || gGolemAnim; if (!GA || window.BLIZZARD_EDITOR || !golemsPozos.length || pos.z > -1600 || pos.z < -1830) return;
+  const GA = gGolemGrande || gGolemAnim; if (!GA || window.BLIZZARD_EDITOR || !golemsPozos.length || pos.z > -1600 || (pos.z < -1830 && pos.z > -2760) || pos.z < -2900) return;
   for (const G of golemsPozos) { if (G.fin) continue;
     if (!G.g) { const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.75); m.emissive = new THREE.Color(0x2a2b2e);   /* (claros, como los de la plataforma) */ } });
       const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(4.6 / t.y); G.g = new THREE.Group(); G.g.add(d); scene.add(G.g); G.d = d;
@@ -6556,7 +6600,7 @@ function colisionesDeMalla(g, paso) {
 function puenteNevado(A, B) {
           const dh = new THREE.Vector3(B.x - A.x, 0, B.z - A.z), Lh = dh.length(), L = Lh + 3.4, inc = Math.atan2(B.y - A.y, Lh), giro = Math.atan2(-dh.z, dh.x), mid = A.clone().add(B).multiplyScalar(0.5);
           const pu = encajar(gPuente, mid.x, mid.y - 2.8, mid.z, L, 3.1, 5.2, giro); pu.rotateZ(inc);
-          pu.traverse(o => { if (!o.isMesh) return; o.castShadow = o.receiveShadow = true; const m = o.material.clone(); if (m.color) m.color.multiplyScalar(1.3);   /* (más clara: como las columnas) */ m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.3, 0.62,").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.28;"); }; espolvorear(m, 0.5, "puenteNevado", true);   /* (la nieve, como la de los puentes nuevos: no tan blanca) */ o.material = m; });   /* (nevado por arriba) */
+          pu.traverse(o => { if (!o.isMesh) return; o.castShadow = o.receiveShadow = true; const m = o.material.clone(); if (m.color) m.color.multiplyScalar(1.6);   /* (más clara: como las columnas) */ m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.3, 0.62,").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.28;"); }; espolvorear(m, 0.5, "puenteNevado", true);   /* (la nieve, como la de los puentes nuevos: no tan blanca) */ o.material = m; });   /* (nevado por arriba) */
           const V = t => A.clone().lerp(B, t).add(new THREE.Vector3(0, 0.05, 0)); colisiones.push({ x: mid.x, z: mid.z, r: L / 2 + 1, techo: Math.max(A.y, B.y) + 0.1, rampa: { a: V(-0.08), b: V(1.06), ancho: 2.1 } }); }
 function clonarConEsqueleto(src) {
   const c = src.clone(), deS = new Map(), deC = new Map(); const par = (a, b) => { deS.set(b, a); deC.set(a, b); for (let i = 0; i < a.children.length; i++) par(a.children[i], b.children[i]); }; par(src, c);
@@ -6664,7 +6708,7 @@ const matHexPozo = () => _matHexPozo || (_matHexPozo = (() => {   // la piedra d
     sh.fragmentShader = "uniform sampler2D piedraH;\nuniform vec3 tonoN;\nvarying vec3 vWH;\nvarying vec3 vNH;\n" + sh.fragmentShader.replace("#include <map_fragment>", `
       vec3 nH = normalize(vNH); vec2 uvR = (abs(nH.x) > abs(nH.z) ? vWH.zy : vWH.xy) * vec2(0.16, 0.22); if (abs(nH.y) > 0.7) uvR = vWH.xz * 0.16;
       vec3 pr = texture2D(piedraH, uvR).rgb, pr2 = texture2D(piedraH, uvR * 0.37 + 0.5).rgb;
-      pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.46, 0.5, 0.58);
+      pr = clamp((pr * 0.6 + pr2 * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0) * vec3(0.6, 0.64, 0.72);   /* (más clara) */
       float nieveH = smoothstep(0.55, 0.8, nH.y + (pr2.r - 0.6) * 0.3);
       diffuseColor.rgb *= mix(pr, tonoN, nieveH);`); };
   m.customProgramCacheKey = () => "hexPozo"; return m; })());
@@ -6672,9 +6716,10 @@ const matHexPozo = () => _matHexPozo || (_matHexPozo = (() => {   // la piedra d
 // encima de sus peldaños, medida con rayos sobre su forma real).
 function pasoDelEditor(it, g) {
   const esc = it.modelo === "gltf:escalinata", zC = g.position.z < -1500 && g.position.z > -1660;
+  if (!esc && it.modelo !== "gltf:puente_grande" && g.position.z < -1655 && g.position.z > -1800 && /ruina|arco|cupula|portal/.test(it.modelo || "")) g.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(1.4); } });   /* (la cúpula y las ruinas de la zona de pozos, más claras) */
   if (!esc && it.modelo !== "gltf:puente_grande") { if (zC && it.nieve) g.traverse(o => { if (!o.isMesh) return; const m0 = o.material; if (Array.isArray(m0)) return; const prev = m0.onBeforeCompile, k0 = m0.customProgramCacheKey ? m0.customProgramCacheKey() : "", m = o.material = m0.clone();   /* (en la cueva, la nieve de las rocas, más clara) */
       m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m0, sh, r); if (sh.fragmentShader.includes("float cubre")) sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.95, 0.96, 0.98) * cubre * 0.3;"); }; m.customProgramCacheKey = () => k0 + "|nieveCueva"; }); return; }
-  g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { if (m.color) m.color.multiplyScalar(esc ? 2.1 : (zC ? 1.6 : 1.3)); }); });   /* (como el puente de acceso: ×1,3) */
+  g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { if (m.color) m.color.multiplyScalar(esc ? 2.1 : (zC ? 1.9 : 1.5)); }); });   /* (como el puente de acceso: ×1,3) */
   if (!esc) { g.traverse(o => { if (!o.isMesh) return; const m0 = o.material, prev = m0.onBeforeCompile, m = o.material = m0.clone(); m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m0, sh, r); if (!sh.fragmentShader.includes("float cubre")) nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.28;"); }; m.customProgramCacheKey = () => "puenteEdNieve"; }); return; }   /* (los puentes del editor: nieve clara, como el de acceso) */
   g.traverse(o => { if (!o.isMesh) return; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.25, 0.55,").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.4;"); }; m.customProgramCacheKey = () => "escalinataNieve"; });   /* (nieve bien blanca) */   /* (nevada por arriba) */
   escalinatasEd.push(g); }
@@ -6713,13 +6758,13 @@ function espolvoreoMapa(g, fuerza = 0.85, cache = null) {
         float a = texture2D(texEsp, vWE.zy * 0.16).r * wT.x + texture2D(texEsp, vWE.xz * 0.16).r * wT.y + texture2D(texEsp, vWE.xy * 0.16).r * wT.z;
         float b = texture2D(texEsp, vWE.xz * 0.059 + 0.5).g * wT.y + texture2D(texEsp, (vWE.zy + vWE.xy) * 0.059 + 0.5).g * (1.0 - wT.y);
         float c = clamp((a * 0.6 + b * 0.4 - 0.62) * 3.0 + 0.62, 0.0, 1.0);
-        float zE = texture2D(texEsp, vWE.xz * 0.0035 + 0.27).b * 0.6 + texture2D(texEsp, vWE.xz * 0.0011 + 0.61).r * 0.4, umE = mix(0.62, 0.86, smoothstep(0.42, 0.62, zE));   // (por zonas: en unas, más; en otras, menos)
-        float esp = smoothstep(umE, umE + 0.08, c) * (0.35 + 0.65 * smoothstep(-0.2, 0.7, nE.y));
+        float zE = texture2D(texEsp, vWE.xz * 0.0035 + 0.27).b * 0.6 + texture2D(texEsp, vWE.xz * 0.0011 + 0.61).r * 0.4, umE = mix(0.56, 0.74, smoothstep(0.42, 0.62, zE));   // (por zonas: en unas, más; en otras, menos)
+        float esp = smoothstep(umE, umE + 0.08, c) * (0.45 + 0.55 * smoothstep(-0.2, 0.7, nE.y));
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.95, 0.98), esp * ${fuerza.toFixed(2)}); }`); };
     m.customProgramCacheKey = () => k0 + "|espMapa"; }); }
 function espolvorearTodo() {   // el espolvoreado, por encima de rocas, ruinas, pilares, puentes… de todo el juego (no el suelo, ni Blizzard, ni los gólems, ni lo transparente)
-  const cache = new Map(), fuera = new Set(); [blizzard, typeof baston !== "undefined" ? baston : null].forEach(o => o && o.traverse(q => fuera.add(q)));
-  for (const o of scene.children) { if (fuera.has(o) || o.isSprite || o.isPoints) continue; let tiene = false; o.traverse(q => { if (q.isSkinnedMesh) tiene = true; }); if (tiene) continue; espolvoreoMapa(o, 0.85, cache); } }
+  const cache = new Map(), fuera = new Set(); [blizzard, typeof baston !== "undefined" ? baston : null, ...ventisqueros.map(v => v.malla)].forEach(o => o && o.traverse(q => fuera.add(q)));   /* (ni los mantos de nieve: salían manchas de tono en el suelo) */
+  for (const o of scene.children) { if (fuera.has(o) || o.isSprite || o.isPoints) continue; if (o.isMesh && o.geometry && o.geometry.type === "PlaneGeometry") continue; let tiene = false; o.traverse(q => { if (q.isSkinnedMesh) tiene = true; }); if (tiene) continue; espolvoreoMapa(o, 0.85, cache); } }
 function alargarHexagono(it, g) {   // el hexágono de un pozo sigue hacia abajo: copias de su pieza, una bajo otra, de roca (sin nieve), hasta lo oscuro
   const [k, nombre, i] = (it.modelo || "").split(":"); if (k !== "kit" || nombre !== "bloque piedra" || !KITS[nombre] || !KITS[nombre][+i]) return;
   const P = POZOS_HEX.find(P => Math.hypot(g.position.x - P.x, g.position.z - P.z) < 2); if (!P) return;
