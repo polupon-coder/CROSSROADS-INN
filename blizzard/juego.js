@@ -693,6 +693,7 @@ let MAT_SUELO = null;                                        // el material del 
  vec3 nF = normalize(cross(dFdx(vMundo), dFdy(vMundo))); rocaB = max(rocaB, 1.0 - smoothstep(0.35, 0.6, abs(nF.y)));
 #endif
  roca = max(roca, rocaB * zP); } }   // (con la normal de cada cara: el filo de los pozos, también de roca)
+      float hondoP = smoothstep(-1774.0, -1771.0, vMundo.z) * (1.0 - smoothstep(-1672.0, -1669.0, vMundo.z)) * (1.0 - smoothstep(20.0, 28.5, vMundo.y));   // (dentro de los pozos, a oscuras: no se ve nada)
    // (y en las paredes de la zona de pozos: roca, como en el primer precipicio)   // (tras el desfiladero, otra vez todo nieve)   // (en el desfiladero final, otra vez paredes de roca)
       // Barlovento claro, sotavento algo azulado (la cresta se marca); poco a poco al entrar en las dunas
       // y solo en las caras de verdad empinadas (en los bultos pequeños y montones salía a manchas).
@@ -703,6 +704,7 @@ let MAT_SUELO = null;                                        // el material del 
       float motasR = clamp((texture2D(map, uvR * 2.3 + 0.17).r - 0.9) / 0.05, 0.0, 1.0) * 0.6 + clamp((texture2D(nieve2, uvR * 0.9).g - 0.92) / 0.04, 0.0, 1.0) * 0.4;
       float polvoR = smoothstep(0.55, 0.85, motasR + (nS.y - 0.25) * 0.6) * 0.65;
       diffuseColor.rgb = mix(diffuseColor.rgb, pr * vec3(0.98, 0.99, 1.03), roca * (1.0 - polvoR));
+      diffuseColor.rgb *= 1.0 - 0.96 * hondoP;
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.98, 1.025), roca);   // (las paredes espolvoreadas, un punto más azules: como el resto de la piedra)
       // En el desfiladero final, las paredes de los precipicios se pierden en la niebla unos metros bajo el
       // paso (contando desde la cámara): lo hondo no se ve. El suelo llano no se toca.
@@ -4289,8 +4291,7 @@ function animarPaso(dt) {
   }
   // La zona de pozos: las paredes de cada pozo, de pilares tallados de pie, juntos (como las paredes de los desfiladeros),
   // desde lo hondo hasta el filo; por fuera y por dentro (el pie del hexágono).
-  { const fondoM = new THREE.MeshBasicMaterial({ color: 0x1d222a });   /* (las paredes de los pozos: el propio suelo, cortado, de roca; abajo, lo hondo oscuro: no se ve el fondo) */
-    for (const P of POZOS_HEX) { const fondo = new THREE.Mesh(new THREE.CircleGeometry(P.ro + 1, 40), fondoM); fondo.rotation.x = -Math.PI / 2; fondo.position.set(P.x, alturaTerreno(P.x + P.ro + 0.5, P.z) - 16, P.z); scene.add(fondo); } }
+  /* (los pozos: sin disco de fondo; lo hondo se oscurece en el propio suelo) */
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
   { const x0 = -70, x1 = 50, z0 = SALIDA_CUEVA_Z - 2, z1 = -2010, dist = (x, z) => Math.max(0, x0 + 3 - x, x - (x1 - 3), z - (z0 - 3), (z1 + 3) - z);   /* (la zona de pozos y la de los cadáveres: toda cubierta de nieve honda, como la de la zona de las ruedas) */
     for (let x = x0; x < x1 - 1; x += 40) for (let z = z0; z > z1 + 1; z -= 40) { const zb = Math.max(z1, z - 40); nievePendiente.push(() => ventisquero(x + 20, (z + zb) / 2, 40, z - zb, 0.32, { dist, R: 3, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.35 }, true)); } }
@@ -6418,7 +6419,7 @@ function ondaAGolemsPozos() { for (const G of golemsPozos) { if (!G.g || G.dormi
 function moverGolemsPozos(dt) {
   const GA = gGolemGrande || gGolemAnim; if (!GA || window.BLIZZARD_EDITOR || !golemsPozos.length || pos.z > -1600 || pos.z < -1830) return;
   for (const G of golemsPozos) { if (G.fin) continue;
-    if (!G.g) { const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.3); m.emissive = new THREE.Color(0x15161a);   /* (menos velados: más contraste en la niebla) */ } });
+    if (!G.g) { const d = clonarConEsqueleto(GA.scene); d.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; const m = o.material = o.material.clone(); if (m.color) m.color.multiplyScalar(1.75); m.emissive = new THREE.Color(0x2a2b2e);   /* (claros, como los de la plataforma) */ } });
       const t = new THREE.Box3().setFromObject(d).getSize(new THREE.Vector3()); d.scale.setScalar(4.6 / t.y); G.g = new THREE.Group(); G.g.add(d); scene.add(G.g); G.d = d;
       G.mix = new THREE.AnimationMixer(d); G.andar = G.mix.clipAction(GA.animations.find(a => /Walk/i.test(a.name)) || GA.animations[0]); const idle = GA.animations.find(a => /Idle/i.test(a.name)); if (idle) { G.quieto = G.mix.clipAction(idle); G.quieto.play(); G.quieto.timeScale = 0; } G.mix.update(0);
       G.x = G.x0; G.z = G.z0; G.y = alturaTerreno(G.x, G.z); G.vx = G.vz = 0; G.golpeT = 0; G.empT = 0; G.dormido = true; G.desp = -1; G.g.position.set(G.x, G.y, G.z); G.g.rotation.y = G.ry; crearOjos(G); }
@@ -6429,12 +6430,12 @@ function moverGolemsPozos(dt) {
         if (G.desp > 1.6) { G.dormido = false; if (G.quieto) G.quieto.fadeOut(0.4); G.andar.reset().fadeIn(0.4).play(); } }
       G.mix.update(dt); moverOjos(G, G.desp >= 0 ? suave(0, 0.8, G.desp) : 0); continue; }
     G.golpeT = Math.max(0, G.golpeT - dt);
-    const casa = Math.hypot(G.x - G.x0, G.z - G.z0), cerca = !rescate && d < 16 && Math.hypot(pos.x - G.x0, pos.z - G.z0) < 22, hx = cerca ? dx : G.x0 - G.x, hz = cerca ? dz : G.z0 - G.z, hd = Math.hypot(hx, hz), v = G.golpeT <= 0 && (cerca ? d > 1.9 : casa > 0.6) ? 1.05 : 0;   /* (lejos de su sitio, vuelve) */
+    const casa = Math.hypot(G.x - G.x0, G.z - G.z0), cerca = !rescate && d < 16 && Math.hypot(pos.x - G.x0, pos.z - G.z0) < 22, hx = cerca ? dx : G.x0 - G.x, hz = cerca ? dz : G.z0 - G.z, hd = Math.hypot(hx, hz), v = G.golpeT <= 0 && (cerca ? d > 1.9 : casa > 0.6) ? 2.3 : 0;   /* (rápidos; lejos de su sitio, vuelve) */
     if (v && hd > 0.01) { const nx = G.x + hx / hd * v * dt, nz = G.z + hz / hd * v * dt; if (!enPozoHex(nx, nz, -1.4)) { G.x = nx; G.z = nz; } }   /* (andando, nunca se mete solo en un pozo) */
     G.x += G.vx * dt; G.z += G.vz * dt; const fr = Math.exp(-dt * 1.6); G.vx *= fr; G.vz *= fr;
     if (enPozoHex(G.x, G.z, 0.5)) { G.cae = true; G.caeT = 0; G.vy = 0; musica.rocas(0.9); temblorCam = 0.7; continue; }
     G.y = lerp(G.y, alturaTerreno(G.x, G.z), 1 - Math.exp(-dt * 8)); G.g.position.set(G.x, G.y, G.z);
-    G.g.rotation.y = lerpAngulo(G.g.rotation.y, Math.atan2(hx, hz), 1 - Math.exp(-dt * 4)); G.andar.timeScale = clamp(v / 1.4 + Math.hypot(G.vx, G.vz) * 0.1, 0.15, 1.2); G.mix.update(dt); moverOjos(G, 1);
+    G.g.rotation.y = lerpAngulo(G.g.rotation.y, Math.atan2(hx, hz), 1 - Math.exp(-dt * 4)); G.andar.timeScale = clamp(v / 1.6 + Math.hypot(G.vx, G.vz) * 0.1, 0.15, 1.2); G.mix.update(dt); moverOjos(G, 1);
     G.empT = !rescate && d < 2.4 && Math.abs(pos.y - G.y) < 3 && G.golpeT <= 0 ? G.empT + dt : 0;   /* (antes de empujar, medio segundo) */
     if (G.empT > 0.5) { G.empT = 0; const nx = dx / (d || 1), nz = dz / (d || 1); pos.x = G.x + nx * 2.35; pos.z = G.z + nz * 2.35; vel.x = nx * 11; vel.z = nz * 11; vel.y = Math.max(vel.y, 5); enSuelo = false; G.golpeT = 1.2; musica.rocas(0.5); } }
 }
@@ -6645,8 +6646,10 @@ const matHexPozo = () => _matHexPozo || (_matHexPozo = (() => {   // la piedra d
 // Puentes y escalinatas del editor: del tono del puente de acceso (más claros), y la escalinata se sube (una rampa por
 // encima de sus peldaños, medida con rayos sobre su forma real).
 function pasoDelEditor(it, g) {
-  const esc = it.modelo === "gltf:escalinata"; if (!esc && it.modelo !== "gltf:puente_grande") return;
-  g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { if (m.color) m.color.multiplyScalar(esc ? 1.75 : 1.3); }); });   /* (como el puente de acceso: ×1,3) */
+  const esc = it.modelo === "gltf:escalinata", zC = g.position.z < -1500 && g.position.z > -1660;
+  if (!esc && it.modelo !== "gltf:puente_grande") { if (zC && it.nieve) g.traverse(o => { if (!o.isMesh) return; const m0 = o.material; if (Array.isArray(m0)) return; const prev = m0.onBeforeCompile, k0 = m0.customProgramCacheKey ? m0.customProgramCacheKey() : "", m = o.material = m0.clone();   /* (en la cueva, la nieve de las rocas, más clara) */
+      m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m0, sh, r); if (sh.fragmentShader.includes("float cubre")) sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.95, 0.96, 0.98) * cubre * 0.3;"); }; m.customProgramCacheKey = () => k0 + "|nieveCueva"; }); return; }
+  g.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { if (m.color) m.color.multiplyScalar(esc ? 2.1 : (zC ? 1.6 : 1.3)); }); });   /* (como el puente de acceso: ×1,3) */
   if (!esc) { g.traverse(o => { if (!o.isMesh) return; const m0 = o.material, prev = m0.onBeforeCompile, m = o.material = m0.clone(); m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m0, sh, r); if (!sh.fragmentShader.includes("float cubre")) nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.28;"); }; m.customProgramCacheKey = () => "puenteEdNieve"; }); return; }   /* (los puentes del editor: nieve clara, como el de acceso) */
   g.traverse(o => { if (!o.isMesh) return; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => { nieveFinaBase(sh); sh.uniforms.tonoNieve = { value: new THREE.Color(0xf2f5fa) }; sh.fragmentShader = sh.fragmentShader.replace("float cubre = smoothstep(0.5, 0.78,", "float cubre = smoothstep(0.25, 0.55,").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n totalEmissiveRadiance += tonoNieve * cubre * 0.4;"); }; m.customProgramCacheKey = () => "escalinataNieve"; });   /* (nieve bien blanca) */   /* (nevada por arriba) */
   escalinatasEd.push(g); }
