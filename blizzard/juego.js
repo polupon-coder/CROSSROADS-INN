@@ -200,7 +200,8 @@ const CAMINO = [[0, 120], [0, 12], [0, -15], [-4, -42], [1, -70], [0, -100], [2,
   .concat([[-5, -641], [6, -691], [-3, -736], [0, -800], [6, -818], [-5, -840], [6, -862], [-5, -884], [5, -906], [-4, -928], [1, -946], [0, -965],
     // tras el desfiladero: dunas con un paso serpenteante entre la nieve que se hunde; luego, las columnas de basalto
     [0, -990], [3.5, -1002], [-3.5, -1015], [4, -1028], [-4, -1041], [3.5, -1054], [-3.5, -1067], [3, -1080], [0, -1093], [0, -1100],
-    [0, -1185], [-2.5, -1220], [2.5, -1250], [0, -1275], [0, -1380], [0, -1600], [0, -1680], [-5, -1760], [4, -1850], [-3, -1930], [0, -2080]]);   /* (y por las dunas de la salida, ondulando) */   /* (hasta el final: sin esto, tras la plataforma flotante el viento no dejaba pasar) */   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
+    [0, -1185], [-2.5, -1220], [2.5, -1250], [0, -1275], [0, -1380], [0, -1600], [0, -1680], [-5, -1760], [4, -1850], [-3, -1930], [0, -2080],
+    [4, -2120], [-4, -2165], [3, -2205], [0, -2245], [0, -2280], [-3, -2300], [-3, -2338], [0, -2358], [0, -2392], [3, -2420], [3, -2472], [0, -2500], [0, -2720]]);   /* (tras el cementerio de huesos: rocas, montañas y acantilados) */   /* (y por las dunas de la salida, ondulando) */   /* (hasta el final: sin esto, tras la plataforma flotante el viento no dejaba pasar) */   // (la escalera del acantilado, recta)       // dunas: ya en coordenadas finales
 const PLATAFORMA = { x: -4, z: LARGO(-42), r: 5.4, alto: 0.7 };
 const GRIETA = { z: LARGO(-100), media: 2.45 };
 // La grieta serpentea y cambia de anchura; junto al camino conserva el ancho del salto.
@@ -265,7 +266,10 @@ const DUNAS = { desde: -558, hasta: -756 };                   // campo de dunas 
 const RUEDAS_Z = { desde: -305, hasta: -321.8 };   // (las ruedas que te echan a las grietas)
 const ARCOS = { desde: -322, hasta: -456 }, ANILLO_Z = -1565, HEX_FIN = -1323, HIELO = { desde: -1329, hasta: -1403 },   /* (los pilares movedizos, un tercio más largos) */ PUZLE_Z = -786, PUERTA_Z = -376, PUERTA_ARCANA_Z = -446;   // puerta de rocas que hay que apartar
 const CUEVA_Z = HIELO.hasta - 100;   // (la cueva de hielo, tras pasar bajo el gran iceberg)
-const FIN_Z = -1985;   /* (al fondo de la zona de dunas y ruinas) */   // (el final, al fondo de las dunas tras la cueva)
+const FIN_Z = -2530;   /* (ahora, tras los acantilados) */
+// Tras el cementerio de huesos: zona de rocas, montañas y grandes acantilados (escaleras y pasos por el borde del precipicio).
+const MONT = { rocas: -2010, mont: -2110, acant: -2235, esc1: [-2245, -2275], esc2: [-2355, -2385], borde1: [-2295, -2340], borde2: [-2425, -2470] };
+const altoMont = z => 10 * suave(MONT.esc1[0], MONT.esc1[1], z) + 10 * suave(MONT.esc2[0], MONT.esc2[1], z);   /* (al fondo de la zona de dunas y ruinas) */   // (el final, al fondo de las dunas tras la cueva)
 // Tras el desfiladero final: otras dunas, sembradas de nieve que se hunde (solo un paso serpenteante es
 // firme); luego, un campo de columnas de basalto nevadas; al final, el anillo.
 const DUNAS2 = { desde: -990, hasta: -1094 }, ACANT = { pie: -1121, cima: -1176, alto: 20.7 }, PLAT_ANTIGUA_Z = -1106, BASALTO = { desde: -1098, hasta: -1220 };
@@ -500,6 +504,14 @@ function alturaTerreno(x, z) {
   if (z < HIELO.desde && z > HIELO.hasta && Math.abs(x) < 90) h = -60;   // (bajo el hielo: el vacío)   // (tampoco bajo la escalera: debajo, roca)   // (y bajo el muro: ninguna nieve del suelo asoma en la roca)   // (la nieve no llega al pie del muro)   // el abismo delante del muro (se cruza por el puente)   // (el escalón, metido dentro del acantilado; la escalera, aparte)
   { const zH = HIELO.hasta; if (z < zH && z > zH - 12 && Math.abs(x) < 90) h += 0.45 * suave(zH - 12, zH, z); }
   if (z < -1519 && z > -1543) h += 2.15 * suave(-1520, -1533.5, z) * suave(-1542, -1537.5, z) * suave(13, 9, Math.abs(x - 2));   /* (tras la segunda pared de hielo, el suelo de la cueva puesto en el editor empezaba 2 m más alto: una rampa suave para subir) */   /* (al salir del lago, sin escalón: el paso sube suave hasta el hielo) */
+  if (z < -1995) {   /* (la zona nueva) */
+    const k = suave(-1995, -2020, z), cx = caminoX(z), dx = x - cx, d = Math.abs(dx), E = altoMont(z);
+    let n = E + 0.9 * Math.sin(x * 0.1 + z * 0.07) * Math.sin(z * 0.05 + 1.1) * suave(2, 9, d);
+    n += suave(MONT.mont, MONT.mont - 25, z) * (1 - suave(MONT.acant + 10, MONT.acant, z)) * 46 * suave(14, 70, d) * (0.65 + 0.35 * Math.sin(x * 0.05 + z * 0.03));   /* (montañas a los lados) */
+    const ac = suave(MONT.acant + 5, MONT.acant - 8, z), b1 = z < MONT.borde1[0] && z > MONT.borde1[1], b2 = z < MONT.borde2[0] && z > MONT.borde2[1];
+    if (ac > 0) { const wl = b1 ? 1.6 : 8, wr = b2 ? 1.6 : 8; n += ac * 38 * Math.max(dx < 0 && !b2 ? suave(wl, wl + 3, -dx) : 0, dx > 0 && !b1 ? suave(wr, wr + 3, dx) : 0);   /* (paredes de acantilado) */
+      if ((b1 && dx > 2.3) || (b2 && dx < -2.3)) n = -60; }   /* (el paso por el borde: al otro lado, el precipicio) */
+    h = lerp(h, n, k); }
   return h - hoyoHuellas(x, z);
 }
 PLATAFORMA4.base = alturaTerreno(PLATAFORMA4.x, PLATAFORMA4.z);
@@ -604,7 +616,7 @@ let MAT_SUELO = null;                                        // el material del 
   // más gruesa lejos, para que el borde roto sea orgánico sin disparar el número de triángulos.
   const filas = (a, b, paso) => { const r = []; for (let v = a; v < b - 1e-6; v += paso) r.push(v); return r; };
   const xs = [...filas(-160, -40, 2.4), ...filas(-40, 40, 0.5), ...filas(40, 160, 2.4), 160];
-  const zs = [...filas(-2060, -1772, 1.6), ...filas(-1772, -1674, 0.5), ...filas(-1674, -1580, 1.1),   /* (en la zona de pozos, fina: el filo de los pozos, redondo) */ ...filas(-1580, ACANT.pie, 0.7),   /* (hasta el fondo de las dunas tras la cueva) */ ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
+  const zs = [...filas(-2720, -1772, 1.6), ...filas(-1772, -1674, 0.5), ...filas(-1674, -1580, 1.1),   /* (en la zona de pozos, fina: el filo de los pozos, redondo) */ ...filas(-1580, ACANT.pie, 0.7),   /* (hasta el fondo de las dunas tras la cueva) */ ...filas(ACANT.pie, ACANT.pie + 17.5, 0.2), ...filas(ACANT.pie + 17.5, SIMA4.hasta - 2, 0.7), ...filas(SIMA4.hasta - 2, SIMA4.desde + 2, 0.25), ...filas(SIMA4.desde + 2, GRIETA_C2.hasta - 2, 0.7), ...filas(GRIETA_C2.hasta - 2, GRIETA_C2.desde + 2, 0.25), ...filas(GRIETA_C2.desde + 2, ESCALERA.hasta - 2, 0.7), ...filas(ESCALERA.hasta - 2, ESCALERA.hasta + 2, 0.25), ...filas(ESCALERA.hasta + 2, ESCALERA.desde - 2, 1), ...filas(ESCALERA.desde - 2, ESCALERA.desde + 2, 0.25), ...filas(ESCALERA.desde + 2, GRIETA_C1.hasta - 2, 0.7), ...filas(GRIETA_C1.hasta - 2, GRIETA_C1.desde + 2, 0.25), ...filas(GRIETA_C1.desde + 2, -800, 0.7), ...filas(-800, DUNAS.desde, 0.6), ...filas(DUNAS.desde, QUIEBRA2.hasta - 2, 1), ...filas(QUIEBRA2.hasta - 2, QUIEBRA2.desde + 2, 0.25), ...filas(QUIEBRA2.desde + 2, QUIEBRA.hasta - 2, 1), ...filas(QUIEBRA.hasta - 2, QUIEBRA.desde + 2, 0.25), ...filas(QUIEBRA.desde + 2, ZANJA.hasta - 2, 1), ...filas(ZANJA.hasta - 2, ZANJA.desde + 2, 0.25), ...filas(ZANJA.desde + 2, RELLANO.z - 4, 1), ...filas(RELLANO.z - 4, RELLANO.z + 4, 0.25), ...filas(RELLANO.z + 4, PRECIPICIO.hasta - 2, 1), ...filas(PRECIPICIO.hasta - 2, GRIETA.z + 9, 0.25), ...filas(GRIETA.z + 9, PUENTE.hasta - 2, 1), ...filas(PUENTE.hasta - 2, PUENTE.desde + 2, 0.25), ...filas(PUENTE.desde + 2, -94, 0.3), ...filas(-94, 140, 1), 140];   // (fina donde las huellas)   // (fina donde las huellas)
   const geo = new THREE.BufferGeometry(), vert = [], uvs = [], idx = [];
   for (const z of zs) for (const x of xs) { vert.push(x, 0, z); uvs.push((x + 160) / 320, (80 - z) / 560); }
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vert, 3));
@@ -693,6 +705,7 @@ let MAT_SUELO = null;                                        // el material del 
  vec3 nF = normalize(cross(dFdx(vMundo), dFdy(vMundo))); rocaB = max(rocaB, 1.0 - smoothstep(0.35, 0.6, abs(nF.y)));
 #endif
  roca = max(roca, rocaB * zP); } }   // (con la normal de cada cara: el filo de los pozos, también de roca)
+      roca = max(roca, rocaB * smoothstep(-2095.0, -2112.0, vMundo.z));   // (las montañas y los acantilados nuevos: roca donde es empinado)
       float hondoP = smoothstep(-1774.0, -1771.0, vMundo.z) * (1.0 - smoothstep(-1672.0, -1669.0, vMundo.z)) * (1.0 - smoothstep(20.0, 28.5, vMundo.y));   // (dentro de los pozos, a oscuras: no se ve nada)
    // (y en las paredes de la zona de pozos: roca, como en el primer precipicio)   // (tras el desfiladero, otra vez todo nieve)   // (en el desfiladero final, otra vez paredes de roca)
       // Barlovento claro, sotavento algo azulado (la cresta se marca); poco a poco al entrar en las dunas
@@ -4292,6 +4305,17 @@ function animarPaso(dt) {
   // La zona de pozos: las paredes de cada pozo, de pilares tallados de pie, juntos (como las paredes de los desfiladeros),
   // desde lo hondo hasta el filo; por fuera y por dentro (el pie del hexágono).
   /* (los pozos: sin disco de fondo; lo hondo se oscurece en el propio suelo) */
+  // Tras el cementerio de huesos: rocas grandes a los lados; en los acantilados, su choque y las escaleras (dos tipos).
+  { const rM = generador(4747), nevarPieza = g => g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => nieveFinaBase(sh); m.customProgramCacheKey = () => "nevarPieza"; } });
+    for (let z = MONT.rocas - 5; z > MONT.mont + 5; z -= 4 + rM() * 4) for (const lado of [-1, 1]) if (rM() < 0.8) enterrar(kitRocas[1 + Math.floor(rM() * 5)], caminoX(z) + lado * (4 + rM() * 12), z, 1.5 + rM() * 4.5, rM() * 6, 0.3);
+    for (let z = MONT.acant - 6; z > FIN_Z - 30; z -= 1.6) { const cx = caminoX(z), b1 = z < MONT.borde1[0] && z > MONT.borde1[1], b2 = z < MONT.borde2[0] && z > MONT.borde2[1];
+      if (!b2) colisiones.push({ x: cx - (b1 ? 1.6 : 8) - 1.2, z, r: 1.3, techo: 99 }); if (!b1) colisiones.push({ x: cx + (b2 ? 1.6 : 8) + 1.2, z, r: 1.3, techo: 99 }); }
+    { const [z0, z1] = MONT.esc1, n = 5, largo = (z0 - z1) / n, sube = 10 / n;   /* (la primera: escalinata de piedra, como la del acantilado de columnas) */
+      for (let k = 0; k < n; k++) { const z = z0 - largo * (k + 0.5), e = encajar(gEscalinata, caminoX(z), altoMont(z) - sube * 0.7, z, 6.5, sube * 1.7, largo * 1.4, ESCALINATA_GIRO); if (k % 2) e.scale.x = -1; nevarPieza(e); } }
+    { const [z0, z1] = MONT.esc2, n = 12, largo = (z0 - z1) / n;   /* (la segunda: peldaños de piedra tallada, tumbados uno tras otro) */
+      for (let k = 0; k < n; k++) { const z = z0 - largo * (k + 0.5), y = altoMont(z), cx = caminoX(z); pilarTallado(kitPilares[k % 3], new THREE.Vector3(cx - 3.2, y - 0.5, z), new THREE.Vector3(cx + 3.2, y - 0.5, z), largo * 1.3, rM() * 0.3); } }
+    for (const [z0, z1, lado] of [[MONT.borde1[0], MONT.borde1[1], -1], [MONT.borde2[0], MONT.borde2[1], 1]]) for (let z = z0 - 4; z > z1; z -= 9) { const x = caminoX(z) + lado * 5.5, y = altoMont(z) - 2;   /* (la pared del paso por el borde: paños de acantilado) */
+      nevarPieza(encajar(gAcantilado, x, y, z, 10, 40, 6, lado * Math.PI / 2)); } }
   // Toda la zona final, cubierta de nieve acumulada: un manto continuo que se pisa (como la del paso de hielo).
   { const x0 = -70, x1 = 50, z0 = SALIDA_CUEVA_Z - 2, z1 = -2010, dist = (x, z) => Math.max(0, x0 + 3 - x, x - (x1 - 3), z - (z0 - 3), (z1 + 3) - z);   /* (la zona de pozos y la de los cadáveres: toda cubierta de nieve honda, como la de la zona de las ruedas) */
     for (let x = x0; x < x1 - 1; x += 40) for (let z = z0; z > z1 + 1; z -= 40) { const zb = Math.max(z1, z - 40); nievePendiente.push(() => ventisquero(x + 20, (z + zb) / 2, 40, z - zb, 0.32, { dist, R: 3, sueloEn: (x, z) => alturaTerreno(x, z), celda: 0.35 }, true)); } }
@@ -4480,7 +4504,8 @@ estilo.textContent = `
   #portada .santuarios { display: grid; gap: 10px; justify-items: center; }
   #portada .santuarios[hidden], #portada .botones[hidden], #portada .teclas[hidden] { display: none; }
   #portada .santuarios p { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; color: var(--tinta-suave); }
-  #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); }
+  #portada .lista { display: grid; gap: 8px; width: min(380px, 100%); max-height: 46vh; overflow-y: auto; padding: 14px 4px; -webkit-mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(180deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); scrollbar-width: none; }   /* (con desplazamiento, velado arriba y abajo) */
+  #portada .lista::-webkit-scrollbar { display: none; }
   #portada .lista button { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--tinta); background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(214,226,242,.6)); border: none; border-radius: 14px; padding: 8px 14px; cursor: pointer; }
   #portada .lista button:hover, #portada .lista button:focus-visible { background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(226,235,247,.8)); outline: none; }
   #portada .lista svg { width: 44px; height: 44px; }
