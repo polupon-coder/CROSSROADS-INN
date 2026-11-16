@@ -4998,6 +4998,9 @@ function empezar(santuario = 0) {
 // Empezar ante una plataforma, con su poder ya aprendido (sin trazar su runa) y los de las anteriores;
 // sin la toma inicial.
 function empezarEnSantuario(n) {
+  if (!window.BLIZZARD_EDITOR) {   /* (una cortina del color del cielo hasta que la escena esté entera y en su sitio: si no, se veía cargar por partes) */
+    const c = document.createElement("div"); c.style.cssText = "position:fixed;inset:0;background:#c9d8ee;z-index:40;opacity:1;transition:opacity .9s;pointer-events:none"; document.body.appendChild(c); const t0 = performance.now(); let listoT = 0;
+    const mira = () => { const ahora = performance.now(); if (escenaLista && !listoT) listoT = ahora; if ((listoT && ahora - listoT > 1500 && ahora - t0 > 900) || ahora - t0 > 25000) { c.style.opacity = "0"; setTimeout(() => c.remove(), 1000); return; } requestAnimationFrame(mira); }; requestAnimationFrame(mira); }
   let inicioYaw = null;
   const P = n >= 7 ? PLATAFORMA7 : n === 6 ? PLATAFORMA6 : PLATAFORMAS[Math.min(n, 5) - 1];
   const z = n === 1 ? P.z + P.r + 4 : n === 2 ? P.z + ANILLO_R + 3.5 : n === 3 ? RAMPA3.desde + RAMPA3.largo + 2.5 : P.z + P.r + 5, x = n === 2 ? P.x : caminoX(z);
