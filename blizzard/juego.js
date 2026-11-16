@@ -126,6 +126,7 @@ document.documentElement.lang = idioma;
 const aviso = document.createElement("p");
 aviso.innerHTML = `<span class="medita">${tr("Meditando…")}</span><small>${tr("La paciencia es amarga, pero sus frutos son dulces.").replace(/,\s*/, ",<br>")}</small><style>@keyframes medita { 0%, 100% { opacity: 1 } 50% { opacity: .25 } } .medita { animation: medita 2.4s ease-in-out infinite; } #carga { text-align: center; } #carga small { display: block; margin-top: 44px; font-size: 15px; font-style: italic; opacity: .7; }</style>`; aviso.id = "carga";
 aviso.style.cssText = "position:fixed;inset:0;margin:0;display:grid;place-content:center;font:20px Georgia,serif;color:#1f2a3d;background:#c9d8ee;z-index:9";
+const avisoHTML = aviso.innerHTML, avisoCSS = aviso.style.cssText;   /* (la misma pantalla de meditar, para cuando se empieza en un santuario) */
 document.body.appendChild(aviso);
 const cargador = new THREE.GLTFLoader();
 // En el artefacto de claude.ai los GLB van en JSON (base64), porque allí no se sirven archivos .glb.
@@ -4999,7 +5000,7 @@ function empezar(santuario = 0) {
 // sin la toma inicial.
 function empezarEnSantuario(n) {
   if (!window.BLIZZARD_EDITOR) {   /* (una cortina del color del cielo hasta que la escena esté entera y en su sitio: si no, se veía cargar por partes) */
-    const c = document.createElement("div"); c.style.cssText = "position:fixed;inset:0;background:#c9d8ee;z-index:40;opacity:1;transition:opacity .9s;pointer-events:none"; document.body.appendChild(c); const t0 = performance.now(); let listoT = 0;
+    const c = document.createElement("p"); c.id = aviso.id || "carga"; c.innerHTML = avisoHTML; c.style.cssText = avisoCSS + ";z-index:40;opacity:1;transition:opacity .9s;pointer-events:none"; document.body.appendChild(c); const t0 = performance.now(); let listoT = 0;
     const mira = () => { const ahora = performance.now(); if (escenaLista && !listoT) listoT = ahora; if ((listoT && ahora - listoT > 1500 && ahora - t0 > 900) || ahora - t0 > 25000) { c.style.opacity = "0"; setTimeout(() => c.remove(), 1000); return; } requestAnimationFrame(mira); }; requestAnimationFrame(mira); }
   let inicioYaw = null;
   const P = n >= 7 ? PLATAFORMA7 : n === 6 ? PLATAFORMA6 : PLATAFORMAS[Math.min(n, 5) - 1];
@@ -5108,13 +5109,19 @@ const radioBorde = (c, x, z) => c.borde[Math.floor((Math.atan2(z - c.z, x - c.x)
 const _rayoObj = new THREE.Raycaster(), _origenObj = new THREE.Vector3();
 function alturaObj(c, x, z) {
   if (!c.listo) { c.obj.updateMatrixWorld(true); c.listo = true; }
-  const kq = Math.round(x * 40) * 100003 + Math.round(z * 40), mc = c._memo || (c._memo = new Map()); if (mc.has(kq)) return mc.get(kq);   /* (la pieza no se mueve: lo ya medido se recuerda; los rayos contra los huesos del cementerio hacían ir lento el juego) */
+  const kq = Math.round(x * 6) * 100003 + Math.round(z * 6), mc = c._memo || (c._memo = new Map()); if (mc.has(kq)) return mc.get(kq);   /* (la pieza no se mueve: lo ya medido se recuerda; los rayos contra los huesos del cementerio hacían ir lento el juego) */
   _rayoObj.set(_origenObj.set(x, c.techo + 2, z), _abajo);
   const g = _rayoObj.intersectObject(c.obj, true)[0], h = g ? g.point.y : -Infinity;
-  if (mc.size > 4000) mc.clear(); mc.set(kq, h); return h;
+  if (mc.size > 20000) mc.clear(); mc.set(kq, h); return h;
 }
 // Lo más alto bajo los pies (centro y cuatro puntos alrededor).
 const alturaObjPies = (c, x, z) => Math.max(alturaObj(c, x, z), alturaObj(c, x + 0.16, z), alturaObj(c, x - 0.16, z), alturaObj(c, x, z + 0.16), alturaObj(c, x, z - 0.16));
+// Las colisiones cerca del personaje (se rehacen al moverse unos metros o al cambiar la lista): con el decorado nuevo son miles y recorrerlas todas en cada paso hacía ir lento el juego.
+let _colsCerca = [], _colsN = -1, _colsX = 1e9, _colsZ = 1e9, _colsT = 0;
+function colsEn(x, z) {
+  if (Math.abs(x - pos.x) > 22 || Math.abs(z - pos.z) > 22) return colisiones;
+  if (colisiones.length !== _colsN || Math.abs(pos.x - _colsX) > 6 || Math.abs(pos.z - _colsZ) > 6 || ++_colsT > 40) { _colsT = 0; _colsN = colisiones.length; _colsX = pos.x; _colsZ = pos.z; _colsCerca = colisiones.filter(c => Math.hypot(c.x - pos.x, c.z - pos.z) - (c.r || 0) < 40); }
+  return _colsCerca; }
 function sueloEn(x, z, pies) {
   { const P = enPozoHex(x, z, 0.15); if (P && Math.hypot(x - P.x, z - P.z) > P.rh + 0.1) return { h: alturaTerreno(x, z), sobre: null }; }   /* (en los pozos no hay nada que pisar: lo que los cruzaba se rompió) */   /* (en las grietas de la puerta no hay nada que pisar: lo que las cruzaba se rompió) */
   let h = -Infinity, sobre = null;
@@ -5127,7 +5134,7 @@ function sueloEn(x, z, pies) {
     }
     { const pa = alturaAspas(x + dx, z + dz); if (pa <= pies + PASO) h = Math.max(h, pa); }   // (las vigas del puente de aspas)
   }
-  for (const c of colisiones) {
+  for (const c of colsEn(x, z)) {
     if (c.rampa) {                                                  // altura continua a lo largo de la pilastra
       const q = enRampa(c, x, z);
       if (q.d < c.rampa.ancho + (c.rampa.corta ? 0 : 0.1) && q.y <= pies + PASO && q.y > h) { h = q.y; sobre = c; }
@@ -5161,17 +5168,17 @@ function moverHorizontal(dx, dz) {
   const paso = enSuelo ? PASO : 0.55;                         // en el aire no se «sube» un escalón
   // Piedras con malla: su cara, 35 cm por delante, no puede subir más de 0,35 m sobre los pies (no se
   // trepa por las faldas inclinadas de las rocas; lo que es más alto se salta).
-  const cerca = colisiones.filter(c => c.obj && !c.soloSuelo && c.techo > pos.y + 0.35 && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.8);
+  const cerca = colsEn(pos.x, pos.z).filter(c => c.obj && !c.soloSuelo && c.techo > pos.y + 0.35 && Math.hypot(pos.x - c.x, pos.z - c.z) < c.r + 0.8);
   const piedra = (x, z) => cerca.every(c => Math.hypot(x - c.x, z - c.z) >= c.r || alturaObj(c, x, z) <= pos.y + 0.35);
   const prueba = (x, z) => alturaSuelo(x, z) <= pos.y + paso && alturaSuelo(x + ax, z + az) <= pos.y + paso + 0.1 && piedra(x + ax, z + az);
   if (prueba(pos.x + dx, pos.z + dz)) { pos.x += dx; pos.z += dz; }
   else if (prueba(pos.x + dx, pos.z)) { pos.x += dx; vel.z = 0; }
   else if (prueba(pos.x, pos.z + dz)) { pos.z += dz; vel.x = 0; }
   else { vel.x = vel.z = 0; }
-  for (const c of colisiones) {
+  for (const c of colsEn(pos.x, pos.z)) {
     if (c.rampa) {                                                  // por debajo de la pilastra, empuja hacia fuera de su eje
       const q = enRampa(c, pos.x, pos.z), rr = c.rampa.ancho + 0.25;
-      if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001 && !colisiones.some(k => k.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= k.bajo && Math.hypot(k.x - pos.x, k.z - pos.z) < k.r + 0.6)) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }   // (si por debajo se cabe, de pie o agachado, no empuja: era un muro invisible)
+      if (q.d < rr && pos.y < q.y - PASO && q.d > 0.001 && !colsEn(pos.x, pos.z).some(k => k.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= k.bajo && Math.hypot(k.x - pos.x, k.z - pos.z) < k.r + 0.6)) { pos.x = q.px + (pos.x - q.px) / q.d * rr; pos.z = q.pz + (pos.z - q.pz) / q.d * rr; }   // (si por debajo se cabe, de pie o agachado, no empuja: era un muro invisible)
       continue;
     }
     if (c.soloSuelo || (c.bajo !== undefined && (agachadoAhora ? pos.y + 1.0 : pos.y + 1.55) <= c.bajo)) continue;   // por debajo, agachado, se pasa (soloSuelo: solo para pisar encima)
@@ -5750,15 +5757,15 @@ function actualizar(dt) {
   // Que no se pierda a Blizzard tras una roca, una puerta o una pieza alta: si algo se interpone entre los dos
   // (girada a mano, o con la cámara metida dentro de algo), la cámara se acerca hasta quedar delante.
   { const cabeza = _camQ.set(pos.x, pos.y + 1.4, pos.z), d = _camD.copy(ojo).sub(cabeza), L2 = d.x * d.x + d.z * d.z;
-    const dentro = colisiones.some(c => !c.rampa && c.bajo === undefined && c.techo > ojo.y - 0.3 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.3);
+    const dentro = colsEn(pos.x, pos.z).some(c => !c.rampa && c.bajo === undefined && c.techo > ojo.y - 0.3 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.3);
     if ((Math.abs(giroCam) > 0.05 || dentro || orbitaT >= 0) && L2 > 0.01) {   /* (también en la vuelta tras la runa: tan lejos como deje el entorno, sin que nada tape) */ let tMin = 1;
-      for (const c of colisiones) { if (c.rampa || c.soloSuelo || c.bajo !== undefined) continue; const fx = cabeza.x - c.x, fz = cabeza.z - c.z, R = c.r + 0.35;
+      for (const c of colsEn(pos.x, pos.z)) { if (c.rampa || c.soloSuelo || c.bajo !== undefined) continue; const fx = cabeza.x - c.x, fz = cabeza.z - c.z, R = c.r + 0.35;
         if (fx * fx + fz * fz < R * R) continue;   // (si Blizzard está junto a ella, no cuenta)
         const bq = 2 * (fx * d.x + fz * d.z), cq = fx * fx + fz * fz - R * R, disc = bq * bq - 4 * L2 * cq; if (disc < 0) continue;
         const t = (-bq - Math.sqrt(disc)) / (2 * L2); if (t > 0 && t < tMin && c.techo > cabeza.y + d.y * t - 0.2) tMin = t; }
       if (tMin < 1) ojo.copy(cabeza).addScaledVector(d, Math.max(0.22, tMin - 0.06)); } }
   // Que la cámara no quede dentro de una pilastra de techo bajo: si cae en una, sube por encima.
-  for (const c of colisiones) if (c.bajo !== undefined && !c.soloSuelo && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
+  for (const c of colsEn(pos.x, pos.z)) if (c.bajo !== undefined && !c.soloSuelo && ojo.y > c.bajo - 0.5 && ojo.y < c.techo + 0.5 && Math.hypot(ojo.x - c.x, ojo.z - c.z) < c.r + 0.9) ojo.y = c.techo + 1.4;
   const mira = new THREE.Vector3().copy(pos).addScaledVector(adelante, lerp(lerp(4, 10, enTunel), 1.5, cerca)).add(new THREE.Vector3(0, lerp(lerp(1.1, 3.4, enTunel), 1.2, cerca), 0));
   // Los metros antes de llegar a una plataforma (viniendo hacia ella), la cámara sube: cenital, ladeada; al pisarla, vuelve.
   { let k = 0; for (const P of PLATAFORMAS) { if (pos.z < P.z + P.r * 0.5) continue; const d = Math.hypot(pos.x - P.x, pos.z - P.z) - P.r; k = Math.max(k, suave(16, 9, d) * suave(0.4, 3, d)); }
@@ -5943,7 +5950,7 @@ const nevada = (() => {   // la nevada de fuera de las cuevas: copos que caen
 const _esfLejos = new Map(), _vLejos = new THREE.Vector3(); let _cuadroLejos = 0;
 function cortarLejos() {
   if (window.BLIZZARD_EDITOR || !scene.fog || (++_cuadroLejos & 7)) return; const lim = scene.fog.far, activo = lim < 120 && pos.z < -1700;
-  for (const o of scene.children) { if (!(o.isMesh || o.isGroup) || o === blizzard) continue; let e = _esfLejos.get(o);
+  for (const o of scene.children) { if (!(o.isMesh || o.isGroup) || o === blizzard || o === baston || (capaTela && o === capaTela.malla) || o.frustumCulled === false) continue; let e = _esfLejos.get(o);   /* (ni el personaje, ni su capa, ni lo que se mueve por sí mismo) */
     if (!e) { const b = new THREE.Box3().setFromObject(o); if (b.isEmpty()) { _esfLejos.set(o, e = { no: true }); continue; } const sp = b.getBoundingSphere(new THREE.Sphere()); let sinNiebla = false; o.traverse(q => { if (q.material && (Array.isArray(q.material) ? q.material : [q.material]).some(m => m.fog === false)) sinNiebla = true; });
       e = { c: sp.center.sub(o.position), r: sp.radius, no: sp.radius > 60 || sinNiebla, lejos: false }; _esfLejos.set(o, e); }
     if (e.no) continue; const lejos = activo && _vLejos.copy(o.position).add(e.c).distanceTo(camara.position) - e.r > lim + 6;
@@ -6665,7 +6672,7 @@ function moverRodantesCem(dt) {
       g.traverse(o => { if (o.isMesh) { o.castShadow = true; const m = o.material = o.material.clone(); m.onBeforeCompile = sh => nieveFinaBase(sh); m.customProgramCacheKey = () => "nevarPieza"; } }); espolvoreoMapa(g); rodCem.L.push({ g, giro, R, z, fase, amp, x: caminoX(z) }); }); }   /* (el gólem, encogido en bola) */
   rodCem.t += dt;
   for (const Q of rodCem.L) { const cx = caminoX(Q.z), xa = Q.x; Q.x = cx + Math.sin(rodCem.t * 0.55 + Q.fase) * Q.amp; const y = alturaTerreno(Q.x, Q.z); Q.g.position.set(Q.x, y, Q.z); Q.giro.rotation.z -= (Q.x - xa) / Q.R;
-    if (Math.abs(Q.x - xa) > 0.02 && ((rodCem.t * 3) | 0) % 2 === 0) surcoEnNieve(Q.x, Q.z, 0.9, 0.22);   /* (deja su rastro en la nieve) */
+    if (Math.abs(Q.x - Q.hx0) > 1.2 && Math.abs(Q.z - pos.z) < 35) { Q.hx0 = Q.x; surcoEnNieve(Q.x, Q.z, 0.9, 0.22); } else if (Q.hx0 === undefined) Q.hx0 = Q.x;   /* (un surco cada metro y algo, y solo cerca: en cada fotograma hacía ir lento el cementerio) */   /* (deja su rastro en la nieve) */
     if (!rescate && Math.hypot(pos.x - Q.x, pos.z - Q.z) < Q.R + 0.5 && pos.y < y + 2 * Q.R + 0.3) empujarBlizzard(Math.sign(Q.x - xa || 1) * 12, (pos.z > Q.z ? 1 : -1) * 4, 5); }
 }
 function moverMontes(dt) {
